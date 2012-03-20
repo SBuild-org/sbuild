@@ -1,0 +1,124 @@
+package de.tototec.sbuild.runner
+
+import scala.annotation.tailrec
+import java.net.URLClassLoader
+import de.tototec.sbuild.Util
+import java.io.FileWriter
+import java.io.LineNumberReader
+import java.io.FileReader
+import de.tototec.sbuild.Target
+import scala.tools.nsc.settings.MutableSettings
+import scala.tools.nsc.Settings
+import scala.tools.nsc.interpreter.IMain
+import java.io.File
+import de.tototec.sbuild.Project
+import de.tototec.sbuild.SBuildException
+
+class ProjectScript(scriptFile: File, compileClasspath: String) {
+
+  val buildFileTargetDir = ".sbuild";
+
+  val scriptBaseName = scriptFile.getName.substring(0, scriptFile.getName.length - 6)
+  lazy val targetDir: File = new File(scriptFile.getParentFile, buildFileTargetDir)
+  lazy val targetClassFile = new File(targetDir, scriptBaseName + ".class")
+  lazy val infoFile = new File(targetDir, "sbuild.info.xml")
+
+  def checkFile() = if (!scriptFile.exists) {
+    throw new RuntimeException("Could not find build file: " + scriptFile.getName + "\nSearched in: "
+      + scriptFile.getAbsoluteFile.getParent)
+  }
+
+  def compileAndExecute(project: Project) {
+    checkFile
+
+    val infoFile = new File(targetDir, "sbuild.info.xml")
+
+    if (!checkInfoFileUpToDate) {
+      newCompile
+    }
+
+    useExistingCompiled(project)
+
+  }
+
+  def checkInfoFileUpToDate(): Boolean = {
+    infoFile.exists && {
+      val info = xml.XML.loadFile(infoFile)
+
+      val sourceSize = (info \ "sourceSize").text.toLong
+      val sourceLastModified = (info \ "sourceLastModified").text.toLong
+      val targetClassLastModified = (info \ "targetClassLastModified").text.toLong
+      val sbuildVersion = (info \ "sbuildVersion").text
+
+      scriptFile.length == sourceSize &&
+        scriptFile.lastModified == sourceLastModified &&
+        targetClassFile.lastModified == targetClassLastModified &&
+        sbuildVersion == SBuild.version
+    }
+  }
+
+  def useExistingCompiled(project: Project) {
+    SBuild.verbose("Loading compiled version of build script: " + scriptFile)
+    val cl = new URLClassLoader(Array(targetDir.toURI.toURL), getClass.getClassLoader)
+    val clazz: Class[_] = cl.loadClass(scriptBaseName)
+    val ctr = clazz.getConstructor(classOf[Project])
+    val scriptInstance = ctr.newInstance(project)
+    // We assume, that everything is done in constructor, so we are done here
+  }
+
+  def newCompile {
+    Util.delete(targetDir)
+    targetDir.mkdirs
+    SBuild.verbose("Compiling build script: " + scriptFile)
+
+    compile_with_fsc
+
+    SBuild.verbose("Writing info file: " + infoFile)
+    val info = <sbuild>
+                 <sourceSize>{ scriptFile.length }</sourceSize>
+                 <sourceLastModified>{ scriptFile.lastModified }</sourceLastModified>
+                 <targetClassLastModified>{ targetClassFile.lastModified }</targetClassLastModified>
+                 <sbuildVersion>{ SBuild.version }</sbuildVersion>
+               </sbuild>
+    val file = new FileWriter(infoFile)
+    xml.XML.write(file, info, "UTF-8", true, null)
+    file.close
+
+  }
+
+  def compile_with_fsc {
+    val params = Array("-classpath", compileClasspath, "-d", new File(".sbuild").getAbsolutePath, scriptFile.getAbsolutePath)
+    //    if(SBuild.verbose) {
+    //      params = Array("-verbose") ++ params
+    //    }
+    val useCmdline = false
+
+    if (!useCmdline) {
+      import scala.tools.nsc.StandardCompileClient
+      val compileClient = new StandardCompileClient
+      if (!compileClient.process(params)) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with CompileClient")
+    } else {
+      import sys.process.Process
+      val retCode = Process(Array("fsc") ++ params) !
+
+      if (retCode != 0) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with fsc")
+    }
+  }
+
+  def interpret() {
+    checkFile
+
+    SBuild.verbose("Interpreting build script: " + scriptFile)
+
+    val settings = new Settings
+    settings.classpath.append("target/classes")
+
+    val main = new IMain(settings)
+    main.addImports("de.tobiasroeser.jackage.sbuild.Goal._")
+    main.bind("Goal", Target.getClass.getName, Target);
+
+    io.Source.fromFile(scriptFile).getLines.map(line => main.interpret(line))
+
+  }
+
+}
