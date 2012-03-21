@@ -151,7 +151,7 @@ object Util {
           if (!zipEntry.isDirectory) {
             val candidate = selectedFiles.find(p => p._1 == zipEntry.getName)
             if (candidate.isDefined) {
-            	selectedFiles -= candidate.get
+            	selectedFiles = selectedFiles.filterNot(_ == candidate.get)
               if (candidate.get._2 != null) {
                 Some(candidate.get._2.jfile)
               } else {

@@ -45,7 +45,6 @@ class SBuild(implicit project: Project) {
 
   val testRunClasspath = testCompileClasspath
   val test = Target("phony:test") dependsOn testCompile ++ testRunClasspath exec {
-	  
   }
 
   val jar = Target("target/package.jar") dependsOn compile

@@ -38,16 +38,16 @@ class TargetImpl(val name: String, val filePath: String, val protocol: String, v
   }
 
   def exec(execution: => Unit): Target = {
-    TargetImpl.this._exec = () =>
+    _exec = () =>
       {
         execution
       }
-    TargetImpl.this
+    this
   }
 
   def help(help: String): Target = {
-    TargetImpl.this.help = help
-    TargetImpl.this
+    this.help = help
+    this
   }
 
   override def toString() = {
@@ -81,7 +81,7 @@ class TargetImpl(val name: String, val filePath: String, val protocol: String, v
             val fileLastModified = targetFile.get.lastModified
             verbose("Target file last modified: " + fileLastModified)
 
-            val prereqsLastModified = prereqs.foldLeft(0: Long)((max, goal) => Math.max(max, goal.targetFile.get.lastModified))
+            val prereqsLastModified = prereqs.foldLeft(0: Long)((max, goal) => math.max(max, goal.targetFile.get.lastModified))
             verbose("Prereqisites last modified: " + prereqsLastModified)
 
             if (fileLastModified < prereqsLastModified) exit("Prerequisites are newer") else true
