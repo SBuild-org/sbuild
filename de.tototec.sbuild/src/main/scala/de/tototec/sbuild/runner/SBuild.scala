@@ -14,19 +14,21 @@ object SBuild {
   private[runner] var verbose = false
 
   class Config {
-    @CmdOption(names = Array("--help"), isHelp = true)
+    @CmdOption(names = Array("--help", "-h"), isHelp = true, description = "Show this help screen.")
     var help = false
 
-    @CmdOption(names = Array("--build-file", "--buildfile", "-f"), args = Array("FILE"))
+    @CmdOption(names = Array("--buildfile", "-f"), args = Array("FILE"),
+      description = "The buildfile to use (default: SBuild.scala).")
     var buildfile = "SBuild.scala"
 
-    @CmdOption(names = Array("--verbose", "-v"))
+    @CmdOption(names = Array("--verbose", "-v"), description = "Be verbose when running.")
     var verbose = false
 
-    @CmdOption(names = Array("--compile-cp"), args = Array("CLASSPATH"))
+    // The classpath is used when SBuild compiles the buildfile
+    @CmdOption(names = Array("--compile-cp"), args = Array("CLASSPATH"), hidden = true)
     var compileClasspath = "target/classes"
 
-    @CmdOption(args = Array("PARAM"))
+    @CmdOption(args = Array("TARGETS"), description = "The target(s) to execute (in order).")
     val params = new java.util.LinkedList[String]()
   }
 
@@ -35,14 +37,14 @@ object SBuild {
     val config = new Config()
     val cp = new CmdlineParser(config)
     cp.parse(args: _*)
-    
+
     SBuild.verbose = config.verbose
-    
-    if(config.help) {
+
+    if (config.help) {
       cp.usage
       System.exit(0)
     }
-    
+
     implicit val project = new Project()
     val script = new ProjectScript(new File(config.buildfile), config.compileClasspath)
     //    script.interpret
@@ -64,27 +66,27 @@ object SBuild {
     var current = 0
     val max = chain.size
 
-    def goalRunner: Target => Unit = { goal =>
+    def goalRunner: Target => Unit = { target =>
       current += 1
       lazy val prefix = "[" + current + "/" + max + "] "
       def verbose(msg: => String) = SBuild.verbose(prefix + msg)
 
-      verbose(">>> Processing goal: " + goal)
+      verbose(">>> Processing target: " + target)
 
       // Should we skip here, after we know that we executed the prerequisites
       //      goal.upToDate match {
       //        case true => verbose("Skip up-to-date goal: " + goal)
       //        case false => 
-      goal.action match {
-        case null => verbose("Nothing to execute for goal: " + goal)
+      target.action match {
+        case null => verbose("Nothing to execute for target: " + target)
         case exec: (() => Unit) => {
-          verbose("Executing goal: " + goal)
+          verbose("Executing target: " + target)
           try {
             exec.apply
-            verbose("Executed goal: " + goal)
+            verbose("Executed target: " + target)
           } catch {
             case e: Throwable => {
-              verbose("Execution aborted with errors: " + e.getMessage);
+              verbose("Execution of target " + target + " aborted with errors: " + e.getMessage);
               throw e
             }
           }

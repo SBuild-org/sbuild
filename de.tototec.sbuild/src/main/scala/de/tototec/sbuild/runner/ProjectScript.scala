@@ -33,11 +33,17 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
 
     val infoFile = new File(targetDir, "sbuild.info.xml")
 
+    val addCp: Array[String] = readAdditionalClasspath
+
     if (!checkInfoFileUpToDate) {
-      newCompile
+      val cp = addCp match {
+        case Array() => compileClasspath
+        case x => compileClasspath + ":" + x.mkString(":", ":", "")
+      }
+      newCompile(cp)
     }
 
-    useExistingCompiled(project)
+    useExistingCompiled(project, addCp)
 
   }
 
@@ -57,21 +63,77 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
     }
   }
 
-  def useExistingCompiled(project: Project) {
+  def readAdditionalClasspath: Array[String] = {
+    SBuild.verbose("About to find additional classpath entries.")
+    import scala.tools.nsc.io.{ File => SFile }
+    var inClasspath = false
+    var skipRest = false
+    var it = SFile(scriptFile).lines
+    var cpLine = ""
+    while (!skipRest && it.hasNext) {
+      var line = it.next.trim
+      if (inClasspath && line.endsWith(")")) {
+        skipRest = true
+        cpLine = cpLine + " " + line.substring(0, line.length - 1).trim
+      }
+      if (line.startsWith("@classpath(")) {
+        line = line.substring(11).trim
+        if (line.endsWith(")")) {
+          line = line.substring(0, line.length - 1).trim
+          skipRest = true
+        }
+        inClasspath = true
+        cpLine = line
+      }
+    }
+
+    cpLine = cpLine.trim
+
+    if (cpLine.length > 0) {
+      if (cpLine.startsWith("cp")) {
+        cpLine = cpLine.substring(2).trim
+        if (cpLine.startsWith("=")) {
+          cpLine = cpLine.substring(1).trim
+        } else {
+          throw new RuntimeException("Expected a '=' sign but got a '" + cpLine(0) + "'")
+        }
+      }
+      if (cpLine.startsWith("Array(") && cpLine.endsWith(")")) {
+        cpLine = cpLine.substring(6, cpLine.length - 1)
+      } else {
+        throw new RuntimeException("Expected a 'Array(...) expression, but got: " + cpLine)
+      }
+
+      val cpItems = cpLine.split(",")
+      val finalCpItems = cpItems map { item => item.trim } map { item =>
+        if (item.startsWith("\"") && item.endsWith("\"")) {
+          item.substring(1, item.length - 1)
+        } else {
+          throw new RuntimeException("Unexpection token found: " + item)
+        }
+      }
+      SBuild.verbose("Using additional classpath entries: " + finalCpItems.mkString(", "))
+      finalCpItems
+    } else {
+      Array()
+    }
+  }
+
+  def useExistingCompiled(project: Project, classpath: Array[String]) {
     SBuild.verbose("Loading compiled version of build script: " + scriptFile)
-    val cl = new URLClassLoader(Array(targetDir.toURI.toURL), getClass.getClassLoader)
+    val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
     val clazz: Class[_] = cl.loadClass(scriptBaseName)
     val ctr = clazz.getConstructor(classOf[Project])
     val scriptInstance = ctr.newInstance(project)
     // We assume, that everything is done in constructor, so we are done here
   }
 
-  def newCompile {
+  def newCompile(classpath: String) {
     Util.delete(targetDir)
     targetDir.mkdirs
     SBuild.verbose("Compiling build script: " + scriptFile)
 
-    compile_with_fsc
+    compile_with_fsc(classpath)
 
     SBuild.verbose("Writing info file: " + infoFile)
     val info = <sbuild>
@@ -86,8 +148,8 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
 
   }
 
-  def compile_with_fsc {
-    val params = Array("-classpath", compileClasspath, "-d", new File(".sbuild").getAbsolutePath, scriptFile.getAbsolutePath)
+  def compile_with_fsc(classpath: String) {
+    val params = Array("-classpath", classpath, "-d", new File(".sbuild").getAbsolutePath, scriptFile.getAbsolutePath)
     //    if(SBuild.verbose) {
     //      params = Array("-verbose") ++ params
     //    }
