@@ -15,6 +15,7 @@ trait Target {
   def exec(execution: => Unit): Target
   def action: () => Unit
   def help(help: String): Target
+  def help: String
   def phony: Boolean
   //  /**
   //   * Default: use the file to which the target name resolves.
@@ -42,7 +43,7 @@ class ProjectTarget private[sbuild] (val name: String, val file: File, val phony
       }
     }
   }
-  private var help: String = _
+  private var _help: String = _
   private var prereqs = Seq[TargetRef]()
 
   override def action = _exec
@@ -62,9 +63,10 @@ class ProjectTarget private[sbuild] (val name: String, val file: File, val phony
   }
 
   override def help(help: String): Target = {
-    this.help = help
+    this._help = help
     this
   }
+  override def help: String = _help
 
   override def toString() = {
     def hasExec = _exec match {

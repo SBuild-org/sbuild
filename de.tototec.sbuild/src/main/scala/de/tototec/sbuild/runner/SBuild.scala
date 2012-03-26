@@ -31,6 +31,10 @@ object SBuild {
 
     @CmdOption(args = Array("TARGETS"), maxCount = -1, description = "The target(s) to execute (in order).")
     val params = new java.util.LinkedList[String]()
+
+    @CmdOption(names = Array("--list-targets"),
+      description = "Show a list of target defined in the current buildfile")
+    val listTargets = false
   }
 
   def main(args: Array[String]) {
@@ -53,16 +57,28 @@ object SBuild {
 
     verbose("Targets: \n" + project.targets.values.mkString("\n"))
 
+    if (config.listTargets) {
+      Console.println(project.targets.values.map { t =>
+        TargetRef(t.name).nameWithoutProto + " \t" + (t.help match {
+          case null => ""
+          case s: String => s
+        })
+      }.mkString("\n"))
+      System.exit(0)
+    }
+
     val targets = determineTargetGoal(config.params).toList
 
     val chain = preorderedDependencies(targets)
 
-    var line0 = 0
-    def line = {
-      line0 = line0 + 1
-      "  " + line0 + ". "
+    {
+      var line0 = 0
+      def line = {
+        line0 = line0 + 1
+        "  " + line0 + ". "
+      }
+      verbose("Execution plan: \n" + chain.map(line + _.goal.toString).mkString("\n"))
     }
-    verbose("Execution plan: \n" + chain.map(line + _.goal.toString).mkString("\n"))
 
     var current = 0
     val max = chain.size
