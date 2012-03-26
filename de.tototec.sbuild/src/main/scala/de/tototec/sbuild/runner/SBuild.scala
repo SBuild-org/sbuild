@@ -81,10 +81,11 @@ object SBuild {
       target.action match {
         case null => verbose("Nothing to execute for target: " + target)
         case exec: (() => Unit) => {
+          val time = System.currentTimeMillis
           verbose("Executing target: " + target)
           try {
             exec.apply
-            verbose("Executed target: " + target)
+            verbose("Executed target: " + target + " in " + (System.currentTimeMillis - time) + " msec")
           } catch {
             case e: Throwable => {
               verbose("Execution of target " + target + " aborted with errors: " + e.getMessage);

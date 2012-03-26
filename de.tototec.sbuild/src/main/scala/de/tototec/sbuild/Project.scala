@@ -2,8 +2,9 @@ package de.tototec.sbuild
 
 import scala.tools.nsc.io.Directory
 import java.io.File
+import org.apache.tools.ant.{ Project => AntProject }
 
-class Project(projectDirectory: Directory) {
+class Project(val projectDirectory: Directory) {
 
   //  private var targetRefs = List[TargetRef]()
 
@@ -89,6 +90,10 @@ class Project(projectDirectory: Directory) {
 
   def registerSchemeHandler(scheme: String, handler: SchemeHandler) {
     schemeHandlers += ((scheme, handler))
+  }
+
+  lazy val ant: AntProject = new AntProject() {
+    setBaseDir(projectDirectory.jfile)
   }
 
 }

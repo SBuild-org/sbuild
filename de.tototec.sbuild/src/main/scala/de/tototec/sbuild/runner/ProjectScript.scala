@@ -118,9 +118,65 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
     }
   }
 
+  def readAnnotationWithVarargAttribute(annoName: String, valueName: String): Array[String] = {
+    import scala.tools.nsc.io.{ File => SFile }
+    var inClasspath = false
+    var skipRest = false
+    var it = SFile(scriptFile).lines
+    var annoLine = ""
+    while (!skipRest && it.hasNext) {
+      var line = it.next.trim
+      if (inClasspath && line.endsWith(")")) {
+        skipRest = true
+        annoLine = annoLine + " " + line.substring(0, line.length - 1).trim
+      }
+      if (line.startsWith("@" + annoName + "(")) {
+        line = line.substring(11).trim
+        if (line.endsWith(")")) {
+          line = line.substring(0, line.length - 1).trim
+          skipRest = true
+        }
+        inClasspath = true
+        annoLine = line
+      }
+    }
+
+    annoLine = annoLine.trim
+
+    if (annoLine.length > 0) {
+      if (annoLine.startsWith(valueName)) {
+        annoLine = annoLine.substring(valueName.length).trim
+        if (annoLine.startsWith("=")) {
+          annoLine = annoLine.substring(1).trim
+        } else {
+          throw new RuntimeException("Expected a '=' sign but got a '" + annoLine(0) + "'")
+        }
+      }
+//      if (annoLine.startsWith("Array(") && annoLine.endsWith(")")) {
+//        annoLine = annoLine.substring(6, annoLine.length - 1)
+//      } else {
+//        throw new RuntimeException("Expected a 'Array(...) expression, but got: " + annoLine)
+//      }
+
+      val annoItems = annoLine.split(",")
+      val finalAnnoItems = annoItems map { item => item.trim } map { item =>
+        if (item.startsWith("\"") && item.endsWith("\"")) {
+          item.substring(1, item.length - 1)
+        } else {
+          throw new RuntimeException("Unexpection token found: " + item)
+        }
+      }
+      SBuild.verbose("Using additional classpath entries: " + finalAnnoItems.mkString(", "))
+      finalAnnoItems
+    } else {
+      Array()
+    }
+  }
+
+  
   def readAdditionalClasspath: Array[String] = {
     SBuild.verbose("About to find additional classpath entries.")
-    val cp = readAnnotationWithSingleArrayAttribute(annoName = "classpath", valueName = "value")
+    val cp = readAnnotationWithVarargAttribute(annoName = "classpath", valueName = "value")
     SBuild.verbose("Using additional classpath entries: " + cp.mkString(", "))
     cp
   }
