@@ -7,6 +7,4 @@ import scala.annotation.Annotation
  * 
  * TODO: also add a @include annotation to specify source files to be included and compiled
  */
-class classpath(cp: Array[String]) extends Annotation {
-
-}
+class classpath(value: Array[String]) extends Annotation 

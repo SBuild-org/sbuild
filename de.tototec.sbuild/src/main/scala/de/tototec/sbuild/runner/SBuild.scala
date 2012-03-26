@@ -6,6 +6,7 @@ import de.tototec.sbuild._
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import scala.collection.JavaConversions._
+import scala.tools.nsc.io.Directory
 
 object SBuild {
 
@@ -28,7 +29,7 @@ object SBuild {
     @CmdOption(names = Array("--compile-cp"), args = Array("CLASSPATH"), hidden = true)
     var compileClasspath = "target/classes"
 
-    @CmdOption(args = Array("TARGETS"), description = "The target(s) to execute (in order).")
+    @CmdOption(args = Array("TARGETS"), maxCount = -1, description = "The target(s) to execute (in order).")
     val params = new java.util.LinkedList[String]()
   }
 
@@ -45,12 +46,12 @@ object SBuild {
       System.exit(0)
     }
 
-    implicit val project = new Project()
+    implicit val project = new Project(Directory(System.getProperty("user.dir")))
     val script = new ProjectScript(new File(config.buildfile), config.compileClasspath)
     //    script.interpret
     script.compileAndExecute(project)
 
-    verbose("Targets: \n" + project.targets.mkString("\n"))
+    verbose("Targets: \n" + project.targets.values.mkString("\n"))
 
     val targets = determineTargetGoal(config.params).toList
 
@@ -103,10 +104,12 @@ object SBuild {
 
   def determineTargetGoal(targets: Seq[String])(implicit project: Project): Seq[Target] = {
 
-    val (requested: Seq[Target], invalid: Seq[String]) = targets.map(g => project.findTarget(g) match {
-      case Some(goal) => goal
-      case None => g
-    }).partition(_.isInstanceOf[Target])
+    val (requested: Seq[Target], invalid: Seq[String]) = targets.map { t =>
+      project.findTarget(t) match {
+        case Some(target) => target
+        case None => t
+      }
+    }.partition(_.isInstanceOf[Target])
 
     if (!invalid.isEmpty) {
       throw new InvalidCommandlineException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", "));
@@ -123,12 +126,11 @@ object SBuild {
       case node :: tail => {
         // detect collisions
         val root = rootRequest match {
-          case Some(root) => {
-            if (root.filePath == node.filePath) {
+          case Some(root) =>
+            if (root == node) {
               throw new RuntimeException("Cycles in dependency chain detected for: " + root)
             }
             root
-          }
           case None => node
         }
 

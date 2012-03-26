@@ -7,3 +7,5 @@ class InvalidCommandlineException(msg: String, cause: Throwable = null) extends 
 class ExecutionFailedException(msg: String, cause: Throwable = null) extends SBuildException(msg, cause)
 
 class ProjectConfigurationException(msg: String, cause: Throwable = null) extends SBuildException(msg, cause)
+
+class UnsupportedSchemeException(msg: String, cause: Throwable = null) extends SBuildException(msg, cause)

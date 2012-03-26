@@ -63,65 +63,79 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
     }
   }
 
-  def readAdditionalClasspath: Array[String] = {
-    SBuild.verbose("About to find additional classpath entries.")
+  def readAnnotationWithSingleArrayAttribute(annoName: String, valueName: String): Array[String] = {
     import scala.tools.nsc.io.{ File => SFile }
     var inClasspath = false
     var skipRest = false
     var it = SFile(scriptFile).lines
-    var cpLine = ""
+    var annoLine = ""
     while (!skipRest && it.hasNext) {
       var line = it.next.trim
       if (inClasspath && line.endsWith(")")) {
         skipRest = true
-        cpLine = cpLine + " " + line.substring(0, line.length - 1).trim
+        annoLine = annoLine + " " + line.substring(0, line.length - 1).trim
       }
-      if (line.startsWith("@classpath(")) {
+      if (line.startsWith("@" + annoName + "(")) {
         line = line.substring(11).trim
         if (line.endsWith(")")) {
           line = line.substring(0, line.length - 1).trim
           skipRest = true
         }
         inClasspath = true
-        cpLine = line
+        annoLine = line
       }
     }
 
-    cpLine = cpLine.trim
+    annoLine = annoLine.trim
 
-    if (cpLine.length > 0) {
-      if (cpLine.startsWith("cp")) {
-        cpLine = cpLine.substring(2).trim
-        if (cpLine.startsWith("=")) {
-          cpLine = cpLine.substring(1).trim
+    if (annoLine.length > 0) {
+      if (annoLine.startsWith(valueName)) {
+        annoLine = annoLine.substring(valueName.length).trim
+        if (annoLine.startsWith("=")) {
+          annoLine = annoLine.substring(1).trim
         } else {
-          throw new RuntimeException("Expected a '=' sign but got a '" + cpLine(0) + "'")
+          throw new RuntimeException("Expected a '=' sign but got a '" + annoLine(0) + "'")
         }
       }
-      if (cpLine.startsWith("Array(") && cpLine.endsWith(")")) {
-        cpLine = cpLine.substring(6, cpLine.length - 1)
+      if (annoLine.startsWith("Array(") && annoLine.endsWith(")")) {
+        annoLine = annoLine.substring(6, annoLine.length - 1)
       } else {
-        throw new RuntimeException("Expected a 'Array(...) expression, but got: " + cpLine)
+        throw new RuntimeException("Expected a 'Array(...) expression, but got: " + annoLine)
       }
 
-      val cpItems = cpLine.split(",")
-      val finalCpItems = cpItems map { item => item.trim } map { item =>
+      val annoItems = annoLine.split(",")
+      val finalAnnoItems = annoItems map { item => item.trim } map { item =>
         if (item.startsWith("\"") && item.endsWith("\"")) {
           item.substring(1, item.length - 1)
         } else {
           throw new RuntimeException("Unexpection token found: " + item)
         }
       }
-      SBuild.verbose("Using additional classpath entries: " + finalCpItems.mkString(", "))
-      finalCpItems
+      SBuild.verbose("Using additional classpath entries: " + finalAnnoItems.mkString(", "))
+      finalAnnoItems
     } else {
       Array()
     }
   }
 
+  def readAdditionalClasspath: Array[String] = {
+    SBuild.verbose("About to find additional classpath entries.")
+    val cp = readAnnotationWithSingleArrayAttribute(annoName = "classpath", valueName = "value")
+    SBuild.verbose("Using additional classpath entries: " + cp.mkString(", "))
+    cp
+  }
+
+  def readAdditionalInclude: Array[String] = {
+    SBuild.verbose("About to find additional include files.")
+    val cp = readAnnotationWithSingleArrayAttribute(annoName = "include", valueName = "value")
+    SBuild.verbose("Using additional inlcude files: " + cp.mkString(", "))
+    cp
+  }
+
   def useExistingCompiled(project: Project, classpath: Array[String]) {
     SBuild.verbose("Loading compiled version of build script: " + scriptFile)
     val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
+    SBuild.verbose("CLassLoader loads build script from URLs: " + cl.getURLs.mkString(", "))
     val clazz: Class[_] = cl.loadClass(scriptBaseName)
     val ctr = clazz.getConstructor(classOf[Project])
     val scriptInstance = ctr.newInstance(project)

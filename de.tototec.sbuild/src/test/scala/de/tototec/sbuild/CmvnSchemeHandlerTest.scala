@@ -8,7 +8,7 @@ import org.scalatest.junit.JUnitRunner
 class CmvnSchemeHandlerTest extends FunSuite {
 
   val basePath = "/tmp/cmvn-scheme-test"
-  val cmvn = new CmvnSchemeHandler(basePath)
+  val cmvn = new MvnSchemeHandler(basePath)
 
   test("local path test 1") {
     assert(cmvn.localPath("a:b:1") === "file:" + basePath + "/a/b/1/b-1.jar")

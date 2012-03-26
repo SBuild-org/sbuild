@@ -1,8 +1,9 @@
 package de.tototec.sbuild
 
 import java.io.File
+import java.io.FileNotFoundException
 
-class CmvnSchemeHandler(val downloadPath: String, repos: String*) extends SchemeHandler {
+class MvnSchemeHandler(val downloadPath: String = System.getProperty("user.home", ".") + "/.m2/repository", repos: Seq[String] = Seq("http://repo1.maven.org/maven2/")) extends SchemeHandler {
 
   override def localPath(path: String): String = {
     "file:" + localFile(path).getAbsolutePath
@@ -11,6 +12,8 @@ class CmvnSchemeHandler(val downloadPath: String, repos: String*) extends Scheme
   def localFile(path: String): File = {
     new File(downloadPath + "/" + constructMvnPath(path))
   }
+
+  var online = true
 
   def constructMvnPath(cmvnUrlPathPart: String): String = {
 
@@ -39,14 +42,19 @@ class CmvnSchemeHandler(val downloadPath: String, repos: String*) extends Scheme
   }
 
   override def resolve(path: String): Option[Throwable] = {
-    val target = localFile(path).getAbsolutePath
-    var result: Option[Throwable] = None
-    repos.takeWhile(repo => {
-      val url = repo + "/" + constructMvnPath(path)
-      result = Util.download(url, target)
-      result.isDefined || !new File(target).exists
-    })
-    result
+    val target = localFile(path).getAbsoluteFile
+    if (online) {
+      var result: Option[Throwable] = None
+      repos.takeWhile(repo => {
+        val url = repo + "/" + constructMvnPath(path)
+        result = Util.download(url, target.getPath)
+        result.isDefined || !target.exists
+      })
+      result
+    } else {
+      if (target.exists) None
+      else Option(new FileNotFoundException("File is not present and can not be downloaded in offline-mode: " + target.getPath))
+    }
   }
 
 }
