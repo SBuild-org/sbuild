@@ -1,7 +1,9 @@
 import de.tototec.sbuild._
+import de.tototec.sbuild.ant._
 import org.apache.tools.ant.taskdefs._
 import org.apache.tools.ant
 
+@classpath("/home/lefou/.m2/repository-tototec/org/apache/ant/ant/1.8.2/ant-1.8.2.jar")
 class SBuild(implicit P: Project) {
 
   Prop("java.source", "1.6")
@@ -15,7 +17,7 @@ class SBuild(implicit P: Project) {
 
   Target("phony:clean") exec {
     new Delete() { 
-      setProject(P)
+      setProject(AntProject())
       setDir(Path("target"))
     }.execute
   } help "Clean all output (target dir)"
@@ -28,25 +30,25 @@ class SBuild(implicit P: Project) {
 
   Target("phony:compile") exec {
     new Mkdir() {
-      setProject(P)
+      setProject(AntProject())
       setDir(Path(Prop("java.output.dir")))
     }.execute
 
     new Javac() { 
-      setProject(P)
+      setProject(AntProject())
       setFork(true)
       setSource(Prop("java.source"))
       setTarget(Prop("java.target"))
       setDebug(Prop("java.debug").toBoolean)
       setIncludeantruntime(false)
-      setSrcdir(new ant.types.Path(P) {setLocation(Path(Prop("java.source.dir")))})
+      setSrcdir(new ant.types.Path(AntProject()) {setLocation(Path(Prop("java.source.dir")))})
       setDestdir(Path(Prop("java.output.dir")))
     }.execute
   } 
 
   Target("target/test.jar") dependsOn "compile" exec {
     new Jar() {
-      setProject(P)
+      setProject(AntProject())
       setDestFile(Path("target/test.jar"))
       setBasedir(Path(Prop("java.output.dir")))
     }.execute
