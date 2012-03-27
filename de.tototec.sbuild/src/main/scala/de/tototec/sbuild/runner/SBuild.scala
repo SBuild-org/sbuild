@@ -29,22 +29,22 @@ object SBuild {
     @CmdOption(names = Array("--compile-cp"), args = Array("CLASSPATH"), hidden = true)
     var compileClasspath = "target/classes"
 
-    @CmdOption(args = Array("TARGETS"), maxCount = -1, description = "The target(s) to execute (in order).")
-    val params = new java.util.LinkedList[String]()
-
     @CmdOption(names = Array("--list-targets", "-l"),
-      description = "Show a list of target defined in the current buildfile")
+      description = "Show a list of targets defined in the current buildfile")
     val listTargets = false
 
     @CmdOption(names = Array("--define", "-D"), args = Array("KEY=VALUE"), maxCount = -1,
-      description = "Define or override properties.")
+      description = "Define or override properties. If VALUE is omitted it defaults to \"true\".")
     def addDefine(keyValue: String) {
-    	keyValue.split("=", 2) match {
-    	  case Array(key, value) => defines.put(key, value)
-    	  case Array(key) => defines.put(key, "true")
-    	}
+      keyValue.split("=", 2) match {
+        case Array(key, value) => defines.put(key, value)
+        case Array(key) => defines.put(key, "true")
+      }
     }
     val defines: java.util.Map[String, String] = new java.util.LinkedHashMap()
+
+    @CmdOption(args = Array("TARGETS"), maxCount = -1, description = "The target(s) to execute (in order).")
+    val params = new java.util.LinkedList[String]()
   }
 
   def main(args: Array[String]) {
