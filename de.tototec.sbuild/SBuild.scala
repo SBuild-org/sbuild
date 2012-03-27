@@ -1,29 +1,28 @@
 import de.tototec.sbuild._
-import de.tototec.sbuild.Target
+import org.apache.ant.taskdefs._
 
-class SBuild(implicit project: Project) {
+@classpath("/home/lefou/.m2/repository-tototec/org/testng/testng/6.4/testng-6.4.jar")
+class SBuild(implicit P: Project) {
 
-  val cacheDir = ".cache/cmvn"
+  val cacheDir = Path(".m2/repository")
+  SchemeHandler("mvn", new MvnSchemeHandler(cacheDir.getPath, Seq("http://repo1.maven.org/maven2")))
 
-  Target.registerSchemeHandler("mvn", new CmvnSchemeHandler(cacheDir, "http://repo1.maven.org/maven2", "http://scala-tools.org/repo-releases"))
-
-  import sys.process.Process
-  import scala.tools.nsc.io.File
-  import scala.tools.nsc.io.Directory
-  
   val clean = Target("phony:clean") exec {
-    println("Removing target")
-    Process("rm -r target") !
+    new Delete() {
+      setDir(Path("target"))
+    }.execute
   }
 
-  val mvnClean = Target("phony:mvnclean") exec {
-    println("Removing " + cacheDir)
-    Process("rm -r " + cacheDir) !
+  Target("phony:mvnclean") exec {
+    new Delete() {
+      setDir(cacheDir)
+    }.execute
   }
 
   val compileClasspath = Seq()
   val compile = Target("phony:compile") dependsOn compileClasspath exec {
-    val dir = "src/main/scala"
+
+    val dir = Path("src/main/scala")
     //    val classpath = compileClasspath.map(_.targetFile.get.getAbsolutePath).mkString(":")
     val sources = Util.recursiveListFilesAbsolute(dir).mkString(" ")
     Directory("target/classes").createDirectory()

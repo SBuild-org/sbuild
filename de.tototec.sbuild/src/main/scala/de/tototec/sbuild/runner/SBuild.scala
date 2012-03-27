@@ -32,9 +32,19 @@ object SBuild {
     @CmdOption(args = Array("TARGETS"), maxCount = -1, description = "The target(s) to execute (in order).")
     val params = new java.util.LinkedList[String]()
 
-    @CmdOption(names = Array("--list-targets"),
+    @CmdOption(names = Array("--list-targets", "-l"),
       description = "Show a list of target defined in the current buildfile")
     val listTargets = false
+
+    @CmdOption(names = Array("--define", "-D"), args = Array("KEY=VALUE"), maxCount = -1,
+      description = "Define or override properties.")
+    def addDefine(keyValue: String) {
+    	keyValue.split("=", 2) match {
+    	  case Array(key, value) => defines.put(key, value)
+    	  case Array(key) => defines.put(key, "true")
+    	}
+    }
+    val defines: java.util.Map[String, String] = new java.util.LinkedHashMap()
   }
 
   def main(args: Array[String]) {
@@ -51,6 +61,10 @@ object SBuild {
     }
 
     implicit val project = new Project(Directory(System.getProperty("user.dir")))
+    config.defines foreach {
+      case (key, value) => project.addProperty(key, value)
+    }
+
     val script = new ProjectScript(new File(config.buildfile), config.compileClasspath)
     //    script.interpret
     script.compileAndExecute(project)
