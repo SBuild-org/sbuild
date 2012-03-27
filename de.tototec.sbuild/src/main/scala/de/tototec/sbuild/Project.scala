@@ -7,10 +7,6 @@ import org.apache.tools.ant.ProjectComponent
 import org.apache.tools.ant.BuildListener
 import org.apache.tools.ant.BuildEvent
 
-object Project {
-  implicit def toAnt(project: Project): AntProject = project.ant
-}
-
 class Project(val projectDirectory: Directory) {
 
   //  private var targetRefs = List[TargetRef]()
@@ -99,32 +95,6 @@ class Project(val projectDirectory: Directory) {
     schemeHandlers += ((scheme, handler))
   }
 
-  lazy val ant: AntProject = {
-    val ant = new AntProject() {
-      addBuildListener(new BuildListener() {
-        override def messageLogged(buildEvent: BuildEvent) {
-          if (buildEvent.getPriority <= properties.getOrElse("ant.loglevel", AntProject.MSG_INFO.toString).toInt) {
-            Console.println(buildEvent.getMessage)
-            buildEvent.getException match {
-              case null =>
-              case t => Console.println(t.toString)
-            }
-          }
-        }
-        override def buildStarted(buildEvent: BuildEvent) {}
-        override def buildFinished(buildEvent: BuildEvent) {}
-        override def targetStarted(buildEvent: BuildEvent) {}
-        override def targetFinished(buildEvent: BuildEvent) {}
-        override def taskFinished(buildEvent: BuildEvent) {}
-        override def taskStarted(buildEvent: BuildEvent) {}
-      })
-      setBaseDir(projectDirectory.jfile)
-      setJavaVersionProperty();
-      setSystemProperties();
-    }
-    ant
-  }
-
   private var _properties: Map[String, String] = Map()
   def properties: Map[String, String] = _properties
   def addProperty(key: String, value: String) = if (_properties.contains(key)) {
@@ -132,5 +102,6 @@ class Project(val projectDirectory: Directory) {
   } else {
     _properties += (key -> value)
   }
+  
 }
 
