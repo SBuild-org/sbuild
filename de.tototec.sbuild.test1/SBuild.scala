@@ -1,7 +1,6 @@
 import de.tototec.sbuild._
 import de.tototec.sbuild.ant._
 import org.apache.tools.ant.taskdefs._
-import org.apache.tools.ant
 
 @classpath("/home/lefou/.m2/repository-tototec/org/apache/ant/ant/1.8.2/ant-1.8.2.jar")
 class SBuild(implicit P: Project) {
@@ -11,9 +10,6 @@ class SBuild(implicit P: Project) {
   Prop("java.debug", "true")
   Prop("java.source.dir", "src/main/java")
   Prop("java.output.dir", "target/classes")
-  Prop("ant.loglevel", ant.Project.MSG_INFO.toString)
-
-  val source = Prop("java.source")
 
   Target("phony:clean") exec {
     new Delete() { 
@@ -23,8 +19,6 @@ class SBuild(implicit P: Project) {
   } help "Clean all output (target dir)"
 
   Target("phony:all") dependsOn "target/test.jar" help "Build the project"
-
-  // SchemeHandler("mvn", new MvnSchemeHandler(".m2/repository"))
 
   // Idea: MavenLikeJavaProject()
 
@@ -41,7 +35,7 @@ class SBuild(implicit P: Project) {
       setTarget(Prop("java.target"))
       setDebug(Prop("java.debug").toBoolean)
       setIncludeantruntime(false)
-      setSrcdir(new ant.types.Path(AntProject()) {setLocation(Path(Prop("java.source.dir")))})
+      setSrcdir(AntPath(Prop("java.source.dir")))
       setDestdir(Path(Prop("java.output.dir")))
     }.execute
   } 
