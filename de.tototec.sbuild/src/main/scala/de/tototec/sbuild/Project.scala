@@ -102,6 +102,7 @@ class Project(val projectDirectory: Directory) {
   } else {
     _properties += (key -> value)
   }
-  
+
+  private[sbuild] var antProject: Option[Any] = None
 }
 

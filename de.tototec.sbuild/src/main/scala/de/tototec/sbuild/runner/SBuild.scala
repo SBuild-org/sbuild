@@ -43,11 +43,39 @@ object SBuild {
     }
     val defines: java.util.Map[String, String] = new java.util.LinkedHashMap()
 
+    @CmdOption(names = Array("--clean"),
+      description = "Remove all generated output and caches before start. This will force a new compile of the buildfile.")
+    var clean: Boolean = false
+
+    @CmdOption(names = Array("--use-classloader-hack"), args = Array("true|false"), maxCount = -1,
+      description = "The classloader hack is currently needed to work around an unsolve Classloader problem (default: true).")
+    var useClassloaderHack: Boolean = true
+
     @CmdOption(args = Array("TARGETS"), maxCount = -1, description = "The target(s) to execute (in order).")
     val params = new java.util.LinkedList[String]()
   }
 
   def main(args: Array[String]) {
+    val config = new Config()
+    val cp = new CmdlineParser(config)
+    cp.parse(args: _*)
+
+    SBuild.verbose = config.verbose
+
+    if (config.help) {
+      cp.usage
+      System.exit(0)
+    }
+
+    if (config.useClassloaderHack) {
+      val scriptCL = new SBuildURLClassLoader(config.compileClasspath.split(":").map { new File(_).toURI.toURL }, null)
+      scriptCL.loadClass("de.tototec.sbuild.runner.SBuild").getMethod("main0", classOf[Array[String]]).invoke(null, args)
+    } else {
+      main0(args)
+    }
+  }
+
+  def main0(args: Array[String]) {
 
     val config = new Config()
     val cp = new CmdlineParser(config)
@@ -66,8 +94,11 @@ object SBuild {
     }
 
     val script = new ProjectScript(new File(config.buildfile), config.compileClasspath)
+    if (config.clean) {
+      script.clean
+    }
     //    script.interpret
-    script.compileAndExecute(project)
+    val scriptInstance = script.compileAndExecute(project, config.useClassloaderHack)
 
     verbose("Targets: \n" + project.targets.values.mkString("\n"))
 
@@ -112,8 +143,10 @@ object SBuild {
         case null => verbose("Nothing to execute for target: " + target)
         case exec: (() => Unit) => {
           val time = System.currentTimeMillis
-          verbose("Executing target: " + target)
+          //          val origCl = Thread.currentThread.getContextClassLoader
           try {
+            //            Thread.currentThread.setContextClassLoader(scriptInstance.getClass.getClassLoader)
+            verbose("Executing target: " + target)
             exec.apply
             verbose("Executed target: " + target + " in " + (System.currentTimeMillis - time) + " msec")
           } catch {
@@ -121,6 +154,8 @@ object SBuild {
               verbose("Execution of target " + target + " aborted with errors: " + e.getMessage);
               throw e
             }
+            //          } finally {
+            //            Thread.currentThread.setContextClassLoader(origCl)
           }
         }
         //        }

@@ -13,6 +13,7 @@ import scala.tools.nsc.interpreter.IMain
 import java.io.File
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.SBuildException
+import java.net.URL
 
 class ProjectScript(scriptFile: File, compileClasspath: String) {
 
@@ -28,7 +29,7 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
       + scriptFile.getAbsoluteFile.getParent)
   }
 
-  def compileAndExecute(project: Project) {
+  def compileAndExecute(project: Project, experimentalWithSameClassLoader: Boolean = false): Any = {
     checkFile
 
     val infoFile = new File(targetDir, "sbuild.info.xml")
@@ -38,12 +39,12 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
     if (!checkInfoFileUpToDate) {
       val cp = addCp match {
         case Array() => compileClasspath
-        case x => compileClasspath + ":" + x.mkString(":", ":", "")
+        case x => compileClasspath + ":" + x.mkString(":")
       }
       newCompile(cp)
     }
 
-    useExistingCompiled(project, addCp)
+    useExistingCompiled(project, addCp, experimentalWithSameClassLoader)
 
   }
 
@@ -111,7 +112,6 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
           throw new RuntimeException("Unexpection token found: " + item)
         }
       }
-      SBuild.verbose("Using additional classpath entries: " + finalAnnoItems.mkString(", "))
       finalAnnoItems
     } else {
       Array()
@@ -152,11 +152,11 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
           throw new RuntimeException("Expected a '=' sign but got a '" + annoLine(0) + "'")
         }
       }
-//      if (annoLine.startsWith("Array(") && annoLine.endsWith(")")) {
-//        annoLine = annoLine.substring(6, annoLine.length - 1)
-//      } else {
-//        throw new RuntimeException("Expected a 'Array(...) expression, but got: " + annoLine)
-//      }
+      //      if (annoLine.startsWith("Array(") && annoLine.endsWith(")")) {
+      //        annoLine = annoLine.substring(6, annoLine.length - 1)
+      //      } else {
+      //        throw new RuntimeException("Expected a 'Array(...) expression, but got: " + annoLine)
+      //      }
 
       val annoItems = annoLine.split(",")
       val finalAnnoItems = annoItems map { item => item.trim } map { item =>
@@ -166,14 +166,12 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
           throw new RuntimeException("Unexpection token found: " + item)
         }
       }
-      SBuild.verbose("Using additional classpath entries: " + finalAnnoItems.mkString(", "))
       finalAnnoItems
     } else {
       Array()
     }
   }
 
-  
   def readAdditionalClasspath: Array[String] = {
     SBuild.verbose("About to find additional classpath entries.")
     val cp = readAnnotationWithVarargAttribute(annoName = "classpath", valueName = "value")
@@ -184,22 +182,39 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
   def readAdditionalInclude: Array[String] = {
     SBuild.verbose("About to find additional include files.")
     val cp = readAnnotationWithSingleArrayAttribute(annoName = "include", valueName = "value")
-    SBuild.verbose("Using additional inlcude files: " + cp.mkString(", "))
+    SBuild.verbose("Using additional include files: " + cp.mkString(", "))
     cp
   }
 
-  def useExistingCompiled(project: Project, classpath: Array[String]) {
+  def useExistingCompiled(project: Project, classpath: Array[String], experimentalWithSameClassLoader: Boolean): Any = {
     SBuild.verbose("Loading compiled version of build script: " + scriptFile)
-    val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
-    SBuild.verbose("CLassLoader loads build script from URLs: " + cl.getURLs.mkString(", "))
+    val cl = experimentalWithSameClassLoader match {
+      case false => new SBuildURLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
+      case true =>
+        project.getClass.getClassLoader match {
+          case c: { def addURL(url: URL) } =>
+            c.addURL(targetDir.toURI.toURL)
+            classpath.map { new File(_).toURI.toURL }.foreach {
+              c.addURL(_)
+            }
+            c
+          case c => throw new RuntimeException("Unsupported ClassLoader: " + c)
+        }
+    }
+    SBuild.verbose("CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
     val clazz: Class[_] = cl.loadClass(scriptBaseName)
     val ctr = clazz.getConstructor(classOf[Project])
     val scriptInstance = ctr.newInstance(project)
     // We assume, that everything is done in constructor, so we are done here
+    scriptInstance
+  }
+
+  def clean() {
+    Util.delete(targetDir)
   }
 
   def newCompile(classpath: String) {
-    Util.delete(targetDir)
+    clean()
     targetDir.mkdirs
     SBuild.verbose("Compiling build script: " + scriptFile)
 
@@ -219,7 +234,7 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
   }
 
   def compile_with_fsc(classpath: String) {
-    val params = Array("-classpath", classpath, "-d", new File(".sbuild").getAbsolutePath, scriptFile.getAbsolutePath)
+    val params = Array("-classpath", classpath, "-g:vars", "-d", new File(buildFileTargetDir).getAbsolutePath, scriptFile.getAbsolutePath)
     //    if(SBuild.verbose) {
     //      params = Array("-verbose") ++ params
     //    }

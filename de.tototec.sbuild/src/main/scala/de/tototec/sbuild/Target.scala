@@ -55,10 +55,7 @@ class ProjectTarget private[sbuild] (val name: String, val file: File, val phony
   }
 
   override def exec(execution: => Unit): Target = {
-    _exec = () =>
-      {
-        execution
-      }
+    _exec = () => execution
     this
   }
 

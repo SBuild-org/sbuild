@@ -3,16 +3,15 @@ package de.tototec.sbuild.ant
 import de.tototec.sbuild.Project
 import org.apache.tools.ant.BuildListener
 import org.apache.tools.ant.BuildEvent
+import de.tototec.sbuild.Path
+import java.io.File
 
 object AntProject {
-  private var antProjects: List[(Project, AntProject)] = List()
-  def apply()(implicit project: Project): AntProject = antProjects.find {
-    case (p, _) => p.eq(project)
-  } match {
-    case Some((_, p)) => p
+  def apply()(implicit project: Project): AntProject = project.antProject match {
+    case Some(p: AntProject) => p
     case None =>
       val p = new AntProject(project)
-      antProjects ::= (project -> p)
+      project.antProject = Some(p)
       p
   }
 
