@@ -2,10 +2,11 @@ import de.tototec.sbuild._
 import de.tototec.sbuild.ant._
 import org.apache.tools.ant.taskdefs._
 
-@classpath("/home/lefou/.m2/repository-tototec/org/apache/ant/ant/1.8.3/ant-1.8.3.jar")
+@classpath("http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar")
 class SBuild(implicit P: Project) {
 
-  SchemeHandler("mvn", new MvnSchemeHandler("/home/lefou/.m2/repository-tototec"))
+  // SchemeHandler("mvn", new MvnSchemeHandler("/home/lefou/.m2/repository-tototec"))
+  // SchemeHandler("http", new HttpSchemeHandler(".sbuild/http"))
 
   Target("phony:clean") exec {
     new Delete() { 
