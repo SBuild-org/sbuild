@@ -14,12 +14,15 @@ import java.io.File
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.SBuildException
 import java.net.URL
+import de.tototec.sbuild.HttpSchemeHandler
 
 class ProjectScript(scriptFile: File, compileClasspath: String) {
 
-  val buildFileTargetDir = ".sbuild";
+  val buildTargetDir = ".sbuild";
+  val buildFileTargetDir = ".sbuild/scala";
 
   val scriptBaseName = scriptFile.getName.substring(0, scriptFile.getName.length - 6)
+  lazy val targetBaseDir: File = new File(scriptFile.getParentFile, buildTargetDir)
   lazy val targetDir: File = new File(scriptFile.getParentFile, buildFileTargetDir)
   lazy val targetClassFile = new File(targetDir, scriptBaseName + ".class")
   lazy val infoFile = new File(targetDir, "sbuild.info.xml")
@@ -177,7 +180,34 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
     SBuild.verbose("About to find additional classpath entries.")
     val cp = readAnnotationWithVarargAttribute(annoName = "classpath", valueName = "value")
     SBuild.verbose("Using additional classpath entries: " + cp.mkString(", "))
-    cp
+
+    lazy val httpHandler = {
+      var downloadDir: File = new File(targetBaseDir, "/http")
+      if (!downloadDir.isAbsolute) {
+        downloadDir = downloadDir.getAbsoluteFile
+      }
+      new HttpSchemeHandler(downloadDir.getPath)
+    }
+
+    cp.map { entry =>
+      if (entry.startsWith("http:")) {
+        // we need to download it
+        SBuild.verbose("Classpath entry is a HTTP resource: " + entry)
+        val path = entry.substring("http:".length, entry.length)
+        val file = httpHandler.localFile(path)
+        if (!file.exists) {
+          SBuild.verbose("Need to download: " + entry)
+          httpHandler.resolve(path) match {
+            case Some(t: Throwable) => throw t
+            case _ =>
+          }
+        }
+        SBuild.verbose("Resolved: " + entry + " => " + file)
+        file.getPath
+      } else {
+        entry
+      }
+    }
   }
 
   def readAdditionalInclude: Array[String] = {
@@ -211,11 +241,14 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
   }
 
   def clean() {
+    Util.delete(targetBaseDir)
+  }
+  def cleanScala() {
     Util.delete(targetDir)
   }
 
   def newCompile(classpath: String) {
-    clean()
+    cleanScala()
     targetDir.mkdirs
     SBuild.verbose("Compiling build script: " + scriptFile)
 
