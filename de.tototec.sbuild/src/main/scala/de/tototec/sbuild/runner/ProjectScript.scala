@@ -41,6 +41,7 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
         case Array() => compileClasspath
         case x => compileClasspath + ":" + x.mkString(":")
       }
+      println("Compiling build script...")
       newCompile(cp)
     }
 
@@ -250,22 +251,6 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
 
       if (retCode != 0) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with fsc")
     }
-  }
-
-  def interpret() {
-    checkFile
-
-    SBuild.verbose("Interpreting build script: " + scriptFile)
-
-    val settings = new Settings
-    settings.classpath.append("target/classes")
-
-    val main = new IMain(settings)
-    main.addImports("de.tobiasroeser.jackage.sbuild.Goal._")
-    main.bind("Goal", Target.getClass.getName, Target);
-
-    io.Source.fromFile(scriptFile).getLines.map(line => main.interpret(line))
-
   }
 
 }
