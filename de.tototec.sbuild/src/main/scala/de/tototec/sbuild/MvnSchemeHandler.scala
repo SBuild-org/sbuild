@@ -43,7 +43,8 @@ class MvnSchemeHandler(val downloadPath: String = System.getProperty("user.home"
 
   override def resolve(path: String): Option[Throwable] = {
     val target = localFile(path).getAbsoluteFile
-    if (online) {
+    if (online && repos.size > 0) {
+      println("Downloading " + path + "...")
       var result: Option[Throwable] = None
       repos.takeWhile(repo => {
         val url = repo + "/" + constructMvnPath(path)
