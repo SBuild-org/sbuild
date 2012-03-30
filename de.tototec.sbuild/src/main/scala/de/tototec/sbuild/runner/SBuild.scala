@@ -173,7 +173,12 @@ object SBuild {
     val (requested: Seq[Target], invalid: Seq[String]) = targets.map { t =>
       project.findTarget(t) match {
         case Some(target) => target
-        case None => t
+        case None => TargetRef(t).explicitProto match {
+          case None | Some("phony") | Some("file") => None
+          case _ =>
+            // A scheme handler might be able to resolve this thing
+            project.createTarget(TargetRef(t))
+        }
       }
     }.partition(_.isInstanceOf[Target])
 
