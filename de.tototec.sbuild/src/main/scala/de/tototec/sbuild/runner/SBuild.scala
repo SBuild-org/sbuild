@@ -224,10 +224,16 @@ object SBuild {
 
             // Print State
             execState map { state =>
+              val percent = (state.currentNr, state.maxCount) match {
+                case (c, m) if (c > 0 && m > 0) =>
+                  val p = (c - 1) * 100 / m
+                  "[" + math.min(100, math.max(0, p)) + "%]"
+                case (c, m) => "[" + c + "/" + m + "]"
+              }
               if (!skipOrUpToDate) {
-                println("[" + state.currentNr + "/" + state.maxCount + "] Executing target '" + TargetRef(node).nameWithoutProto + "':")
+                println(percent + " Executing target '" + TargetRef(node).nameWithoutProto + "':")
               } else {
-                verbose("[" + state.currentNr + "/" + state.maxCount + "] Skipping target '" + TargetRef(node).nameWithoutProto + "'")
+                verbose(percent + " Skipping target '" + TargetRef(node).nameWithoutProto + "'")
               }
               state.currentNr += 1
             }
