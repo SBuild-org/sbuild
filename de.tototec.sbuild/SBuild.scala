@@ -48,6 +48,8 @@ class SBuild(implicit P: Project) {
       setUnchecked("on")
       // setLogging("verbose")
       setClasspath(cp)
+      // this is necessary, because the scala ant tasks outsmarts itself 
+      // when more than one scala class is defined in the same .scala file
       setForce(true)
     }.execute
   }
