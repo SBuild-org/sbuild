@@ -80,16 +80,22 @@ class Project(val projectDirectory: Directory) {
     }
   }
 
-  def prerequisites(target: Target) = target.dependants.map { dep => findOrCreateTarget(dep)
-    //    findTarget(dep) match {
-    //      case Some(target) => target
-    //      case None => throw new ProjectConfigurationException("Non-existing dependency '" + dep.name + "' found in goal: " + target)
-    //    }
+  def prerequisites(target: Target): List[Target] = target.dependants.map { dep =>
+    findTarget(dep) match {
+      case Some(target) => target
+      case None => dep.explicitProto match {
+        case None | Some("phony") | Some("file") =>
+          throw new ProjectConfigurationException("Non-existing prerequisite '" + dep.name + "' found for target: " + target)
+        case _ =>
+          // A scheme handler might be able to resolve this thing
+          createTarget(dep)
+      }
+    }
   }.toList
 
   def prerequisitesMap: Map[Target, List[Target]] = targets.values.map(goal => (goal, prerequisites(goal))).toMap
 
-  private var schemeHandlers = Map[String, SchemeHandler]()
+  private var schemeHandlers: Map[String, SchemeHandler] = Map()
 
   def registerSchemeHandler(scheme: String, handler: SchemeHandler) {
     schemeHandlers += ((scheme, handler))

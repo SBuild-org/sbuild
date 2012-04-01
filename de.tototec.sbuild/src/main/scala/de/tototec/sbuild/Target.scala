@@ -10,7 +10,7 @@ trait Target {
   def name: String
   //  def filePath: String
   //  def dependsOn(goal: TargetRef): Target
-  def dependsOn(goals: => Seq[TargetRef]): Target
+  def dependsOn(goals: => TargetRefs): Target
   def dependants: Seq[TargetRef]
   def exec(execution: => Unit): Target
   def action: () => Unit
@@ -49,8 +49,8 @@ class ProjectTarget private[sbuild] (val name: String, val file: File, val phony
   override def action = _exec
   override def dependants = prereqs
 
-  override def dependsOn(goals: => Seq[TargetRef]): Target = {
-    prereqs = goals
+  override def dependsOn(targetRefs: => TargetRefs): Target = {
+    prereqs ++= targetRefs.targetRefs
     ProjectTarget.this
   }
 

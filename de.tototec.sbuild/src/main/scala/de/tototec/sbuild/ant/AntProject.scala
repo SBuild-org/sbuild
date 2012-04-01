@@ -14,8 +14,6 @@ object AntProject {
       project.antProject = Some(p)
       p
   }
-
-  //  implicit def fromProject(implicit project: Project): AntProject = AntProject(project)
 }
 
 class AntProject(project: Project) extends org.apache.tools.ant.Project {

@@ -130,9 +130,12 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
     var annoLine = ""
     while (!skipRest && it.hasNext) {
       var line = it.next.trim
-      if (inClasspath && line.endsWith(")")) {
-        skipRest = true
-        annoLine = annoLine + " " + line.substring(0, line.length - 1).trim
+      if (inClasspath) {
+        if (line.endsWith(")")) {
+          skipRest = true
+          line = line.substring(0, line.length - 1).trim
+        }
+        annoLine = annoLine + " " + line
       }
       if (line.startsWith("@" + annoName + "(")) {
         line = line.substring(11).trim

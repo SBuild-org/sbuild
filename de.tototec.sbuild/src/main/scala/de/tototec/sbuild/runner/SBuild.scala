@@ -1,12 +1,20 @@
 package de.tototec.sbuild.runner
 
-import scala.annotation.tailrec
 import java.io.File
-import de.tototec.sbuild._
+
+import scala.Array.canBuildFrom
+import scala.collection.JavaConversions.asScalaBuffer
+import scala.collection.JavaConversions.mapAsScalaMap
+import scala.tools.nsc.io.Path.string2path
+import scala.tools.nsc.io.Directory
+
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
-import scala.collection.JavaConversions._
-import scala.tools.nsc.io.Directory
+import de.tototec.sbuild.TargetRef.fromString
+import de.tototec.sbuild.InvalidCommandlineException
+import de.tototec.sbuild.Project
+import de.tototec.sbuild.Target
+import de.tototec.sbuild.TargetRef
 
 object SBuild {
 
@@ -114,7 +122,7 @@ object SBuild {
 
     val targets = determineTargetGoal(config.params).toList
 
-    val chain = preorderedDependencies(targets)
+    val chain = preorderedDependencies(targets, skipExec = true)
 
     {
       var line0 = 0
@@ -125,20 +133,7 @@ object SBuild {
       verbose("Execution plan: \n" + chain.map(line + _.goal.toString).mkString("\n"))
     }
 
-    var current = 0
-    val max = chain.size
-
     def goalRunner: Target => Unit = { target =>
-      current += 1
-      lazy val prefix = "[" + current + "/" + max + "] "
-      def verbose(msg: => String) = SBuild.verbose(prefix + msg)
-
-      verbose(">>> Processing target: " + target)
-
-      // Should we skip here, after we know that we executed the prerequisites
-      //      goal.upToDate match {
-      //        case true => verbose("Skip up-to-date goal: " + goal)
-      //        case false => 
       target.action match {
         case null => verbose("Nothing to execute for target: " + target)
         case exec: (() => Unit) => {
@@ -163,7 +158,7 @@ object SBuild {
     }
 
     verbose("Executing...")
-    preorderedDependencies(targets, goalRunner)
+    preorderedDependencies(targets, goalRunner, execState = Some(new ExecState(maxCount = chain.size)))
 
     verbose("Finished")
   }
@@ -174,7 +169,7 @@ object SBuild {
       project.findTarget(t) match {
         case Some(target) => target
         case None => TargetRef(t).explicitProto match {
-          case None | Some("phony") | Some("file") => None
+          case None | Some("phony") | Some("file") => t
           case _ =>
             // A scheme handler might be able to resolve this thing
             project.createTarget(TargetRef(t))
@@ -189,13 +184,17 @@ object SBuild {
     requested
   }
 
-  class ExecutedGoal(val goal: Target, val lastUpdated: Long)
+  class ExecutedGoal(val goal: Target, val lastUpdated: Long, val needsExec: Boolean)
 
-  def preorderedDependencies(request: List[Target], goalRunner: (Target) => Unit = null, rootRequest: Option[Target] = None)(implicit project: Project): List[ExecutedGoal] = {
+  class ExecState(var maxCount: Int, var currentNr: Int = 1)
+
+  def preorderedDependencies(request: List[Target], goalRunner: (Target) => Unit = null, rootRequest: Option[Target] = None, execState: Option[ExecState] = None, skipExec: Boolean = false)(implicit project: Project): Array[ExecutedGoal] = {
     request match {
-      case Nil => Nil
-      case node :: tail => {
+      case Nil => Array()
+      case node :: tail =>
+
         // detect collisions
+
         val root = rootRequest match {
           case Some(root) =>
             if (root == node) {
@@ -207,25 +206,43 @@ object SBuild {
 
         // build prerequisites map
 
-        val alreadyRun: List[ExecutedGoal] = if (goalRunner != null && node.upToDate) {
-          // skip execution of dependencies
-          verbose("Skipping execution of goal: " + node + " and all its dependencies")
-          List()
-        } else {
-          // Execute prerequisites
-          verbose("checking dependencies of: " + node)
-          val dependencies = project.prerequisites(node)
-          val executed = preorderedDependencies(dependencies.toList, goalRunner, Some(root))
-          if (goalRunner != null) {
-            goalRunner.apply(node)
-          } else {
-            verbose("I would execute goal: " + node)
-          }
-          executed ++ List(new ExecutedGoal(node, if (node.targetFile.isDefined) { node.targetFile.get.lastModified } else { 0 }))
-        }
+        val alreadyRun: Array[ExecutedGoal] =
+          //          if (goalRunner != null && node.upToDate) {
+          //            // skip execution of dependencies
+          //            verbose("Skipping execution of goal: " + node + " and all its dependencies")
+          //            Array()
+          //          } else
+          {
+            val skipOrUpToDate = skipExec || node.upToDate
+            // Execute prerequisites
+            verbose("checking dependencies of: " + node)
+            val dependencies = project.prerequisites(node)
 
-        alreadyRun ++ preorderedDependencies(tail, goalRunner)
-      }
+            val executed = preorderedDependencies(dependencies.toList, goalRunner, Some(root),
+              execState = execState,
+              skipExec = skipOrUpToDate)
+
+            // Print State
+            execState map { state =>
+              if (!skipOrUpToDate) {
+                println("[" + state.currentNr + "/" + state.maxCount + "] Executing target '" + TargetRef(node).nameWithoutProto + "':")
+              } else {
+                verbose("[" + state.currentNr + "/" + state.maxCount + "] Skipping target '" + TargetRef(node).nameWithoutProto + "'")
+              }
+              state.currentNr += 1
+            }
+
+            if (!skipOrUpToDate) {
+              if (goalRunner != null) {
+                goalRunner.apply(node)
+                // } else {
+                // verbose("I would execute goal: " + node)
+              }
+            }
+            executed ++ Array(new ExecutedGoal(node, if (node.targetFile.isDefined) { node.targetFile.get.lastModified } else { 0 }, needsExec = !skipOrUpToDate))
+          }
+
+        alreadyRun ++ preorderedDependencies(tail, goalRunner, execState = execState, skipExec = skipExec)
     }
   }
 

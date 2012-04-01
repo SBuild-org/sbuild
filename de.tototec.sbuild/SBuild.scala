@@ -1,52 +1,73 @@
 import de.tototec.sbuild._
-import org.apache.ant.taskdefs._
+import de.tototec.sbuild.TargetRefs._
+import de.tototec.sbuild.ant._
 
-@classpath("/home/lefou/.m2/repository-tototec/org/testng/testng/6.4/testng-6.4.jar")
+import org.apache.tools.ant.taskdefs._
+
+import scala.tools.ant._
+
+@classpath("http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
+  "http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.9.1/scala-library-2.9.1.jar",
+  "http://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.9.1/scala-compiler-2.9.1.jar")
 class SBuild(implicit P: Project) {
 
-  val cacheDir = Path(".m2/repository")
-  SchemeHandler("mvn", new MvnSchemeHandler(cacheDir.getPath, Seq("http://repo1.maven.org/maven2")))
+  SchemeHandler("mvn", new MvnSchemeHandler(".sbuild/mvn",
+    Seq("http://repo1.maven.org/maven1", "file:///home/lefou/.m2/repository-tototec")))
+
+  val version = "0.0.1-SNAPSHOT"
+  val jar = "target/de.tototec.sbuild-" + version + ".jar"
+
+  Target("phony:all") dependsOn jar
 
   val clean = Target("phony:clean") exec {
     new Delete() {
+      setProject(AntProject())
       setDir(Path("target"))
     }.execute
   }
 
-  Target("phony:mvnclean") exec {
-    new Delete() {
-      setDir(cacheDir)
+  val compileCp = "mvn:org.scala-lang:scala-library:2.9.1" /
+    "mvn:org.scala-lang:scala-compiler:2.9.1" /
+    "mvn:de.tototec:de.tototec.cmdoption:0.1.0" /
+    "mvn:org.apache.ant:ant:1.8.3"
+
+  def scalac(sourceDir: String, targetDir: String, cp: org.apache.tools.ant.types.Path) {
+    new Mkdir() {
+      setProject(AntProject())
+      setDir(Path(targetDir))
+    }.execute
+
+    // we want to use FastScala, but after it compiles successfully, it bails out with an internal error
+    new Scalac() {
+      setProject(AntProject())
+      setSrcdir(AntPath(sourceDir))
+      setDestdir(Path(targetDir))
+      setTarget("jvm-1.5")
+      setEncoding("UTF-8")
+      setDeprecation("on")
+      setUnchecked("on")
+      // setLogging("verbose")
+      setClasspath(cp)
+      setForce(true)
     }.execute
   }
 
-  val compileClasspath = Seq()
-  val compile = Target("phony:compile") dependsOn compileClasspath exec {
-
-    val dir = Path("src/main/scala")
-    //    val classpath = compileClasspath.map(_.targetFile.get.getAbsolutePath).mkString(":")
-    val sources = Util.recursiveListFilesAbsolute(dir).mkString(" ")
-    Directory("target/classes").createDirectory()
-    val cmdline = "fsc -encoding UTF-8 -deprecation -explaintypes -d target/classes " + sources
-    println("Executing: " + cmdline)
-    Process(cmdline) !!
+  Target("phony:compile") dependsOn compileCp exec {
+    scalac(sourceDir = "src/main/scala", targetDir = "target/classes", cp = AntPath(compileCp))
   }
 
-  val testng = Target("mvn:org.testng:testng:6.0.1")
-  val testCompileClasspath = compileClasspath ++ testng
-  val testCompile = Target("phony:test-compile") dependsOn compile ++ testCompileClasspath exec {
-    val classpath = (Seq("target/classes") ++ (testCompileClasspath.map(_.targetFile.get.getAbsolutePath))).mkString(":")
-    val sources = Util.recursiveListFilesAbsolute("src/test/scala").mkString(" ")
-    Directory("target/test-classes").createDirectory()
-    val cmdline = "fsc -encoding UTF-8 -deprecation -explaintypes -d target/test-classes -classpath " + classpath + " " + sources
-    println("Executing: " + cmdline)
-    Process(cmdline) !!
+  val testCp = compileCp / "mvn:org.testng:testng:6.4" / jar
+
+  Target("phony:testCompile") dependsOn testCp exec {
+    scalac(sourceDir = "src/main/scala", targetDir = "target/test-classes", cp = AntPath(testCp))
   }
 
-  val testRunClasspath = testCompileClasspath
-  val test = Target("phony:test") dependsOn testCompile ++ testRunClasspath exec {
+  Target(jar) dependsOn "compile" exec {
+    new Jar() {
+      setProject(AntProject())
+      setDestFile(Path(jar))
+      setBasedir(Path("target/classes"))
+    }.execute
   }
-
-  val jar = Target("target/package.jar") dependsOn compile
-  Target("phony:jar") dependsOn jar
 
 }
