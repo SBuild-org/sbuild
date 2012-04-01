@@ -1,13 +1,11 @@
 package de.tototec.sbuild.runner
 
 import java.io.File
-
 import scala.Array.canBuildFrom
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.mapAsScalaMap
 import scala.tools.nsc.io.Path.string2path
 import scala.tools.nsc.io.Directory
-
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.sbuild.TargetRef.fromString
@@ -15,6 +13,8 @@ import de.tototec.sbuild.InvalidCommandlineException
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetRef
+import de.tototec.sbuild.ExecContext
+import java.util.Date
 
 object SBuild {
 
@@ -105,7 +105,7 @@ object SBuild {
     if (config.clean) {
       script.clean
     }
-    //    script.interpret
+    //  Compile Script and load compiled class
     val scriptInstance = script.compileAndExecute(project, config.useClassloaderHack)
 
     verbose("Targets: \n" + project.targets.values.mkString("\n"))
@@ -120,45 +120,22 @@ object SBuild {
       System.exit(0)
     }
 
+    // Targets requested from cmdline
     val targets = determineTargetGoal(config.params).toList
 
+    // Execution plan
     val chain = preorderedDependencies(targets, skipExec = true)
 
     {
-      var line0 = 0
-      def line = {
-        line0 = line0 + 1
-        "  " + line0 + ". "
-      }
-      verbose("Execution plan: \n" + chain.map(line + _.goal.toString).mkString("\n"))
-    }
-
-    def goalRunner: Target => Unit = { target =>
-      target.action match {
-        case null => verbose("Nothing to execute for target: " + target)
-        case exec: (() => Unit) => {
-          val time = System.currentTimeMillis
-          //          val origCl = Thread.currentThread.getContextClassLoader
-          try {
-            //            Thread.currentThread.setContextClassLoader(scriptInstance.getClass.getClassLoader)
-            verbose("Executing target: " + target)
-            exec.apply
-            verbose("Executed target: " + target + " in " + (System.currentTimeMillis - time) + " msec")
-          } catch {
-            case e: Throwable => {
-              verbose("Execution of target " + target + " aborted with errors: " + e.getMessage);
-              throw e
-            }
-            //          } finally {
-            //            Thread.currentThread.setContextClassLoader(origCl)
-          }
-        }
-        //        }
-      }
+      var line = 0
+      verbose("Execution plan: \n" + chain.map { execT =>
+        line += 1
+        "  " + line + ". " + execT.target.toString
+      }.mkString("\n"))
     }
 
     verbose("Executing...")
-    preorderedDependencies(targets, goalRunner, execState = Some(new ExecState(maxCount = chain.size)))
+    preorderedDependencies(targets, execState = Some(new ExecState(maxCount = chain.size)))
 
     verbose("Finished")
   }
@@ -184,11 +161,14 @@ object SBuild {
     requested
   }
 
-  class ExecutedGoal(val goal: Target, val lastUpdated: Long, val needsExec: Boolean)
+  class ExecutedTarget(val target: Target, val lastUpdated: Long, val needsExec: Boolean)
 
   class ExecState(var maxCount: Int, var currentNr: Int = 1)
 
-  def preorderedDependencies(request: List[Target], goalRunner: (Target) => Unit = null, rootRequest: Option[Target] = None, execState: Option[ExecState] = None, skipExec: Boolean = false)(implicit project: Project): Array[ExecutedGoal] = {
+  def preorderedDependencies(request: List[Target],
+                             rootRequest: Option[Target] = None,
+                             execState: Option[ExecState] = None,
+                             skipExec: Boolean = false)(implicit project: Project): Array[ExecutedTarget] = {
     request match {
       case Nil => Array()
       case node :: tail =>
@@ -206,7 +186,7 @@ object SBuild {
 
         // build prerequisites map
 
-        val alreadyRun: Array[ExecutedGoal] =
+        val alreadyRun: Array[ExecutedTarget] =
           //          if (goalRunner != null && node.upToDate) {
           //            // skip execution of dependencies
           //            verbose("Skipping execution of goal: " + node + " and all its dependencies")
@@ -218,7 +198,7 @@ object SBuild {
             verbose("checking dependencies of: " + node)
             val dependencies = project.prerequisites(node)
 
-            val executed = preorderedDependencies(dependencies.toList, goalRunner, Some(root),
+            val executed = preorderedDependencies(dependencies.toList, Some(root),
               execState = execState,
               skipExec = skipOrUpToDate)
 
@@ -239,16 +219,29 @@ object SBuild {
             }
 
             if (!skipOrUpToDate) {
-              if (goalRunner != null) {
-                goalRunner.apply(node)
-                // } else {
-                // verbose("I would execute goal: " + node)
+              node.action match {
+                case null => verbose("Nothing to execute for target: " + node)
+                case exec =>
+                  val ctx = new ExecContext(node)
+                  try {
+                    verbose("Executing target: " + node)
+                    exec.apply(ctx)
+                    ctx.endTime = new Date()
+                    verbose("Executed target: " + node + " in " + ctx.execDurationMSec + " msec")
+                  } catch {
+                    case e: Throwable => {
+                      ctx.endTime = new Date()
+                      verbose("Execution of target " + node + " aborted after " + ctx.execDurationMSec + " msec with errors: " + e.getMessage);
+                      throw e
+                    }
+                  }
+
               }
             }
-            executed ++ Array(new ExecutedGoal(node, if (node.targetFile.isDefined) { node.targetFile.get.lastModified } else { 0 }, needsExec = !skipOrUpToDate))
+            executed ++ Array(new ExecutedTarget(node, if (node.targetFile.isDefined) { node.targetFile.get.lastModified } else { 0 }, needsExec = !skipOrUpToDate))
           }
 
-        alreadyRun ++ preorderedDependencies(tail, goalRunner, execState = execState, skipExec = skipExec)
+        alreadyRun ++ preorderedDependencies(tail, execState = execState, skipExec = skipExec)
     }
   }
 

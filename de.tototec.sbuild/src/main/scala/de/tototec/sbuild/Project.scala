@@ -12,22 +12,9 @@ class Project(val projectDirectory: Directory) {
   //  private var targetRefs = List[TargetRef]()
 
   /**
-   * List of targets. By convention, each target is stored with its protocol
+   * Map(file -> Target) of targets.
    */
   private[sbuild] var targets: Map[File, Target] = Map()
-
-  //  def findOrCreateTargetRef(name: String): TargetRef = {
-  //    val candidate = new TargetRef(name)
-  //    targetRefs.find { tr =>
-  //      candidate.nameWithoutProto == tr.nameWithoutProto &&
-  //        ((candidate.explicitProto.isDefined && candidate.explicitProto == tr.explicitProto) || candidate.explicitProto.isEmpty)
-  //    } match {
-  //      case Some(x) => x
-  //      case _ =>
-  //        targetRefs ::= candidate
-  //        candidate
-  //    }
-  //  }
 
   def findOrCreateTarget(targetRef: TargetRef): Target = findTarget(targetRef) match {
     case Some(t) => t

@@ -6,17 +6,54 @@ import java.net.MalformedURLException
 import scala.collection
 
 trait Target {
+  /**
+   * The unique file resource this target represents.
+   * This file might be not related to the target at all, if the target is phony.
+   */
   def file: File
+  /**
+   * The file this target produces.
+   * <code>None</code> if this target is phony.
+   */
+  def targetFile: Option[File]
+  /** The name of this target. */
   def name: String
-  //  def filePath: String
-  //  def dependsOn(goal: TargetRef): Target
-  def dependsOn(goals: => TargetRefs): Target
-  def dependants: Seq[TargetRef]
-  def exec(execution: => Unit): Target
-  def action: () => Unit
-  def help(help: String): Target
-  def help: String
+  /**
+   * If <code>true</code>, this target does not (necessarily) produces a file resource with the same name.
+   * A phony target can therefore not profit from the advanced up-to-date checks as files can.
+   * <p/>
+   * E.g. a "clean' target might delete various resources but will most likely not create a "clean" file,
+   * so it has to be phony.
+   * Otherwise, if a file or directory with the same name ("clean" here) exists,
+   * it would be used to check, if the target needs to run or not.
+   */
   def phony: Boolean
+
+  /**
+   * A prerequisites (dependencies) to this target. Sbuild will ensure,
+   * that these dependency are up-to-date before this target will be executed.
+   */
+  def dependsOn(goals: => TargetRefs): Target
+  /**
+   * Get a list of all (current) prerequisites (dependencies) of this target.
+   */
+  def dependants: Seq[TargetRef]
+
+  /**
+   * Apply an block of actions, that will be executed, if this target was requested but not up-to-date.
+   */
+  def exec(execution: => Unit): Target
+  def exec(execution: ExecContext => Unit): Target
+  private[sbuild] def action: ExecContext => Unit
+
+  /**
+   * Set a descriptive information text to this target, to assist the developer/user of the project.
+   */
+  def help(help: String): Target
+  /**
+   * Get the assigned help message.
+   */
+  def help: String
   //  /**
   //   * Default: use the file to which the target name resolves.
   //   * If pattern is specified, we produce files matching the given pattern.
@@ -24,8 +61,11 @@ trait Target {
   //   */
   //  def produces(pattern: String): Target
   //  def needsToExec(needsToExec: => Boolean): Target
+
+  /**
+   * <code>true</code>, if the target is up-to-date, <code>false</code> otherwise.
+   */
   def upToDate(implicit project: Project): Boolean
-  def targetFile: Option[File]
 }
 
 object Target {
@@ -34,9 +74,9 @@ object Target {
 
 class ProjectTarget private[sbuild] (val name: String, val file: File, val phony: Boolean, handler: Option[SchemeHandler]) extends Target {
 
-  private var _exec: () => Unit = handler match {
+  private var _exec: ExecContext => Unit = handler match {
     case None => null
-    case Some(handler) => () => {
+    case Some(handler) => ExecContext => {
       handler.resolve(new TargetRef(name).nameWithoutProto) match {
         case None =>
         case Some(t) => throw t
@@ -55,7 +95,11 @@ class ProjectTarget private[sbuild] (val name: String, val file: File, val phony
   }
 
   override def exec(execution: => Unit): Target = {
-    _exec = () => execution
+    _exec = (_) => execution
+    this
+  }
+  override def exec(execution: ExecContext => Unit): Target = {
+    _exec = execution
     this
   }
 

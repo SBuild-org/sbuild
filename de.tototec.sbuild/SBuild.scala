@@ -57,22 +57,21 @@ class SBuild(implicit P: Project) {
     scalac(sourceDir = "src/main/scala", targetDir = "target/test-classes", cp = AntPath(testCp))
   }
 
-  Target(jar) dependsOn "compile" exec {
-    new Jar() {
+  Target(jar) dependsOn "compile" exec { ctx => new Jar() {
       setProject(AntProject())
-      setDestFile(Path(jar))
+      setDestFile(ctx.targetFile.get)
       setBasedir(Path("target/classes"))
     }.execute
   }
 
-  Target("phony:scaladoc") dependsOn compileCp exec {
+  Target("phony:scaladoc") dependsOn compileCp exec { ctx =>
     new Mkdir() { setProject(AntProject()); setDir(Path("target/scaladoc")) }.execute
     new Scaladoc() {
       setProject(AntProject())
       // setWindowtitle("SBuild API Documentation")
       setDeprecation("on")
       setUnchecked("on")
-      setClasspath(AntPath(compileCp))
+      setClasspath(AntPath(ctx.prerequisites))
       setSrcdir(AntPath("src/main/scala"))
       setDestdir(Path("target/scaladoc"))
       // setLogging("verbose")

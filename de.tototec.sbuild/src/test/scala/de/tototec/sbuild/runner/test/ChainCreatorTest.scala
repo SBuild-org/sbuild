@@ -21,16 +21,20 @@ class ChainCreatorTest extends FunSuite {
   private val gC = Target("phony:c")
 
   test("build chain test 1") {
-    assert(List(g1) === SBuild.preorderedDependencies(List(g1)).map(_.goal))
+    assert(Array(g1) === SBuild.preorderedDependencies(List(g1)).map(_.target))
+    assert(Array(g1) === SBuild.preorderedDependencies(List(g1), skipExec = true).map(_.target))
   }
   test("build chain test 2") {
-    assert(List(g1, g2) === SBuild.preorderedDependencies(List(g2)).map(_.goal))
+    assert(Array(g1, g2) === SBuild.preorderedDependencies(List(g2)).map(_.target))
+    assert(Array(g1, g2) === SBuild.preorderedDependencies(List(g2), skipExec = true).map(_.target))
   }
   test("build chain test 3") {
-    assert(List(g1, g1, g2) === SBuild.preorderedDependencies(List(g1, g2)).map(_.goal))
+    assert(Array(g1, g1, g2) === SBuild.preorderedDependencies(List(g1, g2)).map(_.target))
+    assert(Array(g1, g1, g2) === SBuild.preorderedDependencies(List(g1, g2), skipExec = true).map(_.target))
   }
   test("build chain test 4") {
-    assert(List(g1, g2, g1) === SBuild.preorderedDependencies(List(g2, g1)).map(_.goal))
+    assert(Array(g1, g2, g1) === SBuild.preorderedDependencies(List(g2, g1)).map(_.target))
+    assert(Array(g1, g2, g1) === SBuild.preorderedDependencies(List(g2, g1), skipExec = true).map(_.target))
   }
 
 }
