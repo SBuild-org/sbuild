@@ -20,10 +20,7 @@ class SBuild(implicit P: Project) {
   Target("phony:all") dependsOn jar
 
   val clean = Target("phony:clean") exec {
-    new Delete() {
-      setProject(AntProject())
-      setDir(Path("target"))
-    }.execute
+    new Delete() { setProject(AntProject()); setDir(Path("target")) }.execute
   }
 
   val compileCp = "mvn:org.scala-lang:scala-library:2.9.1" /
@@ -32,11 +29,7 @@ class SBuild(implicit P: Project) {
     "mvn:org.apache.ant:ant:1.8.3"
 
   def scalac(sourceDir: String, targetDir: String, cp: org.apache.tools.ant.types.Path) {
-    new Mkdir() {
-      setProject(AntProject())
-      setDir(Path(targetDir))
-    }.execute
-
+    new Mkdir() { setProject(AntProject()); setDir(Path(targetDir)) }.execute
     // we want to use FastScala, but after it compiles successfully, it bails out with an internal error
     new Scalac() {
       setProject(AntProject())
@@ -69,6 +62,20 @@ class SBuild(implicit P: Project) {
       setProject(AntProject())
       setDestFile(Path(jar))
       setBasedir(Path("target/classes"))
+    }.execute
+  }
+
+  Target("phony:scaladoc") dependsOn compileCp exec {
+    new Mkdir() { setProject(AntProject()); setDir(Path("target/scaladoc")) }.execute
+    new Scaladoc() {
+      setProject(AntProject())
+      // setWindowtitle("SBuild API Documentation")
+      setDeprecation("on")
+      setUnchecked("on")
+      setClasspath(AntPath(compileCp))
+      setSrcdir(AntPath("src/main/scala"))
+      setDestdir(Path("target/scaladoc"))
+      // setLogging("verbose")
     }.execute
   }
 
