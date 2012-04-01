@@ -36,10 +36,10 @@ class SBuild(implicit P: Project) {
     }.execute
   } 
 
-  Target("target/test.jar") dependsOn "compile" exec {
+  Target("target/test.jar") dependsOn "compile" exec { ctx =>
     new Jar() {
       setProject(AntProject())
-      setDestFile(Path("target/test.jar"))
+      setDestFile(ctx.targetFile.get)
       setBasedir(Path("target/classes"))
     }.execute
   }
