@@ -98,7 +98,7 @@ object SBuild {
 
     SBuild.verbose = config.verbose
 
-    // No need to parse help and version again
+    // No need to parse help and version again, was done in main already
 
     implicit val project = new Project(Directory(System.getProperty("user.dir")))
     config.defines foreach {
@@ -125,7 +125,7 @@ object SBuild {
     }
 
     // Targets requested from cmdline
-    val targets = determineTargetGoal(config.params).toList
+    val targets = determineRequestedTargets(config.params).toList
 
     // Execution plan
     val chain = preorderedDependencies(targets, skipExec = true)
@@ -144,7 +144,7 @@ object SBuild {
     verbose("Finished")
   }
 
-  def determineTargetGoal(targets: Seq[String])(implicit project: Project): Seq[Target] = {
+  def determineRequestedTargets(targets: Seq[String])(implicit project: Project): Seq[Target] = {
 
     val (requested: Seq[Target], invalid: Seq[String]) = targets.map { t =>
       project.findTarget(t) match {
@@ -191,11 +191,6 @@ object SBuild {
         // build prerequisites map
 
         val alreadyRun: Array[ExecutedTarget] =
-          //          if (goalRunner != null && node.upToDate) {
-          //            // skip execution of dependencies
-          //            verbose("Skipping execution of goal: " + node + " and all its dependencies")
-          //            Array()
-          //          } else
           {
             val skipOrUpToDate = skipExec || project.isTargetUpToDate(node)
             // Execute prerequisites
