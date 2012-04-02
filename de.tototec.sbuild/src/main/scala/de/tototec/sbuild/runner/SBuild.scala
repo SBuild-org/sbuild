@@ -26,6 +26,9 @@ object SBuild {
     @CmdOption(names = Array("--help", "-h"), isHelp = true, description = "Show this help screen.")
     var help = false
 
+    @CmdOption(names = Array("--version"), description = "Show SBuild version.")
+    var showVersion = false
+
     @CmdOption(names = Array("--buildfile", "-f"), args = Array("FILE"),
       description = "The buildfile to use (default: SBuild.scala).")
     var buildfile = "SBuild.scala"
@@ -70,6 +73,10 @@ object SBuild {
 
     SBuild.verbose = config.verbose
 
+    if (config.showVersion) {
+    	println("SBuild 0.0.1 (c) 2011, 2012, ToToTec GbR, Tobias Roeser")
+    }
+
     if (config.help) {
       cp.usage
       System.exit(0)
@@ -91,10 +98,7 @@ object SBuild {
 
     SBuild.verbose = config.verbose
 
-    if (config.help) {
-      cp.usage
-      System.exit(0)
-    }
+    // No need to parse help and version again
 
     implicit val project = new Project(Directory(System.getProperty("user.dir")))
     config.defines foreach {
