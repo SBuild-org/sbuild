@@ -11,8 +11,8 @@ import scala.tools.ant._
   "http://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.9.1/scala-compiler-2.9.1.jar")
 class SBuild(implicit P: Project) {
 
-  SchemeHandler("mvn", new MvnSchemeHandler(".sbuild/mvn",
-    Seq("http://repo1.maven.org/maven1", "file:///home/lefou/.m2/repository-tototec")))
+  SchemeHandler("http", new HttpSchemeHandler(".sbuild/http"))
+  SchemeHandler("mvn", new MvnSchemeHandler(".sbuild/mvn"))
 
   val version = "0.0.1-SNAPSHOT"
   val jar = "target/de.tototec.sbuild-" + version + ".jar"
@@ -25,7 +25,7 @@ class SBuild(implicit P: Project) {
 
   val compileCp = "mvn:org.scala-lang:scala-library:2.9.1" /
     "mvn:org.scala-lang:scala-compiler:2.9.1" /
-    "mvn:de.tototec:de.tototec.cmdoption:0.1.0" /
+    "http://cmdoption.tototec.de/cmdoption/attachments/download/3/de.tototec.cmdoption-0.1.0.jar" /
     "mvn:org.apache.ant:ant:1.8.3"
 
   def scalac(sourceDir: String, targetDir: String, cp: org.apache.tools.ant.types.Path) {
