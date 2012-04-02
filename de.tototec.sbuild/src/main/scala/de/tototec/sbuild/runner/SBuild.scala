@@ -74,7 +74,7 @@ object SBuild {
     SBuild.verbose = config.verbose
 
     if (config.showVersion) {
-    	println("SBuild 0.0.1 (c) 2011, 2012, ToToTec GbR, Tobias Roeser")
+      println("SBuild 0.0.1 (c) 2011, 2012, ToToTec GbR, Tobias Roeser")
     }
 
     if (config.help) {
@@ -197,7 +197,7 @@ object SBuild {
           //            Array()
           //          } else
           {
-            val skipOrUpToDate = skipExec || node.upToDate
+            val skipOrUpToDate = skipExec || project.isTargetUpToDate(node)
             // Execute prerequisites
             verbose("checking dependencies of: " + node)
             val dependencies = project.prerequisites(node)
@@ -205,6 +205,8 @@ object SBuild {
             val executed = preorderedDependencies(dependencies.toList, Some(root),
               execState = execState,
               skipExec = skipOrUpToDate)
+
+            // TODO: Evaluate up-to-date state based on the list of executed tasks
 
             // Print State
             execState map { state =>

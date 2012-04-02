@@ -97,5 +97,33 @@ class Project(val projectDirectory: Directory) {
   }
 
   private[sbuild] var antProject: Option[Any] = None
+
+  def isTargetUpToDate(target: Target): Boolean = {
+    lazy val prefix = "Target " + target.name + ": "
+    def verbose(msg: => String) = Util.verbose(prefix + msg)
+    def exit(cause: String): Boolean = {
+      Util.verbose(prefix + "Not up-to-date: " + cause)
+      false
+    }
+
+    if (target.phony) exit("Target is phony") else {
+      if (target.targetFile.isEmpty || !target.targetFile.get.exists) exit("Target file does not exists") else {
+        val prereqs = prerequisites(target)
+        if (prereqs.exists(_.phony)) exit("Some dependencies are phony") else {
+          if (prereqs.exists(goal => goal.targetFile.isEmpty || !goal.targetFile.get.exists)) exit("Some prerequisites does not exists") else {
+
+            val fileLastModified = target.targetFile.get.lastModified
+            verbose("Target file last modified: " + fileLastModified)
+
+            val prereqsLastModified = prereqs.foldLeft(0: Long)((max, goal) => math.max(max, goal.targetFile.get.lastModified))
+            verbose("Prereqisites last modified: " + prereqsLastModified)
+
+            if (fileLastModified < prereqsLastModified) exit("Prerequisites are newer") else true
+          }
+        }
+      }
+    }
+  }
+
 }
 

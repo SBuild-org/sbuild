@@ -62,10 +62,6 @@ trait Target {
   //  def produces(pattern: String): Target
   //  def needsToExec(needsToExec: => Boolean): Target
 
-  /**
-   * <code>true</code>, if the target is up-to-date, <code>false</code> otherwise.
-   */
-  def upToDate(implicit project: Project): Boolean
 }
 
 object Target {
@@ -120,35 +116,6 @@ class ProjectTarget private[sbuild] (val name: String, val file: File, val phony
   lazy val targetFile: Option[File] = phony match {
     case false => Some(file)
     case true => None
-  }
-
-  override def upToDate(implicit project: Project): Boolean = {
-    lazy val prefix = "Target " + name + ": "
-    def verbose(msg: => String) = Util.verbose(prefix + msg)
-    def exit(cause: String): Boolean = {
-      Util.verbose(prefix + "Not up-to-date: " + cause)
-      false
-    }
-
-    //    verbose("check up-to-date")
-
-    if (phony) exit("Target is phony") else {
-      if (targetFile.isEmpty || !targetFile.get.exists) exit("Target file does not exists") else {
-        val prereqs = project.prerequisites(ProjectTarget.this)
-        if (prereqs.exists(_.phony)) exit("Some dependencies are phony") else {
-          if (prereqs.exists(goal => goal.targetFile.isEmpty || !goal.targetFile.get.exists)) exit("Some prerequisites does not exists") else {
-
-            val fileLastModified = targetFile.get.lastModified
-            verbose("Target file last modified: " + fileLastModified)
-
-            val prereqsLastModified = prereqs.foldLeft(0: Long)((max, goal) => math.max(max, goal.targetFile.get.lastModified))
-            verbose("Prereqisites last modified: " + prereqsLastModified)
-
-            if (fileLastModified < prereqsLastModified) exit("Prerequisites are newer") else true
-          }
-        }
-      }
-    }
   }
 
 }
