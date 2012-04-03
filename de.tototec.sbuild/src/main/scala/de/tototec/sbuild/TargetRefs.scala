@@ -11,10 +11,10 @@ object TargetRefs {
 }
 
 case class TargetRefs(val targetRefs: TargetRef*) {
-  def /(targetRefs: TargetRefs): TargetRefs = TargetRefs((this.targetRefs ++ targetRefs.targetRefs): _*)
-  def /(targetRef: TargetRef): TargetRefs = TargetRefs((targetRefs ++ Seq(targetRef)): _*)
-  def /(file: File): TargetRefs = TargetRefs((targetRefs ++ Seq(TargetRef(file))): _*)
-  def /(string: String): TargetRefs = TargetRefs((targetRefs ++ Seq(TargetRef(string))): _*)
+  def ~(targetRefs: TargetRefs): TargetRefs = TargetRefs((this.targetRefs ++ targetRefs.targetRefs): _*)
+  def ~(targetRef: TargetRef): TargetRefs = TargetRefs((targetRefs ++ Seq(targetRef)): _*)
+  def ~(file: File): TargetRefs = TargetRefs((targetRefs ++ Seq(TargetRef(file))): _*)
+  def ~(string: String): TargetRefs = TargetRefs((targetRefs ++ Seq(TargetRef(string))): _*)
 
-  override def toString: String = targetRefs.map { _.name }.mkString(" / ")
+  override def toString: String = targetRefs.map { _.name }.mkString(" ~ ")
 }
