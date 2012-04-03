@@ -3,6 +3,9 @@ package de.tototec.sbuild.runner
 import java.net.URLClassLoader
 import java.net.URL
 
+/**
+ * An URL classloader that allows to add additional URLs after construction.
+ */
 class SBuildURLClassLoader(urls: Array[URL], parent: ClassLoader) extends URLClassLoader(urls, parent) {
 
   //  println("urls: " + urls.mkString(","))
