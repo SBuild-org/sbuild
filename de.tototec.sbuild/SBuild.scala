@@ -23,9 +23,9 @@ class SBuild(implicit P: Project) {
     new Delete() { setProject(AntProject()); setDir(Path("target")) }.execute
   }
 
-  val compileCp = "mvn:org.scala-lang:scala-library:2.9.1" /
-    "mvn:org.scala-lang:scala-compiler:2.9.1" /
-    "http://cmdoption.tototec.de/cmdoption/attachments/download/3/de.tototec.cmdoption-0.1.0.jar" /
+  val compileCp = "mvn:org.scala-lang:scala-library:2.9.1" ~
+    "mvn:org.scala-lang:scala-compiler:2.9.1" ~
+    "http://cmdoption.tototec.de/cmdoption/attachments/download/3/de.tototec.cmdoption-0.1.0.jar" ~
     "mvn:org.apache.ant:ant:1.8.3"
 
   def scalac(sourceDir: String, targetDir: String, cp: org.apache.tools.ant.types.Path) {
@@ -44,6 +44,8 @@ class SBuild(implicit P: Project) {
       // this is necessary, because the scala ant tasks outsmarts itself 
       // when more than one scala class is defined in the same .scala file
       setForce(true)
+
+
     }.execute
   }
 
@@ -51,7 +53,7 @@ class SBuild(implicit P: Project) {
     scalac(sourceDir = "src/main/scala", targetDir = "target/classes", cp = AntPath(compileCp))
   }
 
-  val testCp = compileCp / "mvn:org.testng:testng:6.4" / jar
+  val testCp = compileCp ~ "mvn:org.testng:testng:6.4" ~ jar
 
   Target("phony:testCompile") dependsOn testCp exec {
     scalac(sourceDir = "src/main/scala", targetDir = "target/test-classes", cp = AntPath(testCp))
