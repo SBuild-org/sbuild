@@ -68,7 +68,7 @@ object Target {
   def apply(targetRef: TargetRef)(implicit project: Project): Target = project.findOrCreateTarget(targetRef)
 }
 
-class ProjectTarget private[sbuild] (val name: String, val file: File, val phony: Boolean, handler: Option[SchemeHandler]) extends Target {
+case class ProjectTarget private[sbuild] (val name: String, val file: File, val phony: Boolean, handler: Option[SchemeHandler]) extends Target {
 
   private var _exec: ExecContext => Unit = handler match {
     case None => null

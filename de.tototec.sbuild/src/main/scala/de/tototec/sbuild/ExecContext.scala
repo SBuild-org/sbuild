@@ -7,23 +7,37 @@ import java.util.Date
  * While a target execution, this class can be used to get relevant information
  * about the current target execution and interact with the executor.
  */
-class ExecContext(target: Target, val startTime: Date = new Date()) {
+class ExecContext(target: Target) {
 
   /**
    * The file this targets produces, or <code>None</code> if this target is phony.
    */
   def targetFile: Option[File] = target.targetFile
 
-  private[sbuild] var endTime: Date = _
+  def start = startTime match {
+    case null => startTime = new Date()
+    case _ =>
+  }
+  private var startTime: Date = _
+
+  def end = endTime match {
+    case null => endTime = new Date()
+    case _ =>
+  }
+  private var endTime: Date = _
 
   /**
    * The time in milliseconds this target took to execute.
    * In case this target is still running, the time since it started.
    */
-  def execDurationMSec: Long = (endTime match {
-    case null => new Date()
-    case x => x
-  }).getTime - startTime.getTime
+  def execDurationMSec: Long = startTime match {
+    case null => 0
+    case _ =>
+      (endTime match {
+        case null => new Date()
+        case x => x
+      }).getTime - startTime.getTime
+  }
 
   /**
    * The prerequisites (direct dependencies) of this target.

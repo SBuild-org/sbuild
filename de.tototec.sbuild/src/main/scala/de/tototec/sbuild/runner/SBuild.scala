@@ -1,20 +1,17 @@
 package de.tototec.sbuild.runner
 
 import java.io.File
-import scala.Array.canBuildFrom
-import scala.collection.JavaConversions.asScalaBuffer
-import scala.collection.JavaConversions.mapAsScalaMap
-import scala.tools.nsc.io.Path.string2path
+import java.util.Date
+import scala.collection.JavaConversions._
 import scala.tools.nsc.io.Directory
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
-import de.tototec.sbuild.TargetRef.fromString
+import de.tototec.sbuild.TargetRef
 import de.tototec.sbuild.InvalidCommandlineException
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetRef
 import de.tototec.sbuild.ExecContext
-import java.util.Date
 
 object SBuild {
 
@@ -92,6 +89,8 @@ object SBuild {
 
   def main0(args: Array[String]) {
 
+    val bootstrapStart = System.currentTimeMillis
+
     val config = new Config()
     val cp = new CmdlineParser(config)
     cp.parse(args: _*)
@@ -138,8 +137,15 @@ object SBuild {
       }.mkString("\n"))
     }
 
+    val executionStart = System.currentTimeMillis
+    val bootstrapTime = executionStart - bootstrapStart
+
     verbose("Executing...")
     preorderedDependencies(targets, execState = Some(new ExecState(maxCount = chain.size)))
+    if (!targets.isEmpty) {
+      println("[100%] Execution finished. SBuild init time: " + bootstrapTime +
+        " msec, Execution time: " + (System.currentTimeMillis - executionStart) + " msec")
+    }
 
     verbose("Finished")
   }
@@ -201,7 +207,35 @@ object SBuild {
               execState = execState,
               skipExec = skipOrUpToDate)
 
-            // TODO: Evaluate up-to-date state based on the list of executed tasks
+            val doContextChecks = true
+
+            val execPhonyUpToDateOrSkip = skipOrUpToDate match {
+              case true => true // already known up-to-date
+              case false => if (!doContextChecks) false else {
+                // Evaluate up-to-date state based on the list of executed tasks
+
+                // Imagine the case were the same 
+                // dependencies was added twice to the direct dependencies. Both would be associated by the same target,
+                // so the up-to-date state of the first executed dependency would always be used for all same
+                // dependencies. Because of this, we must aggregate all running state of one target, even if that means 
+                // we miss some skip-able targets  
+                val targetWhichWereUpToDateStates: Map[Target, Boolean] =
+                  project.prerequisites(node).toList.distinct.map { t =>
+                    executed.filter(e => e.target == t) match {
+                      case Array() => (t -> false)
+                      case xs => xs.find(e => e.needsExec) match {
+                        case Some(_) => (t -> false)
+                        case None => (t -> true)
+                      }
+                    }
+                  }.toMap
+
+                project.isTargetUpToDate(node, targetWhichWereUpToDateStates)
+              }
+            }
+            if (!skipOrUpToDate && execPhonyUpToDateOrSkip) {
+              verbose("All executed phony dependencies of '" + node + "' were up-to-date.")
+            }
 
             // Print State
             execState map { state =>
@@ -211,27 +245,32 @@ object SBuild {
                   "[" + math.min(100, math.max(0, p)) + "%]"
                 case (c, m) => "[" + c + "/" + m + "]"
               }
-              if (!skipOrUpToDate) {
-                println(percent + " Executing target '" + TargetRef(node).nameWithoutProto + "':")
-              } else {
+              if (execPhonyUpToDateOrSkip) {
                 verbose(percent + " Skipping target '" + TargetRef(node).nameWithoutProto + "'")
+              } else {
+                println(percent + " Executing target '" + TargetRef(node).nameWithoutProto + "':")
               }
               state.currentNr += 1
             }
 
-            if (!skipOrUpToDate) {
+            val ctx = new ExecContext(node)
+
+            if (execPhonyUpToDateOrSkip) {
+              ctx.targetWasUpToDate = true
+            } else {
+              // Need to execute
               node.action match {
                 case null => verbose("Nothing to execute for target: " + node)
                 case exec =>
-                  val ctx = new ExecContext(node)
                   try {
                     verbose("Executing target: " + node)
+                    ctx.start
                     exec.apply(ctx)
-                    ctx.endTime = new Date()
+                    ctx.end
                     verbose("Executed target: " + node + " in " + ctx.execDurationMSec + " msec")
                   } catch {
                     case e: Throwable => {
-                      ctx.endTime = new Date()
+                      ctx.end
                       verbose("Execution of target " + node + " aborted after " + ctx.execDurationMSec + " msec with errors: " + e.getMessage);
                       throw e
                     }
@@ -239,6 +278,7 @@ object SBuild {
 
               }
             }
+
             executed ++ Array(new ExecutedTarget(node, if (node.targetFile.isDefined) { node.targetFile.get.lastModified } else { 0 }, needsExec = !skipOrUpToDate))
           }
 

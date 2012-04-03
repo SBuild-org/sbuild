@@ -1,19 +1,11 @@
 package de.tototec.sbuild.runner
 
-import scala.annotation.tailrec
-import java.net.URLClassLoader
-import de.tototec.sbuild.Util
-import java.io.FileWriter
-import java.io.LineNumberReader
-import java.io.FileReader
-import de.tototec.sbuild.Target
-import scala.tools.nsc.settings.MutableSettings
-import scala.tools.nsc.Settings
-import scala.tools.nsc.interpreter.IMain
 import java.io.File
+import java.io.FileWriter
+import java.net.URL
+import de.tototec.sbuild.Util
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.SBuildException
-import java.net.URL
 import de.tototec.sbuild.HttpSchemeHandler
 
 class ProjectScript(scriptFile: File, compileClasspath: String) {
