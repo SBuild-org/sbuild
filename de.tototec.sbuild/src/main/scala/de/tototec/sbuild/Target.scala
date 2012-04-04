@@ -42,9 +42,9 @@ trait Target {
   /**
    * Apply an block of actions, that will be executed, if this target was requested but not up-to-date.
    */
-  def exec(execution: => Unit): Target
-  def exec(execution: ExecContext => Unit): Target
-  private[sbuild] def action: ExecContext => Unit
+  def exec(execution: => Any): Target
+  def exec(execution: TargetContext => Any): Target
+  private[sbuild] def action: TargetContext => Any
 
   /**
    * Set a descriptive information text to this target, to assist the developer/user of the project.
@@ -70,7 +70,7 @@ object Target {
 
 case class ProjectTarget private[sbuild] (val name: String, val file: File, val phony: Boolean, handler: Option[SchemeHandler]) extends Target {
 
-  private var _exec: ExecContext => Unit = handler match {
+  private var _exec: TargetContext => Any = handler match {
     case None => null
     case Some(handler) => ExecContext => {
       handler.resolve(new TargetRef(name).nameWithoutProto) match {
@@ -90,11 +90,11 @@ case class ProjectTarget private[sbuild] (val name: String, val file: File, val 
     ProjectTarget.this
   }
 
-  override def exec(execution: => Unit): Target = {
-    _exec = (_) => execution
+  override def exec(execution: => Any): Target = {
+    _exec = _ => execution
     this
   }
-  override def exec(execution: ExecContext => Unit): Target = {
+  override def exec(execution: TargetContext => Any): Target = {
     _exec = execution
     this
   }

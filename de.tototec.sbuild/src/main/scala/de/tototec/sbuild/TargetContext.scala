@@ -7,7 +7,7 @@ import java.util.Date
  * While a target execution, this class can be used to get relevant information
  * about the current target execution and interact with the executor.
  */
-class ExecContext(target: Target) {
+class TargetContext(target: Target) {
 
   /**
    * The file this targets produces, or <code>None</code> if this target is phony.
@@ -43,7 +43,7 @@ class ExecContext(target: Target) {
    * The prerequisites (direct dependencies) of this target.
    */
   def prerequisites: Seq[TargetRef] = target.dependants
-
+  
   /**
    * Set this to <code>true</code>, if this target execution did not produced anything new,
    * which means, the target was already up-to-date.

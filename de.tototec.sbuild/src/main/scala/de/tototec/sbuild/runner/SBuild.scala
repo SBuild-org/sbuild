@@ -6,12 +6,7 @@ import scala.collection.JavaConversions._
 import scala.tools.nsc.io.Directory
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
-import de.tototec.sbuild.TargetRef
-import de.tototec.sbuild.InvalidCommandlineException
-import de.tototec.sbuild.Project
-import de.tototec.sbuild.Target
-import de.tototec.sbuild.TargetRef
-import de.tototec.sbuild.ExecContext
+import de.tototec.sbuild._
 
 object SBuild {
 
@@ -253,7 +248,7 @@ object SBuild {
               state.currentNr += 1
             }
 
-            val ctx = new ExecContext(node)
+            val ctx = new TargetContext(node)
 
             if (execPhonyUpToDateOrSkip) {
               ctx.targetWasUpToDate = true
