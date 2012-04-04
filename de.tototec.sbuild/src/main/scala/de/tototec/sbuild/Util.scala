@@ -7,7 +7,7 @@ import java.io.IOException
 import java.net.URL
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
-import de.tototec.sbuild.runner.SBuild
+import de.tototec.sbuild.runner.SBuildRunner
 import java.io.{ File => JFile }
 import scala.tools.nsc.io.File
 import scala.tools.nsc.io.Directory
@@ -16,6 +16,7 @@ import java.io.BufferedOutputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+
 object Util {
 
   def verbose(msg: => String) = {

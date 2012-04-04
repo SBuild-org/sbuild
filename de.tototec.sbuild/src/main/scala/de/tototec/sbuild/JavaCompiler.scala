@@ -1,7 +1,7 @@
 package de.tototec.sbuild
 
 import java.io.File
-import de.tototec.sbuild.runner.SBuild
+import de.tototec.sbuild.runner.SBuildRunner
 
 class JavaCompiler extends SchemeHandler {
   override def localPath(path: String): String = {

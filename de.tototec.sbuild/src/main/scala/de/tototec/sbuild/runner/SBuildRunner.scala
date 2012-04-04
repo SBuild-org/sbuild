@@ -76,7 +76,7 @@ object SBuildRunner {
 
     if (config.useClassloaderHack) {
       val scriptCL = new SBuildURLClassLoader(config.compileClasspath.split(":").map { new File(_).toURI.toURL }, null)
-      scriptCL.loadClass("de.tototec.sbuild.runner.SBuild").getMethod("main0", classOf[Array[String]]).invoke(null, args)
+      scriptCL.loadClass("de.tototec.sbuild.runner.SBuildRunner").getMethod("main0", classOf[Array[String]]).invoke(null, args)
     } else {
       main0(args)
     }
