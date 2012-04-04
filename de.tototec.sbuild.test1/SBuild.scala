@@ -36,7 +36,7 @@ class SBuild(implicit P: Project) {
     }.execute
   } 
 
-  Target("target/test.jar") dependsOn "compile" exec { ctx =>
+  Target("target/test.jar") dependsOn "compile" exec { ctx: TargetContext =>
     new Jar() {
       setProject(AntProject())
       setDestFile(ctx.targetFile.get)
