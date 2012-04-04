@@ -56,7 +56,7 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
       scriptFile.length == sourceSize &&
         scriptFile.lastModified == sourceLastModified &&
         targetClassFile.lastModified == targetClassLastModified &&
-        sbuildVersion == SBuild.version
+        sbuildVersion == SBuildRunner.version
     }
   }
 
@@ -172,9 +172,9 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
   }
 
   def readAdditionalClasspath: Array[String] = {
-    SBuild.verbose("About to find additional classpath entries.")
+    SBuildRunner.verbose("About to find additional classpath entries.")
     val cp = readAnnotationWithVarargAttribute(annoName = "classpath", valueName = "value")
-    SBuild.verbose("Using additional classpath entries: " + cp.mkString(", "))
+    SBuildRunner.verbose("Using additional classpath entries: " + cp.mkString(", "))
 
     lazy val httpHandler = {
       var downloadDir: File = new File(targetBaseDir, "/http")
@@ -187,17 +187,17 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
     cp.map { entry =>
       if (entry.startsWith("http:")) {
         // we need to download it
-        SBuild.verbose("Classpath entry is a HTTP resource: " + entry)
+        SBuildRunner.verbose("Classpath entry is a HTTP resource: " + entry)
         val path = entry.substring("http:".length, entry.length)
         val file = httpHandler.localFile(path)
         if (!file.exists) {
-          SBuild.verbose("Need to download: " + entry)
+          SBuildRunner.verbose("Need to download: " + entry)
           httpHandler.resolve(path) match {
             case Some(t: Throwable) => throw t
             case _ =>
           }
         }
-        SBuild.verbose("Resolved: " + entry + " => " + file)
+        SBuildRunner.verbose("Resolved: " + entry + " => " + file)
         file.getPath
       } else {
         entry
@@ -206,14 +206,14 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
   }
 
   def readAdditionalInclude: Array[String] = {
-    SBuild.verbose("About to find additional include files.")
+    SBuildRunner.verbose("About to find additional include files.")
     val cp = readAnnotationWithSingleArrayAttribute(annoName = "include", valueName = "value")
-    SBuild.verbose("Using additional include files: " + cp.mkString(", "))
+    SBuildRunner.verbose("Using additional include files: " + cp.mkString(", "))
     cp
   }
 
   def useExistingCompiled(project: Project, classpath: Array[String], experimentalWithSameClassLoader: Boolean): Any = {
-    SBuild.verbose("Loading compiled version of build script: " + scriptFile)
+    SBuildRunner.verbose("Loading compiled version of build script: " + scriptFile)
     val cl = experimentalWithSameClassLoader match {
       case false => new SBuildURLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
       case true =>
@@ -227,7 +227,7 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
           case c => throw new RuntimeException("Unsupported ClassLoader: " + c)
         }
     }
-    SBuild.verbose("CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
+    SBuildRunner.verbose("CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
     val clazz: Class[_] = cl.loadClass(scriptBaseName)
     val ctr = clazz.getConstructor(classOf[Project])
     val scriptInstance = ctr.newInstance(project)
@@ -245,16 +245,16 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
   def newCompile(classpath: String) {
     cleanScala()
     targetDir.mkdirs
-    SBuild.verbose("Compiling build script: " + scriptFile)
+    SBuildRunner.verbose("Compiling build script: " + scriptFile)
 
     compile_with_fsc(classpath)
 
-    SBuild.verbose("Writing info file: " + infoFile)
+    SBuildRunner.verbose("Writing info file: " + infoFile)
     val info = <sbuild>
                  <sourceSize>{ scriptFile.length }</sourceSize>
                  <sourceLastModified>{ scriptFile.lastModified }</sourceLastModified>
                  <targetClassLastModified>{ targetClassFile.lastModified }</targetClassLastModified>
-                 <sbuildVersion>{ SBuild.version }</sbuildVersion>
+                 <sbuildVersion>{ SBuildRunner.version }</sbuildVersion>
                </sbuild>
     val file = new FileWriter(infoFile)
     xml.XML.write(file, info, "UTF-8", true, null)

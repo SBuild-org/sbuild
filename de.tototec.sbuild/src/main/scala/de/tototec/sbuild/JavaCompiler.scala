@@ -64,7 +64,7 @@ class JavaCompiler extends SchemeHandler {
     val javaFiles = calcFilesToBuild
     val showDeprecation = true
 
-    SBuild.verbose("Compiling " + javaFiles.size +
+    SBuildRunner.verbose("Compiling " + javaFiles.size +
       " Java sources files to '" + outputDir + "'")
 
     val cp = Array("CLASSPATH", "CLASSPATH").mkString(":")

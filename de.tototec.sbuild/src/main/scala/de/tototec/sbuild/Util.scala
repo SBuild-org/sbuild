@@ -19,7 +19,7 @@ import java.io.OutputStream
 object Util {
 
   def verbose(msg: => String) = {
-    SBuild.verbose(msg)
+    SBuildRunner.verbose(msg)
   }
 
   def delete(files: JFile*) {

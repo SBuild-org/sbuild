@@ -8,7 +8,7 @@ import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.sbuild._
 
-object SBuild {
+object SBuildRunner {
 
   val version = "0.0.1"
 
@@ -63,10 +63,10 @@ object SBuild {
     val cp = new CmdlineParser(config)
     cp.parse(args: _*)
 
-    SBuild.verbose = config.verbose
+    SBuildRunner.verbose = config.verbose
 
     if (config.showVersion) {
-      println("SBuild 0.0.1 (c) 2011, 2012, ToToTec GbR, Tobias Roeser")
+      println("SBuild " + version + " (c) 2011, 2012, ToToTec GbR, Tobias Roeser")
     }
 
     if (config.help) {
@@ -90,7 +90,7 @@ object SBuild {
     val cp = new CmdlineParser(config)
     cp.parse(args: _*)
 
-    SBuild.verbose = config.verbose
+    SBuildRunner.verbose = config.verbose
 
     // No need to parse help and version again, was done in main already
 

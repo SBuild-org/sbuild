@@ -13,6 +13,6 @@ RUNCP="${TMPDIR}:${SCALACP}:${CMDOPTIONCP}"
 
 cp -r -- ${SBUILDDIR}/target/classes/* ${TMPDIR}
 
-java ${DEBUG} -cp ${RUNCP} de.tototec.sbuild.runner.SBuild --compile-cp "${COMPILECP}" --use-classloader-hack true "$@"
+java ${DEBUG} -cp ${RUNCP} de.tototec.sbuild.runner.SBuildRunner --compile-cp "${COMPILECP}" --use-classloader-hack true "$@"
 
 rm -rf ${TMPDIR}

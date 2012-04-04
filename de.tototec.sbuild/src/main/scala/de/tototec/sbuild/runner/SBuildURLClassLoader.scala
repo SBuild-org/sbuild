@@ -24,7 +24,7 @@ class SBuildURLClassLoader(urls: Array[URL], parent: ClassLoader) extends URLCla
   //  }
 
   override def addURL(url: URL) {
-    SBuild.verbose("About to add an URL: " + url)
+    SBuildRunner.verbose("About to add an URL: " + url)
     super.addURL(url)
   }
 
