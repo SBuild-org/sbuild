@@ -10,9 +10,13 @@ object AntFileSet {
   def apply()(implicit P: Project) = new FileSet() {
     setProject(AntProject())
   }
-  def apply(dir: String, include: Seq[String])(implicit P: Project) = new FileSet() {
+  def apply(dir: String, include: Seq[String] = Seq())(implicit P: Project) = new FileSet() {
     setProject(AntProject())
     setDir(Path(dir))
+    include match {
+      case Seq() =>
+      case s => setIncludes(s.mkString(" "))
+    }
   }
 
 }
