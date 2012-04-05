@@ -4,7 +4,7 @@ import de.tototec.sbuild.Project
 import java.io.File
 import de.tototec.sbuild.Path
 
-object FileSet {
+object AntFileSet {
   type FileSet = org.apache.tools.ant.types.FileSet
 
   def apply()(implicit P: Project) = new FileSet() {
