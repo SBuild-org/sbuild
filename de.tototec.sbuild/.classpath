@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src/main/scala"/>
+	<classpathentry including="SBuild.scala" kind="src" output="target/sbuild-classes" path=""/>
 	<classpathentry kind="src" output="target/test-classes" path="src/test/scala"/>
 	<classpathentry kind="src" output="target/test-classes" path="src/test/resources"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6"/>
-	<classpathentry kind="con" path="de.tototec.cmvn.CMVN_DEPENDENCIES/scope=test"/>
+	<classpathentry kind="con" path="de.tototec.cmvn.CMVN_DEPENDENCIES/scopes=compile;provided;runtime;system;test"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
