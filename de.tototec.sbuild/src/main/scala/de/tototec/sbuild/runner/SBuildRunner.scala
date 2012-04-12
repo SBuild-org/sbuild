@@ -7,6 +7,7 @@ import scala.tools.nsc.io.Directory
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.sbuild._
+import java.util.UUID
 
 object SBuildRunner {
 
@@ -50,15 +51,13 @@ object SBuildRunner {
       description = "Remove all generated output and caches before start. This will force a new compile of the buildfile.")
     var clean: Boolean = false
 
-    @CmdOption(names = Array("--use-classloader-hack"), args = Array("true|false"), maxCount = -1,
-      description = "The classloader hack is currently needed to work around an unsolve Classloader problem (default: true).")
-    var useClassloaderHack: Boolean = true
-
     @CmdOption(args = Array("TARGETS"), maxCount = -1, description = "The target(s) to execute (in order).")
     val params = new java.util.LinkedList[String]()
   }
 
   def main(args: Array[String]) {
+    val bootstrapStart = System.currentTimeMillis
+
     val config = new Config()
     val cp = new CmdlineParser(config)
     cp.parse(args: _*)
@@ -74,26 +73,6 @@ object SBuildRunner {
       System.exit(0)
     }
 
-    if (config.useClassloaderHack) {
-      val scriptCL = new SBuildURLClassLoader(config.compileClasspath.split(":").map { new File(_).toURI.toURL }, null)
-      scriptCL.loadClass("de.tototec.sbuild.runner.SBuildRunner").getMethod("main0", classOf[Array[String]]).invoke(null, args)
-    } else {
-      main0(args)
-    }
-  }
-
-  def main0(args: Array[String]) {
-
-    val bootstrapStart = System.currentTimeMillis
-
-    val config = new Config()
-    val cp = new CmdlineParser(config)
-    cp.parse(args: _*)
-
-    SBuildRunner.verbose = config.verbose
-
-    // No need to parse help and version again, was done in main already
-
     implicit val project = new Project(Directory(System.getProperty("user.dir")))
     config.defines foreach {
       case (key, value) => project.addProperty(key, value)
@@ -104,7 +83,7 @@ object SBuildRunner {
       script.clean
     }
     //  Compile Script and load compiled class
-    val scriptInstance = script.compileAndExecute(project, config.useClassloaderHack)
+    val scriptInstance = script.compileAndExecute(project)
 
     verbose("Targets: \n" + project.targets.values.mkString("\n"))
 
@@ -166,14 +145,15 @@ object SBuildRunner {
     requested
   }
 
-  class ExecutedTarget(val target: Target, val lastUpdated: Long, val needsExec: Boolean)
+  class ExecutedTarget(val target: Target, val needsExec: Boolean, val requestId: Option[String])
 
   class ExecState(var maxCount: Int, var currentNr: Int = 1)
 
   def preorderedDependencies(request: List[Target],
                              rootRequest: Option[Target] = None,
                              execState: Option[ExecState] = None,
-                             skipExec: Boolean = false)(implicit project: Project): Array[ExecutedTarget] = {
+                             skipExec: Boolean = false,
+                             requestId: Option[String] = None)(implicit project: Project): Array[ExecutedTarget] = {
     request match {
       case Nil => Array()
       case node :: tail =>
@@ -191,91 +171,108 @@ object SBuildRunner {
 
         // build prerequisites map
 
-        val alreadyRun: Array[ExecutedTarget] =
-          {
-            val skipOrUpToDate = skipExec || project.isTargetUpToDate(node)
-            // Execute prerequisites
-            verbose("checking dependencies of: " + node)
-            val dependencies = project.prerequisites(node)
+        val alreadyRun: Array[ExecutedTarget] = {
 
-            val executed = preorderedDependencies(dependencies.toList, Some(root),
-              execState = execState,
-              skipExec = skipOrUpToDate)
+          val skipOrUpToDate = skipExec || project.isTargetUpToDate(node)
+          // Execute prerequisites
+          verbose("checking dependencies of: " + node)
+          val dependencies = project.prerequisites(node)
 
-            val doContextChecks = true
+          // All direct dependencies share the same request id.
+          // Later we can identify them and check, if they were up-to-date.
+          val resolveDirectDepsRequestId = Some(UUID.randomUUID.toString)
 
-            val execPhonyUpToDateOrSkip = skipOrUpToDate match {
-              case true => true // already known up-to-date
-              case false => if (!doContextChecks) false else {
-                // Evaluate up-to-date state based on the list of executed tasks
+          val executed = preorderedDependencies(dependencies.toList, Some(root),
+            execState = execState,
+            skipExec = skipOrUpToDate,
+            requestId = resolveDirectDepsRequestId)
 
-                // Imagine the case were the same 
-                // dependencies was added twice to the direct dependencies. Both would be associated by the same target,
-                // so the up-to-date state of the first executed dependency would always be used for all same
-                // dependencies. Because of this, we must aggregate all running state of one target, even if that means 
-                // we miss some skip-able targets  
-                val targetWhichWereUpToDateStates: Map[Target, Boolean] =
-                  project.prerequisites(node).toList.distinct.map { t =>
-                    executed.filter(e => e.target == t) match {
-                      case Array() => (t -> false)
-                      case xs => xs.find(e => e.needsExec) match {
-                        case Some(_) => (t -> false)
-                        case None => (t -> true)
-                      }
-                    }
-                  }.toMap
+          val doContextChecks = true
 
-                project.isTargetUpToDate(node, targetWhichWereUpToDateStates)
-              }
+          val execPhonyUpToDateOrSkip = skipOrUpToDate match {
+            case true => true // already known up-to-date
+            case false => if (!doContextChecks) false else {
+              // Evaluate up-to-date state based on the list of executed tasks
+
+              val directDepsExecuted = executed.filter(_.requestId == resolveDirectDepsRequestId)
+              val targetWhichWereUpToDateStates: Map[Target, Boolean] =
+                directDepsExecuted.toList.groupBy(e => e.target).map {
+                  case (t, execs) => (t -> execs.forall(!_.needsExec))
+                }
+
+              //              // Imagine the case were the same 
+              //              // dependencies was added twice to the direct dependencies. Both would be associated by the same target,
+              //              // so the up-to-date state of the first executed dependency would always be used for all same
+              //              // dependencies. Because of this, we must aggregate all running state of one target, even if that means 
+              //              // we miss some skip-able targets  
+              //              val targetWhichWereUpToDateStates: Map[Target, Boolean] =
+              //                project.prerequisites(node).toList.distinct.map { t =>
+              //                  executed.filter(e => e.target == t) match {
+              //                    case Array() => (t -> false)
+              //                    case xs => xs.find(e => e.needsExec) match {
+              //                      case Some(_) => (t -> false)
+              //                      case None => (t -> true)
+              //                    }
+              //                  }
+              //                }.toMap
+
+              project.isTargetUpToDate(node, targetWhichWereUpToDateStates)
             }
-            if (!skipOrUpToDate && execPhonyUpToDateOrSkip) {
-              verbose("All executed phony dependencies of '" + node + "' were up-to-date.")
-            }
-
-            // Print State
-            execState map { state =>
-              val percent = (state.currentNr, state.maxCount) match {
-                case (c, m) if (c > 0 && m > 0) =>
-                  val p = (c - 1) * 100 / m
-                  "[" + math.min(100, math.max(0, p)) + "%]"
-                case (c, m) => "[" + c + "/" + m + "]"
-              }
-              if (execPhonyUpToDateOrSkip) {
-                verbose(percent + " Skipping target '" + TargetRef(node).nameWithoutProto + "'")
-              } else {
-                println(percent + " Executing target '" + TargetRef(node).nameWithoutProto + "':")
-              }
-              state.currentNr += 1
-            }
-
-            val ctx = new TargetContext(node)
-
-            if (execPhonyUpToDateOrSkip) {
-              ctx.targetWasUpToDate = true
-            } else {
-              // Need to execute
-              node.action match {
-                case null => verbose("Nothing to execute for target: " + node)
-                case exec =>
-                  try {
-                    verbose("Executing target: " + node)
-                    ctx.start
-                    exec.apply(ctx)
-                    ctx.end
-                    verbose("Executed target: " + node + " in " + ctx.execDurationMSec + " msec")
-                  } catch {
-                    case e: Throwable => {
-                      ctx.end
-                      verbose("Execution of target " + node + " aborted after " + ctx.execDurationMSec + " msec with errors: " + e.getMessage);
-                      throw e
-                    }
-                  }
-
-              }
-            }
-
-            executed ++ Array(new ExecutedTarget(node, if (node.targetFile.isDefined) { node.targetFile.get.lastModified } else { 0 }, needsExec = !skipOrUpToDate))
           }
+          if (!skipOrUpToDate && execPhonyUpToDateOrSkip) {
+            verbose("All executed phony dependencies of '" + node + "' were up-to-date.")
+          }
+
+          // Print State
+          execState map { state =>
+            val percent = (state.currentNr, state.maxCount) match {
+              case (c, m) if (c > 0 && m > 0) =>
+                val p = (c - 1) * 100 / m
+                "[" + math.min(100, math.max(0, p)) + "%]"
+              case (c, m) => "[" + c + "/" + m + "]"
+            }
+            if (execPhonyUpToDateOrSkip) {
+              verbose(percent + " Skipping target '" + TargetRef(node).nameWithoutProto + "'")
+            } else {
+              println(percent + " Executing target '" + TargetRef(node).nameWithoutProto + "':")
+            }
+            state.currentNr += 1
+          }
+
+          val ctx = new TargetContext(node)
+
+          if (execPhonyUpToDateOrSkip) {
+            ctx.targetWasUpToDate = true
+          } else {
+            // Need to execute
+            node.action match {
+              case null => verbose("Nothing to execute for target: " + node)
+              case exec =>
+                try {
+                  verbose("Executing target: " + node)
+                  ctx.start
+                  exec.apply(ctx)
+                  ctx.end
+                  verbose("Executed target: " + node + " in " + ctx.execDurationMSec + " msec")
+                } catch {
+                  case e: Throwable => {
+                    ctx.end
+                    verbose("Execution of target " + node + " aborted after " + ctx.execDurationMSec + " msec with errors: " + e.getMessage);
+                    throw e
+                  }
+                }
+
+            }
+          }
+
+          executed ++ Array(
+            new ExecutedTarget(
+              target = node,
+              needsExec = !skipOrUpToDate,
+              requestId = requestId
+            )
+          )
+        }
 
         alreadyRun ++ preorderedDependencies(tail, execState = execState, skipExec = skipExec)
     }

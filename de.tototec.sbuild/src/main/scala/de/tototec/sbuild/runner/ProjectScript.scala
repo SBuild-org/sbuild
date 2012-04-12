@@ -24,7 +24,7 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
       + scriptFile.getAbsoluteFile.getParent)
   }
 
-  def compileAndExecute(project: Project, experimentalWithSameClassLoader: Boolean = false): Any = {
+  def compileAndExecute(project: Project): Any = {
     checkFile
 
     val infoFile = new File(targetDir, "sbuild.info.xml")
@@ -40,8 +40,7 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
       newCompile(cp)
     }
 
-    useExistingCompiled(project, addCp, experimentalWithSameClassLoader)
-
+    useExistingCompiled(project, addCp)
   }
 
   def checkInfoFileUpToDate(): Boolean = {
@@ -212,21 +211,9 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
     cp
   }
 
-  def useExistingCompiled(project: Project, classpath: Array[String], experimentalWithSameClassLoader: Boolean): Any = {
+  def useExistingCompiled(project: Project, classpath: Array[String]): Any = {
     SBuildRunner.verbose("Loading compiled version of build script: " + scriptFile)
-    val cl = experimentalWithSameClassLoader match {
-      case false => new SBuildURLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
-      case true =>
-        project.getClass.getClassLoader match {
-          case c: { def addURL(url: URL) } =>
-            c.addURL(targetDir.toURI.toURL)
-            classpath.map { new File(_).toURI.toURL }.foreach {
-              c.addURL(_)
-            }
-            c
-          case c => throw new RuntimeException("Unsupported ClassLoader: " + c)
-        }
-    }
+    val cl = new SBuildURLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
     SBuildRunner.verbose("CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
     val clazz: Class[_] = cl.loadClass(scriptBaseName)
     val ctr = clazz.getConstructor(classOf[Project])

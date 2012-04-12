@@ -2,10 +2,6 @@ package de.tototec.sbuild
 
 import scala.tools.nsc.io.Directory
 import java.io.File
-import org.apache.tools.ant.{ Project => AntProject }
-import org.apache.tools.ant.ProjectComponent
-import org.apache.tools.ant.BuildListener
-import org.apache.tools.ant.BuildEvent
 
 class Project(val projectDirectory: Directory) {
 
@@ -125,7 +121,10 @@ class Project(val projectDirectory: Directory) {
   //    }
   //  }
 
-  def isTargetUpToDate(target: Target, targetWhichWereUpToDateStates: Map[Target, Boolean] = Map()): Boolean = {
+  /**
+   * Check if the target is up-to-date. This check will respect the up-to-date state of direct dependencies.
+   */
+  def isTargetUpToDate(target: Target, dependenciesWhichWereUpToDateStates: Map[Target, Boolean] = Map()): Boolean = {
     lazy val prefix = "Target " + target.name + ": "
     def verbose(msg: => String) = Util.verbose(prefix + msg)
     def exit(cause: String): Boolean = {
@@ -136,7 +135,7 @@ class Project(val projectDirectory: Directory) {
     if (target.phony) exit("Target is phony") else {
       if (target.targetFile.isEmpty || !target.targetFile.get.exists) exit("Target file does not exists") else {
         val (phonyPrereqs, filePrereqs) = prerequisites(target).partition(_.phony)
-        if (phonyPrereqs.exists(t => !targetWhichWereUpToDateStates.getOrElse(t, false)))
+        if (phonyPrereqs.exists(t => !dependenciesWhichWereUpToDateStates.getOrElse(t, false)))
           // phony targets can only be considered up-to-date, if they retrieved their up-to-date state themselves while beeing executed
           exit("Some dependencies are phony and were not up-to-date")
         else {
@@ -154,5 +153,6 @@ class Project(val projectDirectory: Directory) {
       }
     }
   }
+
 }
 
