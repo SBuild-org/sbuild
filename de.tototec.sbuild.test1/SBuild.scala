@@ -2,11 +2,7 @@ import de.tototec.sbuild._
 import de.tototec.sbuild.ant._
 import org.apache.tools.ant.taskdefs._
 
-// @classpath("http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar")
-@classpath(
-  "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
-  "/home/lefou/work/tototec/sbuild/de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-0.0.1-SNAPSHOT.jar"
-)
+@classpath("http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar")
 class SBuild(implicit P: Project) {
 
   // SchemeHandler("mvn", new MvnSchemeHandler("/home/lefou/.m2/repository-tototec"))
