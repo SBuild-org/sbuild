@@ -8,12 +8,21 @@ import org.apache.tools.ant.taskdefs.Echo
 
 object AntEcho {
 
-  def apply(message: String)(implicit proj: Project): Echo = {
-    val echo: Echo = new Echo()
-    echo.setProject(AntProject()(proj))
-    echo.setMessage(message)
-    echo
+  def apply(message: String)(implicit proj: Project): Unit = {
+    new AntEcho(
+      message = message
+    ).execute
   }
 
 }
+
+class AntEcho()(implicit _project: Project) extends Echo {
+  setProject(AntProject())
+
+  def this(message: String)(implicit proj: Project) {
+    this
+    setMessage(message)
+  }
+
+} 
 

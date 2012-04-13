@@ -8,24 +8,36 @@ import org.apache.tools.ant.taskdefs.Delete
 
 object AntDelete {
 
-  def apply()(implicit proj: Project): Delete = {
-    val del: Delete = new Delete()
-    del.setProject(AntProject()(proj))
-    del
+  def apply(fileOrDir: File)(implicit proj: Project): Unit = {
+    new AntDelete(
+      fileOrDir = fileOrDir
+    ).execute
   }
 
-  def apply(fileOrDir: String)(implicit proj: Project): Delete = {
-    val del: Delete = apply()(proj)
+  def apply(fileOrDir: String)(implicit proj: Project): Unit = {
+    new AntDelete(
+      fileOrDir = fileOrDir
+    ).execute
+  }
+
+}
+
+class AntDelete()(implicit _project: Project) extends Delete {
+  setProject(AntProject())
+
+  def this(fileOrDir: String)(implicit proj: Project) {
+    this
     if(fileOrDir != null) {
       val path: File = Path(fileOrDir)
       if(path.isDirectory) {
-        del.setDir(path)
+        setDir(path)
       } else {
-        del.setFile(path)
+        setFile(path)
       }
     }
-    del
   }
+
+  def this(fileOrDir: File)(implicit proj: Project) = this(fileOrDir.getPath)
 
 }
 
