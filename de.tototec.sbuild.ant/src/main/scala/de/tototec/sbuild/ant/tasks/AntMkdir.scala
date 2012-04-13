@@ -8,13 +8,9 @@ import org.apache.tools.ant.taskdefs.Mkdir
 
 object AntMkdir {
 
-  def apply(dir: File)(implicit proj: Project): Unit = new AntMkdir(
-    dir = dir
-  ).execute
+  def apply(dir: File)(implicit proj: Project): Unit = new AntMkdir(dir = dir).execute
 
-  def apply(dir: String)(implicit proj: Project): Unit = new AntMkdir(
-    dir = dir
-  ).execute
+  def apply(dir: String)(implicit proj: Project): Unit = new AntMkdir(dir = dir).execute
 
 }
 
