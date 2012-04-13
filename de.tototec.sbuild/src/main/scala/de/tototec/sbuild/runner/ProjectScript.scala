@@ -7,8 +7,9 @@ import de.tototec.sbuild.Util
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.SBuildException
 import de.tototec.sbuild.HttpSchemeHandler
+import java.net.URLClassLoader
 
-class ProjectScript(scriptFile: File, compileClasspath: String) {
+class ProjectScript(scriptFile: File, compileClasspath: String, additionalProjectClasspath: Array[String]) {
 
   val buildTargetDir = ".sbuild";
   val buildFileTargetDir = ".sbuild/scala";
@@ -29,7 +30,7 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
 
     val infoFile = new File(targetDir, "sbuild.info.xml")
 
-    val addCp: Array[String] = readAdditionalClasspath
+    val addCp: Array[String] = additionalProjectClasspath ++ readAdditionalClasspath
 
     if (!checkInfoFileUpToDate) {
       val cp = addCp match {
@@ -213,7 +214,7 @@ class ProjectScript(scriptFile: File, compileClasspath: String) {
 
   def useExistingCompiled(project: Project, classpath: Array[String]): Any = {
     SBuildRunner.verbose("Loading compiled version of build script: " + scriptFile)
-    val cl = new SBuildURLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
+    val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
     SBuildRunner.verbose("CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
     val clazz: Class[_] = cl.loadClass(scriptBaseName)
     val ctr = clazz.getConstructor(classOf[Project])

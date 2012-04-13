@@ -31,7 +31,11 @@ object SBuildRunner {
 
     // The classpath is used when SBuild compiles the buildfile
     @CmdOption(names = Array("--compile-cp"), args = Array("CLASSPATH"), hidden = true)
-    var compileClasspath = "target/classes"
+    var compileClasspath: String = null
+
+    // The classpath is additionally used when SBuild compiles and executes the buildfile
+    @CmdOption(names = Array("--additional-project-cp"), args = Array("CLASSPATH"), hidden = true)
+    var additionalProjectClasspath: String = null
 
     @CmdOption(names = Array("--list-targets", "-l"),
       description = "Show a list of targets defined in the current buildfile")
@@ -78,7 +82,12 @@ object SBuildRunner {
       case (key, value) => project.addProperty(key, value)
     }
 
-    val script = new ProjectScript(new File(config.buildfile), config.compileClasspath)
+    val additionalProjectClasspath: Array[String] = config.additionalProjectClasspath match {
+      case null => Array()
+      case x => x.split(":")
+    }
+
+    val script = new ProjectScript(new File(config.buildfile), config.compileClasspath, additionalProjectClasspath)
     if (config.clean) {
       script.clean
     }

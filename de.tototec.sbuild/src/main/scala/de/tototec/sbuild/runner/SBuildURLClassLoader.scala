@@ -12,13 +12,13 @@ class SBuildURLClassLoader(urls: Array[URL], parent: ClassLoader) extends URLCla
 
   //  override protected def findClass(className: String): Class[_] = {
   //    try {
-  //      SBuild.verbose("About to find class: " + className)
+  //      SBuildRunner.verbose("About to find class: " + className)
   //      val res = super.findClass(className)
-  //      SBuild.verbose("Found class: " + res)
+  //      SBuildRunner.verbose("Found class: " + res)
   //      res
   //    } catch {
   //      case e =>
-  //        SBuild.verbose("Caught a: " + e)
+  //        SBuildRunner.verbose("Caught a: " + e)
   //        throw e
   //    }
   //  }
