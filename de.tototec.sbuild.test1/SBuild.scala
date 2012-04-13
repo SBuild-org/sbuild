@@ -1,5 +1,6 @@
 import de.tototec.sbuild._
 import de.tototec.sbuild.ant._
+import de.tototec.sbuild.ant.tasks._
 import org.apache.tools.ant.taskdefs._
 
 @classpath("http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar")
@@ -9,10 +10,7 @@ class SBuild(implicit P: Project) {
   // SchemeHandler("http", new HttpSchemeHandler(".sbuild/http"))
 
   Target("phony:clean") exec {
-    new Delete() { 
-      setProject(AntProject())
-      setDir(Path("target"))
-    }.execute
+    AntDelete(dir = Path("target")) 
   } help "Clean all output (target dir)"
 
   Target("phony:all") dependsOn "target/test.jar" help "Build the project"
@@ -20,28 +18,20 @@ class SBuild(implicit P: Project) {
   // Idea: MavenLikeJavaProject()
 
   Target("phony:compile") exec {
-    new Mkdir() {
-      setProject(AntProject())
-      setDir(Path("target/classes"))
-    }.execute
-
-    new Javac() { 
-      setProject(AntProject())
-      setFork(true)
-      setSource("1.6"); setTarget("1.6")
-      setDebug(Prop("java.debug", "true").toBoolean)
-      setIncludeantruntime(false)
-      setSrcdir(AntPath("src/main/java"))
-      setDestdir(Path("target/classes"))
-    }.execute
+    AntMkdir(dir = "target/classes")
+    AntJavac(
+      fork = true,
+      source = "1.6",
+      target = "1.6",
+      debug = Prop("java.debug", "true").toBoolean,
+      includeAntRuntime = false,
+      srcDir = AntPath("src/main/java"),
+      destDir = Path("target/classes")
+    )
   } 
 
   Target("target/test.jar") dependsOn "compile" exec { ctx: TargetContext =>
-    new Jar() {
-      setProject(AntProject())
-      setDestFile(ctx.targetFile.get)
-      setBasedir(Path("target/classes"))
-    }.execute
+    AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"))
   }
 
 }
