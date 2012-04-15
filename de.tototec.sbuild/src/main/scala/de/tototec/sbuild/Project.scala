@@ -68,8 +68,16 @@ class Project(val projectDirectory: File) {
       case None =>
         // TODO: if none target was found, look in other project if they provide the target
         dep.explicitProto match {
-          case None | Some("phony") | Some("file") =>
+          case Some("phony") =>
             throw new ProjectConfigurationException("Non-existing prerequisite '" + dep.name + "' found for target: " + target)
+          case None | Some("file") =>
+            // try to find a file
+            createTarget(dep) exec {
+              val file = Path(dep.name)(this)
+              if (!file.exists || !file.isDirectory) {
+                throw new ProjectConfigurationException("Don't know how to build prerequisite: " + dep)
+              }
+            }
           case _ =>
             // A scheme handler might be able to resolve this thing
             createTarget(dep)
