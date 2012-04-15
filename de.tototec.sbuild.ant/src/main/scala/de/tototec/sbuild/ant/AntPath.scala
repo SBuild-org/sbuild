@@ -8,12 +8,13 @@ import de.tototec.sbuild.TargetRefs
 
 object AntPath {
 
-  def apply(targetRefs: TargetRefs)(implicit proj: Project): AntPath =
-    new AntPath() {
-      targetRefs.targetRefs.foreach { targetRef =>
-        setLocation(proj.uniqueTargetFile(targetRef).file)
-      }
+  def apply(targetRefs: TargetRefs)(implicit proj: Project): AntPath = {
+    val antPath = new AntPath()
+    targetRefs.targetRefs.foreach { targetRef =>
+      antPath.setLocation(proj.uniqueTargetFile(targetRef).file)
     }
+    antPath
+  }
 
   def apply(targetRef: TargetRef)(implicit proj: Project): AntPath =
     new AntPath(proj.uniqueTargetFile(targetRef).file)

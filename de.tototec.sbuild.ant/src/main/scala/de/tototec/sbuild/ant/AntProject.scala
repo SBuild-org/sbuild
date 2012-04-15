@@ -36,7 +36,7 @@ class AntProject(project: Project) extends org.apache.tools.ant.Project {
     override def taskStarted(buildEvent: BuildEvent) {}
   })
 
-  setBaseDir(project.projectDirectory.jfile)
+  setBaseDir(project.projectDirectory)
   setJavaVersionProperty()
   setSystemProperties()
 
