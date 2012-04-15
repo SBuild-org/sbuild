@@ -7,7 +7,6 @@ import de.tototec.sbuild.Util
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.SBuildException
 import de.tototec.sbuild.HttpSchemeHandler
-import java.net.URLClassLoader
 
 class ProjectScript(scriptFile: File, compileClasspath: String, additionalProjectClasspath: Array[String]) {
 
@@ -197,9 +196,16 @@ class ProjectScript(scriptFile: File, compileClasspath: String, additionalProjec
             case _ =>
           }
         }
-        SBuildRunner.verbose("Resolved: " + entry + " => " + file)
+        if (!file.exists) {
+          println("Could not resolve classpath entry: " + entry)
+        } else {
+          SBuildRunner.verbose("Resolved: " + entry + " => " + file)
+        }
         file.getPath
       } else {
+        if (!new File(entry).exists) {
+          println("Could not found classpath entry: " + entry)
+        }
         entry
       }
     }
@@ -214,7 +220,7 @@ class ProjectScript(scriptFile: File, compileClasspath: String, additionalProjec
 
   def useExistingCompiled(project: Project, classpath: Array[String]): Any = {
     SBuildRunner.verbose("Loading compiled version of build script: " + scriptFile)
-    val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
+    val cl = new SBuildURLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
     SBuildRunner.verbose("CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
     val clazz: Class[_] = cl.loadClass(scriptBaseName)
     val ctr = clazz.getConstructor(classOf[Project])
@@ -260,6 +266,7 @@ class ProjectScript(scriptFile: File, compileClasspath: String, additionalProjec
     if (!useCmdline) {
       import scala.tools.nsc.StandardCompileClient
       val compileClient = new StandardCompileClient
+      SBuildRunner.verbose("Executing CompileClient with args: " + params.mkString(" "))
       if (!compileClient.process(params)) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with CompileClient")
     } else {
       import sys.process.Process

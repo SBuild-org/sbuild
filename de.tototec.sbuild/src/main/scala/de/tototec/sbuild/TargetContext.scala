@@ -9,6 +9,8 @@ import java.util.Date
  */
 class TargetContext(target: Target) {
 
+  def name = target.name
+  
   /**
    * The file this targets produces, or <code>None</code> if this target is phony.
    */

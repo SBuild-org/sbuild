@@ -5,13 +5,13 @@ import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
 import de.tototec.sbuild._
 import de.tototec.sbuild.runner.SBuildRunner
-import scala.tools.nsc.io.Directory
+import java.io.File
 
 @RunWith(classOf[JUnitRunner])
 class ChainCreatorTest extends FunSuite {
 
   SBuildRunner.verbose = true
-  private implicit val project = new Project(Directory("."))
+  private implicit val project = new Project(new File("."))
 
   private val g1 = Target("phony:1")
   private val g2 = Target("phony:2") dependsOn g1

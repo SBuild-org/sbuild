@@ -6,6 +6,14 @@ import scala.tools.nsc.io.File
 import java.util.Properties
 import scala.collection.JavaConversions._
 
+object IfNotUpToDate {
+  def apply(srcDir: JFile, stateDir: JFile, ctx: TargetContext)(task: => Unit)(implicit project: Project) {
+    val checker = PersistentUpToDateChecker(ctx.name.replaceFirst("^phony:", ""), srcDir, stateDir, ctx.prerequisites)
+    val didSomething = checker.doWhenNotUpToDate(task)
+    ctx.targetWasUpToDate = !didSomething 
+  }
+}
+
 object PersistentUpToDateChecker {
 
   def apply(uniqueId: String, srcDir: JFile, stateDir: JFile) =

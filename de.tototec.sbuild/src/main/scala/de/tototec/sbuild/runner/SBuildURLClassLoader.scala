@@ -8,17 +8,35 @@ import java.net.URL
  */
 class SBuildURLClassLoader(urls: Array[URL], parent: ClassLoader) extends URLClassLoader(urls, parent) {
 
-  //  println("urls: " + urls.mkString(","))
+  //    println("urls: " + urls.mkString(","))
+
+  override def loadClass(className: String, resolve: Boolean): Class[_] = {
+    // First, check if the class has already been loaded
+    val loadedClass = findLoadedClass(className) match {
+      case c: Class[_] => c
+      case _ =>
+        if (className.startsWith("scala.tools.ant.")) {
+          SBuildRunner.verbose("Force loading of scala ant support class '" + className + "' from project classpath, even if they are bundled with the compiler and therefore available in SBuildRunner classpath.")
+          findClass(className)
+        } else {
+          super.loadClass(className, resolve)
+        }
+    }
+
+    if (resolve) {
+      resolveClass(loadedClass);
+    }
+    return loadedClass;
+  }
 
   //  override protected def findClass(className: String): Class[_] = {
   //    try {
-  //      SBuildRunner.verbose("About to find class: " + className)
   //      val res = super.findClass(className)
-  //      SBuildRunner.verbose("Found class: " + res)
+  //      SBuildRunner.verbose("Found class: " + className)
   //      res
   //    } catch {
   //      case e =>
-  //        SBuildRunner.verbose("Caught a: " + e)
+  //        SBuildRunner.verbose("Could not find class: " + className)
   //        throw e
   //    }
   //  }

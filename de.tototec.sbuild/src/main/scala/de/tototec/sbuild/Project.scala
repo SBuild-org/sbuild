@@ -1,11 +1,10 @@
 package de.tototec.sbuild
 
-import scala.tools.nsc.io.Directory
 import java.io.File
 
-class Project(val projectDirectory: Directory) {
-
-  //  private var targetRefs = List[TargetRef]()
+class Project(val projectDirectory: File) {
+  require(projectDirectory.exists)
+  require(projectDirectory.isDirectory)
 
   /**
    * Map(file -> Target) of targets.
@@ -24,7 +23,7 @@ class Project(val projectDirectory: Directory) {
       case None => "file"
     }
 
-    val target: Target = new ProjectTarget(targetRef.name, file, phony, handler)
+    val target: Target = new ProjectTarget(targetRef.name, file, phony, handler, this)
     targets += (file -> target)
     target
   }
@@ -58,7 +57,7 @@ class Project(val projectDirectory: Directory) {
     if (origFile.isAbsolute) {
       origFile.getCanonicalFile
     } else {
-      val absFile = new File(projectDirectory.jfile, fileName)
+      val absFile = new File(projectDirectory, fileName)
       absFile.getCanonicalFile
     }
   }
@@ -66,13 +65,15 @@ class Project(val projectDirectory: Directory) {
   def prerequisites(target: Target): List[Target] = target.dependants.map { dep =>
     findTarget(dep) match {
       case Some(target) => target
-      case None => dep.explicitProto match {
-        case None | Some("phony") | Some("file") =>
-          throw new ProjectConfigurationException("Non-existing prerequisite '" + dep.name + "' found for target: " + target)
-        case _ =>
-          // A scheme handler might be able to resolve this thing
-          createTarget(dep)
-      }
+      case None =>
+        // TODO: if none target was found, look in other project if they provide the target
+        dep.explicitProto match {
+          case None | Some("phony") | Some("file") =>
+            throw new ProjectConfigurationException("Non-existing prerequisite '" + dep.name + "' found for target: " + target)
+          case _ =>
+            // A scheme handler might be able to resolve this thing
+            createTarget(dep)
+        }
     }
   }.toList
 

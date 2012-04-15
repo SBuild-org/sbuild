@@ -3,7 +3,6 @@ package de.tototec.sbuild.runner
 import java.io.File
 import java.util.Date
 import scala.collection.JavaConversions._
-import scala.tools.nsc.io.Directory
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.sbuild._
@@ -77,7 +76,7 @@ object SBuildRunner {
       System.exit(0)
     }
 
-    implicit val project = new Project(Directory(System.getProperty("user.dir")))
+    val project = new Project(new File(System.getProperty("user.dir")))
     config.defines foreach {
       case (key, value) => project.addProperty(key, value)
     }
@@ -107,10 +106,10 @@ object SBuildRunner {
     }
 
     // Targets requested from cmdline
-    val targets = determineRequestedTargets(config.params).toList
+    val targets = determineRequestedTargets(config.params)(project).toList
 
     // Execution plan
-    val chain = preorderedDependencies(targets, skipExec = true)
+    val chain = preorderedDependencies(targets, skipExec = true)(project)
 
     {
       var line = 0
@@ -124,7 +123,7 @@ object SBuildRunner {
     val bootstrapTime = executionStart - bootstrapStart
 
     verbose("Executing...")
-    preorderedDependencies(targets, execState = Some(new ExecState(maxCount = chain.size)))
+    preorderedDependencies(targets, execState = Some(new ExecState(maxCount = chain.size)))(project)
     if (!targets.isEmpty) {
       println("[100%] Execution finished. SBuild init time: " + bootstrapTime +
         " msec, Execution time: " + (System.currentTimeMillis - executionStart) + " msec")
@@ -241,9 +240,9 @@ object SBuildRunner {
               case (c, m) => "[" + c + "/" + m + "]"
             }
             if (execPhonyUpToDateOrSkip) {
-              verbose(percent + " Skipping target '" + TargetRef(node).nameWithoutProto + "'")
+              verbose(percent + " Skipping target '" + node.name + "'")
             } else {
-              println(percent + " Executing target '" + TargetRef(node).nameWithoutProto + "':")
+              println(percent + " Executing target '" + node.name + "':")
             }
             state.currentNr += 1
           }
@@ -270,7 +269,6 @@ object SBuildRunner {
                     throw e
                   }
                 }
-
             }
           }
 
