@@ -57,4 +57,7 @@ class AntScalac()(implicit _project: Project) extends Scalac {
     if (logging != null) setLogging(logging)
   }
 
+  def setDestDir(destDir: File) = setDestdir(destDir)
+  def setSrcDir(srcDir: APath) = setSrcdir(srcDir)
+
 }

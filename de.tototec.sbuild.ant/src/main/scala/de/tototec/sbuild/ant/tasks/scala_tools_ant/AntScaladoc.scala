@@ -45,4 +45,7 @@ class AntScaladoc()(implicit _project: Project) extends Scaladoc {
     if (classpath != null) setClasspath(classpath)
   }
 
+  def setDestDir(destDir: File) = setDestdir(destDir)
+  def setSrcDir(srcDir: APath) = setSrcdir(srcDir)
+  
 }
