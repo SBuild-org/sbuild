@@ -1,19 +1,20 @@
 import de.tototec.sbuild._
-import de.tototec.sbuild.TargetRefs._
 import de.tototec.sbuild.ant._
-
-import org.apache.tools.ant.taskdefs._
+import de.tototec.sbuild.ant.tasks._
+import de.tototec.sbuild.TargetRefs._
 
 import org.apache.tools.ant.taskdefs.optional.junit._
 
-@classpath("http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
+@classpath(
+  "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
   "http://repo1.maven.org/maven2/org/apache/ant/ant-launcher/1.8.3/ant-launcher-1.8.3.jar",
   "http://repo1.maven.org/maven2/org/apache/ant/ant-junit/1.8.3/ant-junit-1.8.3.jar",
   "http://repo1.maven.org/maven2/junit/junit/4.10/junit-4.10.jar",
   "http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.9.1/scala-library-2.9.1.jar",
   "http://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.9.1/scala-compiler-2.9.1.jar",
-  "http://repo1.maven.org/maven2/org/scalatest/scalatest_2.9.1/1.6.1/scalatest_2.9.1-1.6.1.jar")
-class SBuild(implicit P: Project) {
+  "http://repo1.maven.org/maven2/org/scalatest/scalatest_2.9.1/1.6.1/scalatest_2.9.1-1.6.1.jar"
+)
+class SBuild(implicit project: Project) {
 
   SchemeHandler("http", new HttpSchemeHandler(".sbuild/http"))
   SchemeHandler("mvn", new MvnSchemeHandler(".sbuild/mvn"))
@@ -37,65 +38,50 @@ class SBuild(implicit P: Project) {
   Target("phony:all") dependsOn jar
 
   val clean = Target("phony:clean") exec {
-    new Delete() { setProject(AntProject()); setDir(Path("target")) }.execute
+    AntDelete(dir = Path("target"))
   }
 
   def scalac(sourceDir: String, targetDir: String, cp: org.apache.tools.ant.types.Path) {
-    new Mkdir() { setProject(AntProject()); setDir(Path(targetDir)) }.execute
+    AntMkdir(dir = Path(targetDir))
     // we want to use FastScala, but after it compiles successfully, it bails out with an internal error
-    new scala.tools.ant.Scalac() {
-      setProject(AntProject())
-      setSrcdir(AntPath(sourceDir))
-      setDestdir(Path(targetDir))
-      setTarget("jvm-1.5")
-      setEncoding("UTF-8")
-      setDeprecation("on")
-      setUnchecked("on")
-      // setLogging("verbose")
-      setClasspath(cp)
-      // this is necessary, because the scala ant tasks outsmarts itself 
-      // when more than one scala class is defined in the same .scala file
-      setForce(true)
-    }.execute
+    val scalac = new scala.tools.ant.Scalac()
+    scalac.setProject(AntProject())
+    scalac.setSrcdir(AntPath(sourceDir))
+    scalac.setDestdir(Path(targetDir))
+    scalac.setTarget("jvm-1.5")
+    scalac.setEncoding("UTF-8")
+    scalac.setDeprecation("on")
+    scalac.setUnchecked("on")
+    // scalac.setLogging("verbose")
+    scalac.setClasspath(cp)
+    // this is necessary, because the scala ant tasks outsmarts itself 
+    // when more than one scala class is defined in the same .scala file
+    scalac.setForce(true)
+    scalac.execute
   }
 
   Target("phony:compile") dependsOn compileCp exec { ctx: TargetContext =>
-    val state = PersistentUpToDateChecker("compile", Path("src/main/scala"), Path("target"), ctx.prerequisites)
-    ctx.targetWasUpToDate = !state.doWhenNotUpToDate {
+    IfNotUpToDate(Path("src/main/scala"), Path("target"), ctx) {
       scalac(sourceDir = "src/main/scala", targetDir = "target/classes", cp = AntPath(compileCp))
     }
   }
 
-  Target("phony:fake") exec {
-    println("Fake")
-    Path(jar).delete
-  }
-
   Target("phony:testCompile") dependsOn testCp exec { ctx: TargetContext =>
-    val state = PersistentUpToDateChecker("testCompile", Path("src/test/scala"), Path("target"), ctx.prerequisites)
-    ctx.targetWasUpToDate = !state.doWhenNotUpToDate {
+    IfNotUpToDate(Path("src/test/scala"), Path("target"), ctx) {
       scalac(sourceDir = "src/test/scala", targetDir = "target/test-classes", cp = AntPath(testCp))
     }
   }
 
   Target(jar) dependsOn "compile" exec { ctx: TargetContext =>
-    new Jar() {
-      setProject(AntProject())
-      setDestFile(ctx.targetFile.get)
-      setBasedir(Path("target/classes"))
-    }.execute
+    AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"))
   }
 
   Target("target/test.jar") dependsOn "testCompile" exec { ctx: TargetContext =>
-    new Jar() {
-      setProject(AntProject())
-      setDestFile(ctx.targetFile.get)
-      setBasedir(Path("target/test-classes"))
-    }.execute
+    AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/test-classes"))
   }
 
   Target("phony:scaladoc") dependsOn compileCp exec { ctx: TargetContext =>
-    new Mkdir() { setProject(AntProject()); setDir(Path("target/scaladoc")) }.execute
+    AntMkdir(dir = Path("target/scaladoc"))
     new scala.tools.ant.Scaladoc() {
       setProject(AntProject())
       // setWindowtitle("SBuild API Documentation")
