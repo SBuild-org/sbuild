@@ -10,7 +10,7 @@ import java.util.Date
 class TargetContext(target: Target) {
 
   def name = target.name
-  
+
   /**
    * The file this targets produces, or <code>None</code> if this target is phony.
    */
@@ -45,13 +45,19 @@ class TargetContext(target: Target) {
    * The prerequisites (direct dependencies) of this target.
    */
   def prerequisites: Seq[TargetRef] = target.dependants
-  
+
   /**
    * Set this to <code>true</code>, if this target execution did not produced anything new,
    * which means, the target was already up-to-date.
    * In later versions, SBuild will honor this setting, and might be able to skip targets,
    * that depend on this on.
    */
-  var targetWasUpToDate: Boolean = false
+  private var _targetWasUpToDate: List[Boolean] = List()
+  def targetWasUpToDate = _targetWasUpToDate match {
+    case List() => false
+    case x => x.forall(_)
+  }
+  def targetWasUpToDate_=(targetWasUpToDate: Boolean) = _targetWasUpToDate = List(targetWasUpToDate)
+  def addToTargetWasUpToDate(targetWasUpToDate: Boolean) = _targetWasUpToDate ::= targetWasUpToDate
 
 }
