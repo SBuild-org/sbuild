@@ -7,33 +7,56 @@ import java.util.Properties
 import scala.collection.JavaConversions._
 
 object IfNotUpToDate {
-  def apply(srcDir: JFile, stateDir: JFile, ctx: TargetContext)(task: => Unit)(implicit project: Project) {
-    val checker = PersistentUpToDateChecker(ctx.name.replaceFirst("^phony:", ""), srcDir, stateDir, ctx.prerequisites)
+
+  def apply(srcDir: JFile, stateDir: JFile, ctx: TargetContext)(task: => Any)(implicit project: Project): Unit =
+    apply(Seq(srcDir), stateDir, ctx)(task)
+
+  def apply(srcDirOrFiles: Seq[JFile], stateDir: JFile, ctx: TargetContext)(task: => Any)(implicit project: Project) {
+    val checker = PersistentUpToDateChecker(ctx.name.replaceFirst("^phony:", ""), srcDirOrFiles, stateDir, ctx.prerequisites)
     val didSomething = checker.doWhenNotUpToDate(task)
-    ctx.targetWasUpToDate = !didSomething 
+    ctx.addToTargetWasUpToDate(!didSomething)
   }
+
 }
 
 object PersistentUpToDateChecker {
 
   def apply(uniqueId: String, srcDir: JFile, stateDir: JFile) =
-    new PersistentUpToDateChecker(uniqueId, srcDir, stateDir)
+    new PersistentUpToDateChecker(uniqueId, Seq(srcDir), stateDir)
+  def apply(uniqueId: String, srcDirOrFiles: Seq[JFile], stateDir: JFile) =
+    new PersistentUpToDateChecker(uniqueId, srcDirOrFiles, stateDir)
 
-  def apply(uniqueId: String, srcDir: JFile, stateDir: JFile, dependencies: TargetRef*)(implicit project: Project) = {
-    val checker = new PersistentUpToDateChecker(uniqueId, srcDir, stateDir)
+  def apply(uniqueId: String,
+            srcDir: JFile,
+            stateDir: JFile,
+            dependencies: TargetRef*)(implicit project: Project): PersistentUpToDateChecker =
+    apply(uniqueId, Seq(srcDir), stateDir, dependencies)
+  def apply(uniqueId: String,
+            srcDirOrFiles: Seq[JFile],
+            stateDir: JFile,
+            dependencies: TargetRef*)(implicit project: Project): PersistentUpToDateChecker = {
+    val checker = new PersistentUpToDateChecker(uniqueId, srcDirOrFiles, stateDir)
     checker.addDependencies(dependencies: Seq[TargetRef])
     checker
   }
 
-  def apply(uniqueId: String, srcDir: JFile, stateDir: JFile, dependencies: TargetRefs)(implicit project: Project) = {
-    val checker = new PersistentUpToDateChecker(uniqueId, srcDir, stateDir)
+  def apply(uniqueId: String,
+            srcDir: JFile,
+            stateDir: JFile,
+            dependencies: TargetRefs)(implicit project: Project): PersistentUpToDateChecker =
+    apply(uniqueId, Seq(srcDir), stateDir, dependencies)
+  def apply(uniqueId: String,
+            srcDirOrFiles: Seq[JFile],
+            stateDir: JFile,
+            dependencies: TargetRefs)(implicit project: Project): PersistentUpToDateChecker = {
+    val checker = new PersistentUpToDateChecker(uniqueId, srcDirOrFiles, stateDir)
     checker.addDependencies(dependencies)
     checker
   }
 
 }
 
-class PersistentUpToDateChecker(checkerUniqueId: String, srcDir: JFile, stateDir: JFile) {
+class PersistentUpToDateChecker(checkerUniqueId: String, srcDirOrFiles: Seq[JFile], stateDir: JFile) {
 
   def stateFile: File = Directory(stateDir) / File(".filestates." + checkerUniqueId)
 
@@ -58,9 +81,12 @@ class PersistentUpToDateChecker(checkerUniqueId: String, srcDir: JFile, stateDir
   }
 
   def createStateMap: Map[String, Long] = (
-    ((Directory(srcDir).deepFiles ++ additionalFiles).map { foundFile =>
+    ((srcDirOrFiles.flatMap { f =>
+      if (f.isDirectory) Directory(f).deepFiles else Seq(File(f))
+    } ++ additionalFiles).map { foundFile =>
       (foundFile.path -> (if (foundFile.exists) foundFile.lastModified else (0: Long)))
-    }) ++
+    }
+    ) ++
     (additionalPhony.map { phony => (phony -> (0: Long)) })
   ).toMap
 
@@ -109,7 +135,7 @@ class PersistentUpToDateChecker(checkerUniqueId: String, srcDir: JFile, stateDir
    * Execute the action only it the persistent state indicates a changes.
    * @return <code>true</code> if the action was executed, <code>false</code> when nothing was done
    */
-  def doWhenNotUpToDate(action: => Unit): Boolean = {
+  def doWhenNotUpToDate(action: => Any): Boolean = {
     // evaluate files state
     val stateMap = createStateMap
     checkUpToDate(stateMap) match {
