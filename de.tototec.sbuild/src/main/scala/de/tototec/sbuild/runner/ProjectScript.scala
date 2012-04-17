@@ -59,59 +59,6 @@ class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileCl
     }
   }
 
-  def readAnnotationWithSingleArrayAttribute(annoName: String, valueName: String): Array[String] = {
-    var inClasspath = false
-    var skipRest = false
-    var it = new BufferedSource(new FileInputStream(scriptFile)).getLines()
-    var annoLine = ""
-    while (!skipRest && it.hasNext) {
-      var line = it.next.trim
-      if (inClasspath && line.endsWith(")")) {
-        skipRest = true
-        annoLine = annoLine + " " + line.substring(0, line.length - 1).trim
-      }
-      if (line.startsWith("@" + annoName + "(")) {
-        line = line.substring(11).trim
-        if (line.endsWith(")")) {
-          line = line.substring(0, line.length - 1).trim
-          skipRest = true
-        }
-        inClasspath = true
-        annoLine = line
-      }
-    }
-
-    annoLine = annoLine.trim
-
-    if (annoLine.length > 0) {
-      if (annoLine.startsWith(valueName)) {
-        annoLine = annoLine.substring(valueName.length).trim
-        if (annoLine.startsWith("=")) {
-          annoLine = annoLine.substring(1).trim
-        } else {
-          throw new RuntimeException("Expected a '=' sign but got a '" + annoLine(0) + "'")
-        }
-      }
-      if (annoLine.startsWith("Array(") && annoLine.endsWith(")")) {
-        annoLine = annoLine.substring(6, annoLine.length - 1)
-      } else {
-        throw new RuntimeException("Expected a 'Array(...) expression, but got: " + annoLine)
-      }
-
-      val annoItems = annoLine.split(",")
-      val finalAnnoItems = annoItems map { item => item.trim } map { item =>
-        if (item.startsWith("\"") && item.endsWith("\"")) {
-          item.substring(1, item.length - 1)
-        } else {
-          throw new RuntimeException("Unexpection token found: " + item)
-        }
-      }
-      finalAnnoItems
-    } else {
-      Array()
-    }
-  }
-
   def readAnnotationWithVarargAttribute(annoName: String, valueName: String): Array[String] = {
     var inClasspath = false
     var skipRest = false
@@ -207,13 +154,6 @@ class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileCl
         entry
       }
     }
-  }
-
-  def readAdditionalInclude: Array[String] = {
-    SBuildRunner.verbose("About to find additional include files.")
-    val cp = readAnnotationWithSingleArrayAttribute(annoName = "include", valueName = "value")
-    SBuildRunner.verbose("Using additional include files: " + cp.mkString(", "))
-    cp
   }
 
   def useExistingCompiled(project: Project, classpath: Array[String]): Any = {
