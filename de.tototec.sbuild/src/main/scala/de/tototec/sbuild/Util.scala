@@ -8,9 +8,7 @@ import java.net.URL
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import de.tototec.sbuild.runner.SBuildRunner
-import java.io.{ File => JFile }
-import scala.tools.nsc.io.File
-import scala.tools.nsc.io.Directory
+import java.io.File
 import java.util.zip.ZipFile
 import java.io.BufferedOutputStream
 import java.io.FileOutputStream
@@ -23,7 +21,7 @@ object Util {
     SBuildRunner.verbose(msg)
   }
 
-  def delete(files: JFile*) {
+  def delete(files: File*) {
     files.map(_ match {
       case f if f.isDirectory => {
         delete(f.listFiles: _*)
@@ -42,7 +40,7 @@ object Util {
 
     try {
 
-      val targetFile = new JFile(target)
+      val targetFile = new File(target)
 
       targetFile.exists match {
         case true => { // File already exists
@@ -83,9 +81,9 @@ object Util {
             buff.toByteArray
           }
 
-          def writeDataToFile(data: Array[Byte], targetFile: JFile): Boolean = {
+          def writeDataToFile(data: Array[Byte], targetFile: File): Boolean = {
             targetFile.getParentFile match {
-              case dir: JFile => dir.mkdirs
+              case dir: File => dir.mkdirs
               case _ =>
             }
             try {
@@ -111,30 +109,30 @@ object Util {
   }
 
   def recursiveListFiles(dir: String, regex: Regex = ".*".r): Array[String] = {
-    recursiveListFiles(new JFile(dir), regex).map(_.getPath)
+    recursiveListFiles(new File(dir), regex).map(_.getPath)
   }
 
   def recursiveListFilesAbsolute(dir: String, regex: Regex = ".*".r): Array[String] = {
-    recursiveListFiles(new JFile(dir), regex).map(_.getAbsolutePath)
+    recursiveListFiles(new File(dir), regex).map(_.getAbsolutePath)
   }
 
-  def recursiveListFiles(dir: JFile, regex: Regex): Array[JFile] = {
+  def recursiveListFiles(dir: File, regex: Regex): Array[File] = {
     dir.listFiles match {
-      case allFiles: Array[JFile] =>
+      case allFiles: Array[File] =>
         allFiles.filter(f => f.isFile && regex.findFirstIn(f.getName).isDefined) ++
           allFiles.filter(_.isDirectory).flatMap(recursiveListFiles(_, regex))
       case null => Array()
     }
   }
 
-  def unzip(archive: File, targetDir: Directory, selectedFiles: String*) {
+  def unzip(archive: File, targetDir: File, selectedFiles: String*) {
     unzip(archive, targetDir, selectedFiles.map(f => (f, null)).toList)
   }
 
-  def unzip(archive: File, targetDir: Directory, _selectedFiles: List[(String, File)]) {
+  def unzip(archive: File, targetDir: File, _selectedFiles: List[(String, File)]) {
 
-    if (!archive.exists) throw new RuntimeException("Zip file cannot be found: " + archive);
-    targetDir.createDirectory(true, false)
+    if (!archive.exists || !archive.isFile) throw new RuntimeException("Zip file cannot be found: " + archive);
+    targetDir.mkdirs
 
     verbose("Extracting zip archive '" + archive + "' to: " + targetDir)
 
@@ -143,23 +141,23 @@ object Util {
     if (partial) verbose("Only extracting some content of zip file")
 
     try {
-      val zip = new ZipFile(archive.jfile)
+      val zip = new ZipFile(archive)
       val entries = zip.entries
       while (entries.hasMoreElements && (!partial || !selectedFiles.isEmpty)) {
         val zipEntry = entries.nextElement
 
-        val extractFile: Option[JFile] = if (partial) {
+        val extractFile: Option[File] = if (partial) {
           if (!zipEntry.isDirectory) {
-            val candidate = selectedFiles.find(p => p._1 == zipEntry.getName)
+            val candidate = selectedFiles.find { case (name, _) => name == zipEntry.getName }
             if (candidate.isDefined) {
-            	selectedFiles = selectedFiles.filterNot(_ == candidate.get)
+              selectedFiles = selectedFiles.filterNot(_ == candidate.get)
               if (candidate.get._2 != null) {
-                Some(candidate.get._2.jfile)
+                Some(candidate.get._2)
               } else {
                 val full = zipEntry.getName
                 val index = full.lastIndexOf("/")
                 val name = if (index < 0) full else full.substring(index)
-                Some(new JFile(targetDir + "/" + name))
+                Some(new File(targetDir + "/" + name))
               }
             } else {
               None
@@ -170,10 +168,10 @@ object Util {
         } else {
           if (zipEntry.isDirectory) {
             verbose("  Creating " + zipEntry.getName);
-            new JFile(targetDir + "/" + zipEntry.getName).mkdirs
+            new File(targetDir + "/" + zipEntry.getName).mkdirs
             None
           } else {
-            Some(new JFile(targetDir + "/" + zipEntry.getName))
+            Some(new File(targetDir + "/" + zipEntry.getName))
           }
         }
 

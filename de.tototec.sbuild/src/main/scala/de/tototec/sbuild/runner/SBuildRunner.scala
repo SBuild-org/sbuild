@@ -3,7 +3,6 @@ package de.tototec.sbuild.runner
 import java.io.File
 import java.util.Date
 import scala.collection.JavaConversions._
-import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.sbuild._
 import java.util.UUID
@@ -14,55 +13,12 @@ object SBuildRunner {
 
   private[runner] var verbose = false
 
-  class Config {
-    @CmdOption(names = Array("--help", "-h"), isHelp = true, description = "Show this help screen.")
-    var help = false
-
-    @CmdOption(names = Array("--version"), description = "Show SBuild version.")
-    var showVersion = false
-
-    @CmdOption(names = Array("--buildfile", "-f"), args = Array("FILE"),
-      description = "The buildfile to use (default: SBuild.scala).")
-    var buildfile = "SBuild.scala"
-
-    @CmdOption(names = Array("--verbose", "-v"), description = "Be verbose when running.")
-    var verbose = false
-
-    // The classpath is used when SBuild compiles the buildfile
-    @CmdOption(names = Array("--compile-cp"), args = Array("CLASSPATH"), hidden = true)
-    var compileClasspath: String = null
-
-    // The classpath is additionally used when SBuild compiles and executes the buildfile
-    @CmdOption(names = Array("--additional-project-cp"), args = Array("CLASSPATH"), hidden = true)
-    var additionalProjectClasspath: String = null
-
-    @CmdOption(names = Array("--list-targets", "-l"),
-      description = "Show a list of targets defined in the current buildfile")
-    val listTargets = false
-
-    @CmdOption(names = Array("--define", "-D"), args = Array("KEY=VALUE"), maxCount = -1,
-      description = "Define or override properties. If VALUE is omitted it defaults to \"true\".")
-    def addDefine(keyValue: String) {
-      keyValue.split("=", 2) match {
-        case Array(key, value) => defines.put(key, value)
-        case Array(key) => defines.put(key, "true")
-      }
-    }
-    val defines: java.util.Map[String, String] = new java.util.LinkedHashMap()
-
-    @CmdOption(names = Array("--clean"),
-      description = "Remove all generated output and caches before start. This will force a new compile of the buildfile.")
-    var clean: Boolean = false
-
-    @CmdOption(args = Array("TARGETS"), maxCount = -1, description = "The target(s) to execute (in order).")
-    val params = new java.util.LinkedList[String]()
-  }
-
   def main(args: Array[String]) {
     val bootstrapStart = System.currentTimeMillis
 
     val config = new Config()
-    val cp = new CmdlineParser(config)
+    val classpathConfig = new ClasspathConfig()
+    val cp = new CmdlineParser(config, classpathConfig)
     cp.parse(args: _*)
 
     SBuildRunner.verbose = config.verbose
@@ -81,12 +37,20 @@ object SBuildRunner {
       case (key, value) => project.addProperty(key, value)
     }
 
-    val additionalProjectClasspath: Array[String] = config.additionalProjectClasspath match {
+    val sbuildClasspath: Array[String] = classpathConfig.sbuildClasspath match {
+      case null => Array()
+      case x => x.split(":")
+    }
+    val compileClasspath: Array[String] = classpathConfig.compileClasspath match {
+      case null => Array()
+      case x => x.split(":")
+    }
+    val projectClasspath: Array[String] = classpathConfig.projectClasspath match {
       case null => Array()
       case x => x.split(":")
     }
 
-    val script = new ProjectScript(new File(config.buildfile), config.compileClasspath, additionalProjectClasspath)
+    val script = new ProjectScript(new File(config.buildfile), sbuildClasspath, compileClasspath, projectClasspath)
     if (config.clean) {
       script.clean
     }
@@ -134,6 +98,7 @@ object SBuildRunner {
 
   def determineRequestedTargets(targets: Seq[String])(implicit project: Project): Seq[Target] = {
 
+    // The compile will throw a warning here, but we want this so
     val (requested: Seq[Target], invalid: Seq[String]) = targets.map { t =>
       project.findTarget(t) match {
         case Some(target) => target
@@ -242,7 +207,7 @@ object SBuildRunner {
             if (execPhonyUpToDateOrSkip) {
               verbose(percent + " Skipping target '" + node.name + "'")
             } else {
-              println(percent + " Executing target '" + node.name + "':")
+              println(percent + " Executing target '" + node.name + "'")
             }
             state.currentNr += 1
           }

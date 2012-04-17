@@ -7,8 +7,11 @@ import de.tototec.sbuild.Util
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.SBuildException
 import de.tototec.sbuild.HttpSchemeHandler
+import java.net.URLClassLoader
+import java.io.FileInputStream
+import scala.io.BufferedSource
 
-class ProjectScript(scriptFile: File, compileClasspath: String, additionalProjectClasspath: Array[String]) {
+class ProjectScript(scriptFile: File, sbuildClasspath: Array[String], compileClasspath: Array[String], additionalProjectClasspath: Array[String]) {
 
   val buildTargetDir = ".sbuild";
   val buildFileTargetDir = ".sbuild/scala";
@@ -32,12 +35,8 @@ class ProjectScript(scriptFile: File, compileClasspath: String, additionalProjec
     val addCp: Array[String] = additionalProjectClasspath ++ readAdditionalClasspath
 
     if (!checkInfoFileUpToDate) {
-      val cp = addCp match {
-        case Array() => compileClasspath
-        case x => compileClasspath + ":" + x.mkString(":")
-      }
       println("Compiling build script...")
-      newCompile(cp)
+      newCompile(sbuildClasspath ++ addCp)
     }
 
     useExistingCompiled(project, addCp)
@@ -60,10 +59,9 @@ class ProjectScript(scriptFile: File, compileClasspath: String, additionalProjec
   }
 
   def readAnnotationWithSingleArrayAttribute(annoName: String, valueName: String): Array[String] = {
-    import scala.tools.nsc.io.{ File => SFile }
     var inClasspath = false
     var skipRest = false
-    var it = SFile(scriptFile).lines
+    var it = new BufferedSource(new FileInputStream(scriptFile)).getLines()
     var annoLine = ""
     while (!skipRest && it.hasNext) {
       var line = it.next.trim
@@ -114,10 +112,9 @@ class ProjectScript(scriptFile: File, compileClasspath: String, additionalProjec
   }
 
   def readAnnotationWithVarargAttribute(annoName: String, valueName: String): Array[String] = {
-    import scala.tools.nsc.io.{ File => SFile }
     var inClasspath = false
     var skipRest = false
-    var it = SFile(scriptFile).lines
+    val it = new BufferedSource(new FileInputStream(scriptFile)).getLines()
     var annoLine = ""
     while (!skipRest && it.hasNext) {
       var line = it.next.trim
@@ -220,7 +217,7 @@ class ProjectScript(scriptFile: File, compileClasspath: String, additionalProjec
 
   def useExistingCompiled(project: Project, classpath: Array[String]): Any = {
     SBuildRunner.verbose("Loading compiled version of build script: " + scriptFile)
-    val cl = new SBuildURLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
+    val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
     SBuildRunner.verbose("CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
     val clazz: Class[_] = cl.loadClass(scriptBaseName)
     val ctr = clazz.getConstructor(classOf[Project])
@@ -236,12 +233,12 @@ class ProjectScript(scriptFile: File, compileClasspath: String, additionalProjec
     Util.delete(targetDir)
   }
 
-  def newCompile(classpath: String) {
+  def newCompile(classpath: Array[String]) {
     cleanScala()
     targetDir.mkdirs
     SBuildRunner.verbose("Compiling build script: " + scriptFile)
 
-    compile_with_fsc(classpath)
+    compile_with_fsc(classpath.mkString(":"))
 
     SBuildRunner.verbose("Writing info file: " + infoFile)
     val info = <sbuild>
@@ -264,10 +261,15 @@ class ProjectScript(scriptFile: File, compileClasspath: String, additionalProjec
     val useCmdline = false
 
     if (!useCmdline) {
-      import scala.tools.nsc.StandardCompileClient
-      val compileClient = new StandardCompileClient
+      SBuildRunner.verbose("Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
+      val compilerClassloader = new URLClassLoader(compileClasspath.map { f => new File(f).toURI.toURL }, getClass.getClassLoader)
+      val compileClient = compilerClassloader.loadClass("scala.tools.nsc.StandardCompileClient").newInstance
+      //      import scala.tools.nsc.StandardCompileClient
+      //      val compileClient = new StandardCompileClient
+      val compileMethod = compileClient.asInstanceOf[Object].getClass.getMethod("process", Array(classOf[Array[String]]): _*)
       SBuildRunner.verbose("Executing CompileClient with args: " + params.mkString(" "))
-      if (!compileClient.process(params)) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with CompileClient")
+      val retVal = compileMethod.invoke(compileClient, params).asInstanceOf[Boolean]
+      if (!retVal) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with CompileClient. See compiler output.")
     } else {
       import sys.process.Process
       val retCode = Process(Array("fsc") ++ params) !

@@ -1,17 +1,17 @@
 package de.tototec.sbuild
 
-import java.io.{ File => JFile }
-import scala.tools.nsc.io.Directory
-import scala.tools.nsc.io.File
+import java.io.File
 import java.util.Properties
 import scala.collection.JavaConversions._
+import java.io.FileInputStream
+import java.io.FileOutputStream
 
 object IfNotUpToDate {
 
-  def apply(srcDir: JFile, stateDir: JFile, ctx: TargetContext)(task: => Any)(implicit project: Project): Unit =
+  def apply(srcDir: File, stateDir: File, ctx: TargetContext)(task: => Any)(implicit project: Project): Unit =
     apply(Seq(srcDir), stateDir, ctx)(task)
 
-  def apply(srcDirOrFiles: Seq[JFile], stateDir: JFile, ctx: TargetContext)(task: => Any)(implicit project: Project) {
+  def apply(srcDirOrFiles: Seq[File], stateDir: File, ctx: TargetContext)(task: => Any)(implicit project: Project) {
     val checker = PersistentUpToDateChecker(ctx.name.replaceFirst("^phony:", ""), srcDirOrFiles, stateDir, ctx.prerequisites)
     val didSomething = checker.doWhenNotUpToDate(task)
     ctx.addToTargetWasUpToDate(!didSomething)
@@ -21,19 +21,19 @@ object IfNotUpToDate {
 
 object PersistentUpToDateChecker {
 
-  def apply(uniqueId: String, srcDir: JFile, stateDir: JFile) =
+  def apply(uniqueId: String, srcDir: File, stateDir: File) =
     new PersistentUpToDateChecker(uniqueId, Seq(srcDir), stateDir)
-  def apply(uniqueId: String, srcDirOrFiles: Seq[JFile], stateDir: JFile) =
+  def apply(uniqueId: String, srcDirOrFiles: Seq[File], stateDir: File) =
     new PersistentUpToDateChecker(uniqueId, srcDirOrFiles, stateDir)
 
   def apply(uniqueId: String,
-            srcDir: JFile,
-            stateDir: JFile,
+            srcDir: File,
+            stateDir: File,
             dependencies: TargetRef*)(implicit project: Project): PersistentUpToDateChecker =
     apply(uniqueId, Seq(srcDir), stateDir, dependencies)
   def apply(uniqueId: String,
-            srcDirOrFiles: Seq[JFile],
-            stateDir: JFile,
+            srcDirOrFiles: Seq[File],
+            stateDir: File,
             dependencies: TargetRef*)(implicit project: Project): PersistentUpToDateChecker = {
     val checker = new PersistentUpToDateChecker(uniqueId, srcDirOrFiles, stateDir)
     checker.addDependencies(dependencies: Seq[TargetRef])
@@ -41,13 +41,13 @@ object PersistentUpToDateChecker {
   }
 
   def apply(uniqueId: String,
-            srcDir: JFile,
-            stateDir: JFile,
+            srcDir: File,
+            stateDir: File,
             dependencies: TargetRefs)(implicit project: Project): PersistentUpToDateChecker =
     apply(uniqueId, Seq(srcDir), stateDir, dependencies)
   def apply(uniqueId: String,
-            srcDirOrFiles: Seq[JFile],
-            stateDir: JFile,
+            srcDirOrFiles: Seq[File],
+            stateDir: File,
             dependencies: TargetRefs)(implicit project: Project): PersistentUpToDateChecker = {
     val checker = new PersistentUpToDateChecker(uniqueId, srcDirOrFiles, stateDir)
     checker.addDependencies(dependencies)
@@ -56,16 +56,16 @@ object PersistentUpToDateChecker {
 
 }
 
-class PersistentUpToDateChecker(checkerUniqueId: String, srcDirOrFiles: Seq[JFile], stateDir: JFile) {
+class PersistentUpToDateChecker(checkerUniqueId: String, srcDirOrFiles: Seq[File], stateDir: File) {
 
-  def stateFile: File = Directory(stateDir) / File(".filestates." + checkerUniqueId)
+  def stateFile: File = new File(stateDir, ".filestates." + checkerUniqueId)
 
   private var additionalFiles: Seq[File] = Seq()
   private var additionalPhony: Seq[String] = Seq()
 
   def addPhonyDependencies(phonys: String*) = additionalPhony ++= phonys
 
-  def addDependencies(files: JFile*) = additionalFiles ++= files.map(File(_))
+  def addDependencies(files: File*) = additionalFiles ++= files
 
   def addDependencies(targetRefs: TargetRefs)(implicit project: Project): Unit = addDependencies(targetRefs.targetRefs: _*)
 
@@ -82,9 +82,9 @@ class PersistentUpToDateChecker(checkerUniqueId: String, srcDirOrFiles: Seq[JFil
 
   def createStateMap: Map[String, Long] = (
     ((srcDirOrFiles.flatMap { f =>
-      if (f.isDirectory) Directory(f).deepFiles else Seq(File(f))
+      if (f.isDirectory) Util.recursiveListFiles(f, ".*".r) else Seq(f)
     } ++ additionalFiles).map { foundFile =>
-      (foundFile.path -> (if (foundFile.exists) foundFile.lastModified else (0: Long)))
+      (foundFile.getPath -> (if (foundFile.exists) foundFile.lastModified else (0: Long)))
     }
     ) ++
     (additionalPhony.map { phony => (phony -> (0: Long)) })
@@ -95,7 +95,7 @@ class PersistentUpToDateChecker(checkerUniqueId: String, srcDirOrFiles: Seq[JFil
       None
     } else {
       val props = new Properties()
-      props.load(stateFile.inputStream)
+      props.load(new FileInputStream(stateFile))
       Some(props.iterator.map {
         case (key, value) => (key -> value.toLong)
       }.toMap)
@@ -107,12 +107,19 @@ class PersistentUpToDateChecker(checkerUniqueId: String, srcDirOrFiles: Seq[JFil
     stateMap.foreach {
       case (key, value) => props.setProperty(key, value.toString)
     }
-    stateFile.parent.createDirectory(true, false)
-    props.store(stateFile.outputStream(false), getClass.getName + " id:" + checkerUniqueId)
+    stateFile.getParentFile.mkdirs
+    val outStream = new FileOutputStream(stateFile, false)
+    try {
+      props.store(outStream, getClass.getName + " id:" + checkerUniqueId)
+    } finally {
+      if (outStream != null) outStream.close()
+    }
   }
 
   def cleanup {
-    stateFile.deleteIfExists
+    if (stateFile.exists) {
+      stateFile.delete
+    }
   }
 
   def checkUpToDate(currentStateMap: Map[String, Long]): Boolean = readPersistentMap match {
