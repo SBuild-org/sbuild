@@ -21,7 +21,8 @@ class SBuild(implicit project: Project) {
     ("../de.tototec.sbuild/target/de.tototec.sbuild-" + version + ".jar") ~
     ("mvn:org.scala-lang:scala-library:" + scalaVersion) ~
     ("mvn:org.scala-lang:scala-compiler:" + scalaVersion) ~
-    "mvn:org.apache.ant:ant:1.8.3"
+    "mvn:org.apache.ant:ant:1.8.3" ~
+    "mvn:org.liquibase:liquibase-core:2.0.3"
 
   Target("phony:all") dependsOn jar
 
