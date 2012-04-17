@@ -3,7 +3,7 @@ package de.tototec.sbuild
 import java.io.File
 import java.io.FileNotFoundException
 
-class MvnSchemeHandler(val downloadPath: String = System.getProperty("user.home", ".") + "/.m2/repository", repos: Seq[String] = Seq("http://repo1.maven.org/maven2/")) extends SchemeHandler {
+class MvnSchemeHandler(val downloadPath: File = new File(System.getProperty("user.home", ".") + "/.m2/repository"), repos: Seq[String] = Seq("http://repo1.maven.org/maven2/")) extends SchemeHandler {
 
   protected var provisionedResources: Map[String, String] = Map()
 
@@ -14,7 +14,7 @@ class MvnSchemeHandler(val downloadPath: String = System.getProperty("user.home"
   def localFile(path: String): File = {
     provisionedResources.get(path) match {
       case Some(file) => new File(file)
-      case None => new File(downloadPath + "/" + constructMvnPath(path))
+      case None => new File(downloadPath, constructMvnPath(path))
     }
   }
 

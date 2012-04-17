@@ -16,8 +16,8 @@ import org.apache.tools.ant.taskdefs.optional.junit._
 )
 class SBuild(implicit project: Project) {
 
-  SchemeHandler("http", new HttpSchemeHandler(".sbuild/http"))
-  SchemeHandler("mvn", new MvnSchemeHandler(".sbuild/mvn"))
+  SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
+  SchemeHandler("mvn", new MvnSchemeHandler(Path(".sbuild/mvn")))
 
   val version = "0.0.1-SNAPSHOT"
   val jar = "target/de.tototec.sbuild-" + version + ".jar"

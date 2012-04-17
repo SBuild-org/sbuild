@@ -5,18 +5,18 @@ import de.tototec.sbuild.TargetRefs._
 
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
-  "http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.9.1/scala-library-2.9.1.jar",
-  "http://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.9.1/scala-compiler-2.9.1.jar"
+  "http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.9.2/scala-library-2.9.2.jar",
+  "http://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.9.2/scala-compiler-2.9.2.jar"
 )
 class SBuild(implicit project: Project) {
 
-  SchemeHandler("http", new HttpSchemeHandler(".sbuild/http"))
-  SchemeHandler("mvn", new MvnSchemeHandler(".sbuild/mvn"))
+  SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
+  SchemeHandler("mvn", new MvnSchemeHandler(Path(".sbuild/mvn")))
 
   val version = "0.0.1-SNAPSHOT"
   val jar = "target/de.tototec.sbuild.ant-" + version + ".jar"
 
-  val scalaVersion = "2.9.1"
+  val scalaVersion = "2.9.2"
   val compileCp =
     ("../de.tototec.sbuild/target/de.tototec.sbuild-" + version + ".jar") ~
     ("mvn:org.scala-lang:scala-library:" + scalaVersion) ~

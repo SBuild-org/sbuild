@@ -4,7 +4,7 @@ import java.io.File
 import java.net.URL
 import java.io.FileNotFoundException
 
-class HttpSchemeHandler(val downloadDir: String) extends SchemeHandler {
+class HttpSchemeHandler(val downloadDir: File) extends SchemeHandler {
 
   var online: Boolean = true
 
@@ -15,7 +15,7 @@ class HttpSchemeHandler(val downloadDir: String) extends SchemeHandler {
   def localFile(path: String): File = {
     url(path)
     // ok, path is a valid URL
-    new File(downloadDir + "/" + path)
+    new File(downloadDir, path)
   }
 
   override def resolve(path: String): Option[Throwable] = {

@@ -6,6 +6,8 @@ import java.util.Date
 /**
  * While a target execution, this class can be used to get relevant information
  * about the current target execution and interact with the executor.
+ * 
+ * TODO: Construct with real dependencies of type target instead of the (miss-)interpretable TargetRefs.
  */
 class TargetContext(target: Target) {
 
@@ -47,7 +49,7 @@ class TargetContext(target: Target) {
   def prerequisites: Seq[TargetRef] = target.dependants
 
   def fileDependencies: Seq[File] = target.dependants map { t =>
-    target.project.findTarget(t.name) match {
+    target.project.findTarget(t.name, true) match {
       case None => throw new ProjectConfigurationException("Missing dependency: " + t.name)
       case Some(found) => found.targetFile match {
         case None => null

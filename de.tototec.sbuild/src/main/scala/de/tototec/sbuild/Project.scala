@@ -2,9 +2,73 @@ package de.tototec.sbuild
 
 import java.io.File
 
-class Project(val projectDirectory: File) {
+class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Option[ProjectPool]) {
+
+  def this(projectFile: File, projectReader: ProjectReader) {
+    this(projectFile, projectReader, None)
+  }
+
+  val projectFile: File = _projectFile.getAbsoluteFile.getCanonicalFile
+  require(projectFile.exists)
+
+  val projectDirectory: File = projectFile.getParentFile
   require(projectDirectory.exists)
   require(projectDirectory.isDirectory)
+
+  private[sbuild] val projectPool = _projectPool match {
+    case Some(p) => p
+    case None => new ProjectPool(this)
+  }
+
+  private var _modules: List[Project] = List()
+  def modules: List[Project] = _modules
+
+  private[sbuild] def findOrCreateModule(dirOrFile: String): Project = {
+    // various checks
+    if (projectReader == null) {
+      throw new SBuildException("Does not know how to read the sub project")
+    }
+
+    val newProjectDirOrFile = uniqueFile(dirOrFile)
+    if (!newProjectDirOrFile.exists) {
+      throw new ProjectConfigurationException("Subproject/module '" + dirOrFile + "' does not exists")
+    }
+
+    val newProjectFile = if (newProjectDirOrFile.isFile) {
+      newProjectDirOrFile
+    } else {
+      new File(newProjectDirOrFile, "SBuild.scala")
+    }
+
+    if (!newProjectFile.exists) {
+      throw new ProjectConfigurationException("Subproject/module '" + dirOrFile + "' does not exists")
+    }
+
+    // file exists checks passed, now check for double-added projects
+
+    val projectAlreadyIncluded = projectPool.projects.find { p =>
+      p.projectFile == newProjectFile
+    }
+
+    val module = projectAlreadyIncluded match {
+      case Some(existing) => existing
+      case _ =>
+        val newProject = new Project(newProjectFile, projectReader, Some(projectPool))
+        properties foreach {
+          case (key, value) => newProject.addProperty(key, value)
+        }
+
+        projectReader.readProject(newProject, newProjectFile)
+
+        projectPool.addProject(newProject)
+
+        newProject
+    }
+
+    _modules = modules ::: List(module)
+
+    module
+  }
 
   /**
    * Map(file -> Target) of targets.
@@ -28,10 +92,41 @@ class Project(val projectDirectory: File) {
     target
   }
 
-  def findTarget(targetRef: TargetRef): Option[Target] =
+  def findTarget(targetRef: TargetRef): Option[Target] = findTarget(targetRef, searchInAllProjects = false)
+
+  def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean): Option[Target] = {
     uniqueTargetFile(targetRef) match {
-      case UniqueTargetFile(file, _, _) => targets.get(file)
+      case UniqueTargetFile(file, phony, handler) => targets.get(file) match {
+        // If nothing was found and the target in question is a file target and searchInAllProjects was requested, then search in other projects
+        case None if searchInAllProjects && !phony =>
+          // search in other projects
+          val allCandidates = projectPool.projects.map { otherProj =>
+            if (otherProj == this) {
+              None
+            } else {
+              otherProj.targets.get(file) match {
+                // If the found one is phony, it is not a perfect match
+                case Some(t) if t.phony => None
+                case x => x
+              }
+            }
+          }
+          val candidates = allCandidates.filter(_.isDefined)
+          candidates.size match {
+            case 0 => None
+            case 1 => candidates.head
+            case x =>
+              // Found more than one. What should we do about it? 
+              // For now just fail
+              throw new SBuildException("Found more than one match for dependency '" + file +
+                " in all registered modules. Occurences:" +
+                candidates.map { case Some(t) => "\n - " + t.name + " [" + t.project.projectFile + "]" }.mkString)
+          }
+
+        case x => x
+      }
     }
+  }
 
   case class UniqueTargetFile(file: File, phony: Boolean, handler: Option[SchemeHandler])
 
@@ -62,8 +157,10 @@ class Project(val projectDirectory: File) {
     }
   }
 
-  def prerequisites(target: Target): List[Target] = target.dependants.map { dep =>
-    findTarget(dep) match {
+  def prerequisites(target: Target): List[Target] = prerequisites(target, searchInAllProjects = false)
+
+  def prerequisites(target: Target, searchInAllProjects: Boolean): List[Target] = target.dependants.map { dep =>
+    findTarget(dep, searchInAllProjects) match {
       case Some(target) => target
       case None =>
         // TODO: if none target was found, look in other project if they provide the target
@@ -85,7 +182,7 @@ class Project(val projectDirectory: File) {
     }
   }.toList
 
-  def prerequisitesMap: Map[Target, List[Target]] = targets.values.map(goal => (goal, prerequisites(goal))).toMap
+  //  def prerequisitesMap: Map[Target, List[Target]] = targets.values.map(goal => (goal, prerequisites(goal))).toMap
 
   private var schemeHandlers: Map[String, SchemeHandler] = Map()
 
@@ -165,3 +262,12 @@ class Project(val projectDirectory: File) {
 
 }
 
+class ProjectPool(project: Project) {
+  private var _projects: Map[String, Project] = Map((project.projectFile.getPath -> project))
+
+  def addProject(project: Project) {
+    _projects += (project.projectFile.getPath -> project)
+  }
+
+  def projects: Seq[Project] = _projects.values.toSeq
+}

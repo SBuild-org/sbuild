@@ -8,8 +8,8 @@ import de.tototec.sbuild.TargetRefs._
 )
 class SBuild(implicit project: Project) {
 
-  SchemeHandler("mvn", new MvnSchemeHandler(".m2/repository"))
-  SchemeHandler("http", new HttpSchemeHandler(".sbuild/http"))
+  SchemeHandler("mvn", new MvnSchemeHandler(Path("sbuild/mvn")))
+  SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
 
   val version = "0.0.1-SNAPSHOT"
   val scalaVersion = "2.9.2"
@@ -20,20 +20,23 @@ class SBuild(implicit project: Project) {
   val scalaJar = "mvn:org.scala-lang:scala-library:" + scalaVersion
   val scalaCompilerJar = "mvn:org.scala-lang:scala-compiler:" + scalaVersion
 
-  val distName = "sbuild-" + version + "-dist"
+  val distName = "sbuild-" + version
   val distDir = "target/" + distName
+
+  Module("de.tototec.sbuild")
+  Module("de.tototec.sbuild.ant")
 
   Target("phony:clean") exec {
     AntDelete(dir = Path("target"))
   } help "Clean all"
 
-  Target("phony:all") dependsOn ("target/dist-" + version + ".zip") help "Build all"
+  Target("phony:all") dependsOn ("target/" + distName + "-dist.zip") help "Build all"
 
-  Target("target/dist-" + version + ".zip") dependsOn "createDistDir" exec { ctx: TargetContext =>
+  Target("target/" + distName + "-dist.zip") dependsOn "createDistDir" exec { ctx: TargetContext =>
     AntZip(destFile = ctx.targetFile.get, baseDir = Path("target"), includes = distName + "/**")
   }
 
-  Target("phony:createDistDir") dependsOn "copyJars" ~ (distDir + "/bin/sbuild.sh")
+  Target("phony:createDistDir") dependsOn "copyJars" ~ (distDir + "/bin/sbuild")
   
   Target("phony:copyJars") dependsOn (binJar ~ antJar ~ cmdOptionJar ~ scalaJar ~ scalaCompilerJar) exec { ctx: TargetContext =>
     ctx.fileDependencies map { file => 
@@ -41,7 +44,7 @@ class SBuild(implicit project: Project) {
     }
   }
 
-  Target(distDir + "/bin/sbuild.sh") exec { ctx: TargetContext =>
+  Target(distDir + "/bin/sbuild") exec { ctx: TargetContext =>
     val sbuildSh = """#!/bin/sh
 
 # Determime SBUILD_HOME (adapted from maven)
@@ -80,6 +83,7 @@ java -cp "${SBUILD_HOME}/lib/scala-library-""" + scalaVersion + """.jar:${SBUILD
 unset SBUILD_HOME
 """
     AntEcho(message = sbuildSh, file = ctx.targetFile.get)
+    AntChmod(file = ctx.targetFile.get, perm = "+x")
   }
 
 }

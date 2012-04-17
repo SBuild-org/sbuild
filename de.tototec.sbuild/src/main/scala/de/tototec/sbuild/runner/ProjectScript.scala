@@ -11,11 +11,12 @@ import java.net.URLClassLoader
 import java.io.FileInputStream
 import scala.io.BufferedSource
 
-class ProjectScript(scriptFile: File, sbuildClasspath: Array[String], compileClasspath: Array[String], additionalProjectClasspath: Array[String]) {
+class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileClasspath: Array[String], additionalProjectClasspath: Array[String]) {
 
   val buildTargetDir = ".sbuild";
   val buildFileTargetDir = ".sbuild/scala";
 
+  val scriptFile: File = _scriptFile.getAbsoluteFile.getCanonicalFile
   val scriptBaseName = scriptFile.getName.substring(0, scriptFile.getName.length - 6)
   lazy val targetBaseDir: File = new File(scriptFile.getParentFile, buildTargetDir)
   lazy val targetDir: File = new File(scriptFile.getParentFile, buildFileTargetDir)
@@ -35,7 +36,7 @@ class ProjectScript(scriptFile: File, sbuildClasspath: Array[String], compileCla
     val addCp: Array[String] = additionalProjectClasspath ++ readAdditionalClasspath
 
     if (!checkInfoFileUpToDate) {
-      println("Compiling build script...")
+      println("Compiling build script " + scriptFile + "...")
       newCompile(sbuildClasspath ++ addCp)
     }
 
@@ -173,11 +174,11 @@ class ProjectScript(scriptFile: File, sbuildClasspath: Array[String], compileCla
     SBuildRunner.verbose("Using additional classpath entries: " + cp.mkString(", "))
 
     lazy val httpHandler = {
-      var downloadDir: File = new File(targetBaseDir, "/http")
+      var downloadDir: File = new File(targetBaseDir, "http")
       if (!downloadDir.isAbsolute) {
         downloadDir = downloadDir.getAbsoluteFile
       }
-      new HttpSchemeHandler(downloadDir.getPath)
+      new HttpSchemeHandler(downloadDir)
     }
 
     cp.map { entry =>
@@ -254,28 +255,28 @@ class ProjectScript(scriptFile: File, sbuildClasspath: Array[String], compileCla
   }
 
   def compile_with_fsc(classpath: String) {
-    val params = Array("-classpath", classpath, "-g:vars", "-d", new File(buildFileTargetDir).getAbsolutePath, scriptFile.getAbsolutePath)
+    val params = Array("-classpath", classpath, "-g:vars", "-d", targetDir.getPath, scriptFile.getPath)
     //    if(SBuild.verbose) {
     //      params = Array("-verbose") ++ params
     //    }
-    val useCmdline = false
+    //    val useCmdline = false
 
-    if (!useCmdline) {
-      SBuildRunner.verbose("Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
-      val compilerClassloader = new URLClassLoader(compileClasspath.map { f => new File(f).toURI.toURL }, getClass.getClassLoader)
-      val compileClient = compilerClassloader.loadClass("scala.tools.nsc.StandardCompileClient").newInstance
-      //      import scala.tools.nsc.StandardCompileClient
-      //      val compileClient = new StandardCompileClient
-      val compileMethod = compileClient.asInstanceOf[Object].getClass.getMethod("process", Array(classOf[Array[String]]): _*)
-      SBuildRunner.verbose("Executing CompileClient with args: " + params.mkString(" "))
-      val retVal = compileMethod.invoke(compileClient, params).asInstanceOf[Boolean]
-      if (!retVal) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with CompileClient. See compiler output.")
-    } else {
-      import sys.process.Process
-      val retCode = Process(Array("fsc") ++ params) !
-
-      if (retCode != 0) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with fsc")
-    }
+    //    if (!useCmdline) {
+    SBuildRunner.verbose("Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
+    val compilerClassloader = new URLClassLoader(compileClasspath.map { f => new File(f).toURI.toURL }, getClass.getClassLoader)
+    val compileClient = compilerClassloader.loadClass("scala.tools.nsc.StandardCompileClient").newInstance
+    //      import scala.tools.nsc.StandardCompileClient
+    //      val compileClient = new StandardCompileClient
+    val compileMethod = compileClient.asInstanceOf[Object].getClass.getMethod("process", Array(classOf[Array[String]]): _*)
+    SBuildRunner.verbose("Executing CompileClient with args: " + params.mkString(" "))
+    val retVal = compileMethod.invoke(compileClient, params).asInstanceOf[Boolean]
+    if (!retVal) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with CompileClient. See compiler output.")
+    //    } else {
+    //      import sys.process.Process
+    //      val retCode = Process(Array("fsc") ++ params) !
+    //
+    //      if (retCode != 0) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with fsc")
+    //    }
   }
 
 }

@@ -32,11 +32,6 @@ object SBuildRunner {
       System.exit(0)
     }
 
-    val project = new Project(new File(System.getProperty("user.dir")))
-    config.defines foreach {
-      case (key, value) => project.addProperty(key, value)
-    }
-
     val sbuildClasspath: Array[String] = classpathConfig.sbuildClasspath match {
       case null => Array()
       case x => x.split(":")
@@ -50,12 +45,24 @@ object SBuildRunner {
       case x => x.split(":")
     }
 
-    val script = new ProjectScript(new File(config.buildfile), sbuildClasspath, compileClasspath, projectClasspath)
-    if (config.clean) {
-      script.clean
+    val projectReader: ProjectReader = new ProjectReader() {
+      override def readProject(projectToRead: Project, projectFile: File) {
+        val script = new ProjectScript(projectFile, sbuildClasspath, compileClasspath, projectClasspath)
+        if (config.clean) {
+          script.clean
+        }
+        //  Compile Script and load compiled class
+        val scriptInstance = script.compileAndExecute(projectToRead)
+      }
     }
-    //  Compile Script and load compiled class
-    val scriptInstance = script.compileAndExecute(project)
+
+    val projectFile = new File(config.buildfile)
+    val project = new Project(projectFile, projectReader)
+    config.defines foreach {
+      case (key, value) => project.addProperty(key, value)
+    }
+
+    projectReader.readProject(project, projectFile)
 
     verbose("Targets: \n" + project.targets.values.mkString("\n"))
 
@@ -77,10 +84,20 @@ object SBuildRunner {
 
     {
       var line = 0
-      verbose("Execution plan: \n" + chain.map { execT =>
-        line += 1
-        "  " + line + ". " + execT.target.toString
-      }.mkString("\n"))
+      verbose({
+        val needProjectSuffix = chain.map { execT => execT.target.project.projectFile }.distinct.size > 1
+        def projectName(execT: ExecutedTarget): String = if (!needProjectSuffix) "" else {
+          execT.target.project match {
+            case p if p == project => ""
+            case otherProject => " [" + project.projectDirectory.toURI.relativize(otherProject.projectFile.toURI).getPath + "]"
+          }
+        }
+
+        "Execution plan: \n" + chain.map { execT =>
+          line += 1
+          "  " + line + ". " + execT.target.name + projectName(execT)
+        }.mkString("\n")
+      })
     }
 
     val executionStart = System.currentTimeMillis
@@ -100,7 +117,7 @@ object SBuildRunner {
 
     // The compile will throw a warning here, but we want this so
     val (requested: Seq[Target], invalid: Seq[String]) = targets.map { t =>
-      project.findTarget(t) match {
+      project.findTarget(t, searchInAllProjects = false) match {
         case Some(target) => target
         case None => TargetRef(t).explicitProto match {
           case None | Some("phony") | Some("file") => t
@@ -126,12 +143,20 @@ object SBuildRunner {
                              rootRequest: Option[Target] = None,
                              execState: Option[ExecState] = None,
                              skipExec: Boolean = false,
-                             requestId: Option[String] = None)(implicit project: Project): Array[ExecutedTarget] = {
+                             requestId: Option[String] = None,
+                             dependencyTrace: List[Target] = List())(implicit project: Project): Array[ExecutedTarget] = {
     request match {
       case Nil => Array()
       case node :: tail =>
 
         // detect collisions
+
+        def verboseTrackDeps(msg: => String) {
+          //          this.verbose(List.fill(dependencyTrace.size + 1)(" |").mkString + msg)
+          this.verbose(msg + {
+            if (dependencyTrace.isEmpty) "" else "  <-- as dep of: " + dependencyTrace.map { _.name }.mkString(" <- ")
+          })
+        }
 
         val root = rootRequest match {
           case Some(root) =>
@@ -148,8 +173,9 @@ object SBuildRunner {
 
           val skipOrUpToDate = skipExec || project.isTargetUpToDate(node)
           // Execute prerequisites
-          verbose("checking dependencies of: " + node)
-          val dependencies = project.prerequisites(node)
+          verbose("determine dependencies of: " + node.name)
+          val dependencies = node.project.prerequisites(node, searchInAllProjects = true)
+          verbose("dependencies of: " + node.name + " => " + dependencies.map(_.name).mkString(", "))
 
           // All direct dependencies share the same request id.
           // Later we can identify them and check, if they were up-to-date.
@@ -158,9 +184,12 @@ object SBuildRunner {
           val executed = preorderedDependencies(dependencies.toList, Some(root),
             execState = execState,
             skipExec = skipOrUpToDate,
-            requestId = resolveDirectDepsRequestId)
+            requestId = resolveDirectDepsRequestId,
+            dependencyTrace = node :: dependencyTrace)
 
           val doContextChecks = true
+
+          verboseTrackDeps("Evaluating up-to-date state of: " + node.name)
 
           val execPhonyUpToDateOrSkip = skipOrUpToDate match {
             case true => true // already known up-to-date
@@ -193,7 +222,7 @@ object SBuildRunner {
             }
           }
           if (!skipOrUpToDate && execPhonyUpToDateOrSkip) {
-            verbose("All executed phony dependencies of '" + node + "' were up-to-date.")
+            verbose("All executed phony dependencies of '" + node.name + "' were up-to-date.")
           }
 
           // Print State
@@ -204,10 +233,18 @@ object SBuildRunner {
                 "[" + math.min(100, math.max(0, p)) + "%]"
               case (c, m) => "[" + c + "/" + m + "]"
             }
+
+            def formatTarget(target: Target) = {
+              target.project match {
+                case p if p == project => "'" + target.name + "'"
+                case otherProject => "'" + target.name + "' [" + project.projectDirectory.toURI.relativize(otherProject.projectFile.toURI).getPath + "]"
+              }
+            }
+
             if (execPhonyUpToDateOrSkip) {
-              verbose(percent + " Skipping target '" + node.name + "'")
+              verbose(percent + " Skipping target " + formatTarget(node))
             } else {
-              println(percent + " Executing target '" + node.name + "'")
+              println(percent + " Executing target " + formatTarget(node))
             }
             state.currentNr += 1
           }
@@ -219,18 +256,18 @@ object SBuildRunner {
           } else {
             // Need to execute
             node.action match {
-              case null => verbose("Nothing to execute for target: " + node)
+              case null => verbose("Nothing to execute for target: " + node.name)
               case exec =>
                 try {
-                  verbose("Executing target: " + node)
+                  verbose("Executing target: " + node.name)
                   ctx.start
                   exec.apply(ctx)
                   ctx.end
-                  verbose("Executed target: " + node + " in " + ctx.execDurationMSec + " msec")
+                  verbose("Executed target: " + node.name + " in " + ctx.execDurationMSec + " msec")
                 } catch {
                   case e: Throwable => {
                     ctx.end
-                    verbose("Execution of target " + node + " aborted after " + ctx.execDurationMSec + " msec with errors: " + e.getMessage);
+                    verbose("Execution of target " + node.name + " aborted after " + ctx.execDurationMSec + " msec with errors: " + e.getMessage);
                     throw e
                   }
                 }
@@ -246,7 +283,10 @@ object SBuildRunner {
           )
         }
 
-        alreadyRun ++ preorderedDependencies(tail, execState = execState, skipExec = skipExec)
+        alreadyRun ++ preorderedDependencies(tail,
+          execState = execState,
+          skipExec = skipExec,
+          dependencyTrace = dependencyTrace)
     }
   }
 

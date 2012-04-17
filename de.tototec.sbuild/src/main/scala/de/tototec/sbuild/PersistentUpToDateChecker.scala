@@ -70,8 +70,8 @@ class PersistentUpToDateChecker(checkerUniqueId: String, srcDirOrFiles: Seq[File
   def addDependencies(targetRefs: TargetRefs)(implicit project: Project): Unit = addDependencies(targetRefs.targetRefs: _*)
 
   def addDependencies(targetRefs: TargetRef*)(implicit project: Project): Unit = targetRefs.foreach { tr =>
-    project.findTarget(tr) match {
-      case None => throw new IllegalArgumentException("Cannot found target: " + tr)
+    project.findTarget(tr, searchInAllProjects = true) match {
+      case None => throw new IllegalArgumentException("Could not found target: " + tr)
       case Some(target) =>
         target.phony match {
           case true => addPhonyDependencies(target.file.getPath)

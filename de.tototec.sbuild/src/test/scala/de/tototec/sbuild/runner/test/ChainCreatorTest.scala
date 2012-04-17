@@ -11,7 +11,7 @@ import java.io.File
 class ChainCreatorTest extends FunSuite {
 
   SBuildRunner.verbose = true
-  private implicit val project = new Project(new File("."))
+  private implicit val project = new Project(new File("SBuild.scala"), null)
 
   private val g1 = Target("phony:1")
   private val g2 = Target("phony:2") dependsOn g1
