@@ -120,7 +120,10 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
               // For now just fail
               throw new SBuildException("Found more than one match for dependency '" + file +
                 " in all registered modules. Occurences:" +
-                candidates.map { case Some(t) => "\n - " + t.name + " [" + t.project.projectFile + "]" }.mkString)
+                candidates.map {
+                  case Some(t) => "\n - " + t.name + " [" + t.project.projectFile + "]"
+                  case _ => // to avoid compiler warning
+                }.mkString)
           }
 
         case x => x
