@@ -46,6 +46,16 @@ class TargetContext(target: Target) {
    */
   def prerequisites: Seq[TargetRef] = target.dependants
 
+  def fileDependencies: Seq[File] = target.dependants map { t =>
+    target.project.findTarget(t.name) match {
+      case None => throw new ProjectConfigurationException("Missing dependency: " + t.name)
+      case Some(found) => found.targetFile match {
+        case None => null
+        case Some(f) => f
+      }
+    }
+  } filter { f => f != null }
+
   /**
    * Set this to <code>true</code>, if this target execution did not produced anything new,
    * which means, the target was already up-to-date.
