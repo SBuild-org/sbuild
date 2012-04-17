@@ -9,7 +9,7 @@ import org.apache.tools.ant.taskdefs.Echo.EchoLevel
 
 object AntEcho {
 
-  def apply(message: String,
+  def apply(message: String = null,
             level: EchoLevel = null,
             file: File = null,
             append: java.lang.Boolean = null,
@@ -30,14 +30,14 @@ object AntEcho {
 class AntEcho()(implicit _project: Project) extends Echo {
   setProject(AntProject())
 
-  def this(message: String,
+  def this(message: String = null,
            level: EchoLevel = null,
            file: File = null,
            append: java.lang.Boolean = null,
            encoding: String = null,
            force: java.lang.Boolean = null)(implicit proj: Project) {
     this
-    setMessage(message)
+    if (message != null) setMessage(message)
     if (level != null) setLevel(level)
     if (file != null) setFile(file)
     if (append != null) setAppend(append.booleanValue)
@@ -46,7 +46,7 @@ class AntEcho()(implicit _project: Project) extends Echo {
   }
 
   override def setFile(file: File) = super.setFile(Path(file.getPath))
-  
+
 } 
 
  

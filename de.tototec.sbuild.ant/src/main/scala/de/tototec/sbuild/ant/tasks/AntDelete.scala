@@ -11,7 +11,7 @@ object AntDelete {
   def apply(file: File = null,
             dir: File = null,
             includes: String = null,
-            excludes: String = null)(implicit proj: Project) =
+            excludes: String = null)(implicit _project: Project) =
     new AntDelete(
       file = file,
       dir = dir,
@@ -27,7 +27,7 @@ class AntDelete()(implicit _project: Project) extends Delete {
   def this(file: File = null,
            dir: File = null,
            includes: String = null,
-           excludes: String = null)(implicit proj: Project) {
+           excludes: String = null)(implicit _project: Project) {
     this
     if (file != null) setFile(file)
     if (dir != null) setDir(dir)
