@@ -10,6 +10,7 @@ import de.tototec.sbuild.HttpSchemeHandler
 import java.net.URLClassLoader
 import java.io.FileInputStream
 import scala.io.BufferedSource
+import de.tototec.sbuild.OSGiVersion
 
 class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileClasspath: Array[String], additionalProjectClasspath: Array[String]) {
 
@@ -32,6 +33,12 @@ class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileCl
     checkFile
 
     val infoFile = new File(targetDir, "sbuild.info.xml")
+
+    val version = readAnnotationWithSingleAttribute("version", "value")
+    val osgiVersion = OSGiVersion.parseVersion(version)
+    if (osgiVersion.compareTo(new OSGiVersion("0.0.1")) > 0) {
+      throw new SBuildException("The buildscript '" + scriptFile + "' requires at least SBuild version: " + version)
+    }
 
     val addCp: Array[String] = additionalProjectClasspath ++ readAdditionalClasspath
 
@@ -74,7 +81,7 @@ class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileCl
         annoLine = annoLine + " " + line
       }
       if (line.startsWith("@" + annoName + "(")) {
-        line = line.substring(11).trim
+        line = line.substring(annoName.length + 2).trim
         if (line.endsWith(")")) {
           line = line.substring(0, line.length - 1).trim
           skipRest = true
@@ -112,6 +119,52 @@ class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileCl
       finalAnnoItems
     } else {
       Array()
+    }
+  }
+
+  def readAnnotationWithSingleAttribute(annoName: String, valueName: String): String = {
+    var inClasspath = false
+    var skipRest = false
+    val it = new BufferedSource(new FileInputStream(scriptFile)).getLines()
+    var annoLine = ""
+    while (!skipRest && it.hasNext) {
+      var line = it.next.trim
+      if (inClasspath) {
+        if (line.endsWith(")")) {
+          skipRest = true
+          line = line.substring(0, line.length - 1).trim
+        }
+        annoLine = annoLine + " " + line
+      }
+      if (line.startsWith("@" + annoName + "(")) {
+        line = line.substring(annoName.length + 2).trim
+        if (line.endsWith(")")) {
+          line = line.substring(0, line.length - 1).trim
+          skipRest = true
+        }
+        inClasspath = true
+        annoLine = line
+      }
+    }
+
+    annoLine = annoLine.trim
+
+    if (annoLine.length > 0) {
+      if (annoLine.startsWith(valueName)) {
+        annoLine = annoLine.substring(valueName.length).trim
+        if (annoLine.startsWith("=")) {
+          annoLine = annoLine.substring(1).trim
+        } else {
+          throw new RuntimeException("Expected a '=' sign but got a '" + annoLine(0) + "'")
+        }
+      }
+      if (annoLine.startsWith("\"") && annoLine.endsWith("\"")) {
+        annoLine.substring(1, annoLine.length - 1)
+      } else {
+        throw new RuntimeException("Expected a string enclosed within double colons but got: " + annoLine)
+      }
+    } else {
+      ""
     }
   }
 
