@@ -62,13 +62,19 @@ trait Target {
   //  def produces(pattern: String): Target
   //  def needsToExec(needsToExec: => Boolean): Target
 
+  private[sbuild] def project: Project
+
 }
 
 object Target {
   def apply(targetRef: TargetRef)(implicit project: Project): Target = project.findOrCreateTarget(targetRef)
 }
 
-case class ProjectTarget private[sbuild] (val name: String, val file: File, val phony: Boolean, handler: Option[SchemeHandler], val project: Project) extends Target {
+case class ProjectTarget private[sbuild] (val name: String,
+                                          val file: File,
+                                          val phony: Boolean,
+                                          handler: Option[SchemeHandler],
+                                          val project: Project) extends Target {
 
   private var _exec: TargetContext => Any = handler match {
     case None => null
