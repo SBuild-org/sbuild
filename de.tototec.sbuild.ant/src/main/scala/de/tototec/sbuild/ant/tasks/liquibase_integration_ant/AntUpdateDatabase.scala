@@ -5,6 +5,7 @@ import liquibase.integration.ant.DatabaseUpdateTask
 import de.tototec.sbuild.ant.AntProject
 import java.io.File
 import liquibase.integration.ant.BaseLiquibaseTask.ChangeLogProperty
+import org.apache.tools.ant.types.Path
 
 object AntUpdateDatabase {
   def apply(changeLogFile: String = null,
@@ -16,7 +17,7 @@ object AntUpdateDatabase {
             outputFile: String = null,
             promptOnNonLocalDatabase: java.lang.Boolean = null,
             dropFirst: java.lang.Boolean = null,
-            classpathRef: org.apache.tools.ant.types.Reference = null,
+            classpath: Path = null,
             contexts: String = null,
             currentDateTimeFunction: String = null,
             databaseChangeLogTableName: String = null,
@@ -32,7 +33,7 @@ object AntUpdateDatabase {
       outputFile = outputFile,
       promptOnNonLocalDatabase = promptOnNonLocalDatabase,
       dropFirst = dropFirst,
-      classpathRef = classpathRef,
+      classpath = classpath,
       contexts = contexts,
       currentDateTimeFunction = currentDateTimeFunction,
       databaseChangeLogTableName = databaseChangeLogTableName,
@@ -53,7 +54,7 @@ class AntUpdateDatabase()(implicit _project: Project) extends DatabaseUpdateTask
            outputFile: String = null,
            promptOnNonLocalDatabase: java.lang.Boolean = null,
            dropFirst: java.lang.Boolean = null,
-           classpathRef: org.apache.tools.ant.types.Reference = null,
+           classpath: Path = null,
            contexts: String = null,
            currentDateTimeFunction: String = null,
            databaseChangeLogTableName: String = null,
@@ -69,7 +70,7 @@ class AntUpdateDatabase()(implicit _project: Project) extends DatabaseUpdateTask
     if (outputFile != null) setOutputFile(outputFile)
     if (promptOnNonLocalDatabase != null) setPromptOnNonLocalDatabase(promptOnNonLocalDatabase.booleanValue)
     if (dropFirst != null) setDropFirst(dropFirst.booleanValue)
-    if (classpathRef != null) setClasspathRef(classpathRef)
+    if (classpath != null) createClasspath.add(classpath)
     if (contexts != null) setContexts(contexts)
     if (currentDateTimeFunction != null) setCurrentDateTimeFunction(currentDateTimeFunction)
     if (databaseChangeLogTableName != null) setDatabaseChangeLogTableName(databaseChangeLogTableName)
