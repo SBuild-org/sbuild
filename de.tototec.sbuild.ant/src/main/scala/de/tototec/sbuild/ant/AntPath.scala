@@ -8,37 +8,38 @@ import de.tototec.sbuild.TargetRefs
 
 object AntPath {
 
-  def apply(targetRefs: TargetRefs)(implicit proj: Project): AntPath = {
-    val antPath = new AntPath()
-    targetRefs.targetRefs.foreach { targetRef =>
-      antPath.setLocation(proj.uniqueTargetFile(targetRef).file)
-    }
-    antPath
-  }
+  def apply(location: File = null,
+            locations: Seq[File] = Seq(),
+            path: String = null,
+            paths: Seq[String] = Seq())(implicit project: Project) =
+    new AntPath(
+      location = location,
+      locations = locations,
+      path = path,
+      paths = paths
+    )
+
+  def apply(targetRefs: TargetRefs)(implicit _project: Project): AntPath =
+    new AntPath(locations = targetRefs.targetRefs.map { targetRef =>
+      _project.uniqueTargetFile(targetRef).file
+    })
 
   def apply(targetRef: TargetRef)(implicit proj: Project): AntPath =
-    new AntPath(proj.uniqueTargetFile(targetRef).file)
+    new AntPath(location = proj.uniqueTargetFile(targetRef).file)
 
-  def apply(file: String)(implicit proj: Project): AntPath = new AntPath(Path(file))
-  def apply(files: Array[String])(implicit proj: Project): AntPath = new AntPath(files.map { f => Path(f) })
-
-  def apply(file: File)(implicit proj: Project): AntPath = new AntPath(file)
-  def apply(files: Array[File])(implicit proj: Project): AntPath = new AntPath(files)
 }
 
 class AntPath()(implicit _project: Project) extends org.apache.tools.ant.types.Path(AntProject()) {
 
-  def this(location: File = null)(implicit project: Project) {
+  def this(location: File = null,
+           locations: Seq[File] = Seq(),
+           path: String = null,
+           paths: Seq[String] = Seq())(implicit project: Project) {
     this
     if (location != null) setLocation(location)
+    if (locations != null) locations.foreach { loc => setLocation(loc) }
+    if (path != null) setPath(path)
+    if (paths != null) paths.foreach { path => setPath(path) }
   }
 
-  def this(locations: Array[File])(implicit _project: Project) {
-    this
-    locations.foreach { loc =>
-      setLocation(loc)
-    }
-  }
-
-  override def setLocation(location: File) = super.setLocation(Path(location.getPath))
 }
