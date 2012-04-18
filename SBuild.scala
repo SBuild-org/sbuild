@@ -40,7 +40,7 @@ class SBuild(implicit project: Project) {
   Target("phony:createDistDir") dependsOn "copyJars" ~ (distDir + "/bin/sbuild")
   
   Target("phony:copyJars") dependsOn (binJar ~ antJar ~ cmdOptionJar ~ scalaJar ~ scalaCompilerJar) exec { ctx: TargetContext =>
-    ctx.fileDependencies map { file => 
+    ctx.fileDependencies foreach { file => 
       AntCopy(file = file, toDir = Path(distDir + "/lib"))
     }
   }
