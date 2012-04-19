@@ -34,6 +34,10 @@ class Config {
     description = "Remove all generated output and caches before start. This will force a new compile of the buildfile.")
   var clean: Boolean = false
 
+  @CmdOption(names = Array("--create-stub"),
+    description = "Create a new minimal SBuild.scala file to start with.")
+  var createStub: Boolean = false
+
   @CmdOption(args = Array("TARGETS"), maxCount = -1, description = "The target(s) to execute (in order).")
   val params = new java.util.LinkedList[String]()
 }

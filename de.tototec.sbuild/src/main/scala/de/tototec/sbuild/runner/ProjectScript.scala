@@ -36,7 +36,7 @@ class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileCl
 
     val version = readAnnotationWithSingleAttribute("version", "value")
     val osgiVersion = OSGiVersion.parseVersion(version)
-    if (osgiVersion.compareTo(new OSGiVersion("0.0.1")) > 0) {
+    if (osgiVersion.compareTo(new OSGiVersion(SBuildRunner.osgiVersion)) > 0) {
       throw new SBuildException("The buildscript '" + scriptFile + "' requires at least SBuild version: " + version)
     }
 

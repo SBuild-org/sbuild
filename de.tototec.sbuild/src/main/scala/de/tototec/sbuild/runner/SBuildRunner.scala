@@ -6,10 +6,14 @@ import scala.collection.JavaConversions._
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.sbuild._
 import java.util.UUID
+import java.io.FileOutputStream
+import java.io.BufferedOutputStream
+import java.io.PrintStream
 
 object SBuildRunner {
 
   val version = "0.0.1"
+  val osgiVersion = "0.0.1"
 
   private[runner] var verbose = false
 
@@ -29,6 +33,39 @@ object SBuildRunner {
 
     if (config.help) {
       cp.usage
+      System.exit(0)
+    }
+
+    val projectFile = new File(config.buildfile)
+
+    if (config.createStub) {
+      if (projectFile.exists) {
+        throw new SBuildException("File '" + config.buildfile + "' already exists. ")
+      }
+
+      val className = projectFile.getName.substring(0, projectFile.getName.length - 6)
+      val sbuildStub = """import de.tototec.sbuild._
+import de.tototec.sbuild.TargetRefs._
+import de.tototec.sbuild.ant._
+import de.tototec.sbuild.ant.tasks._
+
+@version(""" + "\"" + SBuildRunner.osgiVersion + "\"" + """)
+@classpath("http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar")
+class """ + className + """(implicit project: Project) {
+
+  Target("phony:hello") help "Say hello" exec {
+    AntEcho(message = "Hello!")
+  }
+
+}
+"""
+      val outStream = new PrintStream(new FileOutputStream(projectFile))
+      try {
+        outStream.print(sbuildStub)
+      } finally {
+        if (outStream != null) outStream.close()
+      }
+
       System.exit(0)
     }
 
@@ -56,7 +93,6 @@ object SBuildRunner {
       }
     }
 
-    val projectFile = new File(config.buildfile)
     val project = new Project(projectFile, projectReader)
     config.defines foreach {
       case (key, value) => project.addProperty(key, value)
