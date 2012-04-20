@@ -277,7 +277,7 @@ class """ + className + """(implicit project: Project) {
               }
             }
 
-            if (execPhonyUpToDateOrSkip) {
+            if (execPhonyUpToDateOrSkip || node.action == null) {
               verbose(percent + " Skipping target " + formatTarget(node))
             } else {
               println(percent + " Executing target " + formatTarget(node))
