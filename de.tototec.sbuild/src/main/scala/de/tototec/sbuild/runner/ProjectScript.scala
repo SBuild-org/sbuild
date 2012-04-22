@@ -14,10 +14,11 @@ import de.tototec.sbuild.OSGiVersion
 
 class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileClasspath: Array[String], additionalProjectClasspath: Array[String]) {
 
-  val buildTargetDir = ".sbuild";
-  val buildFileTargetDir = ".sbuild/scala";
-
   val scriptFile: File = _scriptFile.getAbsoluteFile.getCanonicalFile
+
+  val buildTargetDir = ".sbuild";
+  val buildFileTargetDir = ".sbuild/scala/" + scriptFile.getName;
+
   val scriptBaseName = scriptFile.getName.substring(0, scriptFile.getName.length - 6)
   lazy val targetBaseDir: File = new File(scriptFile.getParentFile, buildTargetDir)
   lazy val targetDir: File = new File(scriptFile.getParentFile, buildFileTargetDir)
