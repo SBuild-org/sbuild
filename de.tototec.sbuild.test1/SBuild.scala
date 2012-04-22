@@ -6,8 +6,10 @@ import org.apache.tools.ant.taskdefs._
 @classpath("http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar")
 class SBuild(implicit P: Project) {
 
-  // SchemeHandler("mvn", new MvnSchemeHandler(Path("/home/lefou/.m2/repository-tototec")))
+  // SchemeHandler("mvn", new MvnSchemeHandler()))
   // SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
+
+  Module("SEcho.scala")
 
   Target("phony:clean") exec {
     AntDelete(dir = Path("target")) 
