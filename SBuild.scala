@@ -9,7 +9,7 @@ import de.tototec.sbuild.TargetRefs._
 )
 class SBuild(implicit project: Project) {
 
-  SchemeHandler("mvn", new MvnSchemeHandler(Path("sbuild/mvn")))
+  SchemeHandler("mvn", new MvnSchemeHandler(Path(Prop("mvn.repo", ".sbuild/mvn"))))
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
 
   val version = "0.0.1-SNAPSHOT"
@@ -27,7 +27,7 @@ class SBuild(implicit project: Project) {
   Module("de.tototec.sbuild")
   Module("de.tototec.sbuild.ant")
 
-  Target("phony:clean") exec {
+  Target("phony:clean") dependsOn "de.tototec.sbuild::clean" ~ "de.tototec.sbuild.ant::clean" exec {
     AntDelete(dir = Path("target"))
   } help "Clean all"
 
