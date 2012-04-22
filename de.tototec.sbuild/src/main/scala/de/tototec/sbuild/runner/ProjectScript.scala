@@ -41,7 +41,7 @@ class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileCl
       throw new SBuildException("The buildscript '" + scriptFile + "' requires at least SBuild version: " + version)
     }
 
-    val addCp: Array[String] = additionalProjectClasspath ++ readAdditionalClasspath
+    val addCp: Array[String] = readAdditionalClasspath ++ additionalProjectClasspath
 
     if (!checkInfoFileUpToDate) {
       println("Compiling build script " + scriptFile + "...")
