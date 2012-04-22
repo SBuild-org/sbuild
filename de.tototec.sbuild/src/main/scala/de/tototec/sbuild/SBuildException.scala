@@ -9,3 +9,5 @@ class ExecutionFailedException(msg: String, cause: Throwable = null) extends SBu
 class ProjectConfigurationException(msg: String, cause: Throwable = null) extends SBuildException(msg, cause)
 
 class UnsupportedSchemeException(msg: String, cause: Throwable = null) extends SBuildException(msg, cause)
+
+class TargetNotFoundException(msg: String, cause: Throwable = null) extends SBuildException(msg, cause)

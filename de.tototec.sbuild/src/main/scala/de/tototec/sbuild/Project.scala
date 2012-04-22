@@ -29,7 +29,7 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
       throw new SBuildException("Does not know how to read the sub project")
     }
 
-    val newProjectDirOrFile = uniqueFile(dirOrFile)
+    val newProjectDirOrFile = Path(dirOrFile)(this)
     if (!newProjectDirOrFile.exists) {
       throw new ProjectConfigurationException("Subproject/module '" + dirOrFile + "' does not exists")
     }
@@ -81,6 +81,10 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
   }
 
   def createTarget(targetRef: TargetRef): Target = {
+    if(explicitForeignProject(targetRef).isDefined) {
+      throw new ProjectConfigurationException("Cannot create Target which explicitly references a different project in its name: " + targetRef)
+    }
+
     val UniqueTargetFile(file, phony, handler) = uniqueTargetFile(targetRef)
     val proto = targetRef.explicitProto match {
       case Some(x) => x
@@ -94,69 +98,97 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
 
   def findTarget(targetRef: TargetRef): Option[Target] = findTarget(targetRef, searchInAllProjects = false)
 
+  /**
+   * @param targetRef The target name to find.
+   * @param searchInAllProjects If <code>true</code and no target was found in
+   *        the current project and the TargetRef did not contain a project
+   *        referrer, search in all other projects.
+   */
   def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean): Option[Target] = {
-    uniqueTargetFile(targetRef) match {
-      case UniqueTargetFile(file, phony, handler) => targets.get(file) match {
-        // If nothing was found and the target in question is a file target and searchInAllProjects was requested, then search in other projects
-        case None if searchInAllProjects && !phony =>
-          // search in other projects
-          val allCandidates = projectPool.projects.map { otherProj =>
-            if (otherProj == this) {
-              None
-            } else {
-              otherProj.targets.get(file) match {
-                // If the found one is phony, it is not a perfect match
-                case Some(t) if t.phony => None
-                case x => x
+    explicitForeignProject(targetRef) match {
+      case Some(pFile) =>
+        projectPool.propjectMap.get(pFile) match {
+          case None => throw new TargetNotFoundException("Could not found target: " + targetRef + ". Unknown project: " + pFile)
+          case Some(p) => p.findTarget(targetRef, false)
+        }
+      case None =>
+        uniqueTargetFile(targetRef) match {
+          case UniqueTargetFile(file, phony, handler) => targets.get(file) match {
+            // If nothing was found and the target in question is a file target and searchInAllProjects was requested, then search in other projects
+            case None if searchInAllProjects && !phony =>
+              // search in other projects
+              val allCandidates = projectPool.projects.map { otherProj =>
+                if (otherProj == this) {
+                  None
+                } else {
+                  otherProj.targets.get(file) match {
+                    // If the found one is phony, it is not a perfect match
+                    case Some(t) if t.phony => None
+                    case x => x
+                  }
+                }
               }
-            }
-          }
-          val candidates = allCandidates.filter(_.isDefined)
-          candidates.size match {
-            case 0 => None
-            case 1 => candidates.head
-            case x =>
-              // Found more than one. What should we do about it? 
-              // For now just fail
-              throw new SBuildException("Found more than one match for dependency '" + file +
-                " in all registered modules. Occurences:" +
-                candidates.map {
-                  case Some(t) => "\n - " + t.name + " [" + t.project.projectFile + "]"
-                  case _ => // to avoid compiler warning
-                }.mkString)
-          }
+              val candidates = allCandidates.filter(_.isDefined)
+              candidates.size match {
+                case 0 => None
+                case 1 => candidates.head
+                case x =>
+                  // Found more than one. What should we do about it? 
+                  // For now just fail
+                  throw new SBuildException("Found more than one match for dependency '" + file +
+                    " in all registered modules. Occurences:" +
+                    candidates.map {
+                      case Some(t) => "\n - " + t.name + " [" + t.project.projectFile + "]"
+                      case _ => // to avoid compiler warning
+                    }.mkString)
+              }
 
-        case x => x
-      }
+            case x => x
+          }
+        }
     }
   }
 
   case class UniqueTargetFile(file: File, phony: Boolean, handler: Option[SchemeHandler])
 
-  def uniqueTargetFile(targetRef: TargetRef): UniqueTargetFile = targetRef.explicitProto match {
-    case Some("phony") => UniqueTargetFile(uniqueFile(targetRef.nameWithoutProto), true, None)
-    case None | Some("file") => UniqueTargetFile(uniqueFile(targetRef.nameWithoutProto), false, None)
-    case Some(proto) => schemeHandlers.get(proto) match {
-      case Some(handler) =>
-        val handlerOutput = handler.localPath(targetRef.nameWithoutProto)
-        val outputRef = new TargetRef(handlerOutput)
-        val phony = outputRef.explicitProto match {
-          case Some("phony") => true
-          case Some("file") => false
-          case _ => throw new UnsupportedSchemeException("The defined scheme \"" + outputRef.explicitProto + "\" did not resolve to phony or file protocol.")
-        }
-        UniqueTargetFile(uniqueFile(outputRef.nameWithoutProto), phony, Some(handler))
-      case None => throw new UnsupportedSchemeException("No scheme handler registered, that supports scheme:" + proto)
+  def explicitForeignProject(targetRef: TargetRef): Option[File] = {
+    val ownerProject: File = targetRef.explicitProject match {
+      case Some(p) => if (p.isDirectory) {
+        new File(p, "SBuild.scala")
+      } else p
+      case None => projectFile
+    }
+
+    if (ownerProject != projectFile) {
+      Some(ownerProject)
+    } else {
+      None
     }
   }
 
-  def uniqueFile(fileName: String): File = {
-    val origFile = new File(fileName)
-    if (origFile.isAbsolute) {
-      origFile.getCanonicalFile
-    } else {
-      val absFile = new File(projectDirectory, fileName)
-      absFile.getCanonicalFile
+  def uniqueTargetFile(targetRef: TargetRef): UniqueTargetFile = {
+    val foreignProject = explicitForeignProject(targetRef)
+
+    // file of phony is: projectfile + "/" + targetRef.name
+    // as projectfile is a file, 
+
+    targetRef.explicitProto match {
+      // case Some("phony") => UniqueTargetFile(new File(projectFile, targetRef.nameWithoutProto), true, None)
+      case Some("phony") => UniqueTargetFile(Path(targetRef.nameWithoutProto)(this), true, None)
+      case None | Some("file") => UniqueTargetFile(Path(targetRef.nameWithoutProto)(this), false, None)
+      case Some(proto) if foreignProject.isDefined => throw new ProjectConfigurationException("Cannot handle custom scheme target reference '" + targetRef + "' of foreign projects.")
+      case Some(proto) => schemeHandlers.get(proto) match {
+        case Some(handler) =>
+          val handlerOutput = handler.localPath(targetRef.nameWithoutProto)
+          val outputRef = new TargetRef(handlerOutput)(this)
+          val phony = outputRef.explicitProto match {
+            case Some("phony") => true
+            case Some("file") => false
+            case _ => throw new UnsupportedSchemeException("The defined scheme \"" + outputRef.explicitProto + "\" did not resolve to phony or file protocol.")
+          }
+          UniqueTargetFile(Path(outputRef.nameWithoutProto)(this), phony, Some(handler))
+        case None => throw new UnsupportedSchemeException("No scheme handler registered, that supports scheme:" + proto)
+      }
     }
   }
 
@@ -169,7 +201,7 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
         // TODO: if none target was found, look in other project if they provide the target
         dep.explicitProto match {
           case Some("phony") =>
-            throw new ProjectConfigurationException("Non-existing prerequisite '" + dep.name + "' found for target: " + target)
+            throw new TargetNotFoundException("Non-existing prerequisite '" + dep.name + "' found for target: " + target)
           case None | Some("file") =>
             // try to find a file
             createTarget(dep) exec {
@@ -263,14 +295,17 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
     }
   }
 
+  override def toString: String =
+    getClass.getSimpleName + "(" + projectFile + ",targets=" + targets.map { case (f, p) => p.name }.mkString(",") + ")"
 }
 
 class ProjectPool(project: Project) {
-  private var _projects: Map[String, Project] = Map((project.projectFile.getPath -> project))
+  private var _projects: Map[File, Project] = Map((project.projectFile -> project))
 
   def addProject(project: Project) {
-    _projects += (project.projectFile.getPath -> project)
+    _projects += (project.projectFile -> project)
   }
 
   def projects: Seq[Project] = _projects.values.toSeq
+  def propjectMap: Map[File, Project] = _projects
 }

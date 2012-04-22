@@ -5,16 +5,21 @@ import java.io.File
 object TargetRef {
 
   implicit def fromTarget(target: Target): TargetRef = TargetRef(target)
-  implicit def fromString(name: String): TargetRef = TargetRef(name)
-  implicit def fromFile(file: File): TargetRef = TargetRef(file)
+  implicit def fromString(name: String)(implicit project: Project): TargetRef = TargetRef(name)
+  implicit def fromFile(file: File)(implicit project: Project): TargetRef = TargetRef(file)
 
-  def apply(name: String): TargetRef = new TargetRef(name)
-  def apply(target: Target): TargetRef = new TargetRef(target.name)
-  def apply(file: File): TargetRef = new TargetRef("file:" + file.getPath)
+  def apply(name: String)(implicit project: Project): TargetRef = new TargetRef(name)
+  def apply(target: Target): TargetRef = new TargetRef(target.name)(target.project)
+  def apply(file: File)(implicit project: Project): TargetRef = new TargetRef("file:" + file.getPath)
 
 }
 
-class TargetRef(val name: String) {
+class TargetRef(ref: String)(implicit project: Project) {
+
+  val (explicitProject: Option[File], name: String) = ref.split("::", 2) match {
+    case Array(p, n) => (Some(Path(p)), n)
+    case Array(n) => (None, n)
+  }
 
   val explicitProto: Option[String] = name.split(":", 2) match {
     case Array(proto, name) => Some(proto)

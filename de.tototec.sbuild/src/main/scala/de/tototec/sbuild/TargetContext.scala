@@ -49,7 +49,7 @@ class TargetContext(target: Target) {
   def prerequisites: Seq[TargetRef] = target.dependants
 
   def fileDependencies: Seq[File] = target.dependants map { t =>
-    target.project.findTarget(t.name, true) match {
+    target.project.findTarget(t, true) match {
       case None => throw new ProjectConfigurationException("Missing dependency: " + t.name)
       case Some(found) => found.targetFile match {
         case None => null

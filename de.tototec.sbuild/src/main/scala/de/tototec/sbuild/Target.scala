@@ -79,7 +79,7 @@ case class ProjectTarget private[sbuild] (val name: String,
   private var _exec: TargetContext => Any = handler match {
     case None => null
     case Some(handler) => ExecContext => {
-      handler.resolve(new TargetRef(name).nameWithoutProto) match {
+      handler.resolve(TargetRef(name)(project).nameWithoutProto) match {
         case None =>
         case Some(t) => throw t
       }
@@ -116,7 +116,7 @@ case class ProjectTarget private[sbuild] (val name: String,
       case null => "non"
       case _ => "defined"
     }
-    "Target(" + TargetRef(name).nameWithoutProto + "=>" + file + (if (phony) "[phony]" else "") + ", dependsOn=" + prereqs.map(t => t.name).mkString(",") + ", exec=" + hasExec + ")"
+    "Target(" + TargetRef(name)(project).nameWithoutProto + "=>" + file + (if (phony) "[phony]" else "") + ", dependsOn=" + prereqs.map(t => t.name).mkString(",") + ", exec=" + hasExec + ")"
   }
 
   lazy val targetFile: Option[File] = phony match {

@@ -104,7 +104,7 @@ class """ + className + """(implicit project: Project) {
 
     if (config.listTargets) {
       Console.println(project.targets.values.map { t =>
-        TargetRef(t.name).nameWithoutProto + " \t" + (t.help match {
+        TargetRef(t.name)(project).nameWithoutProto + " \t" + (t.help match {
           case null => ""
           case s: String => s
         })
@@ -165,7 +165,7 @@ class """ + className + """(implicit project: Project) {
     }.partition(_.isInstanceOf[Target])
 
     if (!invalid.isEmpty) {
-      throw new InvalidCommandlineException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", "));
+      throw new TargetNotFoundException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", "));
     }
 
     requested
@@ -197,7 +197,7 @@ class """ + className + """(implicit project: Project) {
         val root = rootRequest match {
           case Some(root) =>
             if (root == node) {
-              throw new RuntimeException("Cycles in dependency chain detected for: " + root)
+              throw new ProjectConfigurationException("Cycles in dependency chain detected for: " + root)
             }
             root
           case None => node
