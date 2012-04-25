@@ -31,6 +31,12 @@ class TargetRef(ref: String)(implicit project: Project) {
     case _ => name
   }
 
+  def nameWithoutStandardProto = name.split(":", 2) match {
+    case Array(p, name) if p == "phony" || p == "file" => name
+    case Array(_, _) => name
+    case _ => name
+  }
+
   override def toString = name
 
 }

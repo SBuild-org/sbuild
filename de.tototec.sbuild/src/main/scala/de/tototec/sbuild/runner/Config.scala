@@ -20,6 +20,10 @@ class Config {
     description = "Show a list of targets defined in the current buildfile")
   val listTargets = false
 
+  @CmdOption(names = Array("--list-targets-recursive", "-L"),
+    description = "Show a list of targets defined in the current buildfile and all modules")
+  val listTargetsRecursive = false
+
   @CmdOption(names = Array("--define", "-D"), args = Array("KEY=VALUE"), maxCount = -1,
     description = "Define or override properties. If VALUE is omitted it defaults to \"true\".")
   def addDefine(keyValue: String) {

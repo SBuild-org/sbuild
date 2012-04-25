@@ -102,13 +102,28 @@ class """ + className + """(implicit project: Project) {
 
     verbose("Targets: \n" + project.targets.values.mkString("\n"))
 
+    def formatTargetsOf(p: Project): String = {
+      p.targets.values.toSeq.sortBy(_.name).map { t =>
+        (if (p.projectFile != project.projectFile) {
+          project.projectDirectory.toURI.relativize(p.projectFile.toURI).getPath + "::"
+        } else "") +
+          TargetRef(t.name)(project).nameWithoutStandardProto +
+          " \t" + (t.help match {
+            case null => ""
+            case s: String => s
+          })
+      }.mkString("\n")
+    }
+
     if (config.listTargets) {
-      Console.println(project.targets.values.map { t =>
-        TargetRef(t.name)(project).nameWithoutProto + " \t" + (t.help match {
-          case null => ""
-          case s: String => s
-        })
-      }.mkString("\n"))
+      Console.println(formatTargetsOf(project))
+      System.exit(0)
+    }
+    if (config.listTargetsRecursive) {
+      val out = project.projectPool.projects.map { p =>
+        "Project: " + p.projectFile + "\n" + formatTargetsOf(p)
+      }
+      Console.println(out.mkString("\n\n"));
       System.exit(0)
     }
 
@@ -271,16 +286,16 @@ class """ + className + """(implicit project: Project) {
             }
 
             def formatTarget(target: Target) = {
-              target.project match {
-                case p if p == project => "'" + target.name + "'"
-                case otherProject => "'" + target.name + "' [" + project.projectDirectory.toURI.relativize(otherProject.projectFile.toURI).getPath + "]"
-              }
+              (if (project != target.project) {
+                project.projectDirectory.toURI.relativize(target.project.projectFile.toURI).getPath + "::"
+              } else "") +
+                TargetRef(target).nameWithoutStandardProto
             }
 
             if (execPhonyUpToDateOrSkip || node.action == null) {
-              verbose(percent + " Skipping target " + formatTarget(node))
+              verbose(percent + " Skipping target: " + formatTarget(node))
             } else {
-              println(percent + " Executing target " + formatTarget(node))
+              println(percent + " Executing target: " + formatTarget(node))
             }
             state.currentNr += 1
           }
