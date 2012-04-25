@@ -120,9 +120,7 @@ class """ + className + """(implicit project: Project) {
       System.exit(0)
     }
     if (config.listTargetsRecursive) {
-      val out = project.projectPool.projects.map { p =>
-        "Project: " + p.projectFile + "\n" + formatTargetsOf(p)
-      }
+      val out = project.projectPool.projects.map { p => formatTargetsOf(p) }
       Console.println(out.mkString("\n\n"));
       System.exit(0)
     }
@@ -133,22 +131,22 @@ class """ + className + """(implicit project: Project) {
     // Execution plan
     val chain = preorderedDependencies(targets, skipExec = true)(project)
 
-    {
+    def execPlan = {
       var line = 0
-      verbose({
-        val needProjectSuffix = chain.map { execT => execT.target.project.projectFile }.distinct.size > 1
-        def projectName(execT: ExecutedTarget): String = if (!needProjectSuffix) "" else {
-          execT.target.project match {
-            case p if p == project => ""
-            case otherProject => " [" + project.projectDirectory.toURI.relativize(otherProject.projectFile.toURI).getPath + "]"
-          }
-        }
-
-        "Execution plan: \n" + chain.map { execT =>
-          line += 1
-          "  " + line + ". " + execT.target.name + projectName(execT)
-        }.mkString("\n")
-      })
+      "Execution plan: \n" + chain.map { execT =>
+        line += 1
+        "  " + line + ". " +
+          (if (project.projectFile != execT.target.project.projectFile) {
+            project.projectDirectory.toURI.relativize(execT.target.project.projectFile.toURI).getPath + "::"
+          } else "") +
+          TargetRef(execT.target).nameWithoutStandardProto
+      }.mkString("\n")
+    }
+    if (config.showExecutionPlan) {
+      Console.println(execPlan)
+      System.exit(0)
+    } else {
+      verbose(execPlan)
     }
 
     val executionStart = System.currentTimeMillis

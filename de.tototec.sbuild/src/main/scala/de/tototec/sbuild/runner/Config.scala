@@ -34,6 +34,9 @@ class Config {
   }
   val defines: java.util.Map[String, String] = new java.util.LinkedHashMap()
 
+  @CmdOption(names = Array("--execution-plan"), description = "Show the execution plan and exit.")
+  val showExecutionPlan = false
+
   @CmdOption(names = Array("--clean"),
     description = "Remove all generated output and caches before start. This will force a new compile of the buildfile.")
   var clean: Boolean = false
