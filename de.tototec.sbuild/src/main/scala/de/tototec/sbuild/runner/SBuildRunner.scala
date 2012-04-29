@@ -83,8 +83,9 @@ class """ + className + """(implicit project: Project) {
     }
 
     val projectReader: ProjectReader = new ProjectReader() {
+      val downloadCache: DownloadCache = new SimpleDownloadCache()
       override def readProject(projectToRead: Project, projectFile: File) {
-        val script = new ProjectScript(projectFile, sbuildClasspath, compileClasspath, projectClasspath)
+        val script = new ProjectScript(projectFile, sbuildClasspath, compileClasspath, projectClasspath, downloadCache)
         if (config.clean) {
           script.clean
         }

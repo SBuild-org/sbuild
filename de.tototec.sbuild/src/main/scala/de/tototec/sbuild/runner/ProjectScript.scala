@@ -11,8 +11,13 @@ import java.net.URLClassLoader
 import java.io.FileInputStream
 import scala.io.BufferedSource
 import de.tototec.sbuild.OSGiVersion
+import java.io.FileOutputStream
 
-class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileClasspath: Array[String], additionalProjectClasspath: Array[String]) {
+class ProjectScript(_scriptFile: File,
+                    sbuildClasspath: Array[String],
+                    compileClasspath: Array[String],
+                    additionalProjectClasspath: Array[String],
+                    downloadCache: DownloadCache) {
 
   val scriptFile: File = _scriptFile.getAbsoluteFile.getCanonicalFile
 
@@ -188,6 +193,32 @@ class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileCl
         SBuildRunner.verbose("Classpath entry is a HTTP resource: " + entry)
         val path = entry.substring("http:".length, entry.length)
         val file = httpHandler.localFile(path)
+
+        if (!file.exists) {
+          try {
+            val url = new URL(entry)
+            if (downloadCache.hasEntry(url)) {
+              SBuildRunner.verbose("Resolving classpath entry from download cache: " + url)
+              val cachedEntry = downloadCache.getEntry(url)
+
+              file.getCanonicalFile.getParentFile.mkdirs
+              file.createNewFile
+
+              val fileOutputStream = new FileOutputStream(file)
+              try {
+                fileOutputStream.getChannel.transferFrom(
+                  new FileInputStream(cachedEntry).getChannel, 0, Long.MaxValue)
+              } finally {
+                if (fileOutputStream != null) fileOutputStream.close
+              }
+            }
+          } catch {
+            case e =>
+              SBuildRunner.verbose("Could not use download cache for resource: " + entry + "\n" + e)
+              if (file.exists) file.delete
+          }
+        }
+
         if (!file.exists) {
           SBuildRunner.verbose("Need to download: " + entry)
           httpHandler.resolve(path) match {
@@ -199,7 +230,17 @@ class ProjectScript(_scriptFile: File, sbuildClasspath: Array[String], compileCl
           println("Could not resolve classpath entry: " + entry)
         } else {
           SBuildRunner.verbose("Resolved: " + entry + " => " + file)
+          try {
+            val url = new URL(entry)
+            if (!downloadCache.hasEntry(url)) {
+              downloadCache.registerEntry(url, file)
+            }
+          } catch {
+            case e =>
+              SBuildRunner.verbose("Could not use download cache for resource: " + entry + "\n" + e)
+          }
         }
+
         file.getPath
       } else {
         if (!new File(entry).exists) {
