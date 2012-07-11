@@ -12,22 +12,36 @@ class SBuild(implicit project: Project) {
 
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
   SchemeHandler("mvn", new MvnSchemeHandler(Path(Prop("mvn.repo", ".sbuild/mvn"))))
-  
+
   val version = "0.0.1-SNAPSHOT"
   val jar = "target/de.tototec.sbuild.ant-" + version + ".jar"
 
   val scalaVersion = "2.9.2"
   val compileCp =
     ("../de.tototec.sbuild/target/de.tototec.sbuild-" + version + ".jar") ~
-    ("mvn:org.scala-lang:scala-library:" + scalaVersion) ~
-    ("mvn:org.scala-lang:scala-compiler:" + scalaVersion) ~
-    "mvn:org.apache.ant:ant:1.8.3" ~
-    "mvn:org.liquibase:liquibase-core:2.0.3"
+      ("mvn:org.scala-lang:scala-library:" + scalaVersion) ~
+      ("mvn:org.scala-lang:scala-compiler:" + scalaVersion) ~
+      "mvn:org.apache.ant:ant:1.8.3" ~
+      "mvn:org.liquibase:liquibase-core:2.0.3" ~
+      "mvn:biz.aQute:bnd:1.50.0"
 
   Target("phony:all") dependsOn jar
 
+  Target("mvn:biz.aQute:bnd:1.50.0") dependsOn "http://dl.dropbox.com/u/2590603/bnd/biz.aQute.bnd.jar" exec { ctx: TargetContext =>
+    val target = ctx.targetFile.get
+    AntMkdir(dir = target.getParentFile)
+    AntCopy(toFile = target, file = ctx.fileDependencies.head)
+  }
+
   val clean = Target("phony:clean") exec {
     AntDelete(dir = Path("target"))
+  }
+
+  Target("phony:eclipseCp") dependsOn compileCp exec { ctx: TargetContext =>
+    AntMkdir(dir = Path("target/eclipseCp"))
+    ctx.fileDependencies.foreach { file =>
+      AntCopy(file = file, toDir = Path("target/eclipseCp"))
+    }
   }
 
   def antScalac = new scala_tools_ant.AntScalac(
@@ -60,7 +74,7 @@ class SBuild(implicit project: Project) {
     AntMkdir(dir = Path("target/scaladoc"))
     IfNotUpToDate(Path("src/main/scala"), Path("target"), ctx) {
       scala_tools_ant.AntScaladoc(
-        deprecation ="on",
+        deprecation = "on",
         unchecked = "on",
         classpath = AntPath(ctx.prerequisites),
         srcDir = AntPath("src/main/scala"),

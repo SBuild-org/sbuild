@@ -15,7 +15,8 @@ object AntJavac {
             encoding: String = null,
             includeAntRuntime: java.lang.Boolean = null,
             debug: java.lang.Boolean = null,
-            optimize: java.lang.Boolean = null)(implicit project: Project) =
+            optimize: java.lang.Boolean = null,
+            classpath: APath = null)(implicit project: Project) =
     new AntJavac(
       srcDir = srcDir,
       destDir = destDir,
@@ -25,7 +26,8 @@ object AntJavac {
       encoding = encoding,
       includeAntRuntime = includeAntRuntime,
       debug = debug,
-      optimize = optimize
+      optimize = optimize,
+      classpath = classpath
     ).execute
 }
 
@@ -40,7 +42,8 @@ class AntJavac()(implicit _project: Project) extends Javac {
            encoding: String = null,
            includeAntRuntime: java.lang.Boolean = null,
            debug: java.lang.Boolean = null,
-           optimize: java.lang.Boolean = null)(implicit project: Project) {
+           optimize: java.lang.Boolean = null,
+           classpath: APath = null)(implicit project: Project) {
     this
     if (srcDir != null) setSrcdir(srcDir)
     if (destDir != null) setDestdir(destDir)
@@ -51,6 +54,7 @@ class AntJavac()(implicit _project: Project) extends Javac {
     if (includeAntRuntime != null) setIncludeantruntime(includeAntRuntime.booleanValue)
     if (debug != null) setDebug(debug.booleanValue)
     if (optimize != null) setOptimize(optimize)
+    if (classpath != null) setClasspath(classpath)
   }
 
   def setDestDir(destDir: File) = setDestdir(destDir)
