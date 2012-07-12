@@ -9,6 +9,7 @@ import java.util.UUID
 import java.io.FileOutputStream
 import java.io.BufferedOutputStream
 import java.io.PrintStream
+import java.lang.reflect.InvocationTargetException
 
 object SBuildRunner {
 
@@ -90,7 +91,17 @@ class """ + className + """(implicit project: Project) {
           script.clean
         }
         //  Compile Script and load compiled class
-        val scriptInstance = script.compileAndExecute(projectToRead)
+        try {
+          val scriptInstance = script.compileAndExecute(projectToRead)
+        } catch {
+          case e: InvocationTargetException =>
+            Console.err.println("Errors in build script: " + projectFile)
+            if (e.getCause != null) {
+              throw e.getCause
+            } else {
+              throw e
+            }
+        }
       }
     }
 

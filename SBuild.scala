@@ -12,7 +12,8 @@ class SBuild(implicit project: Project) {
   SchemeHandler("mvn", new MvnSchemeHandler(Path(Prop("mvn.repo", ".sbuild/mvn"))))
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
 
-  val version = "0.0.1-SNAPSHOT"
+  val version = Prop("SBUILD_VERSION", "0.0.1-SNAPSHOT")
+  SetProp("SBUILD_VERSION", version)
   val scalaVersion = "2.9.2"
 
   val binJar = "de.tototec.sbuild/target/de.tototec.sbuild-" + version + ".jar"

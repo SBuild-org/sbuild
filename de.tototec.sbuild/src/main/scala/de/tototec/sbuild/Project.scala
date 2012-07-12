@@ -226,10 +226,11 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
   }
 
   private var _properties: Map[String, String] = Map()
-  def properties: Map[String, String] = _properties
+  private[sbuild] def properties: Map[String, String] = _properties
   def addProperty(key: String, value: String) = if (_properties.contains(key)) {
     Util.verbose("Ignoring redefinition of property: " + key)
   } else {
+    Util.verbose("Defining property: " + key + " with value: " + value)
     _properties += (key -> value)
   }
 
