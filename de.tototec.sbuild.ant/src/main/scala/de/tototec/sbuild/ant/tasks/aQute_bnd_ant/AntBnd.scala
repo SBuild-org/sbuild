@@ -4,6 +4,8 @@ import aQute.bnd.ant.BndTask
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ant.AntProject
 import java.io.File
+import org.apache.tools.ant.types.Path
+import scala.collection.JavaConversions._
 
 object AntBnd {
   def apply(sourcePath: String = null,
@@ -46,5 +48,7 @@ class AntBnd()(implicit _project: Project) extends BndTask {
 
   def setSourcePath(sourcePath: String) = setSourcepath(sourcePath)
   def setFailOk(failOk: Boolean) = setFailok(failOk)
+  
+  def setClasspath(classpath: Path) = classpath.iterator.mkString(",")
 
 }

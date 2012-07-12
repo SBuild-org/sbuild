@@ -65,9 +65,9 @@ class TargetContext(target: Target) {
    * that depend on this on.
    */
   private var _targetWasUpToDate: List[Boolean] = List()
-  def targetWasUpToDate = _targetWasUpToDate match {
+  def targetWasUpToDate: Boolean = _targetWasUpToDate match {
     case List() => false
-    case x => x.forall(_)
+    case x => x.forall(upToDate => upToDate)
   }
   def targetWasUpToDate_=(targetWasUpToDate: Boolean) = _targetWasUpToDate = List(targetWasUpToDate)
   def addToTargetWasUpToDate(targetWasUpToDate: Boolean) = _targetWasUpToDate ::= targetWasUpToDate

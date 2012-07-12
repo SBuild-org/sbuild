@@ -185,7 +185,13 @@ class """ + className + """(implicit project: Project) {
     requested
   }
 
-  class ExecutedTarget(val target: Target, val needsExec: Boolean, val requestId: Option[String])
+  class ExecutedTarget(
+    /** The executed target. */
+    val target: Target,
+    /** <code>true</code> if the target was already up-to-date or determined itself as up-to-date while its execution by setting {@link TargetContext#targetWasUpToDate}. */
+    val wasUpToDate: Boolean,
+    /** An Id specific for this execution request. */
+    val requestId: Option[String])
 
   class ExecState(var maxCount: Int, var currentNr: Int = 1)
 
@@ -249,7 +255,10 @@ class """ + className + """(implicit project: Project) {
               val directDepsExecuted = executed.filter(_.requestId == resolveDirectDepsRequestId)
               val targetWhichWereUpToDateStates: Map[Target, Boolean] =
                 directDepsExecuted.toList.groupBy(e => e.target).map {
-                  case (t, execs) => (t -> execs.forall(!_.needsExec))
+                  case (t: Target, execs: List[ExecutedTarget]) =>
+                    val wasSkipped = execs.forall(_.wasUpToDate)
+                    verbose("  Target " + t.name + " was skipped: " + wasSkipped)
+                    (t -> wasSkipped)
                 }
 
               //              // Imagine the case were the same 
@@ -314,6 +323,9 @@ class """ + className + """(implicit project: Project) {
                   exec.apply(ctx)
                   ctx.end
                   verbose("Executed target: " + node.name + " in " + ctx.execDurationMSec + " msec")
+                  if (ctx.targetWasUpToDate) {
+                    verbose("Target determined itself as up-to-date while execution")
+                  }
                 } catch {
                   case e: Throwable => {
                     ctx.end
@@ -327,7 +339,7 @@ class """ + className + """(implicit project: Project) {
           executed ++ Array(
             new ExecutedTarget(
               target = node,
-              needsExec = !skipOrUpToDate,
+              wasUpToDate = execPhonyUpToDateOrSkip || ctx.targetWasUpToDate,
               requestId = requestId
             )
           )

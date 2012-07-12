@@ -37,7 +37,7 @@ trait Target {
   /**
    * Get a list of all (current) prerequisites (dependencies) of this target.
    */
-  def dependants: Seq[TargetRef]
+  private[sbuild] def dependants: Seq[TargetRef]
 
   /**
    * Apply an block of actions, that will be executed, if this target was requested but not up-to-date.
@@ -88,8 +88,8 @@ case class ProjectTarget private[sbuild] (val name: String,
   private var _help: String = _
   private var prereqs = Seq[TargetRef]()
 
-  override def action = _exec
-  override def dependants = prereqs
+  private[sbuild] override def action = _exec
+  private[sbuild] override def dependants = prereqs
 
   override def dependsOn(targetRefs: => TargetRefs): Target = {
     prereqs ++= targetRefs.targetRefs

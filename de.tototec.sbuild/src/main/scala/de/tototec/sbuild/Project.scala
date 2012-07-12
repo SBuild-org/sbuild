@@ -249,10 +249,11 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
     if (target.phony) exit("Target is phony") else {
       if (target.targetFile.isEmpty || !target.targetFile.get.exists) exit("Target file does not exists") else {
         val (phonyPrereqs, filePrereqs) = prerequisites(target).partition(_.phony)
-        if (phonyPrereqs.exists(t => !dependenciesWhichWereUpToDateStates.getOrElse(t, false)))
+        val phonyNonUpToDateTarget = phonyPrereqs.find(t => !dependenciesWhichWereUpToDateStates.getOrElse(t, false))
+        if (phonyNonUpToDateTarget.isDefined) {
           // phony targets can only be considered up-to-date, if they retrieved their up-to-date state themselves while beeing executed
-          exit("Some dependencies are phony and were not up-to-date")
-        else {
+          exit("The phony dependency " + phonyNonUpToDateTarget.get.name + " was not up-to-date")
+        } else {
           if (filePrereqs.exists(t => t.targetFile.isEmpty || !t.targetFile.get.exists)) exit("Some prerequisites does not exists") else {
 
             val fileLastModified = target.targetFile.get.lastModified
