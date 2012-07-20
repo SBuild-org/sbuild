@@ -16,7 +16,8 @@ object AntScalac {
             unchecked: String = null,
             classpath: APath = null,
             force: java.lang.Boolean = null,
-            logging: String = null)(implicit _project: Project) =
+            logging: String = null,
+            debugInfo: String = null)(implicit _project: Project) =
     new AntScalac(
       srcDir = srcDir,
       destDir = destDir,
@@ -27,7 +28,8 @@ object AntScalac {
       unchecked = unchecked,
       classpath = classpath,
       force = force,
-      logging = logging
+      logging = logging,
+      debugInfo = debugInfo
     ).execute
 }
 
@@ -43,7 +45,8 @@ class AntScalac()(implicit _project: Project) extends Scalac {
            unchecked: String = null,
            classpath: APath = null,
            force: java.lang.Boolean = null,
-           logging: String = null)(implicit _project: Project) {
+           logging: String = null,
+           debugInfo: String = null)(implicit _project: Project) {
     this
     if (srcDir != null) setSrcdir(srcDir)
     if (destDir != null) setDestdir(destDir)
@@ -55,9 +58,11 @@ class AntScalac()(implicit _project: Project) extends Scalac {
     if (classpath != null) setClasspath(classpath)
     if (force != null) setForce(force.booleanValue)
     if (logging != null) setLogging(logging)
+    if (debugInfo != null) setDebuginfo(debugInfo)
   }
 
   def setDestDir(destDir: File) = setDestdir(destDir)
   def setSrcDir(srcDir: APath) = setSrcdir(srcDir)
+  def setDebugInfo(debugInfo: String) = setDebuginfo(debugInfo)
 
 }
