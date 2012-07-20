@@ -38,7 +38,7 @@ class SBuild(implicit project: Project) {
     AntZip(destFile = ctx.targetFile.get, baseDir = Path("target"), includes = distName + "/**")
   }
 
-  Target("phony:createDistDir") dependsOn "copyJars" ~ (distDir + "/bin/sbuild")
+  Target("phony:createDistDir") dependsOn "copyJars" ~ (distDir + "/bin/sbuild") ~ (distDir + "/bin/sbuild.bat")
   
   Target("phony:copyJars") dependsOn (binJar ~ antJar ~ cmdOptionJar ~ scalaJar ~ scalaCompilerJar) exec { ctx: TargetContext =>
     ctx.fileDependencies foreach { file => 
@@ -46,7 +46,7 @@ class SBuild(implicit project: Project) {
     }
   }
 
-  Target(distDir + "/bin/sbuild") exec { ctx: TargetContext =>
+  Target(distDir + "/bin/sbuild") dependsOn project.projectFile exec { ctx: TargetContext =>
     val sbuildSh = """#!/bin/sh
 
 # Determime SBUILD_HOME (adapted from maven)
@@ -83,6 +83,88 @@ java -cp "${SBUILD_HOME}/lib/scala-library-""" + scalaVersion + """.jar:${SBUILD
 "$@"
 
 unset SBUILD_HOME
+"""
+    AntEcho(message = sbuildSh, file = ctx.targetFile.get)
+    AntChmod(file = ctx.targetFile.get, perm = "+x")
+  }
+
+  Target(distDir + "/bin/sbuild.bat") dependsOn project.projectFile exec { ctx: TargetContext =>
+    val sbuildSh = """
+@echo off
+@REM Find SBuild home dir
+if NOT "%SBUILD_HOME"=="" goto valSHome
+
+if "%OS%"=="Windows_NT" SET SBUILD_HOME=%~dp0\..
+if not "%SBUILD_HOME%"=="" goto valMHome
+
+echo.
+echo ERROR: SBUILD_HOME not found in your environment.
+echo Please set the SBUILD_HOME variable in your environment to match the
+echo location of the SBuild installation
+echo.
+goto error
+      
+:valSHome
+if exist "%SBUILD_HOME%\bin\sbuild.bat" goto init
+
+echo.
+echo ERROR: SBUILD_HOME is set to an invalid directory.
+echo SBUILD_HOME = %SBUILD_HOME%
+echo Please set the SBUILD_HOME variable in your environment to match the
+echo location of the SBuild installation
+echo.
+goto error
+      
+:init
+@REM Decide how to startup depending on the version of windows
+@REM -- Windows NT with Novell Login
+if "%OS%"=="WINNT" goto WinNTNovell
+@REM -- Win98ME
+if NOT "%OS%"=="Windows_NT" goto Win9xArg
+
+:WinNTNovell
+@REM -- 4 NT shell
+if "%@eval[2+2]"=="4" goto 4 NTArgs
+@REM -- Regular WinNT shell
+set SBUILD_CMD_LINE_ARGS=%*
+goto endInit
+@REM The 4 NT Shell from jp software
+
+:4 NTArgs
+set SBUILD_CMD_LINE_ARGS=%$
+goto endInit
+
+:Win9xArg
+@REM Slurp the command line arguments . This loop allows for an unlimited number
+@REM of agruments (up to the command line limit, anyway).
+set SBUILD_CMD_LINE_ARGS=
+
+:Win9xApp
+if %1a == a goto endInit
+set SBUILD_CMD_LINE_ARGS=%SBUILD_CMD_LINE_ARGS% %1%
+shift
+goto Win9xApp
+
+@REM Reaching here means variables are defined and arguments have been captured
+:endInit
+SET SBUILD_JAVA_EXE=java.exe
+if NOT "%JAVA_HOME%"=="" SET SBUILD_JAVA_EXE=%JAVA_HOME%\bin\java.exe
+
+%SBUILD_JAVA_EXE% -cp "%SBUILD_HOME%\lib\scala-library-""" + scalaVersion + """.jar;%SBUILD_HOME%\lib\de.tototec.cmdoption-0.1.0.jar;%SBUILD_HOME%\lib\de.tototec.sbuild-""" + version + """.jar" """ +
+"""de.tototec.sbuild.runner.SBuildRunner """ +
+"""--sbuild-cp "%SBUILD_HOME%\lib\de.tototec.sbuild-""" + version + """.jar" """ +
+"""--compile-cp "%SBUILD_HOME%\lib\scala-compiler-""" + scalaVersion + """.jar" """ +
+"""--project-cp "%SBUILD_HOME%\lib\scala-library-""" + scalaVersion + """.jar;%SBUILD_HOME%\lib\de.tototec.sbuild.ant-""" + version + """.jar" """ +
+"""%SBUILD_CMD_LINE_ARGS%
+      
+goto end
+
+:error
+set ERROR_CODE=1
+      
+:end
+set SBUILD_JAVA_EXE=
+set SBUILD_CMD_LINE_ARGS=
 """
     AntEcho(message = sbuildSh, file = ctx.targetFile.get)
     AntChmod(file = ctx.targetFile.get, perm = "+x")

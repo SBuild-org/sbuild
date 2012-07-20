@@ -14,4 +14,7 @@ class ClasspathConfig {
   // Add to the classpath used to load the project script
   @CmdOption(names = Array("--project-cp", "--additional-project-cp"), args = Array("CLASSPATH"), hidden = true)
   var projectClasspath: String = null
+
+  @CmdOption(names = Array("--no-fsc"), description = "Do not try to use the fast scala compiler (client/server)")
+  var noFsc: Boolean = false
 }

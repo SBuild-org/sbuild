@@ -16,6 +16,9 @@ class SBuild(implicit project: Project) {
   val version = Prop("SBUILD_VERSION")
   val jar = "target/de.tototec.sbuild.ant-" + version + ".jar"
 
+  // Current version of bnd (with ant tasks) is not in Maven repo 
+  val bnd_1_50_0 = "http://dl.dropbox.com/u/2590603/bnd/biz.aQute.bnd.jar"
+  
   val scalaVersion = "2.9.2"
   val compileCp =
     ("../de.tototec.sbuild/target/de.tototec.sbuild-" + version + ".jar") ~
@@ -23,19 +26,15 @@ class SBuild(implicit project: Project) {
       ("mvn:org.scala-lang:scala-compiler:" + scalaVersion) ~
       "mvn:org.apache.ant:ant:1.8.3" ~
       "mvn:org.liquibase:liquibase-core:2.0.3" ~
-      "mvn:biz.aQute:bnd:1.50.0"
+      bnd_1_50_0
 
   Target("phony:all") dependsOn jar
-
-  Target("mvn:biz.aQute:bnd:1.50.0") dependsOn "http://dl.dropbox.com/u/2590603/bnd/biz.aQute.bnd.jar" exec { ctx: TargetContext =>
-    val target = ctx.targetFile.get
-    AntMkdir(dir = target.getParentFile)
-    AntCopy(toFile = target, file = ctx.fileDependencies.head)
-  }
 
   val clean = Target("phony:clean") exec {
     AntDelete(dir = Path("target"))
   }
+  
+  Target("phony:downloadBnd") dependsOn bnd_1_50_0 help "Download dependencies required to run cmvn"
 
   Target("phony:eclipseCp") dependsOn compileCp exec { ctx: TargetContext =>
     AntMkdir(dir = Path("target/eclipseCp"))

@@ -45,6 +45,7 @@ class SBuild(implicit project: Project) {
     encoding = "UTF-8",
     deprecation = "on",
     unchecked = "on",
+    debugInfo = "vars",
     // this is necessary, because the scala ant tasks outsmarts itself 
     // when more than one scala class is defined in the same .scala file
     force = true)

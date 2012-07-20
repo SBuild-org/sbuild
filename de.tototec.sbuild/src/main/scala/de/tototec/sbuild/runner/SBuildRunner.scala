@@ -72,21 +72,21 @@ class """ + className + """(implicit project: Project) {
 
     val sbuildClasspath: Array[String] = classpathConfig.sbuildClasspath match {
       case null => Array()
-      case x => x.split(":")
+      case x => x.split(File.pathSeparator)
     }
     val compileClasspath: Array[String] = classpathConfig.compileClasspath match {
       case null => Array()
-      case x => x.split(":")
+      case x => x.split(File.pathSeparator)
     }
     val projectClasspath: Array[String] = classpathConfig.projectClasspath match {
       case null => Array()
-      case x => x.split(":")
+      case x => x.split(File.pathSeparator)
     }
 
     val projectReader: ProjectReader = new ProjectReader() {
       val downloadCache: DownloadCache = new SimpleDownloadCache()
       override def readProject(projectToRead: Project, projectFile: File) {
-        val script = new ProjectScript(projectFile, sbuildClasspath, compileClasspath, projectClasspath, downloadCache)
+        val script = new ProjectScript(projectFile, sbuildClasspath, compileClasspath, projectClasspath, classpathConfig.noFsc, downloadCache)
         if (config.clean) {
           script.clean
         }
@@ -190,7 +190,7 @@ class """ + className + """(implicit project: Project) {
     }.partition(_.isInstanceOf[Target])
 
     if (!invalid.isEmpty) {
-      throw new TargetNotFoundException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", "));
+      throw new TargetNotFoundException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", ") + ". For a list of available targets use --list-targets or --list-targets-recursive.");
     }
 
     requested

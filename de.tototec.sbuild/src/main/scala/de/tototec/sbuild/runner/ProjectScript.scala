@@ -12,11 +12,13 @@ import java.io.FileInputStream
 import scala.io.BufferedSource
 import de.tototec.sbuild.OSGiVersion
 import java.io.FileOutputStream
+import java.io.IOException
 
 class ProjectScript(_scriptFile: File,
                     sbuildClasspath: Array[String],
                     compileClasspath: Array[String],
                     additionalProjectClasspath: Array[String],
+                    noFsc: Boolean,
                     downloadCache: DownloadCache) {
 
   val scriptFile: File = _scriptFile.getAbsoluteFile.getCanonicalFile
@@ -274,7 +276,7 @@ class ProjectScript(_scriptFile: File,
     targetDir.mkdirs
     SBuildRunner.verbose("Compiling build script: " + scriptFile)
 
-    compile_with_fsc(classpath.mkString(":"))
+    compile(classpath.mkString(File.pathSeparator))
 
     SBuildRunner.verbose("Writing info file: " + infoFile)
     val info = <sbuild>
@@ -289,29 +291,47 @@ class ProjectScript(_scriptFile: File,
 
   }
 
-  def compile_with_fsc(classpath: String) {
+  def compile(classpath: String) {
     val params = Array("-classpath", classpath, "-g:vars", "-d", targetDir.getPath, scriptFile.getPath)
-    //    if(SBuild.verbose) {
-    //      params = Array("-verbose") ++ params
-    //    }
-    //    val useCmdline = false
-
-    //    if (!useCmdline) {
     SBuildRunner.verbose("Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
     val compilerClassloader = new URLClassLoader(compileClasspath.map { f => new File(f).toURI.toURL }, getClass.getClassLoader)
-    val compileClient = compilerClassloader.loadClass("scala.tools.nsc.StandardCompileClient").newInstance
-    //      import scala.tools.nsc.StandardCompileClient
-    //      val compileClient = new StandardCompileClient
-    val compileMethod = compileClient.asInstanceOf[Object].getClass.getMethod("process", Array(classOf[Array[String]]): _*)
-    SBuildRunner.verbose("Executing CompileClient with args: " + params.mkString(" "))
-    val retVal = compileMethod.invoke(compileClient, params).asInstanceOf[Boolean]
-    if (!retVal) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with CompileClient. See compiler output.")
-    //    } else {
-    //      import sys.process.Process
-    //      val retCode = Process(Array("fsc") ++ params) !
-    //
-    //      if (retCode != 0) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with fsc")
-    //    }
+
+    def compileWithFsc() {
+      val compileClient = compilerClassloader.loadClass("scala.tools.nsc.StandardCompileClient").newInstance
+      //      import scala.tools.nsc.StandardCompileClient
+      //      val compileClient = new StandardCompileClient
+      val compileMethod = compileClient.asInstanceOf[Object].getClass.getMethod("process", Array(classOf[Array[String]]): _*)
+      SBuildRunner.verbose("Executing CompileClient with args: " + params.mkString(" "))
+      val retVal = compileMethod.invoke(compileClient, params).asInstanceOf[Boolean]
+      if (!retVal) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with CompileClient. See compiler output.")
+    }
+
+    def compileWithoutFsc() {
+      val compiler = compilerClassloader.loadClass("scala.tools.nsc.Main")
+      val compilerMethod = compiler.getMethod("process", Array(classOf[Array[String]]): _*)
+      SBuildRunner.verbose("Executing Scala Compile with args: " + params.mkString(" "))
+      compilerMethod.invoke(null, params)
+      val reporterMethod = compiler.getMethod("reporter")
+      val reporter = reporterMethod.invoke(null)
+      val hasErrorsMethod = reporter.asInstanceOf[Object].getClass.getMethod("hasErrors")
+      val hasErrors = hasErrorsMethod.invoke(reporter).asInstanceOf[Boolean]
+      if (hasErrors) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with scala compiler. See compiler output.")
+    }
+
+    if (noFsc) {
+        compileWithoutFsc
+    } else {
+      try {
+        compileWithFsc
+      } catch {
+        case e: SBuildException => throw e
+        case e: Exception =>
+          SBuildRunner.verbose("Compilation with CompileClient failed. trying non-dispributed Scala compiler.")
+          // throw new SBuildException("Could not compile build file " + scriptFile.getName + " with CompileClient. Exception: " + e.getMessage, e)
+          // we should try with normal scala compiler
+          compileWithoutFsc
+      }
+    }
   }
 
 }
