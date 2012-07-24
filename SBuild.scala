@@ -91,11 +91,19 @@ unset SBUILD_HOME
   Target(distDir + "/bin/sbuild.bat") dependsOn project.projectFile exec { ctx: TargetContext =>
     val sbuildSh = """
 @echo off
+
+set ERROR_CODE=0
+
+@REM set local scope for the variables with windows NT shell
+if "%OS%"=="Windows_NT" @setlocal
+if "%OS%"=="WINNT" @setlocal
+
 @REM Find SBuild home dir
 if NOT "%SBUILD_HOME"=="" goto valSHome
 
-if "%OS%"=="Windows_NT" SET SBUILD_HOME=%~dp0\..
-if not "%SBUILD_HOME%"=="" goto valMHome
+if "%OS%"=="Windows_NT" SET "SBUILD_HOME=%~dp0.."
+if "%OS%"=="WINNT" SET "SBUILD_HOME=%~dp0.."
+if not "%SBUILD_HOME%"=="" goto valSHome
 
 echo.
 echo ERROR: SBUILD_HOME not found in your environment.
@@ -105,6 +113,13 @@ echo.
 goto error
       
 :valSHome
+
+:stripSHome
+if not "_%SBUILD_HOME:~-1%"=="_\" goto checkSBat
+set "SBUILD_HOME=%SBUILD_HOME:~0,-1%"
+goto stripSHome
+
+:checkSBat
 if exist "%SBUILD_HOME%\bin\sbuild.bat" goto init
 
 echo.
@@ -163,8 +178,16 @@ goto end
 set ERROR_CODE=1
       
 :end
+if "%OS%"=="Windows_NT" @endlocal
+if "%OS%"=="Windows_NT" goto :exit
+if "%OS%"=="WINNT" @endlocal
+if "%OS%"=="WINNT" goto :exit
+
 set SBUILD_JAVA_EXE=
 set SBUILD_CMD_LINE_ARGS=
+
+:exit
+cmd /C exit /B %ERROR_CODE%
 """
     AntEcho(message = sbuildSh, file = ctx.targetFile.get)
     AntChmod(file = ctx.targetFile.get, perm = "+x")
