@@ -3,6 +3,17 @@ package de.tototec.sbuild
 import java.io.File
 import java.io.FileNotFoundException
 
+/** 
+ * A SchemeHandler able to download Maven artifacts from a set of Maven repositories.
+ * Normally, one would register this handler with the "mvn" scheme. 
+ * Another typical use case is to separate public repositories from non-public (internal) ones, 
+ * e.g. by registering this handler once under a "mvnPublic" schema and then under a "mvnInternal" scheme, 
+ * with appropriate sets of repositories, though.
+ * 
+ * Format: groupId:artifactId:version[;key=val]*
+ * Supported values for key: classifier
+ * 
+ */
 class MvnSchemeHandler(val downloadPath: File = new File(System.getProperty("user.home", ".") + "/.m2/repository"), repos: Seq[String] = Seq("http://repo1.maven.org/maven2/")) extends SchemeHandler {
 
   protected var provisionedResources: Map[String, String] = Map()

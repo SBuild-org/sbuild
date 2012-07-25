@@ -1,2 +1,2 @@
 - Evaluate return codes in exec-blocks
-
+- Mark empty phony targets as skipped, when all prerequitites were up-to-date

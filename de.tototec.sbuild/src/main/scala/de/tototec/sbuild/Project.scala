@@ -9,11 +9,12 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
   }
 
   val projectFile: File = _projectFile.getAbsoluteFile.getCanonicalFile
-  require(projectFile.exists)
+  if (!projectFile.exists)
+    throw new ProjectConfigurationException("Project file '" + projectFile + "' does not exists")
 
   val projectDirectory: File = projectFile.getParentFile
-  require(projectDirectory.exists)
-  require(projectDirectory.isDirectory)
+  require(projectDirectory.exists, "Project directory '" + projectDirectory + "' does not exists")
+  require(projectDirectory.isDirectory, "Project directory '" + projectDirectory + "' is not an directory")
 
   private[sbuild] val projectPool = _projectPool match {
     case Some(p) => p
@@ -247,7 +248,19 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
       false
     }
 
-    if (target.phony) exit("Target is phony") else {
+    if (target.phony) {
+      if (target.action != null) exit("Target is phony")
+      else {
+        val deps = prerequisites(target)
+        val firstNoUpToDateTarget = deps.find(t => !dependenciesWhichWereUpToDateStates.getOrElse(t, false))
+        if (firstNoUpToDateTarget.isDefined) {
+          exit("The dependency " + firstNoUpToDateTarget + " was not up-to-date")
+        } else {
+          // EXPERIMENTAL: an empty phony target with complete up-to-date dependency set
+          true
+        }
+      }
+    } else {
       if (target.targetFile.isEmpty || !target.targetFile.get.exists) exit("Target file does not exists") else {
         val (phonyPrereqs, filePrereqs) = prerequisites(target).partition(_.phony)
         val phonyNonUpToDateTarget = phonyPrereqs.find(t => !dependenciesWhichWereUpToDateStates.getOrElse(t, false))
