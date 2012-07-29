@@ -86,7 +86,9 @@ class SBuild(implicit project: Project) {
   }
 
   Target(jar) dependsOn ("compile" ~ "copyResources") exec { ctx: TargetContext =>
-    AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"))
+    val jarTask = new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"))
+    jarTask.addFileset(AntFileSet(dir = Path("."), includes="LICENSE.txt"))
+    jarTask.execute
   }
 
   Target("target/test.jar") dependsOn "testCompile" exec { ctx: TargetContext =>

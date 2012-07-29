@@ -12,7 +12,7 @@ class SBuild(implicit project: Project) {
   SchemeHandler("mvn", new MvnSchemeHandler(Path(Prop("mvn.repo", ".sbuild/mvn"))))
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
 
-  val version = Prop("SBUILD_VERSION", "0.0.1-SNAPSHOT")
+  val version = Prop("SBUILD_VERSION", "0.1.0")
   SetProp("SBUILD_VERSION", version)
   val scalaVersion = "2.9.2"
 
@@ -38,7 +38,9 @@ class SBuild(implicit project: Project) {
     AntZip(destFile = ctx.targetFile.get, baseDir = Path("target"), includes = distName + "/**")
   }
 
-  Target("phony:createDistDir") dependsOn "copyJars" ~ (distDir + "/bin/sbuild") ~ (distDir + "/bin/sbuild.bat")
+  Target("phony:createDistDir") dependsOn "copyJars" ~ (distDir + "/bin/sbuild") ~ (distDir + "/bin/sbuild.bat") ~ "LICENSE.txt" exec {
+    AntCopy(file = Path("LICENSE.txt"), toDir = Path(distDir + "/doc"))
+  }
   
   Target("phony:copyJars") dependsOn (binJar ~ antJar ~ cmdOptionJar ~ scalaJar ~ scalaCompilerJar) exec { ctx: TargetContext =>
     ctx.fileDependencies foreach { file => 

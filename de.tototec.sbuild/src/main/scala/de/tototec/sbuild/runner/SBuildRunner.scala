@@ -13,8 +13,8 @@ import java.lang.reflect.InvocationTargetException
 
 object SBuildRunner {
 
-  val version = "0.0.1"
-  val osgiVersion = "0.0.1"
+  val version = "0.1.0"
+  val osgiVersion = "0.1.0"
 
   private[runner] var verbose = false
 

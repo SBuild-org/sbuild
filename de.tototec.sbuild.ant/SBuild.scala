@@ -66,7 +66,9 @@ class SBuild(implicit project: Project) {
   }
 
   Target(jar) dependsOn "compile" exec { ctx: TargetContext =>
-    AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"))
+    val jarTask = new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"))
+    jarTask.addFileset(AntFileSet(dir = Path("."), includes="LICENSE.txt"))
+    jarTask.execute
   }
 
   Target("phony:scaladoc") dependsOn compileCp exec { ctx: TargetContext =>
