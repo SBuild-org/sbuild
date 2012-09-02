@@ -13,8 +13,8 @@ import java.lang.reflect.InvocationTargetException
 
 object SBuildRunner {
 
-  val version = "0.1.0"
-  val osgiVersion = "0.1.0"
+  val version = SBuildVersion.version
+  val osgiVersion = SBuildVersion.osgiVersion
 
   private[runner] var verbose = false
 
@@ -29,7 +29,7 @@ object SBuildRunner {
     SBuildRunner.verbose = config.verbose
 
     if (config.showVersion) {
-      println("SBuild " + version + " (c) 2011, 2012, ToToTec GbR, Tobias Roeser")
+      println("SBuild " + SBuildVersion.version + " (c) 2011, 2012, ToToTec GbR, Tobias Roeser")
     }
 
     if (config.help) {
@@ -50,7 +50,7 @@ import de.tototec.sbuild.TargetRefs._
 import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 
-@version(""" + "\"" + SBuildRunner.osgiVersion + "\"" + """)
+@version(""" + "\"" + SBuildVersion.osgiVersion + "\"" + """)
 @classpath("http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar")
 class """ + className + """(implicit project: Project) {
 
@@ -206,6 +206,13 @@ class """ + className + """(implicit project: Project) {
 
   class ExecState(var maxCount: Int, var currentNr: Int = 1)
 
+  def formatTarget(target: Target)(implicit project: Project) =
+    (
+      if (project != target.project) {
+        project.projectDirectory.toURI.relativize(target.project.projectFile.toURI).getPath + "::"
+      } else ""
+    ) + TargetRef(target).nameWithoutStandardProto
+
   def preorderedDependencies(request: List[Target],
                              rootRequest: Option[Target] = None,
                              execState: Option[ExecState] = None,
@@ -221,7 +228,7 @@ class """ + className + """(implicit project: Project) {
         def verboseTrackDeps(msg: => String) {
           //          this.verbose(List.fill(dependencyTrace.size + 1)(" |").mkString + msg)
           this.verbose(msg + {
-            if (dependencyTrace.isEmpty) "" else "  <-- as dep of: " + dependencyTrace.map { _.name }.mkString(" <- ")
+            if (dependencyTrace.isEmpty) "" else "  <-- as dep of: " + dependencyTrace.map { formatTarget(_) }.mkString(" <- ")
           })
         }
 
@@ -238,11 +245,11 @@ class """ + className + """(implicit project: Project) {
 
         val alreadyRun: Array[ExecutedTarget] = {
 
-          val skipOrUpToDate = skipExec || project.isTargetUpToDate(node)
+          val skipOrUpToDate = skipExec || Project.isTargetUpToDate(node)
           // Execute prerequisites
           verbose("determine dependencies of: " + node.name)
           val dependencies = node.project.prerequisites(node, searchInAllProjects = true)
-          verbose("dependencies of: " + node.name + " => " + dependencies.map(_.name).mkString(", "))
+          verbose("dependencies of: " + formatTarget(node) + " => " + dependencies.map(formatTarget(_)).mkString(", "))
 
           // All direct dependencies share the same request id.
           // Later we can identify them and check, if they were up-to-date.
@@ -256,7 +263,7 @@ class """ + className + """(implicit project: Project) {
 
           val doContextChecks = true
 
-          verboseTrackDeps("Evaluating up-to-date state of: " + node.name)
+          verboseTrackDeps("Evaluating up-to-date state of: " + formatTarget(node))
 
           val execPhonyUpToDateOrSkip = skipOrUpToDate match {
             case true => true // already known up-to-date
@@ -268,7 +275,7 @@ class """ + className + """(implicit project: Project) {
                 directDepsExecuted.toList.groupBy(e => e.target).map {
                   case (t: Target, execs: List[ExecutedTarget]) =>
                     val wasSkipped = execs.forall(_.wasUpToDate)
-                    verbose("  Target " + t.name + " was skipped: " + wasSkipped)
+                    verbose("  Target " + formatTarget(t) + " was skipped: " + wasSkipped)
                     (t -> wasSkipped)
                 }
 
@@ -288,11 +295,11 @@ class """ + className + """(implicit project: Project) {
               //                  }
               //                }.toMap
 
-              project.isTargetUpToDate(node, targetWhichWereUpToDateStates)
+              Project.isTargetUpToDate(node, targetWhichWereUpToDateStates)
             }
           }
           if (!skipOrUpToDate && execPhonyUpToDateOrSkip) {
-            verbose("All executed phony dependencies of '" + node.name + "' were up-to-date.")
+            verbose("All executed phony dependencies of '" + formatTarget(node) + "' were up-to-date.")
           }
 
           // Print State
@@ -319,28 +326,28 @@ class """ + className + """(implicit project: Project) {
             state.currentNr += 1
           }
 
-          val ctx = new TargetContext(node)
+          val ctx = new TargetContextImpl(node)
 
           if (execPhonyUpToDateOrSkip) {
             ctx.targetWasUpToDate = true
           } else {
             // Need to execute
             node.action match {
-              case null => verbose("Nothing to execute for target: " + node.name)
+              case null => verbose("Nothing to execute for target: " + formatTarget(node))
               case exec =>
                 try {
-                  verbose("Executing target: " + node.name)
+                  verbose("Executing target: " + formatTarget(node))
                   ctx.start
                   exec.apply(ctx)
                   ctx.end
-                  verbose("Executed target: " + node.name + " in " + ctx.execDurationMSec + " msec")
+                  verbose("Executed target: " + formatTarget(node) + " in " + ctx.execDurationMSec + " msec")
                   if (ctx.targetWasUpToDate) {
                     verbose("Target determined itself as up-to-date while execution")
                   }
                 } catch {
                   case e: Throwable => {
                     ctx.end
-                    verbose("Execution of target " + node.name + " aborted after " + ctx.execDurationMSec + " msec with errors: " + e.getMessage);
+                    verbose("Execution of target " + formatTarget(node) + " aborted after " + ctx.execDurationMSec + " msec with errors: " + e.getMessage);
                     throw e
                   }
                 }
