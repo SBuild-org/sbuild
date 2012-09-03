@@ -4,19 +4,47 @@ import java.io.File
 import java.util.Date
 
 /**
- * While a target execution, this class can be used to get relevant information
+ * While a target is executed, this trait can be used to get relevant information
  * about the current target execution and interact with the executor.
- * 
- * TODO: Construct with real dependencies of type target instead of the (miss-)interpretable TargetRefs.
+ *
  */
-class TargetContext(target: Target) {
-
-  def name = target.name
+trait TargetContext {
+  /** The name of the currently executed target */
+  def name: String
 
   /**
    * The file this targets produces, or <code>None</code> if this target is phony.
    */
-  def targetFile: Option[File] = target.targetFile
+  def targetFile: Option[File]
+  
+  /** The prerequisites (direct dependencies) of this target. */
+  def prerequisites: Seq[TargetRef]
+
+  /**
+   * Those files, that belongs to dependencies that resolve to files.
+   * Dependencies with phony scheme or which resolve to phony will not be included.
+   */
+  def fileDependencies: Seq[File]
+  
+  /**
+   * The time in milliseconds this target took to execute.
+   * In case this target is still running, the time since it started.
+   */
+  def execDurationMSec: Long
+
+  def targetWasUpToDate: Boolean
+  def targetWasUpToDate_=(targetWasUpToDate: Boolean)
+  def addToTargetWasUpToDate(targetWasUpToDate: Boolean)
+}
+
+class TargetContextImpl(target: Target) extends TargetContext {
+
+  override def name = target.name
+
+  /**
+   * The file this targets produces, or <code>None</code> if this target is phony.
+   */
+  override def targetFile: Option[File] = target.targetFile
 
   def start = startTime match {
     case null => startTime = new Date()
@@ -34,7 +62,7 @@ class TargetContext(target: Target) {
    * The time in milliseconds this target took to execute.
    * In case this target is still running, the time since it started.
    */
-  def execDurationMSec: Long = startTime match {
+  override def execDurationMSec: Long = startTime match {
     case null => 0
     case _ =>
       (endTime match {
@@ -46,9 +74,9 @@ class TargetContext(target: Target) {
   /**
    * The prerequisites (direct dependencies) of this target.
    */
-  def prerequisites: Seq[TargetRef] = target.dependants
+  override def prerequisites: Seq[TargetRef] = target.dependants
 
-  def fileDependencies: Seq[File] = target.dependants map { t =>
+  override def fileDependencies: Seq[File] = target.dependants map { t =>
     target.project.findTarget(t, true) match {
       case None => throw new ProjectConfigurationException("Missing dependency: " + t.name)
       case Some(found) => found.targetFile match {
@@ -69,7 +97,7 @@ class TargetContext(target: Target) {
     case List() => false
     case x => x.forall(upToDate => upToDate)
   }
-  def targetWasUpToDate_=(targetWasUpToDate: Boolean) = _targetWasUpToDate = List(targetWasUpToDate)
-  def addToTargetWasUpToDate(targetWasUpToDate: Boolean) = _targetWasUpToDate ::= targetWasUpToDate
+  override def targetWasUpToDate_=(targetWasUpToDate: Boolean) = _targetWasUpToDate = List(targetWasUpToDate)
+  override def addToTargetWasUpToDate(targetWasUpToDate: Boolean) = _targetWasUpToDate ::= targetWasUpToDate
 
 }
