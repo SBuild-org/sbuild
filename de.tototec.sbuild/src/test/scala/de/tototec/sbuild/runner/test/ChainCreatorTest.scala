@@ -1,13 +1,10 @@
 package de.tototec.sbuild.runner.test
 
-import org.junit.runner.RunWith
 import org.scalatest.FunSuite
-import org.scalatest.junit.JUnitRunner
 import de.tototec.sbuild._
 import de.tototec.sbuild.runner.SBuildRunner
 import java.io.File
 
-@RunWith(classOf[JUnitRunner])
 class ChainCreatorTest extends FunSuite {
 
   SBuildRunner.verbose = true
