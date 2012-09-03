@@ -3,7 +3,7 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
-@version("0.0.1")
+@version("0.1.0")
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar"
 )
@@ -12,8 +12,11 @@ class SBuild(implicit project: Project) {
   SchemeHandler("mvn", new MvnSchemeHandler(Path(Prop("mvn.repo", ".sbuild/mvn"))))
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
 
-  val version = Prop("SBUILD_VERSION", "0.1.0")
+  val version = Prop("SBUILD_VERSION", "0.1.1-SNAPSHOT")
   SetProp("SBUILD_VERSION", version)
+  val osgiVersion = Prop("SBUILD_OSGI_VERSION", "0.1.0.9000")
+  SetProp("SBUILD_OSGI_VERSION", osgiVersion)
+
   val scalaVersion = "2.9.2"
 
   val binJar = "de.tototec.sbuild/target/de.tototec.sbuild-" + version + ".jar"
@@ -33,6 +36,8 @@ class SBuild(implicit project: Project) {
   } help "Clean all"
 
   Target("phony:all") dependsOn ("target/" + distName + "-dist.zip") help "Build all"
+
+  Target("phony:test") dependsOn ("de.tototec.sbuild::test") help "Run all tests"
 
   Target("target/" + distName + "-dist.zip") dependsOn "createDistDir" exec { ctx: TargetContext =>
     AntZip(destFile = ctx.targetFile.get, baseDir = Path("target"), includes = distName + "/**")
