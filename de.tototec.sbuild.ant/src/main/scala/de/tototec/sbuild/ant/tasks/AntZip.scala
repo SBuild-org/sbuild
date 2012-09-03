@@ -18,6 +18,9 @@ object AntZip {
     ).execute
 }
 
+/**
+ * Convenience wrapper for the <strong>Zip</strong> Ant task.
+ */
 class AntZip()(implicit _project: Project) extends Zip {
   setProject(AntProject())
 
