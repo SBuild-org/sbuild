@@ -1,12 +1,10 @@
 package de.tototec.sbuild
 
-import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
 import java.io.File
 
-@RunWith(classOf[JUnitRunner])
-class CmvnSchemeHandlerTest extends FunSuite {
+class MvnSchemeHandlerTest extends FunSuite {
 
   val basePath = "/tmp/cmvn-scheme-test"
   val cmvn = new MvnSchemeHandler(new File(basePath))
