@@ -24,7 +24,9 @@ object AntJava {
             maxMemory: String = null,
             jvmVersion: String = null,
             append: java.lang.Boolean = null,
-            timeout: java.lang.Long = null)(implicit _project: Project) =
+            timeout: java.lang.Long = null,
+            // since 0.1.1
+            failOnError: java.lang.Boolean = null)(implicit _project: Project) =
     new AntJava(
       className = className,
       classpath = classpath,
@@ -43,7 +45,8 @@ object AntJava {
       maxMemory = maxMemory,
       jvmVersion = jvmVersion,
       append = append,
-      timeout = timeout
+      timeout = timeout,
+      failOnError = failOnError
     ).execute
 }
 
@@ -67,7 +70,9 @@ class AntJava()(implicit _project: Project) extends Java {
            maxMemory: String = null,
            jvmVersion: String = null,
            append: java.lang.Boolean = null,
-           timeout: java.lang.Long = null)(implicit _project: Project) {
+           timeout: java.lang.Long = null,
+           // since 0.1.1
+           failOnError: java.lang.Boolean = null)(implicit _project: Project) {
     this
     if (className != null) setClassname(className)
     if (classpath != null) setClasspath(classpath)
@@ -87,9 +92,11 @@ class AntJava()(implicit _project: Project) extends Java {
     if (jvmVersion != null) setJVMVersion(jvmVersion)
     if (append != null) setAppend(append.booleanValue)
     if (timeout != null) setTimeout(timeout.longValue)
+    if(failOnError != null) setFailonerror(failOnError.booleanValue)
   }
 
   def setClassName(className: String) = setClassname(className)
+  def setFailOnError(failOnError: Boolean) = setFailonerror(failOnError)
   def setJvmArgs(jvmArgs: String) = setJvmargs(jvmArgs)
   def setJvmVersion(jvmVersion: String) = setJVMVersion(jvmVersion)
   def setMaxMemory(maxMemory: String) = setMaxmemory(maxMemory)
