@@ -13,6 +13,7 @@ import scala.io.BufferedSource
 import de.tototec.sbuild.OSGiVersion
 import java.io.FileOutputStream
 import java.io.IOException
+import de.tototec.sbuild.SBuildVersion
 
 class ProjectScript(_scriptFile: File,
                     sbuildClasspath: Array[String],
@@ -44,7 +45,7 @@ class ProjectScript(_scriptFile: File,
 
     val version = readAnnotationWithSingleAttribute("version", "value")
     val osgiVersion = OSGiVersion.parseVersion(version)
-    if (osgiVersion.compareTo(new OSGiVersion(SBuildRunner.osgiVersion)) > 0) {
+    if (osgiVersion.compareTo(new OSGiVersion(SBuildVersion.osgiVersion)) > 0) {
       throw new SBuildException("The buildscript '" + scriptFile + "' requires at least SBuild version: " + version)
     }
 
@@ -70,7 +71,7 @@ class ProjectScript(_scriptFile: File,
       scriptFile.length == sourceSize &&
         scriptFile.lastModified == sourceLastModified &&
         targetClassFile.lastModified == targetClassLastModified &&
-        sbuildVersion == SBuildRunner.version
+        sbuildVersion == SBuildVersion.version
     }
   }
 
@@ -283,7 +284,7 @@ class ProjectScript(_scriptFile: File,
                  <sourceSize>{ scriptFile.length }</sourceSize>
                  <sourceLastModified>{ scriptFile.lastModified }</sourceLastModified>
                  <targetClassLastModified>{ targetClassFile.lastModified }</targetClassLastModified>
-                 <sbuildVersion>{ SBuildRunner.version }</sbuildVersion>
+                 <sbuildVersion>{ SBuildVersion.version }</sbuildVersion>
                </sbuild>
     val file = new FileWriter(infoFile)
     xml.XML.write(file, info, "UTF-8", true, null)

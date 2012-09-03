@@ -13,9 +13,6 @@ import java.lang.reflect.InvocationTargetException
 
 object SBuildRunner {
 
-  val version = SBuildVersion.version
-  val osgiVersion = SBuildVersion.osgiVersion
-
   private[runner] var verbose = false
 
   def main(args: Array[String]) {
