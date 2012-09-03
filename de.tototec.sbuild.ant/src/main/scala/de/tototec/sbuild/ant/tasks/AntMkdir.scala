@@ -10,18 +10,14 @@ object AntMkdir {
 
   def apply(dir: File)(implicit proj: Project): Unit = new AntMkdir(dir = dir).execute
 
-  def apply(dir: String)(implicit proj: Project): Unit = new AntMkdir(dir = dir).execute
-
 }
 
 class AntMkdir()(implicit _project: Project) extends Mkdir {
   setProject(AntProject())
 
-  def this(dir: String)(implicit proj: Project) {
+  def this(dir: File)(implicit proj: Project) {
     this
-    setDir(Path(dir))
+    setDir(dir)
   }
-
-  def this(dir: File)(implicit proj: Project) = this(dir.getPath)
 
 }
