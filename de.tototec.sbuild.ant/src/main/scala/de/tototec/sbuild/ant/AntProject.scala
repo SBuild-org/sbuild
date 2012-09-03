@@ -9,7 +9,7 @@ import java.io.File
 object AntProject {
   def apply()(implicit project: Project): AntProject = project.antProject match {
     case Some(p: AntProject) => p
-    case None =>
+    case _ =>
       val p = new AntProject(project)
       project.antProject = Some(p)
       p
