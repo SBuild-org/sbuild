@@ -14,7 +14,7 @@ object TargetRef {
 
 }
 
-class TargetRef(ref: String)(implicit project: Project) {
+class TargetRef(val ref: String)(implicit project: Project) {
 
   val (explicitProject: Option[File], name: String) = ref.split("::", 2) match {
     case Array(p, n) => (Some(Path(p)), n)
