@@ -80,8 +80,8 @@ case class ProjectTarget private[sbuild] (val name: String,
     case None => null
     case Some(handler) => ExecContext => {
       handler.resolve(TargetRef(name)(project).nameWithoutProto) match {
-        case None =>
-        case Some(t) => throw t
+        case ResolveResult(_, None) =>
+        case ResolveResult(_, Some(t)) => throw t
       }
     }
   }

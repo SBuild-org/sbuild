@@ -57,9 +57,9 @@ class MvnSchemeHandler(val downloadPath: File = new File(System.getProperty("use
       version + "/" + artifact + "-" + version + classifierPart + ".jar"
   }
 
-  override def resolve(path: String): Option[Throwable] = {
+  override def resolve(path: String): ResolveResult = {
     provisionedResources.get(path) map {
-      case _ => return None
+      case _ => return ResolveResult(false, None)
     }
 
     val target = localFile(path).getAbsoluteFile
@@ -71,10 +71,10 @@ class MvnSchemeHandler(val downloadPath: File = new File(System.getProperty("use
         result = Util.download(url, target.getPath)
         result.isDefined || !target.exists
       })
-      result
+      ResolveResult(false, result)
     } else {
-      if (target.exists) None
-      else Option(new FileNotFoundException("File is not present and can not be downloaded in offline-mode: " + target.getPath))
+      if (target.exists) ResolveResult(false, None)
+      else ResolveResult(false, Option(new FileNotFoundException("File is not present and can not be downloaded in offline-mode: " + target.getPath)))
     }
   }
 

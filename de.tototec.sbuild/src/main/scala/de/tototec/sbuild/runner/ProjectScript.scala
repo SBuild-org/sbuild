@@ -14,6 +14,7 @@ import de.tototec.sbuild.OSGiVersion
 import java.io.FileOutputStream
 import java.io.IOException
 import de.tototec.sbuild.SBuildVersion
+import de.tototec.sbuild.ResolveResult
 
 class ProjectScript(_scriptFile: File,
                     sbuildClasspath: Array[String],
@@ -225,7 +226,7 @@ class ProjectScript(_scriptFile: File,
         if (!file.exists) {
           SBuildRunner.verbose("Need to download: " + entry)
           httpHandler.resolve(path) match {
-            case Some(t: Throwable) => throw t
+            case ResolveResult(_, Some(t: Throwable)) => throw t
             case _ =>
           }
         }
