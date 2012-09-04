@@ -78,10 +78,12 @@ case class ProjectTarget private[sbuild] (val name: String,
 
   private var _exec: TargetContext => Any = handler match {
     case None => null
-    case Some(handler) => ExecContext => {
+    case Some(handler) => { ctx: TargetContext =>
       handler.resolve(TargetRef(name)(project).nameWithoutProto) match {
-        case ResolveResult(_, None) =>
-        case ResolveResult(_, Some(t)) => throw t
+        case ResolveResult(upToDate, None) =>
+          ctx.targetWasUpToDate = upToDate
+        case ResolveResult(_, Some(t)) =>
+          throw t
       }
     }
   }
