@@ -10,6 +10,7 @@ import java.io.FileOutputStream
 import java.io.BufferedOutputStream
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
+import de.tototec.cmdoption.CmdOption
 
 object SBuildRunner {
 
@@ -20,19 +21,31 @@ object SBuildRunner {
 
     val config = new Config()
     val classpathConfig = new ClasspathConfig()
-    val cp = new CmdlineParser(config, classpathConfig)
+    val cmdlineConfig = new {
+      @CmdOption(names = Array("--version"), description = "Show SBuild version.")
+      var showVersion = false
+
+      @CmdOption(names = Array("--help", "-h"), isHelp = true, description = "Show this help screen.")
+      var help = false
+    }
+    val cp = new CmdlineParser(config, classpathConfig, cmdlineConfig)
     cp.parse(args: _*)
 
-    SBuildRunner.verbose = config.verbose
-
-    if (config.showVersion) {
+    if (cmdlineConfig.showVersion) {
       println("SBuild " + SBuildVersion.version + " (c) 2011, 2012, ToToTec GbR, Tobias Roeser")
     }
 
-    if (config.help) {
+    if (cmdlineConfig.help) {
       cp.usage
       System.exit(0)
     }
+
+    run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
+  }
+
+  def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis) {
+
+    SBuildRunner.verbose = config.verbose
 
     val projectFile = new File(config.buildfile)
 
@@ -67,40 +80,7 @@ class """ + className + """(implicit project: Project) {
       System.exit(0)
     }
 
-    val sbuildClasspath: Array[String] = classpathConfig.sbuildClasspath match {
-      case null => Array()
-      case x => x.split(File.pathSeparator)
-    }
-    val compileClasspath: Array[String] = classpathConfig.compileClasspath match {
-      case null => Array()
-      case x => x.split(File.pathSeparator)
-    }
-    val projectClasspath: Array[String] = classpathConfig.projectClasspath match {
-      case null => Array()
-      case x => x.split(File.pathSeparator)
-    }
-
-    val projectReader: ProjectReader = new ProjectReader() {
-      val downloadCache: DownloadCache = new SimpleDownloadCache()
-      override def readProject(projectToRead: Project, projectFile: File) {
-        val script = new ProjectScript(projectFile, sbuildClasspath, compileClasspath, projectClasspath, classpathConfig.noFsc, downloadCache)
-        if (config.clean) {
-          script.clean
-        }
-        //  Compile Script and load compiled class
-        try {
-          val scriptInstance = script.compileAndExecute(projectToRead)
-        } catch {
-          case e: InvocationTargetException =>
-            Console.err.println("Errors in build script: " + projectFile)
-            if (e.getCause != null) {
-              throw e.getCause
-            } else {
-              throw e
-            }
-        }
-      }
-    }
+    val projectReader: ProjectReader = new SimpleProjectReader(config, classpathConfig)
 
     val project = new Project(projectFile, projectReader)
     config.defines foreach {
@@ -113,11 +93,7 @@ class """ + className + """(implicit project: Project) {
 
     def formatTargetsOf(p: Project): String = {
       p.targets.values.toSeq.sortBy(_.name).map { t =>
-        (if (p.projectFile != project.projectFile) {
-          project.projectDirectory.toURI.relativize(p.projectFile.toURI).getPath + "::"
-        } else "") +
-          TargetRef(t.name)(project).nameWithoutStandardProto +
-          " \t" + (t.help match {
+        formatTarget(t)(project) + " \t" + (t.help match {
             case null => ""
             case s: String => s
           })
@@ -135,7 +111,11 @@ class """ + className + """(implicit project: Project) {
     }
 
     // Targets requested from cmdline
-    val targets = determineRequestedTargets(config.params)(project).toList
+    val (requested: Seq[Target], invalid: Seq[String]) = determineRequestedTargets(config.params)(project)
+    if (!invalid.isEmpty) {
+      throw new TargetNotFoundException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", ") + ". For a list of available targets use --list-targets or --list-targets-recursive.");
+    }
+    val targets = requested.toList
 
     // Execution plan
     val chain = preorderedDependencies(targets, skipExec = true)(project)
@@ -171,26 +151,28 @@ class """ + className + """(implicit project: Project) {
     verbose("Finished")
   }
 
-  def determineRequestedTargets(targets: Seq[String])(implicit project: Project): Seq[Target] = {
+  def determineRequestedTargets(targets: Seq[String])(implicit project: Project): (Seq[Target], Seq[String]) = {
 
     // The compile will throw a warning here, but we want this so
-    val (requested: Seq[Target], invalid: Seq[String]) = targets.map { t =>
-      project.findTarget(t, searchInAllProjects = false) match {
-        case Some(target) => target
-        case None => TargetRef(t).explicitProto match {
-          case None | Some("phony") | Some("file") => t
-          case _ =>
-            // A scheme handler might be able to resolve this thing
-            project.createTarget(TargetRef(t))
+    val (requested: Seq[Target], invalid: Seq[String]) =
+      targets.map { t =>
+        project.findTarget(t, searchInAllProjects = false) match {
+          case Some(target) => target
+          case None => TargetRef(t).explicitProto match {
+            case None | Some("phony") | Some("file") => t
+            case _ =>
+              // A scheme handler might be able to resolve this thing
+              project.createTarget(TargetRef(t))
+          }
         }
-      }
-    }.partition(_.isInstanceOf[Target])
+      }.partition(_.isInstanceOf[Target])
 
-    if (!invalid.isEmpty) {
-      throw new TargetNotFoundException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", ") + ". For a list of available targets use --list-targets or --list-targets-recursive.");
-    }
-
-    requested
+    (requested, invalid)
+    //    if (!invalid.isEmpty) {
+    //      throw new TargetNotFoundException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", ") + ". For a list of available targets use --list-targets or --list-targets-recursive.");
+    //    }
+    //
+    //    requested
   }
 
   class ExecutedTarget(
@@ -344,7 +326,7 @@ class """ + className + """(implicit project: Project) {
                 } catch {
                   case e: Throwable => {
                     ctx.end
-                    verbose("Execution of target " + formatTarget(node) + " aborted after " + ctx.execDurationMSec + " msec with errors: " + e.getMessage);
+                    println("Execution of target " + formatTarget(node) + " aborted after " + ctx.execDurationMSec + " msec with errors: " + e.getMessage);
                     throw e
                   }
                 }

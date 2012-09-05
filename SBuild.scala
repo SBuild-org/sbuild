@@ -19,8 +19,8 @@ class SBuild(implicit project: Project) {
 
   val scalaVersion = "2.9.2"
 
-  val binJar = "de.tototec.sbuild/target/de.tototec.sbuild-" + version + ".jar"
-  val antJar = "de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-" + version + ".jar"
+  val binJar = "de.tototec.sbuild/target/de.tototec.sbuild.jar"
+  val antJar = "de.tototec.sbuild.ant/target/de.tototec.sbuild.ant.jar"
   val cmdOptionJar = "http://cmdoption.tototec.de/cmdoption/attachments/download/3/de.tototec.cmdoption-0.1.0.jar"
   val scalaJar = "mvn:org.scala-lang:scala-library:" + scalaVersion
   val scalaCompilerJar = "mvn:org.scala-lang:scala-compiler:" + scalaVersion
@@ -30,6 +30,8 @@ class SBuild(implicit project: Project) {
 
   Module("de.tototec.sbuild")
   Module("de.tototec.sbuild.ant")
+  Module("de.tototec.sbuild.eclipse.plugin")
+  Module("de.tototec.sbuild.addons")
 
   Target("phony:clean") dependsOn "de.tototec.sbuild::clean" ~ "de.tototec.sbuild.ant::clean" exec {
     AntDelete(dir = Path("target"))
@@ -47,10 +49,15 @@ class SBuild(implicit project: Project) {
     AntCopy(file = Path("LICENSE.txt"), toDir = Path(distDir + "/doc"))
   }
   
-  Target("phony:copyJars") dependsOn (binJar ~ antJar ~ cmdOptionJar ~ scalaJar ~ scalaCompilerJar) exec { ctx: TargetContext =>
+  Target("phony:copyDeps") dependsOn (cmdOptionJar ~ scalaJar ~ scalaCompilerJar) exec { ctx: TargetContext =>
     ctx.fileDependencies foreach { file => 
       AntCopy(file = file, toDir = Path(distDir + "/lib"))
     }
+  }
+
+  Target("phony:copyJars") dependsOn ("copyDeps" ~ binJar ~ antJar) exec { ctx: TargetContext =>
+    AntCopy(file = Path(binJar), toFile = Path(distDir + "/lib/de.tototec.sbuild-" + version + ".jar"))
+    AntCopy(file = Path(antJar), toFile = Path(distDir + "/lib/de.tototec.sbuild.ant-" + version + ".jar"))
   }
 
   Target(distDir + "/bin/sbuild") dependsOn project.projectFile exec { ctx: TargetContext =>

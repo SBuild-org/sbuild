@@ -13,21 +13,28 @@ class SBuild(implicit project: Project) {
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
   SchemeHandler("mvn", new MvnSchemeHandler(Path(Prop("mvn.repo", ".sbuild/mvn"))))
 
-  val version = Prop("SBUILD_VERSION")
-  val jar = "target/de.tototec.sbuild.ant-" + version + ".jar"
+//   val version = Prop("SBUILD_VERSION", "svn")
+  val jar = "target/de.tototec.sbuild.ant.jar"
 
   // Current version of bnd (with ant tasks) is not in Maven repo 
   val bnd_1_50_0 = "http://dl.dropbox.com/u/2590603/bnd/biz.aQute.bnd.jar"
   
   val scalaVersion = "2.9.2"
   val compileCp =
-    ("../de.tototec.sbuild/target/de.tototec.sbuild-" + version + ".jar") ~
+    ("../de.tototec.sbuild/target/de.tototec.sbuild.jar") ~
       ("mvn:org.scala-lang:scala-library:" + scalaVersion) ~
       ("mvn:org.scala-lang:scala-compiler:" + scalaVersion) ~
       "mvn:org.apache.ant:ant:1.8.3" ~
       "mvn:org.liquibase:liquibase-core:2.0.3" ~
       bnd_1_50_0
 
+  SetProp("eclipse.classpath",
+    compileCp.targetRefs.
+      map(t => "<dep><![CDATA[" + 
+        (if (t.explicitProject.isDefined) (t.explicitProject + "::") else "") + t.name + "]]></dep>").
+      mkString("<deps>", "", "</deps>")
+  )
+      
   Target("phony:all") dependsOn jar
 
   val clean = Target("phony:clean") exec {

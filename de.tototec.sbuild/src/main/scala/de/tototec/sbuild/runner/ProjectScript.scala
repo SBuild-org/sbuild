@@ -23,6 +23,15 @@ class ProjectScript(_scriptFile: File,
                     noFsc: Boolean,
                     downloadCache: DownloadCache) {
 
+  def this(scriptFile: File, classpathConfig: ClasspathConfig, downloadCache: DownloadCache) {
+    this(scriptFile,
+      classpathConfig.sbuildClasspath,
+      classpathConfig.compileClasspath,
+      classpathConfig.projectClasspath,
+      classpathConfig.noFsc,
+      downloadCache)
+  }
+
   val scriptFile: File = _scriptFile.getAbsoluteFile.getCanonicalFile
 
   val buildTargetDir = ".sbuild";
@@ -321,7 +330,7 @@ class ProjectScript(_scriptFile: File,
     }
 
     if (noFsc) {
-        compileWithoutFsc
+      compileWithoutFsc
     } else {
       try {
         compileWithFsc

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.2"?>
+<plugin>
+   <extension
+       point="org.eclipse.jdt.core.classpathContainerInitializer">
+      <classpathContainerInitializer
+          id="de.tototec.sbuild.SBUILD_DEPENDENCIES"
+          class="de.tototec.sbuild.eclipse.plugin.SBuildClasspathContainerInitializer"/>
+   </extension>
+   <extension 
+       point="org.eclipse.jdt.ui.classpathContainerPage">
+      <classpathContainerPage
+         	id="de.tototec.sbuild.SBUILD_DEPENDENCIES"
+         	name="SBuild Libraries"
+         	class="de.tototec.sbuild.eclipse.plugin.SBuildClasspathContainerPage" />
+   </extension>
+</plugin>
