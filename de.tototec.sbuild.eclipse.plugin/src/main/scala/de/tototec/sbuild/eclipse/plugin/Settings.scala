@@ -41,13 +41,21 @@ class Settings {
       case cpe => fromPath(classpathEntry.getPath)
     }
   }
+  
+  def sbuildFile: String = options.getOrElse("sbuildFile", "SBuild.scala")
+  def sbuildFile_=(sbuildFile: String) = sbuildFile match {
+    case null => options -= "sbuildFile"
+    case x if x.trim == "" => options -= "sbuildFile"
+    case x if x == "SBuild.scala" => options -= "sbuildFile"
+    case x => options += ("sbuildFile" -> x)
+  }
 
   def exportedClasspath: String = options.getOrElse("exportedClasspath", "eclipse.classpath")
   def exportedClasspath_=(exportedClasspath: String) = exportedClasspath match {
     case null => options -= "exportedClasspath"
     case x if x.trim == "" => options -= "exportedClasspath"
     case x if x == "eclipse.classpath" => options -= "exportedClasspath"
-    case x => options += ("exportedClasspath" -> exportedClasspath)
+    case x => options += ("exportedClasspath" -> x)
   }
 
   //  def workspaceProjectAliases: Map[String, String] 

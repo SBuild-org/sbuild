@@ -42,20 +42,31 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
     composite.setLayoutData(new GridData(SWT.BEGINNING | SWT.TOP));
     composite.setFont(parent.getFont())
 
-//    new Label(composite, SWT.NONE).setText("Workspace resolution")
+    //    new Label(composite, SWT.NONE).setText("Workspace resolution")
 
-//    val workspaceResolution = new Button(composite, SWT.CHECK);
-//    workspaceResolution.setText("Resolve dependencies from Workspace")
-//    workspaceResolution.setSelection(settings.workspaceResolution)
-//    workspaceResolution.addSelectionListener(new SelectionAdapter() {
-//      override def widgetSelected(event: SelectionEvent) {
-//        settings.workspaceResolution = workspaceResolution.getSelection
-//      }
-//      override def widgetDefaultSelected(event: SelectionEvent) = widgetSelected(event)
-//    })
+    //    val workspaceResolution = new Button(composite, SWT.CHECK);
+    //    workspaceResolution.setText("Resolve dependencies from Workspace")
+    //    workspaceResolution.setSelection(settings.workspaceResolution)
+    //    workspaceResolution.addSelectionListener(new SelectionAdapter() {
+    //      override def widgetSelected(event: SelectionEvent) {
+    //        settings.workspaceResolution = workspaceResolution.getSelection
+    //      }
+    //      override def widgetDefaultSelected(event: SelectionEvent) = widgetSelected(event)
+    //    })
+
+    new Label(composite, SWT.NONE).setText("Buildfile (default: SBuild.scala)")
+
+    val sbuildFile = new Text(composite, SWT.BORDER)
+    sbuildFile.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))
+    sbuildFile.addModifyListener(new ModifyListener {
+      override def modifyText(e: ModifyEvent) {
+        settings.sbuildFile = sbuildFile.getText
+      }
+    })
+    sbuildFile.setText(settings.sbuildFile)
 
     new Label(composite, SWT.NONE).setText("Exported Classpath (default: eclipse.classpath)")
-    
+
     val exportedClasspath = new Text(composite, SWT.BORDER)
     exportedClasspath.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))
     exportedClasspath.addModifyListener(new ModifyListener {
@@ -64,7 +75,7 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
       }
     })
     exportedClasspath.setText(settings.exportedClasspath)
-    
+
     setControl(composite)
   }
 

@@ -57,6 +57,8 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
   def readProject {
     val config = new Config()
     config.verbose = true
+    config.buildfile = settings.sbuildFile
+    
     val buildFile = new File(projectRootFile, config.buildfile)
 
     // Skip if nothing is todo
