@@ -40,7 +40,18 @@ object SBuildRunner {
       System.exit(0)
     }
 
-    run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
+    try {
+      run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
+    } catch {
+      case e: ProjectConfigurationException =>
+        Console.err.println("\n!!! SBuild detected an failure in the project configuration or the build scripts !!!\nMessage: " + e.getMessage)
+        if (verbose) throw e
+        System.exit(1)
+      case e: SBuildException =>
+        Console.err.println("\n!!! SBuild failed with an exception (" + e.getClass.getSimpleName + ") !!!\nMessage: " + e.getMessage)
+        if (verbose) throw e
+        System.exit(1)
+    }
   }
 
   def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis) {
@@ -94,9 +105,9 @@ class """ + className + """(implicit project: Project) {
     def formatTargetsOf(p: Project): String = {
       p.targets.values.toSeq.sortBy(_.name).map { t =>
         formatTarget(t)(project) + " \t" + (t.help match {
-            case null => ""
-            case s: String => s
-          })
+          case null => ""
+          case s: String => s
+        })
       }.mkString("\n")
     }
 
@@ -105,7 +116,11 @@ class """ + className + """(implicit project: Project) {
       System.exit(0)
     }
     if (config.listTargetsRecursive) {
-      val out = project.projectPool.projects.map { p => formatTargetsOf(p) }
+      val out = project.projectPool.projects.sortWith {
+        case (l, r) if l.eq(project) => true
+        case (l, r) if r.eq(project) => false
+        case (l, r) => l.projectFile.compareTo(r.projectFile) < 0
+      }.map { p => formatTargetsOf(p) }
       Console.println(out.mkString("\n\n"));
       System.exit(0)
     }

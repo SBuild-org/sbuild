@@ -3,6 +3,6 @@
 	<classpathentry kind="src" path="src/main/scala"/>
 	<classpathentry kind="src" path="src/main/resources"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="con" path="de.tototec.sbuild.SBUILD_DEPENDENCIES/workspaceResolution=false"/>
+	<classpathentry kind="con" path="de.tototec.sbuild.SBUILD_DEPENDENCIES"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

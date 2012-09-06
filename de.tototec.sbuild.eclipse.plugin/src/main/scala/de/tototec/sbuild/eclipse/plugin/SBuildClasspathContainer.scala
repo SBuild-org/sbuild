@@ -21,6 +21,7 @@ import org.eclipse.core.runtime.Path
 import de.tototec.sbuild.TargetRef
 import de.tototec.sbuild.SBuildVersion
 import org.eclipse.core.resources.ResourcesPlugin
+import de.tototec.sbuild.TargetRefs
 
 object SBuildClasspathContainer {
   val ContainerName = "de.tototec.sbuild.SBUILD_DEPENDENCIES"
@@ -30,7 +31,6 @@ object SBuildClasspathContainer {
     _compileClasspath = sbuildHomeDir.getAbsolutePath + "/lib/scala-compiler-2.9.2.jar"
     _projectClasspath = sbuildHomeDir.getAbsolutePath + "/lib/de.tototec.sbuild.ant-" + SBuildVersion.version + ".jar"
   }
-  val ClasspathProperty = "eclipse.classpath"
 }
 
 /**
@@ -62,9 +62,9 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
     // Skip if nothing is todo
     if (!this.classpathEntries.isEmpty && buildFile.lastModified == sbuildFileTimestamp) return
 
-    val sbuildHomePath: IPath =  JavaCore.getClasspathVariable(SBuildClasspathContainer.SBuildHomeVariableName)
-    if(sbuildHomePath == null) {
-        throw new RuntimeException("Classpath variable 'SBUILD_HOME' not defined")
+    val sbuildHomePath: IPath = JavaCore.getClasspathVariable(SBuildClasspathContainer.SBuildHomeVariableName)
+    if (sbuildHomePath == null) {
+      throw new RuntimeException("Classpath variable 'SBUILD_HOME' not defined")
     }
     val sbuildHomeDir = sbuildHomePath.toFile
     debug("Trying to use SBuild " + SBuildVersion.version + " installed at: " + sbuildHomeDir)
@@ -79,7 +79,7 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
     }
 
     debug("About to read SBuild project: " + buildFile);
-    try {
+    val projectScript = try {
       projectReader.readProject(sbuildProject, buildFile)
     } catch {
       case e: Throwable =>
@@ -87,13 +87,31 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
         throw e
     }
 
-    val depsXmlString = sbuildProject.properties.getOrElse(SBuildClasspathContainer.ClasspathProperty, "<deps></deps>")
-    debug("Determine Eclipse classpath by evaluating " + SBuildClasspathContainer.ClasspathProperty + " to: " + depsXmlString)
+    val depsXmlString = sbuildProject.properties.getOrElse(settings.exportedClasspath, "<deps></deps>")
+    debug("Determine Eclipse classpath by evaluating '" + settings.exportedClasspath + "' to: " + depsXmlString)
     val depsXml = XML.loadString(depsXmlString)
 
-    val deps: Seq[String] = (depsXml \ "dep") map {
+    val depsFromXml: Seq[String] = (depsXml \ "dep") map {
       depXml => depXml.text
     }
+
+    val targetRefsFromScript: Option[TargetRefs] = if (depsFromXml.isEmpty) {
+      // try to access a val/def with name eclipseClasspath
+      try {
+        val scriptWithCp = projectScript.asInstanceOf[{ def eclipseClasspath: TargetRefs }]
+        Some(scriptWithCp.eclipseClasspath)
+      } catch {
+        case e: Exception =>
+          debug("Could not found or access property 'eclipseClasspath': " + e.getMessage)
+          None
+      }
+    } else None
+
+    val deps = if (targetRefsFromScript.isDefined) {
+      val refs = targetRefsFromScript.get.targetRefs.map(_.ref)
+      debug("Read targetRefs from script property 'eclipseClasspath': " + refs)
+      refs
+    } else depsFromXml
 
     // TODO: for now, we silently drop invalid targets
 
@@ -110,7 +128,9 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
     if (!unsupportedTargetRefs.isEmpty)
       debug("Some targets are invalid and will not be added to the classpath: " + unsupportedTargetRefs)
 
-    val addClasspathFiles: Seq[File] = fileTargetRefs.map { ft =>
+    val classpathTargets: Seq[Target] = requestedTargets.distinct filter (_.targetFile.isDefined)
+
+    val nonTargetClasspathFiles: Seq[File] = fileTargetRefs.map { ft =>
       new File(ft) match {
         case f if f.isAbsolute => f
         case _ => TargetRef(ft).explicitProject match {
@@ -123,7 +143,7 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
 
     // TODO: we first assemble the classpath, we will resolve it later (TODO!)
 
-    val classpathFiles: Seq[File] = (requestedTargets.distinct filter (_.targetFile.isDefined) map (_.targetFile.get)) ++ addClasspathFiles
+    val classpathFiles: Seq[File] = (classpathTargets map (_.targetFile.get)) ++ nonTargetClasspathFiles
 
     val classpathEntries = classpathFiles map { f =>
       debug("About to add classpath entry: " + f)
@@ -133,6 +153,16 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
 
     this.sbuildFileTimestamp = buildFile.lastModified
     this.classpathEntries = Some(classpathEntries.toArray)
+
+    // start resolve 
+    classpathTargets.foreach { target =>
+      try {
+        debug("About to resolve dependency: " + target)
+        SBuildRunner.preorderedDependencies(request = List(target))
+      } catch {
+        case e: SBuildException => debug("Could not resolve dependency: " + target)
+      }
+    }
   }
 
   override def getClasspathEntries: Array[IClasspathEntry] = {

@@ -23,30 +23,36 @@ class Settings {
   }
 
   def fromPath(containerPath: IPath) {
-    val read: Map[String, String] = if (containerPath.segmentCount() > 1) {
-      containerPath.lastSegment.split(",").map {
-        _.split("=", 2) match {
-          case Array(key, value) => (key, value)
-          case Array(key) => (key, true.toString)
-        }
-      }.toMap
-    } else {
-      Map()
+    options = containerPath.segmentCount() match {
+      case 0 | 1 => Map()
+      case _ =>
+        containerPath.lastSegment.split(",").map {
+          _.split("=", 2) match {
+            case Array(key, value) => (key, value)
+            case Array(key) => (key, true.toString)
+          }
+        }.toMap
     }
-
-    options = read
   }
 
   def fromIClasspathEntry(classpathEntry: IClasspathEntry) {
     classpathEntry match {
-      case null =>
-        options = Map()
-      case cpe =>
-        fromPath(classpathEntry.getPath)
+      case null => options = Map()
+      case cpe => fromPath(classpathEntry.getPath)
     }
   }
 
-  def workspaceResolution: Boolean = options.getOrElse("workspaceResolution", "true").toBoolean
-  def workspaceResolution_=(resolveFromWorkspace: Boolean) = options += ("workspaceResolution" -> resolveFromWorkspace.toString)
+  def exportedClasspath: String = options.getOrElse("exportedClasspath", "eclipse.classpath")
+  def exportedClasspath_=(exportedClasspath: String) = exportedClasspath match {
+    case null => options -= "exportedClasspath"
+    case x if x.trim == "" => options -= "exportedClasspath"
+    case x if x == "eclipse.classpath" => options -= "exportedClasspath"
+    case x => options += ("exportedClasspath" -> exportedClasspath)
+  }
+
+  //  def workspaceProjectAliases: Map[String, String] 
+
+  //  def workspaceResolution: Boolean = options.getOrElse("workspaceResolution", "true").toBoolean
+  //  def workspaceResolution_=(resolveFromWorkspace: Boolean) = options += ("workspaceResolution" -> resolveFromWorkspace.toString)
 
 }
