@@ -6,7 +6,7 @@ import java.io.File
 
 class MvnSchemeHandlerTest extends FunSuite {
 
-  val basePath = "/tmp/cmvn-scheme-test"
+  val basePath = "/target/cmvn-scheme-test"
   val cmvn = new MvnSchemeHandler(new File(basePath))
 
   test("local path test 1") {

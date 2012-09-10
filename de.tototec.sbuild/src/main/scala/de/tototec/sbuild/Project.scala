@@ -49,7 +49,7 @@ object Project {
       }
     }
   }
- 
+
 }
 
 class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Option[ProjectPool]) {
@@ -184,14 +184,24 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
                 case 0 => None
                 case 1 => candidates.head
                 case x =>
-                  // Found more than one. What should we do about it? 
-                  // For now just fail
-                  throw new SBuildException("Found more than one match for dependency '" + file +
-                    " in all registered modules. Occurences:" +
-                    candidates.map {
-                      case Some(t) => "\n - " + t.name + " [" + t.project.projectFile + "]"
-                      case _ => // to avoid compiler warning
-                    }.mkString)
+                  // Found more than one. What should we do about it?
+                  // We check the maximal one with contains dependencies and/or actions
+                  val realTargets = candidates.filter(t => t.get.action == null && t.get.dependants.isEmpty)
+                  realTargets match {
+                    case Seq(bestCandidate) => // Perfect, we will use that one
+                      bestCandidate
+                    case Seq() => // All targets are just placeholders for files, so we can take the first one
+                      candidates.head
+                    case _ => // More than one candidate have explicit action and/or dependencies, this is an conflict we cant solve automatically
+
+                      // For now just fail
+                      throw new SBuildException("Found more than one match for dependency '" + file +
+                        " in all registered modules. Occurences:" +
+                        candidates.map {
+                          case Some(t) => "\n - " + t.name + " [" + t.project.projectFile + "]"
+                          case _ => // to avoid compiler warning
+                        }.mkString)
+                  }
               }
 
             case x => x
