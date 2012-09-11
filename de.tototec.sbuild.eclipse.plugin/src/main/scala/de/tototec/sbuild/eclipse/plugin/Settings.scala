@@ -5,6 +5,21 @@ import org.eclipse.jdt.core.JavaCore
 import org.eclipse.jdt.core.IClasspathEntry
 import org.eclipse.core.runtime.Path
 
+object Settings {
+  val SBuildFileKey = "sbuildFile"
+  val SBuildFileDefault = "SBuild.scala"
+
+  val ExportedClasspathKey = "exportedClasspath"
+  val ExportedClasspathDefault = "eclipse.classpath"
+
+  val RelaxedFetchOfDependenciesKey = "relaxedFetchOfDependencies"
+  val RelaxedFetchOfDependenciesDefault = true.toString
+
+  val WorkspaceProjectAliasKey = "workspaceProjectAlias:"
+}
+
+import de.tototec.sbuild.eclipse.plugin.Settings._
+
 class Settings {
   def this(containerPath: IPath) = {
     this
@@ -33,6 +48,7 @@ class Settings {
           }
         }.toMap
     }
+    debug("Loaded from path: " + containerPath + " the options: " + options)
   }
 
   def fromIClasspathEntry(classpathEntry: IClasspathEntry) {
@@ -41,26 +57,27 @@ class Settings {
       case cpe => fromPath(classpathEntry.getPath)
     }
   }
-  
-  def sbuildFile: String = options.getOrElse("sbuildFile", "SBuild.scala")
+
+  def sbuildFile: String = options.getOrElse(SBuildFileKey, SBuildFileDefault)
   def sbuildFile_=(sbuildFile: String) = sbuildFile match {
-    case null => options -= "sbuildFile"
-    case x if x.trim == "" => options -= "sbuildFile"
-    case x if x == "SBuild.scala" => options -= "sbuildFile"
-    case x => options += ("sbuildFile" -> x)
+    case null => options -= SBuildFileKey
+    case x if x.trim == "" => options -= SBuildFileKey
+    case x if x == SBuildFileDefault => options -= SBuildFileKey
+    case x => options += (SBuildFileKey -> x)
   }
 
-  def exportedClasspath: String = options.getOrElse("exportedClasspath", "eclipse.classpath")
+  def exportedClasspath: String = options.getOrElse(ExportedClasspathKey, ExportedClasspathDefault)
   def exportedClasspath_=(exportedClasspath: String) = exportedClasspath match {
-    case null => options -= "exportedClasspath"
-    case x if x.trim == "" => options -= "exportedClasspath"
-    case x if x == "eclipse.classpath" => options -= "exportedClasspath"
-    case x => options += ("exportedClasspath" -> x)
+    case null => options -= ExportedClasspathKey
+    case x if x.trim == "" => options -= ExportedClasspathKey
+    case x if x == ExportedClasspathDefault => options -= ExportedClasspathKey
+    case x => options += (ExportedClasspathKey -> x)
   }
 
-  //  def workspaceProjectAliases: Map[String, String] 
-
-  //  def workspaceResolution: Boolean = options.getOrElse("workspaceResolution", "true").toBoolean
-  //  def workspaceResolution_=(resolveFromWorkspace: Boolean) = options += ("workspaceResolution" -> resolveFromWorkspace.toString)
-
+  def relaxedFetchOfDependencies =
+    options.getOrElse(RelaxedFetchOfDependenciesKey, RelaxedFetchOfDependenciesDefault) == true.toString
+  def relaxedFetchOfDependencies_=(relaxedFetchOfDependencies: Boolean) = relaxedFetchOfDependencies.toString match {
+    case RelaxedFetchOfDependenciesDefault => options -= RelaxedFetchOfDependenciesKey
+    case x => options += (RelaxedFetchOfDependenciesKey -> x)
+  }
 }

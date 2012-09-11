@@ -14,4 +14,8 @@
          	name="SBuild Libraries"
          	class="de.tototec.sbuild.eclipse.plugin.SBuildClasspathContainerPage" />
    </extension>
+   <extension
+    point="org.eclipse.core.runtime.preferences"   >
+      <scope name="project" class="org.eclipse.core.internal.resources.ProjectPreferences"/>
+   </extension>
 </plugin>

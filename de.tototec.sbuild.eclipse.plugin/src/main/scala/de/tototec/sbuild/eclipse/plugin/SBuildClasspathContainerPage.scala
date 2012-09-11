@@ -16,6 +16,7 @@ import org.eclipse.swt.events.SelectionEvent
 import org.eclipse.swt.widgets.Text
 import org.eclipse.swt.events.ModifyListener
 import org.eclipse.swt.events.ModifyEvent
+import org.eclipse.swt.events.SelectionListener
 
 class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with IClasspathContainerPage with IClasspathContainerPageExtension {
 
@@ -75,6 +76,18 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
       }
     })
     exportedClasspath.setText(settings.exportedClasspath)
+
+    new Label(composite, SWT.NONE).setText("Update of dependencies")
+
+    val updateDependenciesButton = new Button(composite, SWT.CHECK)
+    updateDependenciesButton.setText("Resolve/download only missing dependencies")
+    updateDependenciesButton.setSelection(settings.relaxedFetchOfDependencies)
+    updateDependenciesButton.addSelectionListener(new SelectionListener() {
+      override def widgetSelected(event: SelectionEvent) =
+        settings.relaxedFetchOfDependencies = updateDependenciesButton.getSelection
+      override def widgetDefaultSelected(event: SelectionEvent) =
+        settings.relaxedFetchOfDependencies = updateDependenciesButton.getSelection
+    })
 
     setControl(composite)
   }

@@ -26,10 +26,10 @@ class SBuild(implicit project: Project) {
     ("mvn:org.scala-lang:scala-library:" + scalaVersion) ~
       ("../de.tototec.sbuild/target/de.tototec.sbuild.jar") ~
       "mvn:org.osgi:org.osgi.core:4.2.0" ~
+      "mvn:org.eclipse.core:runtime:3.3.100-v20070530" ~
       "mvn:org.eclipse.core:resources:3.3.0-v20070604" ~
       "mvn:org.eclipse.core:jobs:3.3.0-v20070423" ~
       "mvn:org.eclipse.equinox:common:3.3.0-v20070426" ~
-      "mvn:org.eclipse.core:runtime:3.3.100-v20070530" ~
       "mvn:org.eclipse.core:contenttype:3.2.100-v20070319" ~
       "mvn:org.eclipse:jface:3.3.0-I20070606-0010" ~
       "mvn:org.eclipse:swt:3.3.0-v3346" ~
@@ -37,6 +37,7 @@ class SBuild(implicit project: Project) {
       "mvn:org.eclipse.jdt:ui:3.3.0-v20070607-0010" ~
       "mvn:org.eclipse.core:commands:3.3.0-I20070605-0010" ~
       "mvn:org.eclipse.equinox:registry:3.3.0-v20070522" ~
+      "mvn:org.eclipse.equinox:preferences:3.2.100-v20070522" ~
       swtJar ~
       "http://cmdoption.tototec.de/cmdoption/attachments/download/3/de.tototec.cmdoption-0.1.0.jar"
 
@@ -96,6 +97,7 @@ Private-Package: \
  de.tototec.cmdoption, \
  de.tototec.cmdoption.handler
 Import-Package: \
+ org.eclipse.core.runtime;registry=!;common=!;version="3.3.0", \
  *
 DynamicImport-Package: \
  !scala.tools.*, \
