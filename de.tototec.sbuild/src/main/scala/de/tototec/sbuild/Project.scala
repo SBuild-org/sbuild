@@ -237,7 +237,13 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
       // case Some("phony") => UniqueTargetFile(new File(projectFile, targetRef.nameWithoutProto), true, None)
       case Some("phony") => UniqueTargetFile(Path(targetRef.nameWithoutProto)(this), true, None)
       case None | Some("file") => UniqueTargetFile(Path(targetRef.nameWithoutProto)(this), false, None)
-      case Some(proto) if foreignProject.isDefined => throw new ProjectConfigurationException("Cannot handle custom scheme target reference '" + targetRef + "' of foreign projects.")
+      case Some(proto) if foreignProject.isDefined =>
+        val e = new ProjectConfigurationException("Cannot handle custom scheme target reference '" + targetRef + "' of foreign projects.")
+        e.buildScript = foreignProject match {
+          case None => Some(projectFile)
+          case x => x
+        }
+        throw e
       case Some(proto) => schemeHandlers.get(proto) match {
         case Some(handler) =>
           val handlerOutput = handler.localPath(targetRef.nameWithoutProto)
@@ -245,10 +251,22 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
           val phony = outputRef.explicitProto match {
             case Some("phony") => true
             case Some("file") => false
-            case _ => throw new UnsupportedSchemeException("The defined scheme \"" + outputRef.explicitProto + "\" did not resolve to phony or file protocol.")
+            case _ =>
+              val e = new UnsupportedSchemeException("The defined scheme \"" + outputRef.explicitProto + "\" did not resolve to phony or file protocol.")
+              e.buildScript = foreignProject match {
+                case None => Some(projectFile)
+                case x => x
+              }
+              throw e
           }
           UniqueTargetFile(Path(outputRef.nameWithoutProto)(this), phony, Some(handler))
-        case None => throw new UnsupportedSchemeException("No scheme handler registered, that supports scheme:" + proto)
+        case None =>
+          val e = new UnsupportedSchemeException("No scheme handler registered, that supports scheme:" + proto)
+          e.buildScript = foreignProject match {
+            case None => Some(projectFile)
+            case x => x
+          }
+          throw e
       }
     }
   }
@@ -268,7 +286,12 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
             createTarget(dep) exec {
               val file = Path(dep.name)(this)
               if (!file.exists || !file.isDirectory) {
-                throw new ProjectConfigurationException("Don't know how to build prerequisite: " + dep)
+                val e = new ProjectConfigurationException("Don't know how to build prerequisite: " + dep)
+                e.buildScript = explicitForeignProject(dep) match {
+                  case None => Some(projectFile)
+                  case x => x
+                }
+                throw e
               }
             }
           case _ =>

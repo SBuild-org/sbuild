@@ -44,11 +44,16 @@ object SBuildRunner {
       run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
     } catch {
       case e: ProjectConfigurationException =>
-        Console.err.println("\n!!! SBuild detected an failure in the project configuration or the build scripts !!!\nMessage: " + e.getMessage)
+        Console.err.println("\n!!! SBuild detected an failure in the project configuration or the build scripts.")
+        if (e.buildScript.isDefined) Console.err.println("!!! Project: " + e.buildScript.get)
+        Console.err.println("!!! Message: " + e.getMessage)
         if (verbose) throw e
         System.exit(1)
       case e: SBuildException =>
-        Console.err.println("\n!!! SBuild failed with an exception (" + e.getClass.getSimpleName + ") !!!\nMessage: " + e.getMessage)
+        Console.err.println("\n!!! SBuild failed with an exception (" + e.getClass.getSimpleName + ").")
+        if (e.isInstanceOf[BuildScriptAware] && e.asInstanceOf[BuildScriptAware].buildScript.isDefined)
+          Console.err.println("!!! Project: " + e.asInstanceOf[BuildScriptAware].buildScript.get)
+        Console.err.println("!!! Message: " + e.getMessage)
         if (verbose) throw e
         System.exit(1)
     }
