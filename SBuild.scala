@@ -14,8 +14,9 @@ class SBuild(implicit project: Project) {
 
   val version = Prop("SBUILD_VERSION", "0.1.1-SNAPSHOT")
   SetProp("SBUILD_VERSION", version)
-  val osgiVersion = Prop("SBUILD_OSGI_VERSION", "0.1.0.9000")
+  val osgiVersion = Prop("SBUILD_OSGI_VERSION", "0.1.0.9001")
   SetProp("SBUILD_OSGI_VERSION", osgiVersion)
+  SetProp("SBUILD_ECLIPSE_VERSION", osgiVersion)
 
   val scalaVersion = "2.9.2"
 
@@ -28,6 +29,8 @@ class SBuild(implicit project: Project) {
   val distName = "sbuild-" + version
   val distDir = "target/" + distName
 
+  val distZip = "target/" + distName + "-dist.zip"
+
   Module("de.tototec.sbuild")
   Module("de.tototec.sbuild.ant")
   Module("de.tototec.sbuild.eclipse.plugin")
@@ -37,11 +40,13 @@ class SBuild(implicit project: Project) {
     AntDelete(dir = Path("target"))
   } help "Clean all"
 
-  Target("phony:all") dependsOn ("target/" + distName + "-dist.zip") help "Build all"
+  val eclipsePlugin = "de.tototec.sbuild.eclipse.plugin::target/de.tototec.sbuild.eclipse.plugin-" + osgiVersion + ".jar"
+
+  Target("phony:all") dependsOn (distZip ~ eclipsePlugin) help "Build all"
 
   Target("phony:test") dependsOn ("de.tototec.sbuild::test") help "Run all tests"
 
-  Target("target/" + distName + "-dist.zip") dependsOn "createDistDir" exec { ctx: TargetContext =>
+  Target(distZip) dependsOn "createDistDir" exec { ctx: TargetContext =>
     AntZip(destFile = ctx.targetFile.get, baseDir = Path("target"), includes = distName + "/**")
   }
 

@@ -4,6 +4,7 @@ import de.tototec.sbuild.Project
 import org.apache.tools.ant.taskdefs.Copy
 import de.tototec.sbuild.ant.AntProject
 import java.io.File
+import org.apache.tools.ant.types.FileSet
 
 object AntCopy {
   def apply(
@@ -21,7 +22,9 @@ object AntCopy {
     enableMultipleMappings: java.lang.Boolean = null,
     encoding: String = null,
     outputEncoding: String = null,
-    granularity: java.lang.Long = null)(implicit _project: Project) =
+    granularity: java.lang.Long = null,
+    // since 0.1.0.9001
+    fileSets: Seq[FileSet] = null)(implicit _project: Project) =
     new AntCopy(
       file = file,
       toFile = toFile,
@@ -37,7 +40,8 @@ object AntCopy {
       enableMultipleMappings = enableMultipleMappings,
       encoding = encoding,
       outputEncoding = outputEncoding,
-      granularity = granularity
+      granularity = granularity,
+      fileSets = fileSets
     ).execute
 }
 
@@ -59,7 +63,9 @@ class AntCopy()(implicit _project: Project) extends Copy {
     enableMultipleMappings: java.lang.Boolean = null,
     encoding: String = null,
     outputEncoding: String = null,
-    granularity: java.lang.Long = null)(implicit _project: Project) {
+    granularity: java.lang.Long = null,
+    // since 0.1.0.9001
+    fileSets: Seq[FileSet] = null)(implicit _project: Project) {
     this
     if (file != null) setFile(file)
     if (toFile != null) setTofile(toFile)
@@ -76,6 +82,9 @@ class AntCopy()(implicit _project: Project) extends Copy {
     if (encoding != null) setEncoding(encoding)
     if (outputEncoding != null) setOutputEncoding(outputEncoding)
     if (granularity != null) setGranularity(granularity)
+    if (fileSets != null) fileSets.foreach { fileSet =>
+      addFileset(fileSet)
+    }
   }
 
   def setToDir(toDir: File) = setTodir(toDir)

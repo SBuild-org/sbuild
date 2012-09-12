@@ -77,11 +77,13 @@ class ProjectScript(_scriptFile: File,
       val sourceLastModified = (info \ "sourceLastModified").text.toLong
       val targetClassLastModified = (info \ "targetClassLastModified").text.toLong
       val sbuildVersion = (info \ "sbuildVersion").text
+      val sbuildOsgiVersion = (info \ "sbuildOsgiVersion").text
 
       scriptFile.length == sourceSize &&
         scriptFile.lastModified == sourceLastModified &&
         targetClassFile.lastModified == targetClassLastModified &&
-        sbuildVersion == SBuildVersion.version
+        sbuildVersion == SBuildVersion.version &&
+        sbuildOsgiVersion == SBuildVersion.osgiVersion
     }
   }
 
@@ -295,6 +297,7 @@ class ProjectScript(_scriptFile: File,
                  <sourceLastModified>{ scriptFile.lastModified }</sourceLastModified>
                  <targetClassLastModified>{ targetClassFile.lastModified }</targetClassLastModified>
                  <sbuildVersion>{ SBuildVersion.version }</sbuildVersion>
+                 <sbuildOsgiVersion>{ SBuildVersion.osgiVersion }</sbuildOsgiVersion>
                </sbuild>
     val file = new FileWriter(infoFile)
     xml.XML.write(file, info, "UTF-8", true, null)

@@ -98,6 +98,7 @@ Private-Package: \
  de.tototec.cmdoption.handler
 Import-Package: \
  org.eclipse.core.runtime;registry=!;common=!;version="3.3.0", \
+ org.eclipse.core.internal.resources, \
  *
 DynamicImport-Package: \
  !scala.tools.*, \
