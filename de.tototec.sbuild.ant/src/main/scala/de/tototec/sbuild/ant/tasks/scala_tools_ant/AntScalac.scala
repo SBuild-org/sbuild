@@ -17,7 +17,8 @@ object AntScalac {
             classpath: APath = null,
             force: java.lang.Boolean = null,
             logging: String = null,
-            debugInfo: String = null)(implicit _project: Project) =
+            debugInfo: String = null,
+            jvmArgs: String = null)(implicit _project: Project) =
     new AntScalac(
       srcDir = srcDir,
       destDir = destDir,
@@ -29,7 +30,8 @@ object AntScalac {
       classpath = classpath,
       force = force,
       logging = logging,
-      debugInfo = debugInfo
+      debugInfo = debugInfo,
+      jvmArgs = jvmArgs
     ).execute
 }
 
@@ -46,7 +48,9 @@ class AntScalac()(implicit _project: Project) extends Scalac {
            classpath: APath = null,
            force: java.lang.Boolean = null,
            logging: String = null,
-           debugInfo: String = null)(implicit _project: Project) {
+           debugInfo: String = null,
+           // since 0.1.9002
+           jvmArgs: String = null)(implicit _project: Project) {
     this
     if (srcDir != null) setSrcdir(srcDir)
     if (destDir != null) setDestdir(destDir)
@@ -59,10 +63,12 @@ class AntScalac()(implicit _project: Project) extends Scalac {
     if (force != null) setForce(force.booleanValue)
     if (logging != null) setLogging(logging)
     if (debugInfo != null) setDebuginfo(debugInfo)
+    if (jvmArgs != null) setJvmargs(jvmArgs)
   }
 
   def setDestDir(destDir: File) = setDestdir(destDir)
   def setSrcDir(srcDir: APath) = setSrcdir(srcDir)
   def setDebugInfo(debugInfo: String) = setDebuginfo(debugInfo)
-
+  def setJvmArgs(jvmArgs: String) = setJvmargs(jvmArgs)
+  
 }
