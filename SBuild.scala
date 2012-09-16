@@ -14,7 +14,7 @@ class SBuild(implicit project: Project) {
 
   val version = Prop("SBUILD_VERSION", "0.1.1-SNAPSHOT")
   SetProp("SBUILD_VERSION", version)
-  val osgiVersion = Prop("SBUILD_OSGI_VERSION", "0.1.0.9001")
+  val osgiVersion = Prop("SBUILD_OSGI_VERSION", "0.1.0.9002")
   SetProp("SBUILD_OSGI_VERSION", osgiVersion)
   SetProp("SBUILD_ECLIPSE_VERSION", osgiVersion)
 
