@@ -234,7 +234,9 @@ class """ + className + """(implicit project: Project) {
         val root = rootRequest match {
           case Some(root) =>
             if (root == node) {
-              throw new ProjectConfigurationException("Cycles in dependency chain detected for: " + root)
+              val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + formatTarget(root))
+              ex.buildScript = Some(root.project.projectFile)
+              throw ex
             }
             root
           case None => node
@@ -249,6 +251,13 @@ class """ + className + """(implicit project: Project) {
           verbose("determine dependencies of: " + node.name)
           val dependencies = node.project.prerequisites(node, searchInAllProjects = true)
           verbose("dependencies of: " + formatTarget(node) + " => " + dependencies.map(formatTarget(_)).mkString(", "))
+          
+          // detect cycles
+          if(dependencies.contains(node)) {
+              val ex = new ProjectConfigurationException("Cycles in dependency chain detected. Target " + formatTarget(node) + " contains itself as dependency.")
+              ex.buildScript = Some(node.project.projectFile)
+              throw ex
+          }
 
           // All direct dependencies share the same request id.
           // Later we can identify them and check, if they were up-to-date.
@@ -308,13 +317,6 @@ class """ + className + """(implicit project: Project) {
                 val p = (c - 1) * 100 / m
                 "[" + math.min(100, math.max(0, p)) + "%]"
               case (c, m) => "[" + c + "/" + m + "]"
-            }
-
-            def formatTarget(target: Target) = {
-              (if (project != target.project) {
-                project.projectDirectory.toURI.relativize(target.project.projectFile.toURI).getPath + "::"
-              } else "") +
-                TargetRef(target).nameWithoutStandardProto
             }
 
             if (execPhonyUpToDateOrSkip || node.action == null) {
