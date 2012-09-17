@@ -138,17 +138,18 @@ class """ + className + """(implicit project: Project) {
     val targets = requested.toList
 
     // Execution plan
-    val chain = preorderedDependencies(targets, skipExec = true)(project)
+    var dependencyTree = Seq[(Int, Target)]()
+    val treePrinter = config.showDependencyTree match {
+      case true => Some((depth: Int, node: Target) => { dependencyTree ++= Seq((depth, node)) })
+      case _ => None
+    }
+    val chain = preorderedDependencies(targets, skipExec = true, treePrinter = treePrinter)(project)
 
     def execPlan = {
       var line = 0
       "Execution plan: \n" + chain.map { execT =>
         line += 1
-        "  " + line + ". " +
-          (if (project.projectFile != execT.target.project.projectFile) {
-            project.projectDirectory.toURI.relativize(execT.target.project.projectFile.toURI).getPath + "::"
-          } else "") +
-          TargetRef(execT.target).nameWithoutStandardProto
+        "  " + line + ". " + formatTarget(execT.target)(project)
       }.mkString("\n")
     }
     if (config.showExecutionPlan) {
@@ -156,6 +157,25 @@ class """ + className + """(implicit project: Project) {
       System.exit(0)
     } else {
       verbose(execPlan)
+    }
+
+    if (config.showDependencyTree) {
+      val showGoUp = true
+      var lastDepth = 0
+      var lastShown = Map[Int, Target]()
+      val output = "Dependency tree: \n" + dependencyTree.map {
+        case (depth, target) =>
+
+          var prefix = if (lastDepth > depth && depth > 0) {
+            List.fill(depth - 1)("  ").mkString + "  (" + formatTarget(lastShown(depth - 1))(project) + ")\n"
+          } else ""
+
+          lastDepth = depth
+          lastShown += (depth -> target)
+          prefix + List.fill(depth)("  ").mkString + "  " + formatTarget(target)(project)
+      }.mkString("\n")
+      Console.println(output)
+      System.exit(0)
     }
 
     val executionStart = System.currentTimeMillis
@@ -217,13 +237,19 @@ class """ + className + """(implicit project: Project) {
                              execState: Option[ExecState] = None,
                              skipExec: Boolean = false,
                              requestId: Option[String] = None,
-                             dependencyTrace: List[Target] = List())(implicit project: Project): Array[ExecutedTarget] = {
+                             dependencyTrace: List[Target] = List(),
+                             depth: Int = 0,
+                             treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] = {
     request match {
       case Nil => Array()
       case node :: tail =>
 
         // detect collisions
 
+        treePrinter match {
+          case Some(print) => print(depth, node)
+          case _ =>
+        }
         def verboseTrackDeps(msg: => String) {
           //          this.verbose(List.fill(dependencyTrace.size + 1)(" |").mkString + msg)
           this.verbose(msg + {
@@ -251,12 +277,12 @@ class """ + className + """(implicit project: Project) {
           verbose("determine dependencies of: " + node.name)
           val dependencies = node.project.prerequisites(node, searchInAllProjects = true)
           verbose("dependencies of: " + formatTarget(node) + " => " + dependencies.map(formatTarget(_)).mkString(", "))
-          
+
           // detect cycles
-          if(dependencies.contains(node)) {
-              val ex = new ProjectConfigurationException("Cycles in dependency chain detected. Target " + formatTarget(node) + " contains itself as dependency.")
-              ex.buildScript = Some(node.project.projectFile)
-              throw ex
+          if (dependencies.contains(node)) {
+            val ex = new ProjectConfigurationException("Cycles in dependency chain detected. Target " + formatTarget(node) + " contains itself as dependency.")
+            ex.buildScript = Some(node.project.projectFile)
+            throw ex
           }
 
           // All direct dependencies share the same request id.
@@ -267,7 +293,9 @@ class """ + className + """(implicit project: Project) {
             execState = execState,
             skipExec = skipOrUpToDate,
             requestId = resolveDirectDepsRequestId,
-            dependencyTrace = node :: dependencyTrace)
+            dependencyTrace = node :: dependencyTrace,
+            depth = depth + 1,
+            treePrinter = treePrinter)
 
           val doContextChecks = true
 
@@ -359,15 +387,16 @@ class """ + className + """(implicit project: Project) {
             new ExecutedTarget(
               target = node,
               wasUpToDate = execPhonyUpToDateOrSkip || ctx.targetWasUpToDate,
-              requestId = requestId
-            )
+              requestId = requestId)
           )
         }
 
         alreadyRun ++ preorderedDependencies(tail,
           execState = execState,
           skipExec = skipExec,
-          dependencyTrace = dependencyTrace)
+          dependencyTrace = dependencyTrace,
+          depth = depth,
+          treePrinter = treePrinter)
     }
   }
 
