@@ -108,7 +108,7 @@ class """ + className + """(implicit project: Project) {
     verbose("Targets: \n" + project.targets.values.mkString("\n"))
 
     def formatTargetsOf(p: Project): String = {
-      p.targets.values.toSeq.sortBy(_.name).map { t =>
+      p.targets.values.toSeq.filter(!_.isImplicit).sortBy(_.name).map { t =>
         formatTarget(t)(project) + " \t" + (t.help match {
           case null => ""
           case s: String => s

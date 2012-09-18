@@ -64,17 +64,21 @@ trait Target {
 
   private[sbuild] def project: Project
 
+  private[sbuild] def isImplicit: Boolean
+
 }
 
 object Target {
   def apply(targetRef: TargetRef)(implicit project: Project): Target = project.findOrCreateTarget(targetRef)
 }
 
-case class ProjectTarget private[sbuild] (val name: String,
-                                          val file: File,
-                                          val phony: Boolean,
+case class ProjectTarget private[sbuild] (override val name: String,
+                                          override val file: File,
+                                          override val phony: Boolean,
                                           handler: Option[SchemeHandler],
-                                          val project: Project) extends Target {
+                                          override val project: Project) extends Target {
+
+  private[sbuild] var isImplicit = false
 
   private var _exec: TargetContext => Any = handler match {
     case None => null

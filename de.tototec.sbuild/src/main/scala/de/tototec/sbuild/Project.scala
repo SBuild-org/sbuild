@@ -126,12 +126,16 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
    */
   private[sbuild] var targets: Map[File, Target] = Map()
 
-  def findOrCreateTarget(targetRef: TargetRef): Target = findTarget(targetRef) match {
+  def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target = findTarget(targetRef) match {
+    case Some(t: ProjectTarget) if t.isImplicit && !isImplicit =>
+      // we change it to explicit
+      t.isImplicit = false
+      t
     case Some(t) => t
-    case None => createTarget(targetRef)
+    case None => createTarget(targetRef, isImplicit = isImplicit)
   }
 
-  def createTarget(targetRef: TargetRef): Target = {
+  def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target = {
     if (explicitForeignProject(targetRef).isDefined) {
       throw new ProjectConfigurationException("Cannot create Target which explicitly references a different project in its name: " + targetRef)
     }
@@ -142,12 +146,11 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
       case None => "file"
     }
 
-    val target: Target = new ProjectTarget(targetRef.name, file, phony, handler, this)
+    val target = new ProjectTarget(targetRef.name, file, phony, handler, this)
+    target.isImplicit = isImplicit
     targets += (file -> target)
     target
   }
-
-  def findTarget(targetRef: TargetRef): Option[Target] = findTarget(targetRef, searchInAllProjects = false)
 
   /**
    * @param targetRef The target name to find.
@@ -155,7 +158,7 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
    *        the current project and the TargetRef did not contain a project
    *        referrer, search in all other projects.
    */
-  def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean): Option[Target] = {
+  def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false): Option[Target] = {
     explicitForeignProject(targetRef) match {
       case Some(pFile) =>
         projectPool.propjectMap.get(pFile) match {
@@ -271,9 +274,7 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
     }
   }
 
-  def prerequisites(target: Target): List[Target] = prerequisites(target, searchInAllProjects = false)
-
-  def prerequisites(target: Target, searchInAllProjects: Boolean): List[Target] = target.dependants.map { dep =>
+  def prerequisites(target: Target, searchInAllProjects: Boolean = false): List[Target] = target.dependants.map { dep =>
     findTarget(dep, searchInAllProjects) match {
       case Some(target) => target
       case None =>
@@ -283,7 +284,7 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
             throw new TargetNotFoundException("Non-existing prerequisite '" + dep.name + "' found for target: " + target)
           case None | Some("file") =>
             // try to find a file
-            createTarget(dep) exec {
+            createTarget(dep, isImplicit = true) exec {
               val file = Path(dep.name)(this)
               if (!file.exists || !file.isDirectory) {
                 val e = new ProjectConfigurationException("Don't know how to build prerequisite: " + dep)
@@ -296,7 +297,7 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
             }
           case _ =>
             // A scheme handler might be able to resolve this thing
-            createTarget(dep)
+            createTarget(dep, isImplicit = true)
         }
     }
   }.toList
