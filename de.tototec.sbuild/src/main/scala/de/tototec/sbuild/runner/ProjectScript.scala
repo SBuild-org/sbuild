@@ -33,6 +33,7 @@ class ProjectScript(_scriptFile: File,
   }
 
   val scriptFile: File = _scriptFile.getAbsoluteFile.getCanonicalFile
+  val projectDir: File = scriptFile.getParentFile
 
   val buildTargetDir = ".sbuild";
   val buildFileTargetDir = ".sbuild/scala/" + scriptFile.getName;
@@ -257,11 +258,16 @@ class ProjectScript(_scriptFile: File,
         }
 
         file.getPath
+        // end http:
       } else {
-        if (!new File(entry).exists) {
+        val fileEntry = new File(entry) match {
+          case x if x.isAbsolute => x
+          case x => new File(projectDir, entry).getCanonicalFile
+        }
+        if (!fileEntry.exists) {
           println("Could not found classpath entry: " + entry)
         }
-        entry
+        fileEntry.getPath
       }
     }
   }
