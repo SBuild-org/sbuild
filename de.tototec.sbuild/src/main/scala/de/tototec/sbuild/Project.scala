@@ -213,6 +213,14 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
     }
   }
 
+  def log: Logger = new Logger {
+    // FIXME: we can better than this! Quick Hack! Do not release!
+    override def debug(msg: => Object) = Util.verbose(msg match {
+      case null => null
+      case x => x.toString
+    })
+  }
+
   case class UniqueTargetFile(file: File, phony: Boolean, handler: Option[SchemeHandler])
 
   def explicitForeignProject(targetRef: TargetRef): Option[File] = {
