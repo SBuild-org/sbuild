@@ -31,18 +31,16 @@ class SBuild(implicit project: Project) {
 
   val distZip = "target/" + distName + "-dist.zip"
 
-  Module("de.tototec.sbuild")
-  Module("de.tototec.sbuild.ant")
-  Module("de.tototec.sbuild.eclipse.plugin")
-  Module("de.tototec.sbuild.addons")
+  val modules = Seq("de.tototec.sbuild", "de.tototec.sbuild.ant", "de.tototec.sbuild.eclipse.plugin", "de.tototec.sbuild.addons")
+  modules.foreach { Module(_) }
 
-  Target("phony:clean") dependsOn "de.tototec.sbuild::clean" ~ "de.tototec.sbuild.ant::clean" exec {
+  Target("phony:clean") dependsOn (modules.map(m => TargetRefs(m + "::clean")).reduceLeft(_ ~ _)) exec {
     AntDelete(dir = Path("target"))
   } help "Clean all"
 
   val eclipsePlugin = "de.tototec.sbuild.eclipse.plugin::target/de.tototec.sbuild.eclipse.plugin-" + osgiVersion + ".jar"
 
-  Target("phony:all") dependsOn (distZip ~ eclipsePlugin) help "Build all"
+  Target("phony:all") dependsOn ((modules.map(m => TargetRefs(m + "::all")).reduceLeft(_ ~ _)) ~ distZip ~ eclipsePlugin) help "Build all"
 
   Target("phony:test") dependsOn ("de.tototec.sbuild::test") help "Run all tests"
 
@@ -95,7 +93,7 @@ if [ -z "$SBUILD_HOME" ] ; then
   # echo Using sbuild at $SBUILD_HOME
 fi
 
-java -cp "${SBUILD_HOME}/lib/scala-library-""" + scalaVersion + """.jar:${SBUILD_HOME}/lib/de.tototec.cmdoption-0.1.0.jar:${SBUILD_HOME}/lib/de.tototec.sbuild-""" + version + """.jar" de.tototec.sbuild.runner.SBuildRunner \
+java -XX:MaxPermSize=128m -cp "${SBUILD_HOME}/lib/scala-library-""" + scalaVersion + """.jar:${SBUILD_HOME}/lib/de.tototec.cmdoption-0.1.0.jar:${SBUILD_HOME}/lib/de.tototec.sbuild-""" + version + """.jar" de.tototec.sbuild.runner.SBuildRunner \
 --sbuild-cp "${SBUILD_HOME}/lib/de.tototec.sbuild-""" + version + """.jar" \
 --compile-cp "${SBUILD_HOME}/lib/scala-compiler-""" + scalaVersion + """.jar" \
 --project-cp "${SBUILD_HOME}/lib/de.tototec.sbuild.ant-""" + version + """.jar" \
