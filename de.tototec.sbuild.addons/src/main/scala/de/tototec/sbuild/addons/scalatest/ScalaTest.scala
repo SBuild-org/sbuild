@@ -4,6 +4,7 @@ import de.tototec.sbuild.Project
 import java.io.File
 import java.net.URLClassLoader
 import de.tototec.sbuild.ExecutionFailedException
+import de.tototec.sbuild.LogLevel
 
 object ScalaTest {
   def apply(
@@ -75,7 +76,7 @@ class ScalaTest(
         throw new ExecutionFailedException("org.scalatest.tools.Runner was not found on the classpath.\nPlease add it to the 'classpath' attribute or the SBuild classapth.")
     }
 
-    project.log.debug("Running ScalaTest with\n  classpath: " + (cl match {
+    project.log.log(LogLevel.Debug, "Running ScalaTest with\n  classpath: " + (cl match {
       case cp: URLClassLoader => cp.getURLs.mkString(", ")
       case x => "SBuild classpath"
     }) + "\n  args: " + args.mkString(", "))

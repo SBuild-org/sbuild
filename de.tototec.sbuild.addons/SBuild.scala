@@ -18,8 +18,10 @@ class SBuild(implicit project: Project) {
   val scalaVersion = "2.9.2"
   val compileCp =
     ("mvn:org.scala-lang:scala-library:" + scalaVersion) ~
-      ("../de.tototec.sbuild/target/de.tototec.sbuild.jar") ~
-      ("mvn: org.scalatest:scalatest_" + scalaVersion + ":1.6.1")
+      ("../de.tototec.sbuild/target/de.tototec.sbuild.jar")
+//      ("mvn: org.scalatest:scalatest_" + scalaVersion + ":1.6.1") ~
+//      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10.jar") ~
+//      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10-src.jar")
 
   SetProp("eclipse.classpath",
     compileCp.targetRefs.map(t => "<dep><![CDATA[" + (
@@ -36,7 +38,7 @@ class SBuild(implicit project: Project) {
     val input = "src/main/scala"
     val output = "target/classes"
     AntMkdir(dir = Path(output))
-    IfNotUpToDate(srcDir = Path(input), stateDir = Path("target"), ctx = ctx) {
+    IfNotUpToDate(Path(input), Path("target"), ctx) {
       scala_tools_ant.AntScalac(
         target = "jvm-1.5",
         encoding = "UTF-8",
