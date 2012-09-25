@@ -41,15 +41,6 @@ class SBuild(implicit project: Project) {
     AntDelete(dir = Path("target"))
   }
   
-  Target("phony:downloadBnd") dependsOn bnd_1_50_0 help "Download dependencies required to run cmvn"
-
-  Target("phony:eclipseCp") dependsOn compileCp exec { ctx: TargetContext =>
-    AntMkdir(dir = Path("target/eclipseCp"))
-    ctx.fileDependencies.foreach { file =>
-      AntCopy(file = file, toDir = Path("target/eclipseCp"))
-    }
-  }
-
   def antScalac = new scala_tools_ant.AntScalac(
     target = "jvm-1.5",
     encoding = "UTF-8",
