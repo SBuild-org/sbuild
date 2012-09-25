@@ -17,19 +17,17 @@ import java.io.OutputStream
 
 object Util {
 
-  def verbose(msg: => String) = {
-    SBuildRunner.verbose(msg)
-  }
-
+  var log: SBuildLogger = SBuildNoneLogger
+  
   def delete(files: File*) {
     files.map(_ match {
       case f if f.isDirectory => {
         delete(f.listFiles: _*)
-        verbose("Deleting dir: " + f)
+        log.log(LogLevel.Debug, "Deleting dir: " + f)
         f.delete
       }
       case f if f.exists => {
-        verbose("Deleting file: " + f)
+        log.log(LogLevel.Debug, "Deleting file: " + f)
         f.delete
       }
       case _ =>
@@ -44,7 +42,7 @@ object Util {
 
       targetFile.exists match {
         case true => { // File already exists
-          verbose("File '" + target + "' already downloaded")
+          log.log(LogLevel.Debug, "File '" + target + "' already downloaded")
           true
         }
         case false => { // File needs download
@@ -53,7 +51,7 @@ object Util {
 
             val buff = new ByteArrayOutputStream
             try {
-              verbose("Downloading '" + url + "'")
+              log.log(LogLevel.Debug, "Downloading '" + url + "'")
               val fileUrl = new URL(url)
               val in = new BufferedInputStream(fileUrl.openStream())
               var last = System.currentTimeMillis
@@ -62,7 +60,7 @@ object Util {
               while (!break) {
                 val now = System.currentTimeMillis();
                 if (now > last + 1000) {
-                  verbose("Downloaded " + len + " bytes");
+                  log.log(LogLevel.Debug, "Downloaded " + len + " bytes");
                   last = now;
                 }
                 in.read() match {
@@ -134,11 +132,11 @@ object Util {
     if (!archive.exists || !archive.isFile) throw new RuntimeException("Zip file cannot be found: " + archive);
     targetDir.mkdirs
 
-    verbose("Extracting zip archive '" + archive + "' to: " + targetDir)
+    log.log(LogLevel.Debug, "Extracting zip archive '" + archive + "' to: " + targetDir)
 
     var selectedFiles = _selectedFiles
     val partial = !selectedFiles.isEmpty
-    if (partial) verbose("Only extracting some content of zip file")
+    if (partial) log.log(LogLevel.Debug, "Only extracting some content of zip file")
 
     try {
       val zip = new ZipFile(archive)
@@ -167,7 +165,7 @@ object Util {
           }
         } else {
           if (zipEntry.isDirectory) {
-            verbose("  Creating " + zipEntry.getName);
+            log.log(LogLevel.Debug, "  Creating " + zipEntry.getName);
             new File(targetDir + "/" + zipEntry.getName).mkdirs
             None
           } else {
@@ -176,7 +174,7 @@ object Util {
         }
 
         if (extractFile.isDefined) {
-          verbose("  Extracting " + zipEntry.getName);
+          log.log(LogLevel.Debug, "  Extracting " + zipEntry.getName);
           val targetFile = extractFile.get
           if (targetFile.exists
             && !targetFile.getParentFile.isDirectory) {

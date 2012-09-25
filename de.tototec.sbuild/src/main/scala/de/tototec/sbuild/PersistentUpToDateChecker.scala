@@ -14,8 +14,8 @@ object IfNotUpToDate {
   def apply(srcDirOrFiles: Seq[File], stateDir: File, ctx: TargetContext)(task: => Any)(implicit project: Project) {
     val checker = PersistentUpToDateChecker(ctx.name.replaceFirst("^phony:", ""), srcDirOrFiles, stateDir, ctx.prerequisites)
     val didSomething = checker.doWhenNotUpToDate(task)
-    if (didSomething) Util.verbose("Conditional action executed in target " + ctx.name)
-    else Util.verbose("Conditional action not executed because it was up-to-date in target " + ctx.name)
+    if (didSomething) project.log.log(LogLevel.Debug, "Conditional action executed in target " + ctx.name)
+    else project.log.log(LogLevel.Debug, "Conditional action not executed because it was up-to-date in target " + ctx.name)
     ctx.addToTargetWasUpToDate(!didSomething)
   }
 

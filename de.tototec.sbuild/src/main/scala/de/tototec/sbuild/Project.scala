@@ -3,14 +3,17 @@ package de.tototec.sbuild
 import java.io.File
 
 object Project {
+
+  var log: SBuildLogger = SBuildNoneLogger
+
   /**
    * Check if the target is up-to-date. This check will respect the up-to-date state of direct dependencies.
    */
   def isTargetUpToDate(target: Target, dependenciesWhichWereUpToDateStates: Map[Target, Boolean] = Map()): Boolean = {
     lazy val prefix = "Target " + target.name + ": "
-    def verbose(msg: => String) = Util.verbose(prefix + msg)
+    def verbose(msg: => String) = log.log(LogLevel.Debug, prefix + msg)
     def exit(cause: String): Boolean = {
-      Util.verbose(prefix + "Not up-to-date: " + cause)
+      log.log(LogLevel.Debug, prefix + "Not up-to-date: " + cause)
       false
     }
 
@@ -52,11 +55,10 @@ object Project {
 
 }
 
-class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Option[ProjectPool]) {
-
-  def this(projectFile: File, projectReader: ProjectReader) {
-    this(projectFile, projectReader, None)
-  }
+class Project(_projectFile: File,
+              projectReader: ProjectReader,
+              _projectPool: Option[ProjectPool] = None,
+              val log: SBuildLogger = SBuildNoneLogger) {
 
   val projectFile: File = _projectFile.getAbsoluteFile.getCanonicalFile
   if (!projectFile.exists)
@@ -82,7 +84,9 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
 
     val newProjectDirOrFile = Path(dirOrFile)(this)
     if (!newProjectDirOrFile.exists) {
-      throw new ProjectConfigurationException("Subproject/module '" + dirOrFile + "' does not exists")
+      val ex = new ProjectConfigurationException("Subproject/module '" + dirOrFile + "' does not exists")
+      ex.buildScript = Some(this._projectFile)
+      throw ex
     }
 
     val newProjectFile = if (newProjectDirOrFile.isFile) {
@@ -92,7 +96,9 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
     }
 
     if (!newProjectFile.exists) {
-      throw new ProjectConfigurationException("Subproject/module '" + dirOrFile + "' does not exists")
+      val ex = new ProjectConfigurationException("Subproject/module '" + dirOrFile + "' does not exists")
+      ex.buildScript = Some(this._projectFile)
+      throw ex
     }
 
     // file exists checks passed, now check for double-added projects
@@ -104,7 +110,7 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
     val module = projectAlreadyIncluded match {
       case Some(existing) => existing
       case _ =>
-        val newProject = new Project(newProjectFile, projectReader, Some(projectPool))
+        val newProject = new Project(newProjectFile, projectReader, Some(projectPool), log)
         properties foreach {
           case (key, value) => newProject.addProperty(key, value)
         }
@@ -213,14 +219,6 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
     }
   }
 
-  def log: Logger = new Logger {
-    // FIXME: we can better than this! Quick Hack! Do not release!
-    override def debug(msg: => Object) = Util.verbose(msg match {
-      case null => null
-      case x => x.toString
-    })
-  }
-
   case class UniqueTargetFile(file: File, phony: Boolean, handler: Option[SchemeHandler])
 
   def explicitForeignProject(targetRef: TargetRef): Option[File] = {
@@ -321,9 +319,9 @@ class Project(_projectFile: File, projectReader: ProjectReader, _projectPool: Op
   private var _properties: Map[String, String] = Map()
   private[sbuild] def properties: Map[String, String] = _properties
   def addProperty(key: String, value: String) = if (_properties.contains(key)) {
-    Util.verbose("Ignoring redefinition of property: " + key)
+    log.log(LogLevel.Debug, "Ignoring redefinition of property: " + key)
   } else {
-    Util.verbose("Defining property: " + key + " with value: " + value)
+    log.log(LogLevel.Debug, "Defining property: " + key + " with value: " + value)
     _properties += (key -> value)
   }
 

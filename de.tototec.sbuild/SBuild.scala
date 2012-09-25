@@ -3,14 +3,14 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
-//   "../de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-0.1.1-SNAPSHOT.jar"
+//  "http://repo1.maven.org/maven2/org/scalatest/scalatest_2.9.2/1.6.1/scalatest_2.9.2-1.6.1.jar"
 @version("0.1.0")
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
   "http://repo1.maven.org/maven2/org/apache/ant/ant-launcher/1.8.3/ant-launcher-1.8.3.jar",
   "http://repo1.maven.org/maven2/junit/junit/4.10/junit-4.10.jar",
   "http://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.9.2/scala-compiler-2.9.2.jar",
-  "http://repo1.maven.org/maven2/org/scalatest/scalatest_2.9.2/1.6.1/scalatest_2.9.2-1.6.1.jar"
+  "../de.tototec.sbuild.addons/target/de.tototec.sbuild.addons.jar"
 )
 class SBuild(implicit project: Project) {
 
@@ -160,8 +160,11 @@ object SBuildVersion {
     }.execute
   }
 
-  //   Target("phony:test-new") dependsOn testCp ~ "testCompile" exec { ctx:TargetContext =>
-  //     de.tototec.sbuild.addons.scalatest.ScalaTest(runPath = Seq("target/test-classes"), reporter = "o")
-  //   }
+  Target("phony:test-new") dependsOn (testCp ~ jar ~ "testCompile") exec { ctx:TargetContext =>
+    new de.tototec.sbuild.addons.scalatest.ScalaTest(
+      classpath = ctx.fileDependencies,
+      runPath = Seq("target/test-classes"),
+      reporter = "o").execute
+  }
 
 }

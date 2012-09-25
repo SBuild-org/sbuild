@@ -1,35 +1,38 @@
 package de.tototec.sbuild.runner
 
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.FileWriter
 import java.net.URL
-import de.tototec.sbuild.Util
-import de.tototec.sbuild.Project
-import de.tototec.sbuild.SBuildException
-import de.tototec.sbuild.HttpSchemeHandler
 import java.net.URLClassLoader
-import java.io.FileInputStream
 import scala.io.BufferedSource
+import de.tototec.sbuild.HttpSchemeHandler
 import de.tototec.sbuild.OSGiVersion
-import java.io.FileOutputStream
-import java.io.IOException
-import de.tototec.sbuild.SBuildVersion
+import de.tototec.sbuild.Project
 import de.tototec.sbuild.ResolveResult
+import de.tototec.sbuild.SBuildException
+import de.tototec.sbuild.SBuildLogger
+import de.tototec.sbuild.SBuildVersion
+import de.tototec.sbuild.Util
+import de.tototec.sbuild.LogLevel
 
 class ProjectScript(_scriptFile: File,
                     sbuildClasspath: Array[String],
                     compileClasspath: Array[String],
                     additionalProjectClasspath: Array[String],
                     noFsc: Boolean,
-                    downloadCache: DownloadCache) {
+                    downloadCache: DownloadCache,
+                    log: SBuildLogger) {
 
-  def this(scriptFile: File, classpathConfig: ClasspathConfig, downloadCache: DownloadCache) {
+  def this(scriptFile: File, classpathConfig: ClasspathConfig, downloadCache: DownloadCache, log: SBuildLogger) {
     this(scriptFile,
       classpathConfig.sbuildClasspath,
       classpathConfig.compileClasspath,
       classpathConfig.projectClasspath,
       classpathConfig.noFsc,
-      downloadCache)
+      downloadCache,
+      log)
   }
 
   val scriptFile: File = _scriptFile.getAbsoluteFile.getCanonicalFile
@@ -191,9 +194,9 @@ class ProjectScript(_scriptFile: File,
   }
 
   def readAdditionalClasspath: Array[String] = {
-    SBuildRunner.verbose("About to find additional classpath entries.")
+    log.log(LogLevel.Debug, "About to find additional classpath entries.")
     val cp = readAnnotationWithVarargAttribute(annoName = "classpath", valueName = "value")
-    SBuildRunner.verbose("Using additional classpath entries: " + cp.mkString(", "))
+    log.log(LogLevel.Debug, "Using additional classpath entries: " + cp.mkString(", "))
 
     lazy val httpHandler = {
       var downloadDir: File = new File(targetBaseDir, "http")
@@ -206,7 +209,7 @@ class ProjectScript(_scriptFile: File,
     cp.map { entry =>
       if (entry.startsWith("http:")) {
         // we need to download it
-        SBuildRunner.verbose("Classpath entry is a HTTP resource: " + entry)
+        log.log(LogLevel.Debug, "Classpath entry is a HTTP resource: " + entry)
         val path = entry.substring("http:".length, entry.length)
         val file = httpHandler.localFile(path)
 
@@ -214,7 +217,7 @@ class ProjectScript(_scriptFile: File,
           try {
             val url = new URL(entry)
             if (downloadCache.hasEntry(url)) {
-              SBuildRunner.verbose("Resolving classpath entry from download cache: " + url)
+              log.log(LogLevel.Debug, "Resolving classpath entry from download cache: " + url)
               val cachedEntry = downloadCache.getEntry(url)
 
               file.getCanonicalFile.getParentFile.mkdirs
@@ -230,13 +233,13 @@ class ProjectScript(_scriptFile: File,
             }
           } catch {
             case e =>
-              SBuildRunner.verbose("Could not use download cache for resource: " + entry + "\n" + e)
+              log.log(LogLevel.Debug, "Could not use download cache for resource: " + entry + "\n" + e)
               if (file.exists) file.delete
           }
         }
 
         if (!file.exists) {
-          SBuildRunner.verbose("Need to download: " + entry)
+          log.log(LogLevel.Debug, "Need to download: " + entry)
           httpHandler.resolve(path) match {
             case ResolveResult(_, Some(t: Throwable)) => throw t
             case _ =>
@@ -245,7 +248,7 @@ class ProjectScript(_scriptFile: File,
         if (!file.exists) {
           println("Could not resolve classpath entry: " + entry)
         } else {
-          SBuildRunner.verbose("Resolved: " + entry + " => " + file)
+          log.log(LogLevel.Debug, "Resolved: " + entry + " => " + file)
           try {
             val url = new URL(entry)
             if (!downloadCache.hasEntry(url)) {
@@ -253,7 +256,7 @@ class ProjectScript(_scriptFile: File,
             }
           } catch {
             case e =>
-              SBuildRunner.verbose("Could not use download cache for resource: " + entry + "\n" + e)
+              log.log(LogLevel.Debug, "Could not use download cache for resource: " + entry + "\n" + e)
           }
         }
 
@@ -273,9 +276,9 @@ class ProjectScript(_scriptFile: File,
   }
 
   def useExistingCompiled(project: Project, classpath: Array[String]): Any = {
-    SBuildRunner.verbose("Loading compiled version of build script: " + scriptFile)
+    log.log(LogLevel.Debug, "Loading compiled version of build script: " + scriptFile)
     val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
-    SBuildRunner.verbose("CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
+    log.log(LogLevel.Debug, "CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
     val clazz: Class[_] = cl.loadClass(scriptBaseName)
     val ctr = clazz.getConstructor(classOf[Project])
     val scriptInstance = ctr.newInstance(project)
@@ -293,11 +296,11 @@ class ProjectScript(_scriptFile: File,
   def newCompile(classpath: Array[String]) {
     cleanScala()
     targetDir.mkdirs
-    SBuildRunner.verbose("Compiling build script: " + scriptFile)
+    log.log(LogLevel.Debug, "Compiling build script: " + scriptFile)
 
     compile(classpath.mkString(File.pathSeparator))
 
-    SBuildRunner.verbose("Writing info file: " + infoFile)
+    log.log(LogLevel.Debug, "Writing info file: " + infoFile)
     val info = <sbuild>
                  <sourceSize>{ scriptFile.length }</sourceSize>
                  <sourceLastModified>{ scriptFile.lastModified }</sourceLastModified>
@@ -313,7 +316,7 @@ class ProjectScript(_scriptFile: File,
 
   def compile(classpath: String) {
     val params = Array("-classpath", classpath, "-g:vars", "-d", targetDir.getPath, scriptFile.getPath)
-    SBuildRunner.verbose("Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
+    log.log(LogLevel.Debug, "Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
     val compilerClassloader = new URLClassLoader(compileClasspath.map { f => new File(f).toURI.toURL }, getClass.getClassLoader)
 
     def compileWithFsc() {
@@ -321,7 +324,7 @@ class ProjectScript(_scriptFile: File,
       //      import scala.tools.nsc.StandardCompileClient
       //      val compileClient = new StandardCompileClient
       val compileMethod = compileClient.asInstanceOf[Object].getClass.getMethod("process", Array(classOf[Array[String]]): _*)
-      SBuildRunner.verbose("Executing CompileClient with args: " + params.mkString(" "))
+      log.log(LogLevel.Debug, "Executing CompileClient with args: " + params.mkString(" "))
       val retVal = compileMethod.invoke(compileClient, params).asInstanceOf[Boolean]
       if (!retVal) throw new SBuildException("Could not compile build file " + scriptFile.getName + " with CompileClient. See compiler output.")
     }
@@ -329,7 +332,7 @@ class ProjectScript(_scriptFile: File,
     def compileWithoutFsc() {
       val compiler = compilerClassloader.loadClass("scala.tools.nsc.Main")
       val compilerMethod = compiler.getMethod("process", Array(classOf[Array[String]]): _*)
-      SBuildRunner.verbose("Executing Scala Compile with args: " + params.mkString(" "))
+      log.log(LogLevel.Debug, "Executing Scala Compile with args: " + params.mkString(" "))
       compilerMethod.invoke(null, params)
       val reporterMethod = compiler.getMethod("reporter")
       val reporter = reporterMethod.invoke(null)
@@ -346,7 +349,7 @@ class ProjectScript(_scriptFile: File,
       } catch {
         case e: SBuildException => throw e
         case e: Exception =>
-          SBuildRunner.verbose("Compilation with CompileClient failed. trying non-dispributed Scala compiler.")
+          log.log(LogLevel.Debug, "Compilation with CompileClient failed. trying non-dispributed Scala compiler.")
           // throw new SBuildException("Could not compile build file " + scriptFile.getName + " with CompileClient. Exception: " + e.getMessage, e)
           // we should try with normal scala compiler
           compileWithoutFsc

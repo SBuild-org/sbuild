@@ -4,12 +4,14 @@ import de.tototec.sbuild.Project
 import java.io.File
 import java.lang.reflect.InvocationTargetException
 import de.tototec.sbuild.ProjectReader
+import de.tototec.sbuild.SBuildLogger
+import de.tototec.sbuild.SBuildNoneLogger
 
-class SimpleProjectReader(config: Config, classpathConfig: ClasspathConfig) extends ProjectReader {
+class SimpleProjectReader(config: Config, classpathConfig: ClasspathConfig, log: SBuildLogger = SBuildNoneLogger) extends ProjectReader {
   val downloadCache: DownloadCache = new SimpleDownloadCache()
   
   override def readProject(projectToRead: Project, projectFile: File): Any = {
-    val script = new ProjectScript(projectFile, classpathConfig, downloadCache)
+    val script = new ProjectScript(projectFile, classpathConfig, downloadCache, log)
     if (config.clean) {
       script.clean
     }

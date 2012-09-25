@@ -16,6 +16,8 @@ object SBuildRunner {
 
   private[runner] var verbose = false
 
+  private var log: SBuildLogger = new SBuildConsoleLogger(LogLevel.Info)
+
   def main(args: Array[String]) {
     val bootstrapStart = System.currentTimeMillis
 
@@ -62,6 +64,11 @@ object SBuildRunner {
   def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis) {
 
     SBuildRunner.verbose = config.verbose
+    if (verbose) {
+      log = new SBuildConsoleLogger(LogLevel.Info, LogLevel.Debug)
+      Project.log = log
+      Util.log = log
+    }
 
     val projectFile = new File(config.buildfile)
 
@@ -96,16 +103,16 @@ class """ + className + """(implicit project: Project) {
       System.exit(0)
     }
 
-    val projectReader: ProjectReader = new SimpleProjectReader(config, classpathConfig)
+    val projectReader: ProjectReader = new SimpleProjectReader(config, classpathConfig, log)
 
-    val project = new Project(projectFile, projectReader)
+    val project = new Project(projectFile, projectReader, None, log)
     config.defines foreach {
       case (key, value) => project.addProperty(key, value)
     }
 
     projectReader.readProject(project, projectFile)
 
-    verbose("Targets: \n" + project.targets.values.mkString("\n"))
+    log.log(LogLevel.Debug, "Targets: \n" + project.targets.values.mkString("\n"))
 
     def formatTargetsOf(p: Project): String = {
       p.targets.values.toSeq.filter(!_.isImplicit).sortBy(_.name).map { t =>
@@ -156,7 +163,7 @@ class """ + className + """(implicit project: Project) {
       Console.println(execPlan)
       System.exit(0)
     } else {
-      verbose(execPlan)
+      log.log(LogLevel.Debug, execPlan)
     }
 
     if (config.showDependencyTree) {
@@ -181,14 +188,14 @@ class """ + className + """(implicit project: Project) {
     val executionStart = System.currentTimeMillis
     val bootstrapTime = executionStart - bootstrapStart
 
-    verbose("Executing...")
+    log.log(LogLevel.Debug, "Executing...")
     preorderedDependencies(targets, execState = Some(new ExecState(maxCount = chain.size)))(project)
     if (!targets.isEmpty) {
       println("[100%] Execution finished. SBuild init time: " + bootstrapTime +
         " msec, Execution time: " + (System.currentTimeMillis - executionStart) + " msec")
     }
 
-    verbose("Finished")
+    log.log(LogLevel.Debug, "Finished")
   }
 
   def determineRequestedTargets(targets: Seq[String])(implicit project: Project): (Seq[Target], Seq[String]) = {
@@ -252,7 +259,7 @@ class """ + className + """(implicit project: Project) {
         }
         def verboseTrackDeps(msg: => String) {
           //          this.verbose(List.fill(dependencyTrace.size + 1)(" |").mkString + msg)
-          this.verbose(msg + {
+          this.log.log(LogLevel.Debug, msg + {
             if (dependencyTrace.isEmpty) "" else "  <-- as dep of: " + dependencyTrace.map { formatTarget(_) }.mkString(" <- ")
           })
         }
@@ -274,9 +281,9 @@ class """ + className + """(implicit project: Project) {
 
           val skipOrUpToDate = skipExec || Project.isTargetUpToDate(node)
           // Execute prerequisites
-          verbose("determine dependencies of: " + node.name)
+          log.log(LogLevel.Debug, "determine dependencies of: " + node.name)
           val dependencies = node.project.prerequisites(node, searchInAllProjects = true)
-          verbose("dependencies of: " + formatTarget(node) + " => " + dependencies.map(formatTarget(_)).mkString(", "))
+          log.log(LogLevel.Debug, "dependencies of: " + formatTarget(node) + " => " + dependencies.map(formatTarget(_)).mkString(", "))
 
           // detect cycles
           if (dependencies.contains(node)) {
@@ -311,7 +318,7 @@ class """ + className + """(implicit project: Project) {
                 directDepsExecuted.toList.groupBy(e => e.target).map {
                   case (t: Target, execs: List[ExecutedTarget]) =>
                     val wasSkipped = execs.forall(_.wasUpToDate)
-                    verbose("  Target " + formatTarget(t) + " was skipped: " + wasSkipped)
+                    log.log(LogLevel.Debug, "  Target " + formatTarget(t) + " was skipped: " + wasSkipped)
                     (t -> wasSkipped)
                 }
 
@@ -335,7 +342,7 @@ class """ + className + """(implicit project: Project) {
             }
           }
           if (!skipOrUpToDate && execPhonyUpToDateOrSkip) {
-            verbose("All executed phony dependencies of '" + formatTarget(node) + "' were up-to-date.")
+            log.log(LogLevel.Debug, "All executed phony dependencies of '" + formatTarget(node) + "' were up-to-date.")
           }
 
           // Print State
@@ -348,7 +355,7 @@ class """ + className + """(implicit project: Project) {
             }
 
             if (execPhonyUpToDateOrSkip || node.action == null) {
-              verbose(percent + " Skipping target: " + formatTarget(node))
+              log.log(LogLevel.Debug, percent + " Skipping target: " + formatTarget(node))
             } else {
               println(percent + " Executing target: " + formatTarget(node))
             }
@@ -362,16 +369,16 @@ class """ + className + """(implicit project: Project) {
           } else {
             // Need to execute
             node.action match {
-              case null => verbose("Nothing to execute for target: " + formatTarget(node))
+              case null => log.log(LogLevel.Debug, "Nothing to execute for target: " + formatTarget(node))
               case exec =>
                 try {
-                  verbose("Executing target: " + formatTarget(node))
+                  log.log(LogLevel.Debug, "Executing target: " + formatTarget(node))
                   ctx.start
                   exec.apply(ctx)
                   ctx.end
-                  verbose("Executed target: " + formatTarget(node) + " in " + ctx.execDurationMSec + " msec")
+                  log.log(LogLevel.Debug, "Executed target: " + formatTarget(node) + " in " + ctx.execDurationMSec + " msec")
                   if (ctx.targetWasUpToDate) {
-                    verbose("Target determined itself as up-to-date while execution")
+                    log.log(LogLevel.Debug, "Target determined itself as up-to-date while execution")
                   }
                 } catch {
                   case e: Throwable => {
@@ -398,10 +405,6 @@ class """ + className + """(implicit project: Project) {
           depth = depth,
           treePrinter = treePrinter)
     }
-  }
-
-  def verbose(msg: => String) {
-    if (verbose) println(msg)
   }
 
 }
