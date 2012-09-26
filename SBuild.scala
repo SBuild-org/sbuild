@@ -12,9 +12,9 @@ class SBuild(implicit project: Project) {
   SchemeHandler("mvn", new MvnSchemeHandler(Path(Prop("mvn.repo", ".sbuild/mvn"))))
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
 
-  val version = Prop("SBUILD_VERSION", "0.1.1-SNAPSHOT")
+  val version = Prop("SBUILD_VERSION", "0.1.1")
   SetProp("SBUILD_VERSION", version)
-  val osgiVersion = Prop("SBUILD_OSGI_VERSION", "0.1.0.9002")
+  val osgiVersion = Prop("SBUILD_OSGI_VERSION", "0.1.1")
   SetProp("SBUILD_OSGI_VERSION", osgiVersion)
   SetProp("SBUILD_ECLIPSE_VERSION", osgiVersion)
 
@@ -22,6 +22,7 @@ class SBuild(implicit project: Project) {
 
   val binJar = "de.tototec.sbuild/target/de.tototec.sbuild.jar"
   val antJar = "de.tototec.sbuild.ant/target/de.tototec.sbuild.ant.jar"
+  val addonsJar = "de.tototec.sbuild.addons/target/de.tototec.sbuild.addons.jar"
   val cmdOptionJar = "http://cmdoption.tototec.de/cmdoption/attachments/download/3/de.tototec.cmdoption-0.1.0.jar"
   val scalaJar = "mvn:org.scala-lang:scala-library:" + scalaVersion
   val scalaCompilerJar = "mvn:org.scala-lang:scala-compiler:" + scalaVersion
@@ -50,6 +51,7 @@ class SBuild(implicit project: Project) {
 
   Target("phony:createDistDir") dependsOn "copyJars" ~ (distDir + "/bin/sbuild") ~ (distDir + "/bin/sbuild.bat") ~ "LICENSE.txt" exec {
     AntCopy(file = Path("LICENSE.txt"), toDir = Path(distDir + "/doc"))
+    AntCopy(file = Path("ChangeLog.txt"), toDir = Path(distDir + "/doc"))
   }
   
   Target("phony:copyDeps") dependsOn (cmdOptionJar ~ scalaJar ~ scalaCompilerJar) exec { ctx: TargetContext =>
@@ -58,9 +60,10 @@ class SBuild(implicit project: Project) {
     }
   }
 
-  Target("phony:copyJars") dependsOn ("copyDeps" ~ binJar ~ antJar) exec { ctx: TargetContext =>
+  Target("phony:copyJars") dependsOn ("copyDeps" ~ binJar ~ antJar ~ addonsJar) exec { ctx: TargetContext =>
     AntCopy(file = Path(binJar), toFile = Path(distDir + "/lib/de.tototec.sbuild-" + version + ".jar"))
     AntCopy(file = Path(antJar), toFile = Path(distDir + "/lib/de.tototec.sbuild.ant-" + version + ".jar"))
+    AntCopy(file = Path(addonsJar), toFile = Path(distDir + "/lib/de.tototec.sbuild.addons-" + version + ".jar"))
   }
 
   Target(distDir + "/bin/sbuild") dependsOn project.projectFile exec { ctx: TargetContext =>
@@ -96,7 +99,7 @@ fi
 java -XX:MaxPermSize=128m -cp "${SBUILD_HOME}/lib/scala-library-""" + scalaVersion + """.jar:${SBUILD_HOME}/lib/de.tototec.cmdoption-0.1.0.jar:${SBUILD_HOME}/lib/de.tototec.sbuild-""" + version + """.jar" de.tototec.sbuild.runner.SBuildRunner \
 --sbuild-cp "${SBUILD_HOME}/lib/de.tototec.sbuild-""" + version + """.jar" \
 --compile-cp "${SBUILD_HOME}/lib/scala-compiler-""" + scalaVersion + """.jar" \
---project-cp "${SBUILD_HOME}/lib/de.tototec.sbuild.ant-""" + version + """.jar" \
+--project-cp "${SBUILD_HOME}/lib/de.tototec.sbuild.ant-""" + version + """.jar:${SBUILD_HOME}/lib/de.tototec.sbuild.addons-""" + version + """.jar" \
 "$@"
 
 unset SBUILD_HOME
@@ -186,7 +189,7 @@ if NOT "%JAVA_HOME%"=="" SET SBUILD_JAVA_EXE=%JAVA_HOME%\bin\java.exe
 """de.tototec.sbuild.runner.SBuildRunner """ +
 """--sbuild-cp "%SBUILD_HOME%\lib\de.tototec.sbuild-""" + version + """.jar" """ +
 """--compile-cp "%SBUILD_HOME%\lib\scala-compiler-""" + scalaVersion + """.jar" """ +
-"""--project-cp "%SBUILD_HOME%\lib\scala-library-""" + scalaVersion + """.jar;%SBUILD_HOME%\lib\de.tototec.sbuild.ant-""" + version + """.jar" """ +
+"""--project-cp "%SBUILD_HOME%\lib\scala-library-""" + scalaVersion + """.jar;%SBUILD_HOME%\lib\de.tototec.sbuild.ant-""" + version + """.jar;%SBUILD_HOME%\lib\de.tototec.sbuild-addons-""" + version + """.jar" """ +
 """%SBUILD_CMD_LINE_ARGS%
       
 goto end

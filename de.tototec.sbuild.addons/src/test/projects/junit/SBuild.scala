@@ -19,6 +19,7 @@ class SBuild(implicit project: Project) {
 
   Target("phony:clean") dependsOn "clean-classes" exec {
     AntDelete(dir = Path("target"))
+    AntDelete(dir = Path("src"))
   }
 
   Target("phony:all") dependsOn jar
