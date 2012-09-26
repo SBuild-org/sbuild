@@ -8,6 +8,17 @@ import de.tototec.sbuild.Project
 import de.tototec.sbuild.LogLevel
 import scala.collection.JavaConversions._
 
+object JUnit {
+  def apply(
+    classpath: Seq[File] = null,
+    classes: Seq[String] = null,
+    failOnError: Boolean = true)(implicit project: Project) = new JUnit(
+    classpath = classpath,
+    classes = classes,
+    failOnError = failOnError
+  ).execute
+}
+
 class JUnit(
   var classpath: Seq[File] = null,
   var classes: Seq[String] = null,
