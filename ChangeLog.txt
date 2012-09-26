@@ -1,0 +1,32 @@
+SBuild 0.1.1 - 2012-09-26
+
+* SBuild now builds itself. SBuild-0.1.0 is required. :-)
+* SchemeHandler API changed: Return value of resolve-method changed to
+  ResolveResult.
+* Added new parameter forceDownload to HttpSchemeHandler.
+* Improved/fixed up-to-date detection for prerequisites/dependencies from
+  different projects.
+* Only targets defined in buildfiles will be shown with --list and
+  --list-rekursive, implicitly create targets will be not.
+* Improved error messages.
+* Imporved logging.
+* Added new commandline option --dependency-tree to show the dependency tree
+  for the requested targets.
+* Better cycle-detecting in target dependencies.
+* Better detection, if the buildfile needs recompilation in case that different
+  versions of SBuild are used.
+* Run SBuild JVM with more PermGemSpace to avoid OutOfMemoryErrors.
+* New Eclipse Plugin that is able the provide a classpath container based on
+  an SBuild buildfile. Therefore the function ExportDependencies was added.
+* Removed parameter dir:String from AntMkDir.
+* Added parameter fileSets to AntCopy.
+* Added parameter jvmArgs to AntScalac.
+* Added parameter failOnError to AntJava.
+* Added a lot of new parameter to AntJavac.
+* Added parameter envs to AntEcec.
+* Added addon ScalaTest.
+* Added addon JUnit.
+
+SBuild 0.1.0 - 2012-07-29
+
+* Initial public release.
