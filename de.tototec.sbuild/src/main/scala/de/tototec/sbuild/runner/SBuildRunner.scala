@@ -254,14 +254,8 @@ class """ + className + """(implicit project: Project) {
         // detect collisions
 
         treePrinter match {
-          case Some(print) => print(depth, node)
+          case Some(printFunc) => printFunc(depth, node)
           case _ =>
-        }
-        def verboseTrackDeps(msg: => String) {
-          //          this.verbose(List.fill(dependencyTrace.size + 1)(" |").mkString + msg)
-          this.log.log(LogLevel.Debug, msg + {
-            if (dependencyTrace.isEmpty) "" else "  <-- as dep of: " + dependencyTrace.map { formatTarget(_) }.mkString(" <- ")
-          })
         }
 
         val root = rootRequest match {
@@ -279,10 +273,10 @@ class """ + className + """(implicit project: Project) {
 
         val alreadyRun: Array[ExecutedTarget] = {
 
-          val skipOrUpToDate = skipExec || Project.isTargetUpToDate(node)
+          val skipOrUpToDate = skipExec || Project.isTargetUpToDate(node, searchInAllProjects = true)
           // Execute prerequisites
-          log.log(LogLevel.Debug, "determine dependencies of: " + node.name)
-          val dependencies = node.project.prerequisites(node, searchInAllProjects = true)
+          // log.log(LogLevel.Debug, "determine dependencies of: " + node.name)
+          val dependencies = node.project.prerequisites(target = node, searchInAllProjects = true)
           log.log(LogLevel.Debug, "dependencies of: " + formatTarget(node) + " => " + dependencies.map(formatTarget(_)).mkString(", "))
 
           // detect cycles
@@ -291,6 +285,8 @@ class """ + className + """(implicit project: Project) {
             ex.buildScript = Some(node.project.projectFile)
             throw ex
           }
+
+          // TODO: check dependencyTrace of cycles
 
           // All direct dependencies share the same request id.
           // Later we can identify them and check, if they were up-to-date.
@@ -306,7 +302,21 @@ class """ + className + """(implicit project: Project) {
 
           val doContextChecks = true
 
-          verboseTrackDeps("Evaluating up-to-date state of: " + formatTarget(node))
+          //          verboseTrackDeps("Evaluating up-to-date state of: " + formatTarget(node))
+
+          // print dep-tree
+          val trace = dependencyTrace match {
+            case x if x.isEmpty => ""
+            case x =>
+              var _toAdd = "     "
+              def toAdd = {
+                _toAdd += "  "
+                _toAdd
+              }
+              x.map { "\n" + toAdd + formatTarget(_) }.mkString
+          }
+
+          if (!skipExec) this.log.log(LogLevel.Debug, "===> " + formatTarget(node) + " is curent execution, with tree: " + trace + " <===")
 
           val execPhonyUpToDateOrSkip = skipOrUpToDate match {
             case true => true // already known up-to-date
@@ -338,7 +348,7 @@ class """ + className + """(implicit project: Project) {
               //                  }
               //                }.toMap
 
-              Project.isTargetUpToDate(node, targetWhichWereUpToDateStates)
+              Project.isTargetUpToDate(node, targetWhichWereUpToDateStates, searchInAllProjects = true)
             }
           }
           if (!skipOrUpToDate && execPhonyUpToDateOrSkip) {

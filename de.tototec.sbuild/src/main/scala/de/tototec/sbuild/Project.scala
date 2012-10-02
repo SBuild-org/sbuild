@@ -9,7 +9,9 @@ object Project {
   /**
    * Check if the target is up-to-date. This check will respect the up-to-date state of direct dependencies.
    */
-  def isTargetUpToDate(target: Target, dependenciesWhichWereUpToDateStates: Map[Target, Boolean] = Map()): Boolean = {
+  def isTargetUpToDate(target: Target,
+                       dependenciesWhichWereUpToDateStates: Map[Target, Boolean] = Map(),
+                       searchInAllProjects: Boolean = false): Boolean = {
     lazy val prefix = "Target " + target.name + ": "
     def verbose(msg: => String) = log.log(LogLevel.Debug, prefix + msg)
     def exit(cause: String): Boolean = {
@@ -20,7 +22,7 @@ object Project {
     if (target.phony) {
       if (target.action != null) exit("Target is phony")
       else {
-        val deps = target.project.prerequisites(target)
+        val deps = target.project.prerequisites(target, searchInAllProjects = searchInAllProjects)
         val firstNoUpToDateTarget = deps.find(t => !dependenciesWhichWereUpToDateStates.getOrElse(t, false))
         if (firstNoUpToDateTarget.isDefined) {
           exit("The dependency " + firstNoUpToDateTarget + " was not up-to-date")
@@ -31,7 +33,7 @@ object Project {
       }
     } else {
       if (target.targetFile.isEmpty || !target.targetFile.get.exists) exit("Target file does not exists") else {
-        val (phonyPrereqs, filePrereqs) = target.project.prerequisites(target).partition(_.phony)
+        val (phonyPrereqs, filePrereqs) = target.project.prerequisites(target, searchInAllProjects = searchInAllProjects).partition(_.phony)
         val phonyNonUpToDateTarget = phonyPrereqs.find(t => !dependenciesWhichWereUpToDateStates.getOrElse(t, false))
         if (phonyNonUpToDateTarget.isDefined) {
           // phony targets can only be considered up-to-date, if they retrieved their up-to-date state themselves while beeing executed
