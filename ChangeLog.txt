@@ -1,3 +1,7 @@
+SBuild 0.1.2 - 2012-10-04
+
+* Fixed cross-project dependency resolution problem for file targets.
+
 SBuild 0.1.1 - 2012-09-26
 
 * SBuild now builds itself. SBuild-0.1.0 is required. :-)
