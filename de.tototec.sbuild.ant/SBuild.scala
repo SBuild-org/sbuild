@@ -3,6 +3,7 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
+@version("0.1.1")
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
   "http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.9.2/scala-library-2.9.2.jar",
@@ -18,7 +19,7 @@ class SBuild(implicit project: Project) {
 
   // Current version of bnd (with ant tasks) is not in Maven repo 
   val bnd_1_50_0 = "http://dl.dropbox.com/u/2590603/bnd/biz.aQute.bnd.jar"
-  
+
   val scalaVersion = "2.9.2"
   val compileCp =
     ("../de.tototec.sbuild/target/de.tototec.sbuild.jar") ~
@@ -28,19 +29,14 @@ class SBuild(implicit project: Project) {
       "mvn:org.liquibase:liquibase-core:2.0.3" ~
       bnd_1_50_0
 
-  SetProp("eclipse.classpath",
-    compileCp.targetRefs.
-      map(t => "<dep><![CDATA[" + 
-        (if (t.explicitProject.isDefined) (t.explicitProject + "::") else "") + t.name + "]]></dep>").
-      mkString("<deps>", "", "</deps>")
-  )
-      
+  ExportDependencies("eclipse.classpath", compileCp)
+
   Target("phony:all") dependsOn jar
 
   val clean = Target("phony:clean") exec {
     AntDelete(dir = Path("target"))
   }
-  
+
   def antScalac = new scala_tools_ant.AntScalac(
     target = "jvm-1.5",
     encoding = "UTF-8",

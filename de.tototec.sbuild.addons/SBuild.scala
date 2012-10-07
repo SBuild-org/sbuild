@@ -3,7 +3,7 @@ import de.tototec.sbuild.TargetRefs._
 import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 
-@version("0.1.0")
+@version("0.1.1")
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
   "http://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.9.2/scala-compiler-2.9.2.jar")
@@ -23,10 +23,7 @@ class SBuild(implicit project: Project) {
 //      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10.jar") ~
 //      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10-src.jar")
 
-  SetProp("eclipse.classpath",
-    compileCp.targetRefs.map(t => "<dep><![CDATA[" + (
-      if (t.explicitProject.isDefined) (t.explicitProject + "::") else "") +
-      t.name + "]]></dep>").mkString("<deps>", "", "</deps>"))
+  ExportDependencies("eclipse.classpath", compileCp)
 
   Target("phony:all") dependsOn "clean" ~ addonsJar
 

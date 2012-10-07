@@ -3,7 +3,7 @@ import de.tototec.sbuild.TargetRefs._
 import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 
-@version("0.1.0")
+@version("0.1.1")
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
   "http://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.9.2/scala-compiler-2.9.2.jar",
@@ -14,7 +14,7 @@ class SBuild(implicit project: Project) {
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
   SchemeHandler("mvn", new MvnSchemeHandler(Path(Prop("mvn.repo", ".sbuild/mvn"))))
 
-  val version = Prop("SBUILD_ECLIPSE_VERSION", "0.1.2")
+  val version = Prop("SBUILD_ECLIPSE_VERSION", "0.1.2.9000")
   val sbuildVersion = Prop("SBUILD_VERSION", version)
   val eclipseJar = "target/de.tototec.sbuild.eclipse.plugin-" + version + ".jar"
 
@@ -41,12 +41,7 @@ class SBuild(implicit project: Project) {
       swtJar ~
       "http://cmdoption.tototec.de/cmdoption/attachments/download/3/de.tototec.cmdoption-0.1.0.jar"
 
-  SetProp("eclipse.classpath",
-    compileCp.targetRefs.
-      map(t => "<dep><![CDATA[" +
-        (if (t.explicitProject.isDefined) (t.explicitProject + "::") else "") + t.name + "]]></dep>").
-      mkString("<deps>", "", "</deps>")
-  )
+  ExportDependencies("eclipse.classpath", compileCp)
 
   Target("phony:all") dependsOn "clean" ~ eclipseJar
 

@@ -3,8 +3,7 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
-//  "http://repo1.maven.org/maven2/org/scalatest/scalatest_2.9.2/1.6.1/scalatest_2.9.2-1.6.1.jar"
-@version("0.1.0")
+@version("0.1.1")
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
   "http://repo1.maven.org/maven2/org/apache/ant/ant-launcher/1.8.3/ant-launcher-1.8.3.jar",
@@ -28,12 +27,7 @@ class SBuild(implicit project: Project) {
   val testCp = compileCp ~
     ("mvn: org.scalatest:scalatest_" + scalaVersion + ":1.6.1")
 
-  SetProp("eclipse.classpath",
-    testCp.targetRefs.
-      map(t => "<dep><![CDATA[" +
-        (if (t.explicitProject.isDefined) (t.explicitProject + "::") else "") + t.name + "]]></dep>").
-      mkString("<deps>", "", "</deps>")
-  )
+  ExportDependencies("eclipse.classpath", testCp)
 
   Target("phony:all") dependsOn jar ~ "test"
 
@@ -142,7 +136,13 @@ object SBuildVersion {
     }
   }
 
-  Target("phony:test") dependsOn testCp ~ jar ~ "testCompile" exec { ctx: TargetContext =>
+  Target("phony:test") dependsOn (testCp ~ jar ~ "testCompile") exec { ctx:TargetContext =>
+// This will require SBuild 0.1.3 because 0.1.2 included itself into classpath to early, which prevents testing itself with changed API.
+//    new de.tototec.sbuild.addons.scalatest.ScalaTest(
+//      classpath = ctx.fileDependencies,
+//      runPath = Seq("target/test-classes"),
+//      reporter = "oF").execute
+
     // scala [-classpath scalatest-<version>.jar:...] org.scalatest.tools.Runner 
     // [-D<key>=<value> [...]] [-p <runpath>] [reporter [...]] 
     // [-n <includes>] [-l <excludes>] [-c] [-s <suite class name> 
@@ -153,17 +153,11 @@ object SBuildVersion {
       fork = true,
       className = "org.scalatest.tools.Runner",
       classpath = AntPath(locations = ctx.fileDependencies),
-      args = "-o -p target/test-classes"
+      args = "-oF -p target/test-classes"
     ) {
       setFailonerror(true)
     }.execute
-  }
 
-//  Target("phony:test-new") dependsOn (testCp ~ jar ~ "testCompile") exec { ctx:TargetContext =>
-//    new de.tototec.sbuild.addons.scalatest.ScalaTest(
-//      classpath = ctx.fileDependencies,
-//      runPath = Seq("target/test-classes"),
-//      reporter = "o").execute
-//  }
+  }
 
 }

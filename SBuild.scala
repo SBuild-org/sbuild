@@ -12,9 +12,9 @@ class SBuild(implicit project: Project) {
   SchemeHandler("mvn", new MvnSchemeHandler(Path(Prop("mvn.repo", ".sbuild/mvn"))))
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
 
-  val version = Prop("SBUILD_VERSION", "0.1.2")
+  val version = Prop("SBUILD_VERSION", "0.1.3-SNAPSHOT")
   SetProp("SBUILD_VERSION", version)
-  val osgiVersion = Prop("SBUILD_OSGI_VERSION", "0.1.2")
+  val osgiVersion = Prop("SBUILD_OSGI_VERSION", "0.1.2.9000")
   SetProp("SBUILD_OSGI_VERSION", osgiVersion)
   SetProp("SBUILD_ECLIPSE_VERSION", osgiVersion)
 
