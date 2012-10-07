@@ -80,19 +80,18 @@ case class ProjectTarget private[sbuild] (override val name: String,
 
   private[sbuild] var isImplicit = false
 
+  private var _help: String = _
+  private var prereqs = handler match {
+    case Some(handler: SchemeHandlerWithDependencies) =>
+      handler.dependsOn(TargetRef(name)(project).nameWithoutProto).targetRefs
+    case _ => Seq[TargetRef]()
+  }
+
   private var _exec: TargetContext => Any = handler match {
     case None => null
-    case Some(handler) => { ctx: TargetContext =>
-      handler.resolve(TargetRef(name)(project).nameWithoutProto) match {
-        case ResolveResult(upToDate, None) =>
-          ctx.targetWasUpToDate = upToDate
-        case ResolveResult(_, Some(t)) =>
-          throw t
-      }
-    }
+    case Some(handler) =>
+      ctx: TargetContext => handler.resolve(TargetRef(name)(project).nameWithoutProto, ctx)
   }
-  private var _help: String = _
-  private var prereqs = Seq[TargetRef]()
 
   private[sbuild] override def action = _exec
   private[sbuild] override def dependants = prereqs

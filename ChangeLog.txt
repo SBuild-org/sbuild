@@ -1,3 +1,13 @@
+SBuild SVN/trunk
+
+* Improved classloading for ScalaTest and JUnit addons.
+* Incompatible API change: SchemeHandler can now have dependencies, when 
+  implementing the trait SchemeHandlerWithDependencies and have access to them
+  through the TargetContext, which will be given as parameter into resolve
+  method.
+* Added new ZipSchemeHandler to reference zipped resources, a typical use case
+  for original online dependencies like TestNG, JUnit or SWT.
+
 SBuild 0.1.2 - 2012-10-04
 
 * Fixed cross-project dependency resolution problem for file targets.

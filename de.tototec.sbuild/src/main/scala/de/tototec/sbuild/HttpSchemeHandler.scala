@@ -11,13 +11,27 @@ import java.io.FileNotFoundException
  * The file 'http://example.com/downloads/example.jar' will be downloaded into
  * '.sbuild/http/example.com/downloads/example.jar'
  */
-class HttpSchemeHandler(val downloadDir: File, val forceDownload: Boolean = false) extends SchemeHandler {
+class HttpSchemeHandler(downloadDir: File = null,
+                        forceDownload: Boolean = false)(implicit project: Project) extends HttpSchemeHandlerBase(
+  downloadDir match {
+    case null => Path(".sbuild/http")
+    case x => x
+  },
+  forceDownload) with SchemeHandler {
+
+  override def resolve(path: String, targetContext: TargetContext) = {
+    targetContext.targetWasUpToDate = download(path)
+  }
+
+}
+
+class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = false) {
 
   var online: Boolean = true
 
   def url(path: String): URL = new URL("http:" + path)
 
-  override def localPath(path: String): String = "file:" + localFile(path).getPath
+  def localPath(path: String): String = "file:" + localFile(path).getPath
 
   def localFile(path: String): File = {
     url(path)
@@ -25,21 +39,28 @@ class HttpSchemeHandler(val downloadDir: File, val forceDownload: Boolean = fals
     new File(downloadDir, path)
   }
 
-  override def resolve(path: String): ResolveResult = {
+  /**
+   * @return <code>true</code>, if the file was already up-to-date
+   */
+  def download(path: String): Boolean = {
     val target = localFile(path)
     if (online) {
       if (!forceDownload && target.exists) {
-        ResolveResult(true, None)
+        true
       } else {
         val url = this.url(path)
         println("Downloading " + url + "...")
-        val result = Util.download(url.toString, target.getPath)
-        result.isDefined || !target.exists
-        ResolveResult(false, result)
+        Util.download(url.toString, target.getPath) match {
+          case Some(e) => throw e
+          case _ => false
+        }
       }
     } else {
-      if (target.exists) ResolveResult(true, None)
-      else ResolveResult(false, Option(new FileNotFoundException("File is not present and can not be downloaded in offline-mode: " + target.getPath)))
+      if (target.exists) {
+        false
+      } else {
+        throw new FileNotFoundException("File is not present and can not be downloaded in offline-mode: " + target.getPath)
+      }
     }
   }
 }

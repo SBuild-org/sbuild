@@ -3,18 +3,20 @@ package de.tototec.sbuild
 import java.io.File
 import java.io.FileNotFoundException
 
-/** 
+/**
  * A SchemeHandler able to download Maven artifacts from a set of Maven repositories.
- * Normally, one would register this handler with the "mvn" scheme. 
- * Another typical use case is to separate public repositories from non-public (internal) ones, 
- * e.g. by registering this handler once under a "mvnPublic" schema and then under a "mvnInternal" scheme, 
+ * Normally, one would register this handler with the "mvn" scheme.
+ * Another typical use case is to separate public repositories from non-public (internal) ones,
+ * e.g. by registering this handler once under a "mvnPublic" schema and then under a "mvnInternal" scheme,
  * with appropriate sets of repositories, though.
- * 
+ *
  * Format: groupId:artifactId:version[;key=val]*
  * Supported values for key: classifier
- * 
+ *
  */
-class MvnSchemeHandler(val downloadPath: File = new File(System.getProperty("user.home", ".") + "/.m2/repository"), repos: Seq[String] = Seq("http://repo1.maven.org/maven2/")) extends SchemeHandler {
+class MvnSchemeHandler(
+  val downloadPath: File = new File(System.getProperty("user.home", ".") + "/.m2/repository"),
+  repos: Seq[String] = Seq("http://repo1.maven.org/maven2/")) extends SchemeHandler {
 
   protected var provisionedResources: Map[String, String] = Map()
 
@@ -57,9 +59,10 @@ class MvnSchemeHandler(val downloadPath: File = new File(System.getProperty("use
       version + "/" + artifact + "-" + version + classifierPart + ".jar"
   }
 
-  override def resolve(path: String): ResolveResult = {
+  override def resolve(path: String, targetContext: TargetContext) = {
     provisionedResources.get(path) map {
-      case _ => return ResolveResult(false, None)
+      case _ =>
+      // TODO
     }
 
     val target = localFile(path).getAbsoluteFile
@@ -71,10 +74,17 @@ class MvnSchemeHandler(val downloadPath: File = new File(System.getProperty("use
         result = Util.download(url, target.getPath)
         result.isDefined || !target.exists
       })
-      ResolveResult(false, result)
+      targetContext.targetWasUpToDate = false
+      result match {
+        case Some(e) => throw e
+        case _ =>
+      }
     } else {
-      if (target.exists) ResolveResult(false, None)
-      else ResolveResult(false, Option(new FileNotFoundException("File is not present and can not be downloaded in offline-mode: " + target.getPath)))
+      if (target.exists) {
+        targetContext.targetWasUpToDate = false
+      } else {
+        throw new FileNotFoundException("File is not present and can not be downloaded in offline-mode: " + target.getPath)
+      }
     }
   }
 

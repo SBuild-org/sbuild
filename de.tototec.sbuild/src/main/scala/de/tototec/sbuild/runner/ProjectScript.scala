@@ -7,7 +7,7 @@ import java.io.FileWriter
 import java.net.URL
 import java.net.URLClassLoader
 import scala.io.BufferedSource
-import de.tototec.sbuild.HttpSchemeHandler
+import de.tototec.sbuild.HttpSchemeHandlerBase
 import de.tototec.sbuild.OSGiVersion
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ResolveResult
@@ -203,7 +203,7 @@ class ProjectScript(_scriptFile: File,
       if (!downloadDir.isAbsolute) {
         downloadDir = downloadDir.getAbsoluteFile
       }
-      new HttpSchemeHandler(downloadDir)
+      new HttpSchemeHandlerBase(downloadDir)
     }
 
     cp.map { entry =>
@@ -240,10 +240,7 @@ class ProjectScript(_scriptFile: File,
 
         if (!file.exists) {
           log.log(LogLevel.Debug, "Need to download: " + entry)
-          httpHandler.resolve(path) match {
-            case ResolveResult(_, Some(t: Throwable)) => throw t
-            case _ =>
-          }
+          httpHandler.download(path)
         }
         if (!file.exists) {
           println("Could not resolve classpath entry: " + entry)
