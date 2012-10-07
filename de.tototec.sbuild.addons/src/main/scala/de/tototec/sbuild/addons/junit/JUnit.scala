@@ -29,7 +29,20 @@ class JUnit(
     val cl = classpath match {
       case null => getClass.getClassLoader
       case Seq() => getClass.getClassLoader
-      case cp => new URLClassLoader(cp.map { f => f.toURI().toURL() }.toArray, getClass.getClassLoader)
+      case cp =>
+        // Use a classloader that only loads from parent classloader if the given URLs do not contain the requested class.
+        new URLClassLoader(cp.map { f => f.toURI().toURL() }.toArray, null) {
+          override protected def loadClass(className: String, resolve: Boolean): Class[_] = {
+            synchronized {
+              try {
+                super.loadClass(className, resolve)
+              } catch {
+                case e: NoClassDefFoundError =>
+                  classOf[JUnit].getClassLoader().loadClass(className);
+              }
+            }
+          }
+        }
     }
 
     val junitClass = try {
