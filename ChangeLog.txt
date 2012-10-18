@@ -1,4 +1,4 @@
-SBuild SVN/trunk
+SBuild 0.1.3 - 2012-10-18
 
 * Improved classloading for ScalaTest and JUnit addons.
 * Incompatible API change: SchemeHandler can now have dependencies, when 
@@ -7,6 +7,8 @@ SBuild SVN/trunk
   method.
 * Added new ZipSchemeHandler to reference zipped resources, a typical use case
   for original online dependencies like TestNG, JUnit or SWT.
+* Fixed a bug, where the self-evaluated up-to-date state of phony targets was
+  lost causing some unnecessary executions.
 
 SBuild 0.1.2 - 2012-10-04
 
