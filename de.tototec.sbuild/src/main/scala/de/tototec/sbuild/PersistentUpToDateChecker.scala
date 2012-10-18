@@ -6,6 +6,16 @@ import scala.collection.JavaConversions._
 import java.io.FileInputStream
 import java.io.FileOutputStream
 
+/**
+ * Execute a given task only if a given set of sources have changed.
+ * 
+ * A (hidden) state file will be written into the directory given with <code>stateDir</code>.
+ * If a previously created state file does not exists, the task will always be executed.
+ * Therefore it is suggested, to place the state file into a directory, which gets clean automaticaly in a "clean" tasks.
+ * The fact, if the task was executed or not, is reported back to the given TargetContext, so that tasks,
+ * that depends on this tasks might be skipped, if this tasks was already up-to-date.
+ *
+ */
 object IfNotUpToDate {
 
   def apply(srcDir: File, stateDir: File, ctx: TargetContext)(task: => Any)(implicit project: Project): Unit =

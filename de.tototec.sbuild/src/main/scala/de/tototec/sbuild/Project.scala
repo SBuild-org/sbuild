@@ -37,6 +37,7 @@ object Project {
         val phonyNonUpToDateTarget = phonyPrereqs.find(t => !dependenciesWhichWereUpToDateStates.getOrElse(t, false))
         if (phonyNonUpToDateTarget.isDefined) {
           // phony targets can only be considered up-to-date, if they retrieved their up-to-date state themselves while beeing executed
+          // verbose("Checked " + phonyNonUpToDateTarget.get + " against up-to-date-state-map: " + dependenciesWhichWereUpToDateStates)
           exit("The phony dependency " + phonyNonUpToDateTarget.get.name + " was not up-to-date")
         } else {
           val fileThatdoesNotExists = filePrereqs.find(t => t.targetFile.isEmpty || !t.targetFile.get.exists)
