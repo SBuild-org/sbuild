@@ -150,6 +150,7 @@ class """ + className + """(implicit project: Project) {
       case true => Some((depth: Int, node: Target) => { dependencyTree ++= Seq((depth, node)) })
       case _ => None
     }
+    log.log(LogLevel.Info, "Calculating dependency tree...")
     val chain = preorderedDependencies(targets, skipExec = true, treePrinter = treePrinter)(project)
 
     def execPlan = {
@@ -188,7 +189,7 @@ class """ + className + """(implicit project: Project) {
     val executionStart = System.currentTimeMillis
     val bootstrapTime = executionStart - bootstrapStart
 
-    log.log(LogLevel.Debug, "Executing...")
+    log.log(LogLevel.Info, "Executing...")
     preorderedDependencies(targets, execState = Some(new ExecState(maxCount = chain.size)))(project)
     if (!targets.isEmpty) {
       println("[100%] Execution finished. SBuild init time: " + bootstrapTime +
@@ -292,13 +293,18 @@ class """ + className + """(implicit project: Project) {
           // Later we can identify them and check, if they were up-to-date.
           val resolveDirectDepsRequestId = Some(UUID.randomUUID.toString)
 
-          val executed = preorderedDependencies(dependencies.toList, Some(root),
+          val executed = preorderedDependencies(
+            request = dependencies.toList,
+            rootRequest = Some(root),
             execState = execState,
             skipExec = skipOrUpToDate,
             requestId = resolveDirectDepsRequestId,
             dependencyTrace = node :: dependencyTrace,
             depth = depth + 1,
-            treePrinter = treePrinter)
+            treePrinter = treePrinter
+          )
+
+          log.log(LogLevel.Debug, "Executed dependency count: " + executed.size);
 
           val doContextChecks = true
 
@@ -319,37 +325,47 @@ class """ + className + """(implicit project: Project) {
           if (!skipExec) this.log.log(LogLevel.Debug, "===> " + formatTarget(node) + " is curent execution, with tree: " + trace + " <===")
 
           val execPhonyUpToDateOrSkip = skipOrUpToDate match {
-            case true => true // already known up-to-date
-            case false => if (!doContextChecks) false else {
-              // Evaluate up-to-date state based on the list of executed tasks
+            case true =>
+              // already known as up-to-date
+              true
+            case false =>
+              // not up-to-date but we check the context
+              if (!doContextChecks) {
+                // we dont want to check the context, so this is realy not up-to-date
+                false
+              } else {
+                // Evaluate up-to-date state based on the list of already executed tasks
+                // only use direct dependencies
+                log.log(LogLevel.Debug, "Request-ID used for dependencies: " + resolveDirectDepsRequestId)
+                //                log.log(LogLevel.Debug, "Existing request ID -> count: " + executed.groupBy { et: ExecutedTarget => et.requestId }.map { case (k, vl) => (k, vl.size) })
+                val directDepsExecuted = executed.filter(_.requestId == resolveDirectDepsRequestId)
+                // group direct dependencies by target and then return a map with the up-to-date state for each target
+                val targetWhichWereUpToDateStates: Map[Target, Boolean] =
+                  directDepsExecuted.toList.groupBy(e => e.target).map {
+                    case (t: Target, execs: List[ExecutedTarget]) =>
+                      val wasSkipped = execs.forall(_.wasUpToDate)
+                      log.log(LogLevel.Debug, "  Direct dependency " + formatTarget(t) + (if (wasSkipped) " was skipped " else " was not skipped"))
+                      (t -> wasSkipped)
+                  }
 
-              val directDepsExecuted = executed.filter(_.requestId == resolveDirectDepsRequestId)
-              val targetWhichWereUpToDateStates: Map[Target, Boolean] =
-                directDepsExecuted.toList.groupBy(e => e.target).map {
-                  case (t: Target, execs: List[ExecutedTarget]) =>
-                    val wasSkipped = execs.forall(_.wasUpToDate)
-                    log.log(LogLevel.Debug, "  Target " + formatTarget(t) + " was skipped: " + wasSkipped)
-                    (t -> wasSkipped)
-                }
+                //              // Imagine the case were the same 
+                //              // dependencies was added twice to the direct dependencies. Both would be associated by the same target,
+                //              // so the up-to-date state of the first executed dependency would always be used for all same
+                //              // dependencies. Because of this, we must aggregate all running state of one target, even if that means 
+                //              // we miss some skip-able targets  
+                //              val targetWhichWereUpToDateStates: Map[Target, Boolean] =
+                //                project.prerequisites(node).toList.distinct.map { t =>
+                //                  executed.filter(e => e.target == t) match {
+                //                    case Array() => (t -> false)
+                //                    case xs => xs.find(e => e.needsExec) match {
+                //                      case Some(_) => (t -> false)
+                //                      case None => (t -> true)
+                //                    }
+                //                  }
+                //                }.toMap
 
-              //              // Imagine the case were the same 
-              //              // dependencies was added twice to the direct dependencies. Both would be associated by the same target,
-              //              // so the up-to-date state of the first executed dependency would always be used for all same
-              //              // dependencies. Because of this, we must aggregate all running state of one target, even if that means 
-              //              // we miss some skip-able targets  
-              //              val targetWhichWereUpToDateStates: Map[Target, Boolean] =
-              //                project.prerequisites(node).toList.distinct.map { t =>
-              //                  executed.filter(e => e.target == t) match {
-              //                    case Array() => (t -> false)
-              //                    case xs => xs.find(e => e.needsExec) match {
-              //                      case Some(_) => (t -> false)
-              //                      case None => (t -> true)
-              //                    }
-              //                  }
-              //                }.toMap
-
-              Project.isTargetUpToDate(node, targetWhichWereUpToDateStates, searchInAllProjects = true)
-            }
+                Project.isTargetUpToDate(node, targetWhichWereUpToDateStates, searchInAllProjects = true)
+              }
           }
           if (!skipOrUpToDate && execPhonyUpToDateOrSkip) {
             log.log(LogLevel.Debug, "All executed phony dependencies of '" + formatTarget(node) + "' were up-to-date.")
@@ -379,7 +395,7 @@ class """ + className + """(implicit project: Project) {
           } else {
             // Need to execute
             node.action match {
-              case null => log.log(LogLevel.Debug, "Nothing to execute for target: " + formatTarget(node))
+              case null => log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(node))
               case exec =>
                 try {
                   log.log(LogLevel.Debug, "Executing target: " + formatTarget(node))
@@ -388,7 +404,7 @@ class """ + className + """(implicit project: Project) {
                   ctx.end
                   log.log(LogLevel.Debug, "Executed target: " + formatTarget(node) + " in " + ctx.execDurationMSec + " msec")
                   if (ctx.targetWasUpToDate) {
-                    log.log(LogLevel.Debug, "Target determined itself as up-to-date while execution")
+                    log.log(LogLevel.Debug, "Target " + formatTarget(node) + " determined itself as up-to-date while it was executed. Request-ID: " + requestId)
                   }
                 } catch {
                   case e: Throwable => {
@@ -412,6 +428,7 @@ class """ + className + """(implicit project: Project) {
           execState = execState,
           skipExec = skipExec,
           dependencyTrace = dependencyTrace,
+          requestId = requestId,
           depth = depth,
           treePrinter = treePrinter)
     }
