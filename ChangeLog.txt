@@ -34,9 +34,9 @@ SBuild 0.1.1 - 2012-09-26
 * Improved/fixed up-to-date detection for prerequisites/dependencies from
   different projects.
 * Only targets defined in buildfiles will be shown with --list and
-  --list-rekursive, implicitly create targets will be not.
+  --list-recursive, implicitly create targets will be not.
 * Improved error messages.
-* Imporved logging.
+* Improved logging.
 * Added new commandline option --dependency-tree to show the dependency tree
   for the requested targets.
 * Better cycle-detecting in target dependencies.
