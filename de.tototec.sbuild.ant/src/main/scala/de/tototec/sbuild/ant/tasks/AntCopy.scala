@@ -24,7 +24,9 @@ object AntCopy {
     outputEncoding: String = null,
     granularity: java.lang.Long = null,
     // since 0.1.0.9001
-    fileSets: Seq[FileSet] = null)(implicit _project: Project) =
+    fileSets: Seq[FileSet] = null,
+    // since 0.1.3.9000
+    fileSet: FileSet = null)(implicit _project: Project) =
     new AntCopy(
       file = file,
       toFile = toFile,
@@ -41,7 +43,8 @@ object AntCopy {
       encoding = encoding,
       outputEncoding = outputEncoding,
       granularity = granularity,
-      fileSets = fileSets
+      fileSets = fileSets,
+      fileSet = fileSet
     ).execute
 }
 
@@ -65,7 +68,9 @@ class AntCopy()(implicit _project: Project) extends Copy {
     outputEncoding: String = null,
     granularity: java.lang.Long = null,
     // since 0.1.0.9001
-    fileSets: Seq[FileSet] = null)(implicit _project: Project) {
+    fileSets: Seq[FileSet] = null,
+     // since 0.1.2.9000
+    fileSet: FileSet = null)(implicit _project: Project) {
     this
     if (file != null) setFile(file)
     if (toFile != null) setTofile(toFile)
@@ -85,6 +90,7 @@ class AntCopy()(implicit _project: Project) extends Copy {
     if (fileSets != null) fileSets.foreach { fileSet =>
       addFileset(fileSet)
     }
+    if (fileSets != null) addFileset(fileSet)
   }
 
   def setToDir(toDir: File) = setTodir(toDir)
