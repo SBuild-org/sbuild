@@ -77,39 +77,48 @@ object SBuildVersion {
     force = true)
 
   Target("phony:compile") dependsOn (compileCp ~ versionScalaFile) exec { ctx: TargetContext =>
-    val input = "src/main/scala"
     val output = "target/classes"
     AntMkdir(dir = Path(output))
-    IfNotUpToDate(srcDir = Path(input), stateDir = Path("target"), ctx = ctx) {
+    IfNotUpToDate(Seq(Path("src/main/scala"), Path("src/main/java")), Path("target"), ctx) {
+      AntJavac(
+        srcDir = AntPath("src/main/java"),
+        destDir = Path("target/classes"),
+        classpath = AntPath(locations = ctx.fileDependencies),
+        fork = true,
+        source = "1.5",
+        target = "1.5",
+        encoding = "UTF-8",
+        debug = true,
+        includeAntRuntime = false
+      )
+
       val scalac = antScalac
-      scalac.setSrcDir(AntPath(input))
+      scalac.setSrcDir(AntPath(paths = Seq("src/main/scala", "src/main/java")))
       scalac.setDestDir(Path(output))
-      scalac.setClasspath(AntPath(compileCp))
+      scalac.setClasspath(AntPath(locations = ctx.fileDependencies))
       scalac.execute
     }
 
     validateGeneratedVersions(ctx.fileDependencies)
   }
 
-  Target("phony:copyResources") exec {
-    val resources = Path("src/main/resources")
-    if (resources.exists) {
-      new AntCopy(toDir = Path("target/classes")) {
-        add(AntPath(resources))
-      }.execute
-    }
+  Target("phony:checkResources") exec { ctx: TargetContext =>
+    IfNotUpToDate(Path("src/main/resources"), Path("target"), ctx) {}
   }
 
-  Target(jar) dependsOn ("compile" ~ "copyResources") exec { ctx: TargetContext =>
-    val jarTask = new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"))
-    jarTask.addFileset(AntFileSet(dir = Path("."), includes = "LICENSE.txt"))
-    jarTask.execute
+  Target("phony:checkMainSources") exec { ctx: TargetContext =>
+    IfNotUpToDate(Path("src/main"), Path("target"), ctx) {}
   }
 
-  Target("target/sources.jar") exec { ctx: TargetContext =>
-    AntCopy(file = Path("src/main/scala"), toDir = Path("target/sources/src/main/scala"))
-    AntCopy(file = Path("src/main/resources"), toDir = Path("target/sources/src/main/resources"))
-    AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/sources"))
+  Target(jar) dependsOn "compile" ~ "checkResources" exec { ctx: TargetContext =>
+    new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes")) {
+      if(Path("src/main/resources").exists) add(AntFileSet(dir = Path("src/main/resources")))
+      add(AntFileSet(file = Path("LICENSE.txt")))
+    }.execute
+  }
+
+  Target("target/sources.zip") dependsOn "checkMainSources" exec { ctx: TargetContext =>
+    AntZip(destFile = ctx.targetFile.get, baseDir = Path("."), includes = "SBuild.scala LICENSE.txt src/main/**")
   }
 
   Target("phony:scaladoc") dependsOn compileCp exec { ctx: TargetContext =>
@@ -136,12 +145,12 @@ object SBuildVersion {
     }
   }
 
-  Target("phony:test") dependsOn (testCp ~ jar ~ "testCompile") exec { ctx:TargetContext =>
-// This will require SBuild 0.1.3 because 0.1.2 included itself into classpath to early, which prevents testing itself with changed API.
-//    new de.tototec.sbuild.addons.scalatest.ScalaTest(
-//      classpath = ctx.fileDependencies,
-//      runPath = Seq("target/test-classes"),
-//      reporter = "oF").execute
+  Target("phony:test") dependsOn (testCp ~ jar ~ "testCompile") exec { ctx: TargetContext =>
+    // This will require SBuild 0.1.3 because 0.1.2 included itself into classpath to early, which prevents testing itself with changed API.
+    //    new de.tototec.sbuild.addons.scalatest.ScalaTest(
+    //      classpath = ctx.fileDependencies,
+    //      runPath = Seq("target/test-classes"),
+    //      reporter = "oF").execute
 
     // scala [-classpath scalatest-<version>.jar:...] org.scalatest.tools.Runner 
     // [-D<key>=<value> [...]] [-p <runpath>] [reporter [...]] 
