@@ -60,9 +60,19 @@ class SBuild(implicit project: Project) {
   }
 
   Target(jar) dependsOn "compile" exec { ctx: TargetContext =>
-    val jarTask = new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"))
-    jarTask.addFileset(AntFileSet(dir = Path("."), includes="LICENSE.txt"))
-    jarTask.execute
+    new AntJar(
+      destFile = ctx.targetFile.get,
+      baseDir = Path("target/classes")
+    ) {
+      addFileset(AntFileSet(dir = Path("."), includes="LICENSE.txt"))
+      addConfiguredManifest(new org.apache.tools.ant.taskdefs.Manifest() {
+        setProject(AntProject())
+        addConfiguredAttribute(new org.apache.tools.ant.taskdefs.Manifest.Attribute() {
+          setName("SBuild-ComponentName")
+          setValue("de.tototec.sbuild.ant")
+        })
+      })
+    }.execute
   }
 
   Target("phony:scaladoc") dependsOn compileCp exec { ctx: TargetContext =>
