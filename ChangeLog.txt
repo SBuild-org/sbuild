@@ -1,3 +1,14 @@
+SBuild SVN/trunk
+
+* Added parameters to AntZip Ant wrapper: compress, keepCompression, filesOnly,
+  fileSet, fileSete
+* Added parameters to AntJar Ant wrapper: compress, keepCompression, filesOnly,
+  metaInf, fileSet, fileSets, manifestEntries, manifestSectionEntries, service,
+  services
+* Added parameter to AntCopy Ant wrapper: fileSet
+* Added @configuration annotation, to declare required configuration parameters
+  in a project
+
 SBuild 0.1.3 - 2012-10-18
 
 * Improved classloading for ScalaTest and JUnit addons.
