@@ -1,29 +1,33 @@
 package de.tototec.sbuild.eclipse.plugin
 
-import org.eclipse.core.runtime.IPath
-import org.eclipse.jdt.core.IJavaProject
-import org.eclipse.jdt.core.IClasspathContainer
-import org.eclipse.jdt.core.IClasspathEntry
 import java.io.File
-import de.tototec.sbuild.runner.Config
-import de.tototec.sbuild.runner.ClasspathConfig
-import de.tototec.sbuild.runner.SimpleProjectReader
-import de.tototec.sbuild.ProjectReader
-import de.tototec.sbuild.Project
+
 import scala.collection.JavaConversions._
 import scala.xml.XML
 import scala.xml.factory.XMLLoader
-import de.tototec.sbuild.runner.SBuildRunner
-import de.tototec.sbuild.Target
-import de.tototec.sbuild.SBuildException
-import org.eclipse.jdt.core.JavaCore
-import org.eclipse.core.runtime.Path
-import de.tototec.sbuild.TargetRef
-import de.tototec.sbuild.SBuildVersion
-import org.eclipse.core.resources.ResourcesPlugin
-import de.tototec.sbuild.TargetRefs
-import org.eclipse.jdt.core.IJavaModel
+
 import org.eclipse.core.resources.ProjectScope
+import org.eclipse.core.resources.ResourcesPlugin
+import org.eclipse.core.runtime.IPath
+import org.eclipse.core.runtime.Path
+import org.eclipse.jdt.core.IJavaModel
+import org.eclipse.jdt.core.IJavaProject
+import org.eclipse.jdt.core.IClasspathContainer
+import org.eclipse.jdt.core.IClasspathEntry
+import org.eclipse.jdt.core.JavaCore
+
+import de.tototec.sbuild.Project
+import de.tototec.sbuild.ProjectReader
+import de.tototec.sbuild.SBuildException
+import de.tototec.sbuild.SBuildVersion
+import de.tototec.sbuild.Target
+import de.tototec.sbuild.TargetRef
+import de.tototec.sbuild.TargetRefs
+import de.tototec.sbuild.runner.ClasspathConfig
+import de.tototec.sbuild.runner.Config
+import de.tototec.sbuild.runner.SBuildRunner
+import de.tototec.sbuild.runner.SimpleProjectReader
+
 // import org.eclipse.core.runtime.preferences.IScopeContext
 // import org.osgi.service.prefs.Preferences
 
@@ -31,9 +35,12 @@ object SBuildClasspathContainer {
   val ContainerName = "de.tototec.sbuild.SBUILD_DEPENDENCIES"
   def SBuildHomeVariableName = "SBUILD_HOME"
   def classpathConfig(sbuildHomeDir: File) = new ClasspathConfig {
-    _sbuildClasspath = sbuildHomeDir.getAbsolutePath + "/lib/de.tototec.sbuild-" + SBuildVersion.version + ".jar"
-    _compileClasspath = sbuildHomeDir.getAbsolutePath + "/lib/scala-compiler-2.9.2.jar"
-    _projectClasspath = sbuildHomeDir.getAbsolutePath + "/lib/de.tototec.sbuild.ant-" + SBuildVersion.version + ".jar"
+    sbuildClasspath = sbuildHomeDir.getAbsolutePath + "/lib/de.tototec.sbuild-" + SBuildVersion.version + ".jar"
+    compileClasspath = sbuildHomeDir.getAbsolutePath + "/lib/scala-compiler-2.9.2.jar"
+    projectClasspath = Array(
+      sbuildHomeDir.getAbsolutePath + "/lib/de.tototec.sbuild.ant-" + SBuildVersion.version + ".jar",
+      sbuildHomeDir.getAbsolutePath + "/lib/de.tototec.sbuild.addons-" + SBuildVersion.version + ".jar"
+    )
   }
   def SBuildPreferencesNode = "de.tototec.sbuild.eclipse.plugin"
   def WorkspaceProjectAliasNode = "workspaceProjectAlias"
@@ -185,7 +192,6 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
 
     this.resolveActions = Some(resolveActions)
     this.sbuildFileTimestamp = buildFile.lastModified
-
   }
 
   case class ResolveAction(result: String, name: String, action: () => Boolean)
@@ -216,7 +222,6 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
 
     val javaModel: IJavaModel = JavaCore.create(project.getProject.getWorkspace.getRoot)
 
-    //        val aliasesMap = settings.workspaceProjectAliases
     val aliasesMap = readWorkspaceProjectAliases
     debug("Using workspaceProjectAliases: " + aliasesMap)
     val classpathEntries = resolveActions.get.map { action: ResolveAction =>

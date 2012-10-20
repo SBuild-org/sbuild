@@ -3,7 +3,7 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
-@version("0.1.1")
+@version("0.1.3")
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
   "http://repo1.maven.org/maven2/org/apache/ant/ant-launcher/1.8.3/ant-launcher-1.8.3.jar",
@@ -110,6 +110,11 @@ object SBuildVersion {
     IfNotUpToDate(Path("src/main"), Path("target"), ctx) {}
   }
 
+  Target("phony:checkScalaSources") exec { ctx: TargetContext =>
+    IfNotUpToDate(Path("src/main/scala"), Path("target"), ctx) {}
+  }
+
+
   Target(jar) dependsOn "compile" ~ "checkResources" exec { ctx: TargetContext =>
     new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes")) {
       if(Path("src/main/resources").exists) add(AntFileSet(dir = Path("src/main/resources")))
@@ -121,7 +126,7 @@ object SBuildVersion {
     AntZip(destFile = ctx.targetFile.get, baseDir = Path("."), includes = "SBuild.scala LICENSE.txt src/main/**")
   }
 
-  Target("phony:scaladoc") dependsOn compileCp exec { ctx: TargetContext =>
+  Target("phony:scaladoc") dependsOn compileCp ~ "checkScalaSources" exec { ctx: TargetContext =>
     AntMkdir(dir = Path("target/scaladoc"))
     scala_tools_ant.AntScaladoc(
       deprecation = "on",
@@ -133,40 +138,22 @@ object SBuildVersion {
   }
 
   Target("phony:testCompile") dependsOn (testCp ~ jar) exec { ctx: TargetContext =>
-    val input = "src/test/scala"
-    val output = Path("target/test-classes")
-    AntMkdir(dir = output)
-    IfNotUpToDate(Path(input), Path("target"), ctx) {
+    IfNotUpToDate(Path("src/test/scala"), Path("target"), ctx) {
+      AntMkdir(dir = Path("target/test-classes"))
       val scalac = antScalac
-      scalac.setSrcDir(AntPath(path = input))
-      scalac.setDestDir(output)
+      scalac.setSrcDir(AntPath("src/test/scala"))
+      scalac.setDestDir(Path("target/test-classes"))
       scalac.setClasspath(AntPath(locations = ctx.fileDependencies))
       scalac.execute
     }
   }
 
   Target("phony:test") dependsOn (testCp ~ jar ~ "testCompile") exec { ctx: TargetContext =>
-    // This will require SBuild 0.1.3 because 0.1.2 included itself into classpath to early, which prevents testing itself with changed API.
-    //    new de.tototec.sbuild.addons.scalatest.ScalaTest(
-    //      classpath = ctx.fileDependencies,
-    //      runPath = Seq("target/test-classes"),
-    //      reporter = "oF").execute
-
-    // scala [-classpath scalatest-<version>.jar:...] org.scalatest.tools.Runner 
-    // [-D<key>=<value> [...]] [-p <runpath>] [reporter [...]] 
-    // [-n <includes>] [-l <excludes>] [-c] [-s <suite class name> 
-    // [...]] [-j <junit class name> [...]] [-m <members-only suite path> 
-    // [...]] [-w <wildcard suite path> [...]] [-t <TestNG config file 
-    // path> [...]]
-    new AntJava(
-      fork = true,
-      className = "org.scalatest.tools.Runner",
-      classpath = AntPath(locations = ctx.fileDependencies),
-      args = "-oF -p target/test-classes"
-    ) {
-      setFailonerror(true)
-    }.execute
-
+    de.tototec.sbuild.addons.scalatest.ScalaTest(
+      classpath = ctx.fileDependencies,
+      runPath = Seq("target/test-classes"),
+      reporter = "oF"
+    )
   }
 
 }
