@@ -46,9 +46,6 @@ trait Target {
   def exec(execution: TargetContext => Any): Target
   private[sbuild] def action: TargetContext => Any
 
-  def apply(execution: => Any): Target
-  def apply(execution: TargetContext => Any): Target
-
   /**
    * Set a descriptive information text to this target, to assist the developer/user of the project.
    */
@@ -109,15 +106,6 @@ case class ProjectTarget private[sbuild] (override val name: String,
     this
   }
   override def exec(execution: TargetContext => Any): Target = {
-    _exec = execution
-    this
-  }
-
-  def apply(execution: => Any): Target = {
-    _exec = _ => execution
-    this
-  }
-  def apply(execution: TargetContext => Any): Target = {
     _exec = execution
     this
   }

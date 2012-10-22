@@ -19,8 +19,6 @@ SBuild SVN/trunk
   file in the installation directory, which decouples embedded solutions like
   the Eclipse Plugin and allows them to load different SBuild versions.
 * Added get method to Prop object, to easily test, if an property is set.
-* Experimentally extended API of Target with an apply method as alternative to
-  exec method.
 
 SBuild 0.1.3 - 2012-10-18
 
