@@ -322,7 +322,7 @@ class """ + className + """(implicit project: Project) {
               x.map { "\n" + toAdd + formatTarget(_) }.mkString
           }
 
-          if (!skipExec) this.log.log(LogLevel.Debug, "===> " + formatTarget(node) + " is curent execution, with tree: " + trace + " <===")
+          if (!skipExec) this.log.log(LogLevel.Debug, "===> " + formatTarget(node) + " is current execution, with tree: " + trace + " <===")
 
           val execPhonyUpToDateOrSkip = skipOrUpToDate match {
             case true =>
