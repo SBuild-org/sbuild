@@ -10,13 +10,15 @@ import de.tototec.sbuild.ProjectConfigurationException
 
 class ClasspathConfig {
   @CmdOption(names = Array("--sbuild-home"), args = Array("PATH"), hidden = true)
-  def sbuildHomeDir_=(sbuildHomeDirString: String): Unit = sbuildHomeDir = new File(sbuildHomeDirString) match {
-    case f if f.isAbsolute => 
+  def sbuildHomeDir_=(sbuildHomeDirString: String): Unit = sbuildHomeDir = new File(sbuildHomeDirString)
+  def sbuildHomeDir_=(sbuildHomeDir: File): Unit = _sbuildHomeDir = sbuildHomeDir match {
+    case f if f.isAbsolute =>
       readFromPropertiesFile(new File(f, "lib/classpath.properties"))
       f
     case _ => throw new IllegalArgumentException("SBuild HOME directory must be an abssolute path.")
   }
-  var sbuildHomeDir: File = _
+  def sbuildHomeDir = _sbuildHomeDir
+  var _sbuildHomeDir: File = _
 
   // Classpath of SBuild itself
   @CmdOption(names = Array("--sbuild-cp"), args = Array("CLASSPATH"), hidden = true)
