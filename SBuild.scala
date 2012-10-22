@@ -72,7 +72,7 @@ class SBuild(implicit project: Project) {
     val properties = """# Classpath configuration for SBuild """ + version + """
 sbuildClasspath = de.tototec.sbuild-""" + version + """.jar
 compileClasspath = scala-compiler-""" + scalaVersion + """.jar
-projectClasspath = scala-library-""" + scalaVersion + """.jar:de.tototec.sbuild.ant-""" + version + """.jar:de.tototec.sbuild-addons-""" + version + """.jar
+projectClasspath = scala-library-""" + scalaVersion + """.jar:de.tototec.sbuild.ant-""" + version + """.jar:de.tototec.sbuild.addons-""" + version + """.jar
 """
     AntMkdir(dir = ctx.targetFile.get.getParentFile)
     AntEcho(message = properties, file = ctx.targetFile.get)
