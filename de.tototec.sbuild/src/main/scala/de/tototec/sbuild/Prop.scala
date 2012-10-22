@@ -13,5 +13,6 @@ object Prop {
   } else {
     throw new ProjectConfigurationException("Undefined property \"" + key + "\" accessed. Please define it e.g. with \"-D " + key + "=value\".")
   }
+  def get(key: String)(implicit project: Project): Option[String] = project.properties.get(key)
 }
 
