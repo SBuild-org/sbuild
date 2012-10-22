@@ -241,6 +241,12 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
     classpathEntries
   }
 
-  override def getClasspathEntries: Array[IClasspathEntry] = calcClasspath.toArray
+  override def getClasspathEntries: Array[IClasspathEntry] = try {
+    calcClasspath.toArray
+  } catch {
+    case e: Exception =>
+      debug("Could not calculate classpath entries.", e)
+      Array()
+  }
 
 }
