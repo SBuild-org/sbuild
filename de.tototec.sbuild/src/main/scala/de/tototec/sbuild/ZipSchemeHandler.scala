@@ -6,16 +6,13 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
 
   val baseDir: File = _baseDir match {
     case null => Path(".sbuild/unzip")
-    case x => x
+    case x => x.getAbsoluteFile
   }
 
   override def localPath(path: String): String = {
     val config = parseConfig(path)
-    val targetFile = localFile(config).getAbsoluteFile.getCanonicalFile
-    "file:" + targetFile.getPath
+    "file:" + config.targetFile.getPath
   }
-
-  def localFile(config: Config): File = new File(baseDir, config.targetFile)
 
   override def dependsOn(path: String): TargetRefs = {
     val config = parseConfig(path)
@@ -24,8 +21,8 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
 
   override def resolve(path: String, targetContext: TargetContext) = {
     val config = parseConfig(path)
-    val file = localFile(config)
-    
+    val file = config.targetFile
+
     targetContext.fileDependencies match {
       case Seq(zipFile) =>
         Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)))
@@ -35,7 +32,7 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
     }
   }
 
-  case class Config(fileInArchive: String, archive: String, targetFile: String)
+  case class Config(fileInArchive: String, archive: String, targetFile: File)
 
   def parseConfig(path: String): Config = {
     val syntax = "archive=archivePath;file=fileInArchive"
@@ -62,9 +59,15 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
       case f => f
     }
     val archive = pairs("archive")
-    val targetFile = pairs.getOrElse("targetFile", file)
-    
-    Config(fileInArchive = file, archive = archive, targetFile = targetFile)
+    val targetFile = pairs.get("targetFile") match {
+      case Some(targetFile) => Path(targetFile)
+      case None => new File(file) match {
+        case f if f.isAbsolute => f
+        case _ => new File(baseDir, file)
+      }
+    }
+
+    Config(fileInArchive = file, archive = archive, targetFile = targetFile.getAbsoluteFile.getCanonicalFile)
   }
 
   def zipFile(config: Config): File = {
