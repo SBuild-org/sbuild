@@ -34,13 +34,10 @@ import de.tototec.sbuild.runner.SimpleProjectReader
 object SBuildClasspathContainer {
   val ContainerName = "de.tototec.sbuild.SBUILD_DEPENDENCIES"
   def SBuildHomeVariableName = "SBUILD_HOME"
-  def classpathConfig(sbuildHomeDir: File) = new ClasspathConfig {
-    sbuildClasspath = sbuildHomeDir.getAbsolutePath + "/lib/de.tototec.sbuild-" + SBuildVersion.version + ".jar"
-    compileClasspath = sbuildHomeDir.getAbsolutePath + "/lib/scala-compiler-2.9.2.jar"
-    projectClasspath = Array(
-      sbuildHomeDir.getAbsolutePath + "/lib/de.tototec.sbuild.ant-" + SBuildVersion.version + ".jar",
-      sbuildHomeDir.getAbsolutePath + "/lib/de.tototec.sbuild.addons-" + SBuildVersion.version + ".jar"
-    )
+  def classpathConfig(sbuildHomeDir: File) = {
+    val config = new ClasspathConfig()
+    config.sbuildHomeDir = sbuildHomeDir
+    config
   }
   def SBuildPreferencesNode = "de.tototec.sbuild.eclipse.plugin"
   def WorkspaceProjectAliasNode = "workspaceProjectAlias"
