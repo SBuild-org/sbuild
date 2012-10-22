@@ -3,7 +3,7 @@ import de.tototec.sbuild.TargetRefs._
 import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 
-@version("0.1.1")
+@version("0.1.3")
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
   "http://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.9.2/scala-compiler-2.9.2.jar",
@@ -11,16 +11,15 @@ import de.tototec.sbuild.ant.tasks._
 )
 class SBuild(implicit project: Project) {
 
-  SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
-  SchemeHandler("mvn", new MvnSchemeHandler(Path(Prop("mvn.repo", ".sbuild/mvn"))))
+  SchemeHandler("http", new HttpSchemeHandler())
+  SchemeHandler("mvn", new MvnSchemeHandler())
+  SchemeHandler("zip", new ZipSchemeHandler())
 
   val version = Prop("SBUILD_ECLIPSE_VERSION", "0.1.3.9000")
   val sbuildVersion = Prop("SBUILD_VERSION", version)
   val eclipseJar = "target/de.tototec.sbuild.eclipse.plugin-" + version + ".jar"
 
   val scalaVersion = "2.9.2"
-
-  val swtJar = "target/libs/swt-debug.jar"
 
   val compileCp =
     ("mvn:org.scala-lang:scala-library:" + scalaVersion) ~
@@ -38,7 +37,7 @@ class SBuild(implicit project: Project) {
       "mvn:org.eclipse.core:commands:3.3.0-I20070605-0010" ~
       "mvn:org.eclipse.equinox:registry:3.3.0-v20070522" ~
       "mvn:org.eclipse.equinox:preferences:3.2.100-v20070522" ~
-      swtJar ~
+      "zip:file=swt-debug.jar;archive=http://archive.eclipse.org/eclipse/downloads/drops/R-3.3-200706251500/swt-3.3-gtk-linux-x86_64.zip" ~
       "http://cmdoption.tototec.de/cmdoption/attachments/download/3/de.tototec.cmdoption-0.1.0.jar"
 
   ExportDependencies("eclipse.classpath", compileCp)
@@ -47,15 +46,6 @@ class SBuild(implicit project: Project) {
 
   Target("phony:clean") exec {
     AntDelete(dir = Path("target"))
-  }
-
-  Target(swtJar) dependsOn "http://archive.eclipse.org/eclipse/downloads/drops/R-3.3-200706251500/swt-3.3-gtk-linux-x86_64.zip" exec { ctx: TargetContext =>
-    new AntExpand(src = ctx.fileDependencies.head, dest = Path("target/libs")) {
-      addPatternset(
-        new org.apache.tools.ant.types.PatternSet() {
-          setIncludes("swt-debug.jar")
-        })
-    }.execute
   }
 
   Target("phony:compile") dependsOn (compileCp) exec { ctx: TargetContext =>
@@ -83,22 +73,22 @@ class SBuild(implicit project: Project) {
     val bnd = """
 Bundle-SymbolicName: de.tototec.sbuild.eclipse.plugin;singleton:=true
 Bundle-Version: """ + version + """
+Bundle-Activator: de.tototec.sbuild.eclipse.plugin.internal.SBuildClasspathActivator
+Bundle-ActivationPolicy: lazy
 Implementation-Version: ${Bundle-Version}
 Private-Package: \
  de.tototec.sbuild.eclipse.plugin, \
- de.tototec.sbuild.eclipse.plugin.internal, \
- de.tototec.sbuild, \
- de.tototec.sbuild.runner, \
- de.tototec.cmdoption, \
- de.tototec.cmdoption.handler
+ de.tototec.sbuild.eclipse.plugin.internal
 Import-Package: \
+ !de.tototec.sbuild.*, \
+ !de.tototec.cmdoption.*, \
  org.eclipse.core.runtime;registry=!;common=!;version="3.3.0", \
  org.eclipse.core.internal.resources, \
  *
 DynamicImport-Package: \
  !scala.tools.*, \
  scala.*
-Include-Resource: """ + Path("src/main/resources") + """
+Include-Resource: """ + Path("src/main/resources") + """,""" + Path("target/bnd-resources") + """
 -removeheaders: Include-Resource
 Bundle-RequiredExecutionEnvironment: J2SE-1.5
 """
@@ -110,8 +100,17 @@ Bundle-RequiredExecutionEnvironment: J2SE-1.5
     //     jarTask.addFileset(AntFileSet(dir = Path("."), includes = "LICENSE.txt"))
     //     jarTask.execute
 
+    AntDelete(dir = Path("target/bnd-classes"))
+    AntCopy(toDir = Path("target/bnd-classes"),
+      fileSets = Seq(AntFileSet(dir = Path("target/classes"), excludes = "**/SBuildClasspathProjectReaderImpl**.class")))
+
+    AntDelete(dir = Path("target/bnd-resources/OSGI-INF/projectReaderLib"))
+    AntMkdir(dir = Path("target/bnd-resources/OSGI-INF/projectReaderLib"))
+    AntCopy(toDir = Path("target/bnd-resources/OSGI-INF/projectReaderLib"),
+      fileSets = Seq(AntFileSet(dir = Path("target/classes"), includes = "**/SBuildClasspathProjectReaderImpl**.class")))
+
     aQute_bnd_ant.AntBnd(
-      classpath = "target/classes," + ctx.fileDependencies.filter(_.getName.endsWith(".jar")).mkString(","),
+      classpath = "target/bnd-classes," + ctx.fileDependencies.filter(_.getName.endsWith(".jar")).mkString(","),
       eclipse = false,
       failOk = false,
       exceptions = true,
