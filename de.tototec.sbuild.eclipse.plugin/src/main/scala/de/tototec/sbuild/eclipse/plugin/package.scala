@@ -1,8 +1,5 @@
 package de.tototec.sbuild.eclipse
 
-import de.tototec.sbuild.SBuildLogger
-import de.tototec.sbuild.SBuildConsoleLogger
-import de.tototec.sbuild.LogLevel
 package object plugin {
 
   /** Print a debug message. */
@@ -13,4 +10,5 @@ package object plugin {
       cause.printStackTrace(Console.err)
     }
   }
+
 }
