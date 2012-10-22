@@ -323,7 +323,7 @@ class ProjectScript(_scriptFile: File,
       val compileMethod = compileClient.asInstanceOf[Object].getClass.getMethod("process", Array(classOf[Array[String]]): _*)
       log.log(LogLevel.Debug, "Executing CompileClient with args: " + params.mkString(" "))
       val retVal = compileMethod.invoke(compileClient, params).asInstanceOf[Boolean]
-      if (!retVal) throw new SBuildException("Could not compile build file " + scriptFile.getAbsoluteName + " with CompileClient. See compiler output.")
+      if (!retVal) throw new SBuildException("Could not compile build file " + scriptFile.getAbsolutePath + " with CompileClient. See compiler output.")
     }
 
     def compileWithoutFsc() {
@@ -335,7 +335,7 @@ class ProjectScript(_scriptFile: File,
       val reporter = reporterMethod.invoke(null)
       val hasErrorsMethod = reporter.asInstanceOf[Object].getClass.getMethod("hasErrors")
       val hasErrors = hasErrorsMethod.invoke(reporter).asInstanceOf[Boolean]
-      if (hasErrors) throw new SBuildException("Could not compile build file " + scriptFile.getAbsoluteName + " with scala compiler. See compiler output.")
+      if (hasErrors) throw new SBuildException("Could not compile build file " + scriptFile.getAbsolutePath + " with scala compiler. See compiler output.")
     }
 
     if (noFsc) {
