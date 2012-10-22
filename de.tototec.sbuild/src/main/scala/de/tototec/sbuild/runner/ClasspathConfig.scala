@@ -6,36 +6,18 @@ import java.util.Properties
 import java.io.FileReader
 import java.io.BufferedInputStream
 import java.io.FileInputStream
-
-object ClasspathConfig {
-
-  def readFromPropertiesFile(propertiesFile: File): ClasspathConfig = {
-    val libDir = propertiesFile.getAbsoluteFile.getCanonicalFile.getParentFile
-
-    val stream = new BufferedInputStream(new FileInputStream(propertiesFile))
-    val props = new Properties()
-    props.load(stream)
-
-    readFromProperties(libDir, props)
-  }
-
-  def readFromProperties(sbuildLibDir: File, properties: Properties): ClasspathConfig = {
-
-    def splitAndPrepend(propertyValue: String): Array[String] = propertyValue.split(";|:").map {
-      case lib if new File(lib).isAbsolute() => lib
-      case lib => new File(sbuildLibDir.getAbsoluteFile, lib).getPath
-    }
-
-    val config = new ClasspathConfig
-    config.sbuildClasspath = splitAndPrepend(properties.getProperty("sbuildClasspath"))
-    config.compileClasspath = splitAndPrepend(properties.getProperty("compileClasspath"))
-    config.projectClasspath = splitAndPrepend(properties.getProperty("projectClasspath"))
-
-    config
-  }
-}
+import de.tototec.sbuild.ProjectConfigurationException
 
 class ClasspathConfig {
+  @CmdOption(names = Array("--sbuild-home"), args = Array("PATH"), hidden = true)
+  def sbuildHomeDir_=(sbuildHomeDirString: String): Unit = sbuildHomeDir = new File(sbuildHomeDirString) match {
+    case f if f.isAbsolute => 
+      readFromPropertiesFile(new File(f, "lib/classpath.properties"))
+      f
+    case _ => throw new IllegalArgumentException("SBuild HOME directory must be an abssolute path.")
+  }
+  var sbuildHomeDir: File = _
+
   // Classpath of SBuild itself
   @CmdOption(names = Array("--sbuild-cp"), args = Array("CLASSPATH"), hidden = true)
   def sbuildClasspath_=(classpath: String): Unit = sbuildClasspath = classpath match {
@@ -67,6 +49,28 @@ class ClasspathConfig {
     sbuildClasspath.forall { new File(_).exists } &&
       compileClasspath.forall { new File(_).exists } &&
       projectClasspath.forall { new File(_).exists }
+  }
+
+  def readFromPropertiesFile(propertiesFile: File) {
+    val libDir = propertiesFile.getAbsoluteFile.getCanonicalFile.getParentFile
+
+    val stream = new BufferedInputStream(new FileInputStream(propertiesFile))
+    val props = new Properties()
+    props.load(stream)
+
+    readFromProperties(libDir, props)
+  }
+
+  def readFromProperties(sbuildLibDir: File, properties: Properties) {
+
+    def splitAndPrepend(propertyValue: String): Array[String] = propertyValue.split(";|:").map {
+      case lib if new File(lib).isAbsolute() => lib
+      case lib => new File(sbuildLibDir.getAbsoluteFile, lib).getPath
+    }
+
+    sbuildClasspath = splitAndPrepend(properties.getProperty("sbuildClasspath"))
+    compileClasspath = splitAndPrepend(properties.getProperty("compileClasspath"))
+    projectClasspath = splitAndPrepend(properties.getProperty("projectClasspath"))
   }
 
 }
