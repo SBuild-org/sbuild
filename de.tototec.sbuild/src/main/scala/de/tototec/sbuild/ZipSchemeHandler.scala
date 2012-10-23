@@ -1,6 +1,7 @@
 package de.tototec.sbuild
 
 import java.io.File
+import java.security.MessageDigest
 
 class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) extends SchemeHandlerWithDependencies {
 
@@ -59,11 +60,18 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
       case f => f
     }
     val archive = pairs("archive")
+
+    def fileBaseLocation: String = {
+      val md = MessageDigest.getInstance("MD5")
+      val digestBytes = md.digest(archive.getBytes())
+      digestBytes.foldLeft("") { (string, byte) => string + Integer.toString((byte & 0xff) + 0x100, 16).substring(1) }
+    }
+
     val targetFile = pairs.get("targetFile") match {
       case Some(targetFile) => Path(targetFile)
       case None => new File(file) match {
         case f if f.isAbsolute => f
-        case _ => new File(baseDir, file)
+        case _ => new File(baseDir, fileBaseLocation + "/" + file)
       }
     }
 
