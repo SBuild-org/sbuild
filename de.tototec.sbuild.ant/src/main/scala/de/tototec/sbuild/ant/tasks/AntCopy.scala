@@ -69,7 +69,7 @@ class AntCopy()(implicit _project: Project) extends Copy {
     granularity: java.lang.Long = null,
     // since 0.1.0.9001
     fileSets: Seq[FileSet] = null,
-     // since 0.1.3.9000
+    // since 0.1.3.9000
     fileSet: FileSet = null)(implicit _project: Project) {
     this
     if (file != null) setFile(file)
@@ -90,7 +90,7 @@ class AntCopy()(implicit _project: Project) extends Copy {
     if (fileSets != null) fileSets.foreach { fileSet =>
       addFileset(fileSet)
     }
-    if (fileSets != null) addFileset(fileSet)
+    if (fileSet != null) addFileset(fileSet)
   }
 
   def setToDir(toDir: File) = setTodir(toDir)
