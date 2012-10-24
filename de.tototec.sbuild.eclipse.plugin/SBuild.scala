@@ -15,7 +15,7 @@ class SBuild(implicit project: Project) {
   SchemeHandler("mvn", new MvnSchemeHandler())
   SchemeHandler("zip", new ZipSchemeHandler())
 
-  val version = Prop("SBUILD_ECLIPSE_VERSION", "0.1.4")
+  val version = Prop("SBUILD_ECLIPSE_VERSION", "0.1.4.9000")
   val sbuildVersion = Prop("SBUILD_VERSION", version)
   val eclipseJar = "target/de.tototec.sbuild.eclipse.plugin-" + version + ".jar"
 
@@ -100,17 +100,21 @@ Bundle-RequiredExecutionEnvironment: J2SE-1.5
     //     jarTask.addFileset(AntFileSet(dir = Path("."), includes = "LICENSE.txt"))
     //     jarTask.execute
 
-    AntDelete(dir = Path("target/bnd-classes"))
-    AntCopy(toDir = Path("target/bnd-classes"),
-      fileSets = Seq(AntFileSet(dir = Path("target/classes"), excludes = "**/SBuildClasspathProjectReaderImpl**.class")))
+    val bndClasses = "target/bnd-classes"
+    val projectReaderLib = "target/bnd-resources/OSGI-INF/projectReaderLib"
+    val projectReaderPattern = "**/SBuildClasspathProjectReaderImpl**.class"
 
-    AntDelete(dir = Path("target/bnd-resources/OSGI-INF/projectReaderLib"))
-    AntMkdir(dir = Path("target/bnd-resources/OSGI-INF/projectReaderLib"))
-    AntCopy(toDir = Path("target/bnd-resources/OSGI-INF/projectReaderLib"),
-      fileSets = Seq(AntFileSet(dir = Path("target/classes"), includes = "**/SBuildClasspathProjectReaderImpl**.class")))
+    AntDelete(dir = Path(bndClasses))
+    AntCopy(toDir = Path(bndClasses),
+      fileSets = Seq(AntFileSet(dir = Path("target/classes"), excludes = projectReaderPattern)))
+
+    AntDelete(dir = Path(projectReaderLib))
+    AntMkdir(dir = Path(projectReaderLib))
+    AntCopy(toDir = Path(projectReaderLib),
+      fileSets = Seq(AntFileSet(dir = Path("target/classes"), includes = projectReaderPattern)))
 
     aQute_bnd_ant.AntBnd(
-      classpath = "target/bnd-classes," + ctx.fileDependencies.filter(_.getName.endsWith(".jar")).mkString(","),
+      classpath = bndClasses + "," + ctx.fileDependencies.filter(_.getName.endsWith(".jar")).mkString(","),
       eclipse = false,
       failOk = false,
       exceptions = true,

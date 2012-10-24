@@ -1,3 +1,7 @@
+SBuild SVN/trunk
+
+* Fixed NPE bug in AntCopy.
+
 SBuild 0.1.4 -2012-10-23
 
 * Added parameters to AntZip Ant wrapper: compress, keepCompression, filesOnly,
