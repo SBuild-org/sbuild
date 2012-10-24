@@ -105,13 +105,15 @@ Bundle-RequiredExecutionEnvironment: J2SE-1.5
     val projectReaderPattern = "**/SBuildClasspathProjectReaderImpl**.class"
 
     AntDelete(dir = Path(bndClasses))
-    AntCopy(toDir = Path(bndClasses),
-      fileSets = Seq(AntFileSet(dir = Path("target/classes"), excludes = projectReaderPattern)))
+    new AntCopy(toDir = Path(bndClasses)) {
+      addFileset(AntFileSet(dir = Path("target/classes"), excludes = projectReaderPattern))
+    }.execute
 
     AntDelete(dir = Path(projectReaderLib))
     AntMkdir(dir = Path(projectReaderLib))
-    AntCopy(toDir = Path(projectReaderLib),
-      fileSets = Seq(AntFileSet(dir = Path("target/classes"), includes = projectReaderPattern)))
+    new AntCopy(toDir = Path(projectReaderLib)) {
+      addFileset(AntFileSet(dir = Path("target/classes"), includes = projectReaderPattern))
+    }.execute
 
     aQute_bnd_ant.AntBnd(
       classpath = bndClasses + "," + ctx.fileDependencies.filter(_.getName.endsWith(".jar")).mkString(","),
