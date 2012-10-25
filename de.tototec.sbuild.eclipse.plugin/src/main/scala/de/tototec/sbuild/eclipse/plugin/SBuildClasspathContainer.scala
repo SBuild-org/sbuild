@@ -17,8 +17,6 @@ import org.eclipse.jdt.core.JavaCore
 object SBuildClasspathContainer {
   val ContainerName = "de.tototec.sbuild.SBUILD_DEPENDENCIES"
   def SBuildHomeVariableName = "SBUILD_HOME"
-  def SBuildPreferencesNode = "de.tototec.sbuild.eclipse.plugin"
-  def WorkspaceProjectAliasNode = "workspaceProjectAlias"
 }
 
 /**
@@ -41,29 +39,6 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
   protected var sbuildFileTimestamp: Long = 0
 
   protected var resolveActions: Option[Seq[ResolveAction]] = None
-
-  def readWorkspaceProjectAliases: Map[String, String] = {
-    val projectScope = new ProjectScope(project.getProject)
-    projectScope.getNode(SBuildClasspathContainer.SBuildPreferencesNode) match {
-      case null =>
-        debug("Could not access prefs node: " + SBuildClasspathContainer.SBuildPreferencesNode)
-        Map()
-      case prefs =>
-        prefs.node(SBuildClasspathContainer.WorkspaceProjectAliasNode) match {
-          case null =>
-            debug("Could not access prefs node: " + SBuildClasspathContainer.WorkspaceProjectAliasNode)
-            Map()
-          case prefs =>
-            val keys = prefs.keys
-            debug("Found aliases in prefs for the following dependencies: " + keys.mkString(", "))
-            keys.map {
-              name => (name -> prefs.get(name, ""))
-            }.filter {
-              case (key, value) => value != ""
-            }.toMap
-        }
-    }
-  }
 
   def readProject {
     val sbuildHomePath: IPath = JavaCore.getClasspathVariable(SBuildClasspathContainer.SBuildHomeVariableName)
@@ -112,7 +87,7 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
 
     val javaModel: IJavaModel = JavaCore.create(project.getProject.getWorkspace.getRoot)
 
-    val aliasesMap = readWorkspaceProjectAliases
+    val aliasesMap = WorkspaceProjectAliases.read(project)
     debug("Using workspaceProjectAliases: " + aliasesMap)
     val classpathEntries = resolveActions.get.map { action: ResolveAction =>
       aliasesMap.contains(action.name) match {
