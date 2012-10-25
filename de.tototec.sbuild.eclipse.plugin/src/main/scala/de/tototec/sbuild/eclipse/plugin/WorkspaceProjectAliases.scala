@@ -29,9 +29,23 @@ object WorkspaceProjectAliases {
         }
     }
   }
-  
-  def write(project: IJavaProject, aliases: Map[String,String]) {
-    // TODO: write
+
+  def write(project: IJavaProject, aliases: Map[String, String]) {
+    val projectScope = new ProjectScope(project.getProject)
+    projectScope.getNode(SBuildPreferencesNode) match {
+      case null =>
+      case prefs =>
+        prefs.node(WorkspaceProjectAliasNode) match {
+          case null =>
+          case prefs =>
+            prefs.keys.foreach { key => prefs.remove(key) }
+            aliases.foreach {
+              case (key, "") => // ignore empty alias
+              case (key, value) => prefs.put(key, value)
+            }
+        }
+        prefs.flush
+    }
   }
-  
+
 }

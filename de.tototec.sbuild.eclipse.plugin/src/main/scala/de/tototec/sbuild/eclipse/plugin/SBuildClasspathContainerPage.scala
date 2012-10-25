@@ -17,56 +17,16 @@ import org.eclipse.swt.widgets.Text
 import org.eclipse.swt.events.ModifyListener
 import org.eclipse.swt.events.ModifyEvent
 import org.eclipse.swt.events.SelectionListener
-import org.eclipse.jface.viewers.ViewerColumn
-import org.eclipse.jface.viewers.CellLabelProvider
-import org.eclipse.jface.viewers.ColumnViewer
 import org.eclipse.jface.viewers.TableViewerColumn
-import org.eclipse.jface.viewers.TreeViewerColumn
 import org.eclipse.jface.viewers.TableViewer
-import org.eclipse.jface.viewers.TreeViewer
 import org.eclipse.jface.viewers.ColumnLabelProvider
 import org.eclipse.jface.viewers.ArrayContentProvider
 import org.eclipse.jface.viewers.IStructuredSelection
 import org.eclipse.jface.viewers.ISelectionChangedListener
 import org.eclipse.jface.viewers.SelectionChangedEvent
-
-object ViewerColumnBuilder {
-  def apply(header: String = null,
-            width: java.lang.Integer = null,
-            style: java.lang.Integer = null,
-            labelProvider: CellLabelProvider = null,
-            resizable: java.lang.Boolean = null,
-            moveable: java.lang.Boolean = null,
-            viewer: ColumnViewer = null): ViewerColumn = viewer match {
-
-    case tableViewer: TableViewer =>
-      val column = new TableViewerColumn(tableViewer, if (style == null) SWT.NONE else style.intValue)
-      if (header != null) column.getColumn.setText(header)
-      if (width != null) column.getColumn.setWidth(width.intValue)
-      if (labelProvider != null) column.setLabelProvider(labelProvider)
-      else column.setLabelProvider(new ColumnLabelProvider() {
-        override def getText(element: Object): String = ""
-      })
-      if (resizable != null) column.getColumn.setResizable(resizable.booleanValue)
-      if (moveable != null) column.getColumn.setMoveable(moveable.booleanValue)
-      column
-
-    case treeViewer: TreeViewer =>
-      val column = new TreeViewerColumn(treeViewer, if (style == null) SWT.NONE else style.intValue)
-      if (header != null) column.getColumn.setText(header)
-      if (width != null) column.getColumn.setWidth(width.intValue)
-      if (labelProvider != null) column.setLabelProvider(labelProvider)
-      else column.setLabelProvider(new ColumnLabelProvider() {
-        override def getText(element: Object): String = ""
-      })
-      if (resizable != null) column.getColumn.setResizable(resizable.booleanValue)
-      if (moveable != null) column.getColumn.setMoveable(moveable.booleanValue)
-      column
-
-    case _ =>
-      throw new RuntimeException("Unsupported viewer")
-  }
-}
+import org.eclipse.jface.viewers.EditingSupport
+import org.eclipse.jface.viewers.TextCellEditor
+import org.eclipse.jface.viewers.CellEditor
 
 class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with IClasspathContainerPage with IClasspathContainerPageExtension {
 
@@ -133,21 +93,60 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
     })
 
     val workspaceProjectAliases = composite.workspaceProjectAliasTable
-    ViewerColumnBuilder(viewer = workspaceProjectAliases, header = "Dependency", width = 200,
-      labelProvider = new ColumnLabelProvider() {
-        override def getText(element: Object) = element match {
-          case AliasEntry(key: String, value) => key
-          case _ => ""
-        }
-      })
-    ViewerColumnBuilder(viewer = workspaceProjectAliases, header = "Project in Workspace", width = 200,
-      labelProvider = new ColumnLabelProvider() {
-        override def getText(element: Object) = element match {
-          case AliasEntry(key, value: String) => value
-          case _ => ""
-        }
-      })
 
+    val col1 = new TableViewerColumn(workspaceProjectAliases, SWT.LEFT)
+    col1.getColumn.setText("Dependency")
+    col1.getColumn.setWidth(200)
+    col1.setLabelProvider(new ColumnLabelProvider() {
+      override def getText(element: Object) = element match {
+        case AliasEntry(key: String, value) => key
+        case _ => ""
+      }
+    })
+
+    val col1EditingSupport = new EditingSupport(workspaceProjectAliases) {
+      override def canEdit(o: Object): Boolean = o.isInstanceOf[AliasEntry]
+      override def getCellEditor(o: Object): CellEditor = new TextCellEditor(workspaceProjectAliases.getTable)
+      override def getValue(o: Object) = o match {
+        case AliasEntry(key, value) => key
+        case _ => ""
+      }
+      override def setValue(o: Object, newVal: Object) = o match {
+        case aliasEntry: AliasEntry if newVal.isInstanceOf[String] => 
+          aliasEntry.key = newVal.asInstanceOf[String]
+          workspaceProjectAliases.update(o, null)
+        case _ =>
+      }
+    }
+    col1.setEditingSupport(col1EditingSupport)
+
+    val col2 = new TableViewerColumn(workspaceProjectAliases, SWT.LEFT)
+    col2.getColumn.setText("Workspace Project")
+    col2.getColumn.setWidth(200)
+    col2.setLabelProvider(new ColumnLabelProvider() {
+      override def getText(element: Object) = element match {
+        case AliasEntry(key: String, value) => value
+        case _ => ""
+      }
+    })
+
+    val col2EditingSupport = new EditingSupport(workspaceProjectAliases) {
+      override def canEdit(o: Object): Boolean = o.isInstanceOf[AliasEntry]
+      override def getCellEditor(o: Object): CellEditor = new TextCellEditor(workspaceProjectAliases.getTable)
+      override def getValue(o: Object) = o match {
+        case AliasEntry(key, value) => value
+        case _ => ""
+      }
+      override def setValue(o: Object, newVal: Object) = o match {
+        case aliasEntry: AliasEntry if newVal.isInstanceOf[String] => 
+          aliasEntry.value = newVal.asInstanceOf[String]
+          workspaceProjectAliases.update(o, null)
+        case _ =>
+      }
+    }
+    col2.setEditingSupport(col2EditingSupport)
+
+    
     val delButton = composite.removeAliasButton
     delButton.setEnabled(false)
 
@@ -184,16 +183,6 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
         }
       }
     })
-
-    //    val workspaceResolution = new Button(composite, SWT.CHECK);
-    //    workspaceResolution.setText("Resolve dependencies from Workspace")
-    //    workspaceResolution.setSelection(settings.workspaceResolution)
-    //    workspaceResolution.addSelectionListener(new SelectionAdapter() {
-    //      override def widgetSelected(event: SelectionEvent) {
-    //        settings.workspaceResolution = workspaceResolution.getSelection
-    //      }
-    //      override def widgetDefaultSelected(event: SelectionEvent) = widgetSelected(event)
-    //    })
 
     setControl(composite)
   }

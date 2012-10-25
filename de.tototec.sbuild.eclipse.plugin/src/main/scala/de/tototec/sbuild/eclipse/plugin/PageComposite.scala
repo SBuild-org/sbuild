@@ -33,9 +33,10 @@ class PageComposite(parent: Composite, style: Int) extends Composite(parent, sty
   aliasGroup.setLayout(new GridLayout(2, false))
   aliasGroup.setText("Workspace Project Aliases")
   
-  val workspaceProjectAliasTable = new TableViewer(aliasGroup, SWT.BORDER)
+  val workspaceProjectAliasTable = new TableViewer(aliasGroup, SWT.BORDER | SWT.H_SCROLL)
   workspaceProjectAliasTable.getTable.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 3))
   workspaceProjectAliasTable.getTable.setHeaderVisible(true)
+  workspaceProjectAliasTable.getTable.setLinesVisible(true)
   
   val addAliasButton = new Button(aliasGroup, SWT.PUSH)
   addAliasButton.setText("Add")

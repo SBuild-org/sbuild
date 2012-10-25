@@ -94,7 +94,7 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
         case false => resolveViaSBuild(action)
         case true =>
           javaModel.getJavaProject(aliasesMap(action.name)) match {
-            case javaProject if javaProject.exists =>
+            case javaProject if javaProject.exists && javaProject.isOpen =>
               debug("Using Workspace Project as alias for project: " + action.name)
               debug("About to add project entry: " + javaProject.getPath)
               JavaCore.newProjectEntry(javaProject.getPath)
