@@ -40,9 +40,7 @@ class SBuild(implicit project: Project) {
     AntDelete(dir = Path("target"))
   } help "Clean all"
 
-  val eclipsePlugin = "de.tototec.sbuild.eclipse.plugin::target/de.tototec.sbuild.eclipse.plugin-" + osgiVersion + ".jar"
-
-  Target("phony:all") dependsOn ((modules.map(m => TargetRefs(m + "::all")).reduceLeft(_ ~ _)) ~ distZip ~ eclipsePlugin) help "Build all"
+  Target("phony:all") dependsOn ((modules.map(m => TargetRefs(m + "::all")).reduceLeft(_ ~ _)) ~ distZip) help "Build all"
 
   Target("phony:test") dependsOn ("de.tototec.sbuild::test") help "Run all tests"
 
