@@ -1,0 +1,9 @@
+SBuild Eclipse Plugin 0.2.0/trunk
+
+* First separate release of SBuild Eclipse Plugin, with independent version,
+  compatible to SBuild 0.1.4 and above.
+* Added Graphical Editor for Workspace Project Aliases to Classpath container
+  configuration page (Build Path -> Libraries -> SBuild Libraries -> Edit).
+* Minimal supported Eclipse version is now 3.4.
+* Added support for regular expressions in workspace project alias
+  configuration.

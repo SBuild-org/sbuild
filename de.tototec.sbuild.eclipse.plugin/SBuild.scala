@@ -3,7 +3,7 @@ import de.tototec.sbuild.TargetRefs._
 import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 
-@version("0.1.3")
+@version("0.1.4")
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
   "http://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.9.2/scala-compiler-2.9.2.jar",
@@ -21,6 +21,8 @@ class SBuild(implicit project: Project) {
 
   val scalaVersion = "2.9.2"
 
+  val eclipse34zip = "http://archive.eclipse.org/eclipse/downloads/drops/R-3.4-200806172000/eclipse-RCP-3.4-win32-x86_64.zip"
+    
   val compileCp =
     ("mvn:org.scala-lang:scala-library:" + scalaVersion) ~
       ("../de.tototec.sbuild/target/de.tototec.sbuild.jar") ~
@@ -31,6 +33,7 @@ class SBuild(implicit project: Project) {
       "mvn:org.eclipse.equinox:common:3.3.0-v20070426" ~
       "mvn:org.eclipse.core:contenttype:3.2.100-v20070319" ~
       "mvn:org.eclipse:jface:3.3.0-I20070606-0010" ~
+      ("zip:file=eclipse/plugins/org.eclipse.jface_3.4.0.I20080606-1300.jar;archive=" + eclipse34zip) ~
       "mvn:org.eclipse:swt:3.3.0-v3346" ~
       "mvn:org.eclipse.jdt:core:3.3.0-v_771" ~
       "mvn:org.eclipse.jdt:ui:3.3.0-v20070607-0010" ~

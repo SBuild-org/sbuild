@@ -87,19 +87,18 @@ class SBuildClasspathContainer(path: IPath, private val project: IJavaProject) e
 
     val javaModel: IJavaModel = JavaCore.create(project.getProject.getWorkspace.getRoot)
 
-    val aliasesMap = WorkspaceProjectAliases.read(project)
-    debug("Using workspaceProjectAliases: " + aliasesMap)
+    val aliases = WorkspaceProjectAliases(project)
+    debug("Using workspaceProjectAliases: " + aliases)
     val classpathEntries = resolveActions.get.map { action: ResolveAction =>
-      aliasesMap.contains(action.name) match {
-        case false => resolveViaSBuild(action)
-        case true =>
-          javaModel.getJavaProject(aliasesMap(action.name)) match {
-            case javaProject if javaProject.exists && javaProject.isOpen =>
-              debug("Using Workspace Project as alias for project: " + action.name)
-              debug("About to add project entry: " + javaProject.getPath)
-              JavaCore.newProjectEntry(javaProject.getPath)
-            case _ => resolveViaSBuild(action)
-          }
+      aliases.getAliasForDependency(action.name) match {
+        case None => resolveViaSBuild(action)
+        case Some(alias) => javaModel.getJavaProject(alias) match {
+          case javaProject if javaProject.exists && javaProject.isOpen =>
+            debug("Using Workspace Project as alias for project: " + action.name)
+            debug("About to add project entry: " + javaProject.getPath)
+            JavaCore.newProjectEntry(javaProject.getPath)
+          case _ => resolveViaSBuild(action)
+        }
       }
     }
 

@@ -27,14 +27,15 @@ import org.eclipse.jface.viewers.SelectionChangedEvent
 import org.eclipse.jface.viewers.EditingSupport
 import org.eclipse.jface.viewers.TextCellEditor
 import org.eclipse.jface.viewers.CellEditor
+import org.eclipse.jface.viewers.ComboBoxViewerCellEditor
 
 class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with IClasspathContainerPage with IClasspathContainerPageExtension {
 
   object AliasEntry {
-    def apply(key: String, value: String) = new AliasEntry(key, value)
-    def unapply(e: AliasEntry): Option[(String, String)] = Some(e.key, e.value)
+    def apply(key: String, value: String, regex: Boolean) = new AliasEntry(key, value, regex)
+    def unapply(e: AliasEntry): Option[(String, String, Boolean)] = Some(e.key, e.value, e.regex)
   }
-  class AliasEntry(var key: String, var value: String)
+  class AliasEntry(var key: String, var value: String, var regex: Boolean)
 
   val containerPath = SBuildClasspathContainer.ContainerName
 
@@ -50,7 +51,13 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
   override def initialize(project: IJavaProject, currentEntries: Array[IClasspathEntry]) = {
     this.project = project
     debug("Read workspace project aliases into " + getClass())
-    aliasModel = WorkspaceProjectAliases.read(project).toSeq.map { case (key, value) => new AliasEntry(key, value) }
+    aliasModel =
+      WorkspaceProjectAliases.read(project, WorkspaceProjectAliases.WorkspaceProjectAliasNode).toSeq.map {
+        case (key, value) => new AliasEntry(key, value, false)
+      } ++
+        WorkspaceProjectAliases.read(project, WorkspaceProjectAliases.WorkspaceProjectRegexAliasNode).toSeq.map {
+          case (key, value) => new AliasEntry(key, value, true)
+        }
   }
 
   override def setSelection(classpathEntry: IClasspathEntry) = settings.fromIClasspathEntry(classpathEntry)
@@ -58,7 +65,9 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
 
   override def finish: Boolean = {
     debug("Write workspace project aliases from " + getClass())
-    WorkspaceProjectAliases.write(project, aliasModel.map { case AliasEntry(key, value) => (key, value) }.toMap)
+    val (regex, nonRegex) = aliasModel.partition(_.regex)
+    WorkspaceProjectAliases.write(project, WorkspaceProjectAliases.WorkspaceProjectRegexAliasNode, regex.map { case AliasEntry(key, value, true) => (key, value) }.toMap)
+    WorkspaceProjectAliases.write(project, WorkspaceProjectAliases.WorkspaceProjectAliasNode, nonRegex.map { case AliasEntry(key, value, false) => (key, value) }.toMap)
     true
   }
 
@@ -99,7 +108,7 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
     col1.getColumn.setWidth(200)
     col1.setLabelProvider(new ColumnLabelProvider() {
       override def getText(element: Object) = element match {
-        case AliasEntry(key: String, value) => key
+        case AliasEntry(key, _, _) => key
         case _ => ""
       }
     })
@@ -108,11 +117,11 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
       override def canEdit(o: Object): Boolean = o.isInstanceOf[AliasEntry]
       override def getCellEditor(o: Object): CellEditor = new TextCellEditor(workspaceProjectAliases.getTable)
       override def getValue(o: Object) = o match {
-        case AliasEntry(key, value) => key
+        case AliasEntry(key, _, _) => key
         case _ => ""
       }
       override def setValue(o: Object, newVal: Object) = o match {
-        case aliasEntry: AliasEntry if newVal.isInstanceOf[String] => 
+        case aliasEntry: AliasEntry if newVal.isInstanceOf[String] =>
           aliasEntry.key = newVal.asInstanceOf[String]
           workspaceProjectAliases.update(o, null)
         case _ =>
@@ -125,7 +134,7 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
     col2.getColumn.setWidth(200)
     col2.setLabelProvider(new ColumnLabelProvider() {
       override def getText(element: Object) = element match {
-        case AliasEntry(key: String, value) => value
+        case AliasEntry(_, value, _) => value
         case _ => ""
       }
     })
@@ -134,11 +143,11 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
       override def canEdit(o: Object): Boolean = o.isInstanceOf[AliasEntry]
       override def getCellEditor(o: Object): CellEditor = new TextCellEditor(workspaceProjectAliases.getTable)
       override def getValue(o: Object) = o match {
-        case AliasEntry(key, value) => value
+        case AliasEntry(_, value, _) => value
         case _ => ""
       }
       override def setValue(o: Object, newVal: Object) = o match {
-        case aliasEntry: AliasEntry if newVal.isInstanceOf[String] => 
+        case aliasEntry: AliasEntry if newVal.isInstanceOf[String] =>
           aliasEntry.value = newVal.asInstanceOf[String]
           workspaceProjectAliases.update(o, null)
         case _ =>
@@ -146,7 +155,46 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
     }
     col2.setEditingSupport(col2EditingSupport)
 
-    
+    val col3 = new TableViewerColumn(workspaceProjectAliases, SWT.CENTER)
+    col3.getColumn.setText("Regex")
+    col3.getColumn.setWidth(20)
+    col3.setLabelProvider(new ColumnLabelProvider() {
+      override def getText(o: Object) = o match {
+        case AliasEntry(_, _, true) => "yes"
+        case _ => "no"
+      }
+    })
+
+    val col3EditingSupport = new EditingSupport(workspaceProjectAliases) {
+      override def canEdit(o: Object): Boolean = o.isInstanceOf[AliasEntry]
+      override def getCellEditor(o: Object): CellEditor = {
+        val combo = new ComboBoxViewerCellEditor(workspaceProjectAliases.getTable)
+        combo.setContenProvider(new ArrayContentProvider())
+        combo.setLabelProvider(new ColumnLabelProvider() {
+          override def getText(element: Any) = element match {
+            case java.lang.Boolean.TRUE => "yes"
+            case _ => "no"
+          }
+        })
+        combo.setInput(Array(java.lang.Boolean.FALSE, java.lang.Boolean.TRUE))
+        combo
+      }
+      override def getValue(o: Object): Object = o match {
+        case AliasEntry(_, _, regex) if regex => java.lang.Boolean.TRUE
+        case _ => java.lang.Boolean.FALSE
+      }
+      override def setValue(o: Object, newVal: Object) = o match {
+        case aliasEntry: AliasEntry =>
+          newVal match {
+            case regex: java.lang.Boolean => aliasEntry.regex = regex
+            case _ => aliasEntry.regex = false
+          }
+          workspaceProjectAliases.update(o, null)
+        case _ =>
+      }
+    }
+    col3.setEditingSupport(col3EditingSupport)
+
     val delButton = composite.removeAliasButton
     delButton.setEnabled(false)
 
@@ -166,7 +214,7 @@ class SBuildClasspathContainerPage extends WizardPage("SBuild Libraries") with I
 
     composite.addAliasButton.addSelectionListener(new SelectionAdapter() {
       override def widgetSelected(event: SelectionEvent) {
-        aliasModel ++= Seq(AliasEntry("", ""))
+        aliasModel ++= Seq(AliasEntry("", "", false))
         workspaceProjectAliases.setInput(aliasModel.toArray)
       }
     })
