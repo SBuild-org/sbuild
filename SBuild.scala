@@ -33,7 +33,7 @@ class SBuild(implicit project: Project) {
 
   val classpathProperties = distDir + "/lib/classpath.properties"
 
-  val modules = Seq("de.tototec.sbuild", "de.tototec.sbuild.ant", "de.tototec.sbuild.eclipse.plugin", "de.tototec.sbuild.addons")
+  val modules = Seq("de.tototec.sbuild", "de.tototec.sbuild.ant", "de.tototec.sbuild.addons")
   modules.foreach { Module(_) }
 
   Target("phony:clean") dependsOn (modules.map(m => TargetRefs(m + "::clean")).reduceLeft(_ ~ _)) exec {
