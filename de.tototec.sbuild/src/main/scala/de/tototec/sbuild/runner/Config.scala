@@ -45,4 +45,7 @@ class Config {
   @CmdOption(names = Array("--dependency-tree"), description = "Show dependency tree(s) and exit.")
   var showDependencyTree =  false
   
+  @CmdOption(names = Array("-q", "--quiet", "--no-progress"), description = "Quiet mode. Don't show progress messages with progress in percent. (This will speed up SBuild initialization.)")
+  var noProgress = false
+  
 }

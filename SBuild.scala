@@ -12,9 +12,9 @@ class SBuild(implicit project: Project) {
   SchemeHandler("mvn", new MvnSchemeHandler(Path(Prop("mvn.repo", ".sbuild/mvn"))))
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
 
-  val version = Prop("SBUILD_VERSION", "0.1.5")
+  val version = Prop("SBUILD_VERSION", "0.1.5.9000")
   SetProp("SBUILD_VERSION", version)
-  val osgiVersion = Prop("SBUILD_OSGI_VERSION", "0.1.5")
+  val osgiVersion = Prop("SBUILD_OSGI_VERSION", version)
   SetProp("SBUILD_OSGI_VERSION", osgiVersion)
 
   val scalaVersion = "2.9.2"
@@ -52,7 +52,7 @@ class SBuild(implicit project: Project) {
     AntCopy(file = Path("LICENSE.txt"), toDir = Path(distDir + "/doc"))
     AntCopy(file = Path("ChangeLog.txt"), toDir = Path(distDir + "/doc"))
   }
-  
+
   Target("phony:copyDeps") dependsOn (cmdOptionJar ~ scalaJar ~ scalaCompilerJar) exec { ctx: TargetContext =>
     ctx.fileDependencies foreach { file => 
       AntCopy(file = file, toDir = Path(distDir + "/lib"))

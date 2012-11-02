@@ -150,8 +150,13 @@ class """ + className + """(implicit project: Project) {
       case true => Some((depth: Int, node: Target) => { dependencyTree ++= Seq((depth, node)) })
       case _ => None
     }
-    log.log(LogLevel.Info, "Calculating dependency tree...")
-    val chain = preorderedDependencies(targets, skipExec = true, treePrinter = treePrinter)(project)
+
+    lazy val chain: Array[ExecutedTarget] = {
+      if (!targets.isEmpty && !config.noProgress) {
+        log.log(LogLevel.Info, "Calculating dependency tree...")
+      }
+      preorderedDependencies(targets, skipExec = true, treePrinter = treePrinter)(project)
+    }
 
     def execPlan = {
       var line = 0
@@ -186,12 +191,18 @@ class """ + className + """(implicit project: Project) {
       System.exit(0)
     }
 
+    // force evaluation of val chain, if required, and switch afterwards from bootstrap to execution time benchmarking.
+    val execState = if (config.noProgress) None else Some(new ExecState(maxCount = chain.size))
+
     val executionStart = System.currentTimeMillis
     val bootstrapTime = executionStart - bootstrapStart
 
-    log.log(LogLevel.Info, "Executing...")
-    preorderedDependencies(targets, execState = Some(new ExecState(maxCount = chain.size)))(project)
-    if (!targets.isEmpty) {
+    if (!targets.isEmpty && !config.noProgress) {
+      log.log(LogLevel.Info, "Executing...")
+    }
+
+    preorderedDependencies(targets, execState = execState)(project)
+    if (!targets.isEmpty && !config.noProgress) {
       println("[100%] Execution finished. SBuild init time: " + bootstrapTime +
         " msec, Execution time: " + (System.currentTimeMillis - executionStart) + " msec")
     }
@@ -237,17 +248,16 @@ class """ + className + """(implicit project: Project) {
     (
       if (project != target.project) {
         project.projectDirectory.toURI.relativize(target.project.projectFile.toURI).getPath + "::"
-      } else ""
-    ) + TargetRef(target).nameWithoutStandardProto
+      } else "") + TargetRef(target).nameWithoutStandardProto
 
   def preorderedDependencies(request: List[Target],
-                             rootRequest: Option[Target] = None,
-                             execState: Option[ExecState] = None,
-                             skipExec: Boolean = false,
-                             requestId: Option[String] = None,
-                             dependencyTrace: List[Target] = List(),
-                             depth: Int = 0,
-                             treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] = {
+    rootRequest: Option[Target] = None,
+    execState: Option[ExecState] = None,
+    skipExec: Boolean = false,
+    requestId: Option[String] = None,
+    dependencyTrace: List[Target] = List(),
+    depth: Int = 0,
+    treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] = {
     request match {
       case Nil => Array()
       case node :: tail =>
@@ -301,8 +311,7 @@ class """ + className + """(implicit project: Project) {
             requestId = resolveDirectDepsRequestId,
             dependencyTrace = node :: dependencyTrace,
             depth = depth + 1,
-            treePrinter = treePrinter
-          )
+            treePrinter = treePrinter)
 
           log.log(LogLevel.Debug, "Executed dependency count: " + executed.size);
 
@@ -420,8 +429,7 @@ class """ + className + """(implicit project: Project) {
             new ExecutedTarget(
               target = node,
               wasUpToDate = execPhonyUpToDateOrSkip || ctx.targetWasUpToDate,
-              requestId = requestId)
-          )
+              requestId = requestId))
         }
 
         alreadyRun ++ preorderedDependencies(tail,
