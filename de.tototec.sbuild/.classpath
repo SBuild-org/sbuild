@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src/main/scala"/>
+	<classpathentry kind="src" path="target/generated-scala"/>
 	<classpathentry kind="src" path="src/main/java"/>
 	<classpathentry kind="src" output="target/test-classes" path="src/test/scala"/>
 	<classpathentry kind="src" output="target/test-classes" path="src/test/resources"/>
