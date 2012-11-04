@@ -35,6 +35,8 @@ trait TargetContext {
   def targetWasUpToDate: Boolean
   def targetWasUpToDate_=(targetWasUpToDate: Boolean)
   def addToTargetWasUpToDate(targetWasUpToDate: Boolean)
+  
+  def project: Project
 }
 
 class TargetContextImpl(target: Target) extends TargetContext {
@@ -100,4 +102,5 @@ class TargetContextImpl(target: Target) extends TargetContext {
   override def targetWasUpToDate_=(targetWasUpToDate: Boolean) = _targetWasUpToDate = List(targetWasUpToDate)
   override def addToTargetWasUpToDate(targetWasUpToDate: Boolean) = _targetWasUpToDate ::= targetWasUpToDate
 
+  override def project: Project = target.project
 }

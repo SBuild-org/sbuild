@@ -16,14 +16,15 @@ import de.tototec.sbuild.SBuildLogger
 import de.tototec.sbuild.SBuildVersion
 import de.tototec.sbuild.Util
 import de.tototec.sbuild.LogLevel
+import de.tototec.sbuild.ProjectConfigurationException
 
 class ProjectScript(_scriptFile: File,
-                    sbuildClasspath: Array[String],
-                    compileClasspath: Array[String],
-                    additionalProjectClasspath: Array[String],
-                    noFsc: Boolean,
-                    downloadCache: DownloadCache,
-                    log: SBuildLogger) {
+  sbuildClasspath: Array[String],
+  compileClasspath: Array[String],
+  additionalProjectClasspath: Array[String],
+  noFsc: Boolean,
+  downloadCache: DownloadCache,
+  log: SBuildLogger) {
 
   def this(scriptFile: File, classpathConfig: ClasspathConfig, downloadCache: DownloadCache, log: SBuildLogger) {
     this(scriptFile,
@@ -65,15 +66,17 @@ class ProjectScript(_scriptFile: File,
 
     val addCp: Array[String] = readAdditionalClasspath ++ additionalProjectClasspath
 
-    if (!checkInfoFileUpToDate) {
+    val includes: Array[File] = readIncludeFiles
+
+    if (!checkInfoFileUpToDate(includes)) {
       println("Compiling build script " + scriptFile + "...")
-      newCompile(sbuildClasspath ++ addCp)
+      newCompile(sbuildClasspath ++ addCp, includes)
     }
 
     useExistingCompiled(project, addCp)
   }
 
-  def checkInfoFileUpToDate(): Boolean = {
+  def checkInfoFileUpToDate(includes: Array[File]): Boolean = {
     infoFile.exists && {
       val info = xml.XML.loadFile(infoFile)
 
@@ -83,11 +86,30 @@ class ProjectScript(_scriptFile: File,
       val sbuildVersion = (info \ "sbuildVersion").text
       val sbuildOsgiVersion = (info \ "sbuildOsgiVersion").text
 
+      def includesMatch: Boolean = try {
+        val lastIncludes = (info \ "includes" \ "include").map { lastInclude =>
+          ((lastInclude \ "path").text, (lastInclude \ "lastModified").text.toLong)
+        }.toMap
+
+        includes.length == lastIncludes.size &&
+          includes.forall { include =>
+            lastIncludes.get(include.getPath) match {
+              case Some(time) => include.lastModified == time
+              case _ => false
+            }
+          }
+      } catch {
+        case e =>
+          log.log(LogLevel.Debug, "Could not evaluate up-to-date state of included files.", e)
+          false
+      }
+
       scriptFile.length == sourceSize &&
         scriptFile.lastModified == sourceLastModified &&
         targetClassFile.lastModified == targetClassLastModified &&
         sbuildVersion == SBuildVersion.version &&
-        sbuildOsgiVersion == SBuildVersion.osgiVersion
+        sbuildOsgiVersion == SBuildVersion.osgiVersion &&
+        includesMatch
     }
   }
 
@@ -193,6 +215,25 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
+  def readIncludeFiles: Array[File] = {
+    log.log(LogLevel.Debug, "About to find include files.")
+    val cp = readAnnotationWithVarargAttribute(annoName = "include", valueName = "value")
+    log.log(LogLevel.Debug, "Using include files: " + cp.mkString(", "))
+
+    cp.map { entry =>
+      val fileEntry = new File(entry) match {
+        case x if x.isAbsolute => x
+        case x => new File(projectDir, entry).getCanonicalFile
+      }
+      if (!fileEntry.exists) {
+        val ex = new ProjectConfigurationException("Could not found include file: " + entry)
+        ex.buildScript = Some(scriptFile)
+        throw ex
+      }
+      fileEntry
+    }.distinct
+  }
+
   def readAdditionalClasspath: Array[String] = {
     log.log(LogLevel.Debug, "About to find additional classpath entries.")
     val cp = readAnnotationWithVarargAttribute(annoName = "classpath", valueName = "value")
@@ -290,12 +331,12 @@ class ProjectScript(_scriptFile: File,
     Util.delete(targetDir)
   }
 
-  def newCompile(classpath: Array[String]) {
+  def newCompile(classpath: Array[String], includes: Array[File]) {
     cleanScala()
     targetDir.mkdirs
     log.log(LogLevel.Debug, "Compiling build script: " + scriptFile)
 
-    compile(classpath.mkString(File.pathSeparator))
+    compile(classpath.mkString(File.pathSeparator), includes)
 
     log.log(LogLevel.Debug, "Writing info file: " + infoFile)
     val info = <sbuild>
@@ -304,6 +345,16 @@ class ProjectScript(_scriptFile: File,
                  <targetClassLastModified>{ targetClassFile.lastModified }</targetClassLastModified>
                  <sbuildVersion>{ SBuildVersion.version }</sbuildVersion>
                  <sbuildOsgiVersion>{ SBuildVersion.osgiVersion }</sbuildOsgiVersion>
+                 <includes>
+                   {
+                     includes.map { include =>
+                       <include>
+                         <path>{ include.getPath }</path>
+                         <lastModified>{ include.lastModified }</lastModified>
+                       </include>
+                     }
+                   }
+                 </includes>
                </sbuild>
     val file = new FileWriter(infoFile)
     xml.XML.write(file, info, "UTF-8", true, null)
@@ -311,8 +362,8 @@ class ProjectScript(_scriptFile: File,
 
   }
 
-  def compile(classpath: String) {
-    val params = Array("-classpath", classpath, "-g:vars", "-d", targetDir.getPath, scriptFile.getPath)
+  def compile(classpath: String, includes: Array[File]) {
+    val params = Array("-classpath", classpath, "-g:vars", "-d", targetDir.getPath, scriptFile.getPath) ++ (includes.map { file => file.getPath })
     log.log(LogLevel.Debug, "Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
     val compilerClassloader = new URLClassLoader(compileClasspath.map { f => new File(f).toURI.toURL }, getClass.getClassLoader)
 
