@@ -84,7 +84,7 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 
 @version(""" + "\"" + SBuildVersion.osgiVersion + "\"" + """)
-@classpath("http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar")
+@classpath("http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.4/ant-1.8.4.jar")
 class """ + className + """(implicit project: Project) {
 
   Target("phony:hello") help "Say hello" exec {
