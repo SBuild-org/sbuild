@@ -79,7 +79,25 @@ class Project(_projectFile: File,
   private var _modules: List[Project] = List()
   def modules: List[Project] = _modules
 
-  private[sbuild] def findOrCreateModule(dirOrFile: String): Project = {
+  private[sbuild] def findModule(dirOrFile: String): Option[Project] = {
+    Path(dirOrFile)(this) match {
+      case x if !x.exists => None
+      case newProjectDirOrFile =>
+        val newProjectFile = newProjectDirOrFile match {
+          case x if x.isFile => newProjectDirOrFile
+          case x => new File(x, "SBuild.scala")
+        }
+        newProjectFile.exists match {
+          case false => None
+          case true =>
+            projectPool.projects.find { p =>
+              p.projectFile == newProjectFile
+            }
+        }
+    }
+  }
+
+  private[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean = true): Project = {
     // various checks
     if (projectReader == null) {
       throw new SBuildException("Does not know how to read the sub project")
@@ -114,7 +132,8 @@ class Project(_projectFile: File,
       case Some(existing) => existing
       case _ =>
         val newProject = new Project(newProjectFile, projectReader, Some(projectPool), log)
-        properties foreach {
+        // copy project properties 
+        if (copyProperties) properties.foreach {
           case (key, value) => newProject.addProperty(key, value)
         }
 

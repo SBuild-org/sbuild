@@ -7,6 +7,13 @@ class Config {
     description = "The buildfile to use (default: SBuild.scala).")
   var buildfile = "SBuild.scala"
 
+  @CmdOption(names = Array("--additional-buildfile", "-F"), args = Array("FILE"), maxCount = -1,
+    description = "Add an additional buildfile into scope.")
+  def addAdditionalBuildfiles(buildfile: String) {
+    additionalBuildfiles ++= Seq(buildfile)
+  }
+  var additionalBuildfiles: Seq[String] = Seq()
+
   @CmdOption(names = Array("--verbose", "-v"), description = "Be verbose when running.")
   var verbose = false
 
@@ -41,11 +48,11 @@ class Config {
 
   @CmdOption(args = Array("TARGETS"), maxCount = -1, description = "The target(s) to execute (in order).")
   val params = new java.util.LinkedList[String]()
- 
+
   @CmdOption(names = Array("--dependency-tree"), description = "Show dependency tree(s) and exit.")
-  var showDependencyTree =  false
-  
+  var showDependencyTree = false
+
   @CmdOption(names = Array("-q", "--quiet", "--no-progress"), description = "Quiet mode. Don't show progress messages with progress in percent. (This will speed up SBuild initialization.)")
   var noProgress = false
-  
+
 }

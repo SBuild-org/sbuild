@@ -49,6 +49,7 @@ formatter.spaceBeforeColon=false
 formatter.spaceInsideBrackets=false
 formatter.spaceInsideParentheses=false
 formatter.spacesWithinPatternBinders=true
+formatter.useProjectSpecificSettings=true
 g=vars
 no-specialization=false
 nowarn=false

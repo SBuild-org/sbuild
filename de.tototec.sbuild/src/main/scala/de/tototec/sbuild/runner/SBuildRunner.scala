@@ -112,6 +112,20 @@ class """ + className + """(implicit project: Project) {
 
     projectReader.readProject(project, projectFile)
 
+    val additionalProjects = config.additionalBuildfiles.map { buildfile =>
+      project.findModule(buildfile) match {
+        case None =>
+          // Create and add new module and copy configs
+          val module = project.findOrCreateModule(new File(buildfile).getAbsolutePath, copyProperties = false)
+          config.defines foreach {
+            case (key, value) => module.addProperty(key, value)
+          }
+          module
+
+        case Some(module) => module // Module already defined
+      }
+    }
+
     log.log(LogLevel.Debug, "Targets: \n" + project.targets.values.mkString("\n"))
 
     def formatTargetsOf(p: Project): String = {
@@ -123,17 +137,20 @@ class """ + className + """(implicit project: Project) {
       }.mkString("\n")
     }
 
-    if (config.listTargets) {
-      Console.println(formatTargetsOf(project))
-      System.exit(0)
-    }
-    if (config.listTargetsRecursive) {
-      val out = project.projectPool.projects.sortWith {
+    // Format listing of target
+    if (config.listTargets || config.listTargetsRecursive) {
+      val projectsToList = if (config.listTargets) {
+        Seq(project) ++ additionalProjects
+      } else {
+        project.projectPool.projects
+      }
+      val out = projectsToList.sortWith {
+        // ensure main project file is on top
         case (l, r) if l.eq(project) => true
         case (l, r) if r.eq(project) => false
         case (l, r) => l.projectFile.compareTo(r.projectFile) < 0
       }.map { p => formatTargetsOf(p) }
-      Console.println(out.mkString("\n\n"));
+      Console.println(out.mkString("\n\n"))
       System.exit(0)
     }
 

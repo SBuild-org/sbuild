@@ -37,12 +37,18 @@ class ProjectScript(_scriptFile: File,
   }
 
   val scriptFile: File = _scriptFile.getAbsoluteFile.getCanonicalFile
+  require(scriptFile.isFile, "scriptFile must be a file")
   val projectDir: File = scriptFile.getParentFile
 
   val buildTargetDir = ".sbuild";
   val buildFileTargetDir = ".sbuild/scala/" + scriptFile.getName;
 
-  val scriptBaseName = scriptFile.getName.substring(0, scriptFile.getName.length - 6)
+  val scriptBaseName = scriptFile.getName.endsWith(".scala") match {
+    case true => scriptFile.getName.substring(0, scriptFile.getName.length - 6)
+    case false => 
+      log.log(LogLevel.Debug, "Scriptfile name does not end in '.scala'")
+      scriptFile.getName
+  }
   lazy val targetBaseDir: File = new File(scriptFile.getParentFile, buildTargetDir)
   lazy val targetDir: File = new File(scriptFile.getParentFile, buildFileTargetDir)
   lazy val targetClassFile = new File(targetDir, scriptBaseName + ".class")
