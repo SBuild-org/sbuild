@@ -8,6 +8,7 @@ SBuild SVN/trunk
   for larger multi-projects, as the dependency tree is not walked trough in
   advance.
 * Added arguments parameter to AntJava, as args is deprecated.
+* Added more options/parameters to ScalaTest addon.
 
 SBuild 0.1.5 - 2012-10-26
 

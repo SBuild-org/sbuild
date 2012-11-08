@@ -13,25 +13,49 @@ object ScalaTest {
     reporter: String = null,
     configMap: Map[String, String] = null,
     includes: Seq[String] = null,
-    excludes: Seq[String] = null)(implicit project: Project) =
+    excludes: Seq[String] = null,
+    // since 0.1.5.9000
+    parallel: java.lang.Boolean = null,
+    threadCount: java.lang.Integer = null,
+    suites: Seq[String] = null,
+    packages: Seq[String] = null,
+    packagesRecursive: Seq[String] = null,
+    testNgTests: Seq[String] = null,
+    junitTests: Seq[String] = null)(implicit project: Project) =
     new ScalaTest(
       classpath = classpath,
       runPath = runPath,
       reporter = reporter,
       configMap = configMap,
       includes = includes,
-      excludes = excludes
+      excludes = excludes,
+      parallel = parallel,
+      threadCount = threadCount,
+      suites = suites,
+      packages = packages,
+      packagesRecursive = packagesRecursive,
+      testNgTests = testNgTests,
+      junitTests = junitTests
     ).execute
-
 }
 
 class ScalaTest(
+  /** The classpath used to run the ScalaTest itself. Also the test classes may be made available on the classpath, in wich case no runpath need be specified.  */
   var classpath: Seq[File] = null,
+  /** A list of filenames, directory paths, and/or URLs that Runner uses to load classes for the running test. If runpath is specified, Runner creates a custom class loader to load classes available on the runpath. The graphical user interface reloads the test classes anew for each run by creating and using a new instance of the custom class loader for each run. The classes that comprise the test may also be made available on the classpath, in which case no runpath need be specified. */
   var runPath: Seq[String] = null,
   var reporter: String = null,
   var configMap: Map[String, String] = null,
   var includes: Seq[String] = null,
-  var excludes: Seq[String] = null)(implicit project: Project) {
+  var excludes: Seq[String] = null,
+  // since 0.1.5.9000
+  var parallel: java.lang.Boolean = null,
+  var threadCount: java.lang.Integer = null,
+  var suites: Seq[String] = null,
+  var packages: Seq[String] = null,
+  var packagesRecursive: Seq[String] = null,
+  var testNgTests: Seq[String] = null,
+  var junitTests: Seq[String] = null)(implicit project: Project) {
 
   def execute {
 
@@ -58,26 +82,35 @@ class ScalaTest(
     if (configMap != null) configMap foreach {
       case (key, value) => args ++= Array("-D" + key + "=" + value)
     }
-    if (includes != null) args ++= Array("-n", whiteSpaceSeparated(includes))
-    if (excludes != null) args ++= Array("-n", whiteSpaceSeparated(excludes))
+    if (includes != null && !includes.isEmpty) args ++= Array("-n", whiteSpaceSeparated(includes))
+    if (excludes != null && !excludes.isEmpty) args ++= Array("-n", whiteSpaceSeparated(excludes))
+    if (parallel != null && parallel.booleanValue) {
+      if (threadCount != null) args ++= Array("-c" + threadCount.intValue)
+      else args ++= Array("-c")
+    }
+    if (suites != null && !suites.isEmpty) args ++= Array("-s", whiteSpaceSeparated(suites))
+    if (packages != null && !packages.isEmpty) args ++= Array("-m", whiteSpaceSeparated(packages))
+    if (packagesRecursive != null && !packagesRecursive.isEmpty) args ++= Array("-w", whiteSpaceSeparated(packagesRecursive))
+    if (testNgTests != null && !testNgTests.isEmpty) args ++= Array("-t", whiteSpaceSeparated(testNgTests))
+    if (junitTests != null && !junitTests.isEmpty) args ++= Array("-j", whiteSpaceSeparated(junitTests))
 
     val cl = classpath match {
       case null => getClass.getClassLoader
       case Seq() => getClass.getClassLoader
-      case cp => 
+      case cp =>
         // Use a classloader that only loads from parent classloader if the given URLs do not contain the requested class.
         new URLClassLoader(cp.map { f => f.toURI().toURL() }.toArray, null) {
-        override protected def loadClass(className: String, resolve: Boolean): Class[_] = {
-          synchronized {
-            try {
-              super.loadClass(className, resolve)
-            } catch {
-              case e: NoClassDefFoundError =>
-                classOf[ScalaTest].getClassLoader().loadClass(className);
+          override protected def loadClass(className: String, resolve: Boolean): Class[_] = {
+            synchronized {
+              try {
+                super.loadClass(className, resolve)
+              } catch {
+                case e: NoClassDefFoundError =>
+                  classOf[ScalaTest].getClassLoader().loadClass(className);
+              }
             }
           }
         }
-      }
     }
 
     //    Runner.run(args)
