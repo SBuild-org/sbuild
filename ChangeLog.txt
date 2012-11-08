@@ -9,6 +9,9 @@ SBuild SVN/trunk
   advance.
 * Added arguments parameter to AntJava, as args is deprecated.
 * Added more options/parameters to ScalaTest addon.
+* Command line option --create-stub now tries to copy a stub from SBuild's home
+  directory ($SBUILD_HOME/stub/SBuild.scala) if such one exists, before using
+  a hardcoded one.
 
 SBuild 0.1.5 - 2012-10-26
 

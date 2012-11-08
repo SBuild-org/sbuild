@@ -11,6 +11,7 @@ import java.io.BufferedOutputStream
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import de.tototec.cmdoption.CmdOption
+import java.io.FileInputStream
 
 object SBuildRunner {
 
@@ -77,8 +78,19 @@ object SBuildRunner {
         throw new SBuildException("File '" + config.buildfile + "' already exists. ")
       }
 
-      val className = projectFile.getName.substring(0, projectFile.getName.length - 6)
-      val sbuildStub = """import de.tototec.sbuild._
+      val sbuildStub = new File(classpathConfig.sbuildHomeDir, "stub/SBuild.scala") match {
+
+        case stubFile if stubFile.exists =>
+          val source = io.Source.fromFile(stubFile)
+          val text = source.mkString
+          source.close
+          text
+
+        case _ =>
+          val className = if (projectFile.getName.endsWith(".scala")) {
+            projectFile.getName.substring(0, projectFile.getName.length - 6)
+          } else { projectFile.getName }
+          """import de.tototec.sbuild._
 import de.tototec.sbuild.TargetRefs._
 import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
@@ -93,11 +105,14 @@ class """ + className + """(implicit project: Project) {
 
 }
 """
+
+      }
+
       val outStream = new PrintStream(new FileOutputStream(projectFile))
       try {
         outStream.print(sbuildStub)
       } finally {
-        if (outStream != null) outStream.close()
+        if (outStream != null) outStream.close
       }
 
       System.exit(0)
@@ -268,13 +283,13 @@ class """ + className + """(implicit project: Project) {
       } else "") + TargetRef(target).nameWithoutStandardProto
 
   def preorderedDependencies(request: List[Target],
-    rootRequest: Option[Target] = None,
-    execState: Option[ExecState] = None,
-    skipExec: Boolean = false,
-    requestId: Option[String] = None,
-    dependencyTrace: List[Target] = List(),
-    depth: Int = 0,
-    treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] = {
+                             rootRequest: Option[Target] = None,
+                             execState: Option[ExecState] = None,
+                             skipExec: Boolean = false,
+                             requestId: Option[String] = None,
+                             dependencyTrace: List[Target] = List(),
+                             depth: Int = 0,
+                             treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] = {
     request match {
       case Nil => Array()
       case node :: tail =>
