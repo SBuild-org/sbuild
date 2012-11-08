@@ -1,4 +1,4 @@
-SBuild SVN/trunk
+SBuild 0.2.0 - 2012-11-08
 
 * A buildfile can now include other scala files. Added @include to share common
   configuration and functionality.
