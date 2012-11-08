@@ -26,7 +26,9 @@ object AntJava {
             append: java.lang.Boolean = null,
             timeout: java.lang.Long = null,
             // since 0.1.1
-            failOnError: java.lang.Boolean = null)(implicit _project: Project) =
+            failOnError: java.lang.Boolean = null,
+            // since 0.1.5.9000
+           arguments: Seq[String] = null)(implicit _project: Project) =
     new AntJava(
       className = className,
       classpath = classpath,
@@ -46,7 +48,8 @@ object AntJava {
       jvmVersion = jvmVersion,
       append = append,
       timeout = timeout,
-      failOnError = failOnError
+      failOnError = failOnError,
+      arguments = arguments
     ).execute
 }
 
@@ -72,7 +75,9 @@ class AntJava()(implicit _project: Project) extends Java {
            append: java.lang.Boolean = null,
            timeout: java.lang.Long = null,
            // since 0.1.1
-           failOnError: java.lang.Boolean = null)(implicit _project: Project) {
+           failOnError: java.lang.Boolean = null,
+           // since 0.1.5.9000
+           arguments: Seq[String] = null)(implicit _project: Project) {
     this
     if (className != null) setClassname(className)
     if (classpath != null) setClasspath(classpath)
@@ -92,7 +97,8 @@ class AntJava()(implicit _project: Project) extends Java {
     if (jvmVersion != null) setJVMVersion(jvmVersion)
     if (append != null) setAppend(append.booleanValue)
     if (timeout != null) setTimeout(timeout.longValue)
-    if(failOnError != null) setFailonerror(failOnError.booleanValue)
+    if (failOnError != null) setFailonerror(failOnError.booleanValue)
+    if (arguments != null) arguments.foreach { arg => createArg.setValue(arg) }
   }
 
   def setClassName(className: String) = setClassname(className)

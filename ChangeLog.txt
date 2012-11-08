@@ -1,12 +1,13 @@
 SBuild SVN/trunk
 
-* A buildfile can now include other scala files @include to share common
+* A buildfile can now include other scala files. Added @include to share common
   configuration and functionality.
 * Added project accessor to TargetContext.
 * Added --quiet command line option to suppress percentage calculation and
   status messages. This will drastically speed up SBuild's initialization time
   for larger multi-projects, as the dependency tree is not walked trough in
   advance.
+* Added arguments parameter to AntJava, as args is deprecated.
 
 SBuild 0.1.5 - 2012-10-26
 
