@@ -95,7 +95,7 @@ class TargetContextImpl(target: Target) extends TargetContext {
    * that depend on this on.
    */
   private var _targetWasUpToDate: List[Boolean] = List()
-  def targetWasUpToDate: Boolean = _targetWasUpToDate match {
+  override def targetWasUpToDate: Boolean = _targetWasUpToDate match {
     case List() => false
     case x => x.forall(upToDate => upToDate)
   }
