@@ -14,11 +14,13 @@ import java.io.BufferedOutputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.zip.ZipInputStream
+import java.io.FileInputStream
 
 object Util {
 
   var log: SBuildLogger = SBuildNoneLogger
-  
+
   def delete(files: File*) {
     files.map(_ match {
       case f if f.isDirectory => {
@@ -139,11 +141,9 @@ object Util {
     if (partial) log.log(LogLevel.Debug, "Only extracting some content of zip file")
 
     try {
-      val zip = new ZipFile(archive)
-      val entries = zip.entries
-      while (entries.hasMoreElements && (!partial || !selectedFiles.isEmpty)) {
-        val zipEntry = entries.nextElement
-
+      val zipIs = new ZipInputStream(new FileInputStream(archive))
+      var zipEntry = zipIs.getNextEntry
+      while (zipEntry != null && (!partial || !selectedFiles.isEmpty)) {
         val extractFile: Option[File] = if (partial) {
           if (!zipEntry.isDirectory) {
             val candidate = selectedFiles.find { case (name, _) => name == zipEntry.getName }
@@ -180,20 +180,22 @@ object Util {
             && !targetFile.getParentFile.isDirectory) {
             throw new RuntimeException(
               "Expected directory is a file. Cannot extract zip content: "
-                + zipEntry.getName());
+                + zipEntry.getName);
           }
           // Ensure, that the directory exixts
           targetFile.getParentFile.mkdirs
           val outputStream = new BufferedOutputStream(new FileOutputStream(targetFile))
-          val inputStream = zip.getInputStream(zipEntry)
-          copy(inputStream, outputStream);
+          copy(zipIs, outputStream);
           outputStream.close
-          inputStream.close
-          if (zipEntry.getTime() > 0) {
+          if (zipEntry.getTime > 0) {
             targetFile.setLastModified(zipEntry.getTime)
           }
         }
+
+        zipEntry = zipIs.getNextEntry()
       }
+      
+      zipIs.close
     } catch {
       case e: IOException =>
         throw new RuntimeException("Could not unzip file: " + archive,
