@@ -9,9 +9,9 @@ import de.tototec.sbuild.TargetRefs
 object AntPath {
 
   def apply(location: File = null,
-            locations: Seq[File] = Seq(),
+            locations: Seq[File] = null,
             path: String = null,
-            paths: Seq[String] = Seq())(implicit project: Project) =
+            paths: Seq[String] = null)(implicit project: Project) =
     new AntPath(
       location = location,
       locations = locations,
@@ -32,9 +32,9 @@ object AntPath {
 class AntPath()(implicit _project: Project) extends org.apache.tools.ant.types.Path(AntProject()) {
 
   def this(location: File = null,
-           locations: Seq[File] = Seq(),
+           locations: Seq[File] = null,
            path: String = null,
-           paths: Seq[String] = Seq())(implicit project: Project) {
+           paths: Seq[String] = null)(implicit project: Project) {
     this
     if (location != null) setLocation(location)
     if (locations != null) locations.foreach { loc => setLocation(loc) }
