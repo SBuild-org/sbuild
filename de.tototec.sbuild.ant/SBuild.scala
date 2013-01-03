@@ -3,28 +3,29 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
-@version("0.1.1")
-@classpath(
-  "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar",
-  "http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.9.2/scala-library-2.9.2.jar",
-  "http://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.9.2/scala-compiler-2.9.2.jar"
+@version("0.2.0")
+@include(
+  "../SBuildConfig.scala",
+  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/support/ForkSupport.scala",
+  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/scala/Scalac.scala"
 )
-class SBuild(implicit project: Project) {
+@classpath(
+  "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar"
+)
+class SBuild(implicit _project: Project) {
 
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
-  SchemeHandler("mvn", new MvnSchemeHandler(Path(Prop("mvn.repo", ".sbuild/mvn"))))
+  SchemeHandler("mvn", new MvnSchemeHandler())
 
-//   val version = Prop("SBUILD_VERSION", "svn")
-  val jar = "target/de.tototec.sbuild.ant.jar"
+  val jar = "target/de.tototec.sbuild.ant-" + SBuildConfig.sbuildVersion + ".jar"
 
   // Current version of bnd (with ant tasks) is not in Maven repo 
   val bnd_1_50_0 = "http://dl.dropbox.com/u/2590603/bnd/biz.aQute.bnd.jar"
 
-  val scalaVersion = "2.9.2"
   val compileCp =
-    ("../de.tototec.sbuild/target/de.tototec.sbuild.jar") ~
-      ("mvn:org.scala-lang:scala-library:" + scalaVersion) ~
-      ("mvn:org.scala-lang:scala-compiler:" + scalaVersion) ~
+    ("../de.tototec.sbuild/target/de.tototec.sbuild-" + SBuildConfig.sbuildVersion + ".jar") ~
+      ("mvn:org.scala-lang:scala-library:" + SBuildConfig.scalaVersion) ~
+      ("mvn:org.scala-lang:scala-compiler:" + SBuildConfig.scalaVersion) ~
       "mvn:org.apache.ant:ant:1.8.3" ~
       "mvn:org.liquibase:liquibase-core:2.0.3" ~
       bnd_1_50_0
@@ -37,25 +38,22 @@ class SBuild(implicit project: Project) {
     AntDelete(dir = Path("target"))
   }
 
-  def antScalac = new scala_tools_ant.AntScalac(
-    target = "jvm-1.5",
-    encoding = "UTF-8",
-    deprecation = "on",
-    unchecked = "on",
-    // this is necessary, because the scala ant tasks outsmarts itself 
-    // when more than one scala class is defined in the same .scala file
-    force = true)
-
-  Target("phony:compile") dependsOn compileCp exec { ctx: TargetContext =>
+  Target("phony:compile") dependsOn SBuildConfig.compilerPath ~ compileCp exec { ctx: TargetContext =>
     val input = "src/main/scala"
     val output = "target/classes"
     AntMkdir(dir = Path(output))
     IfNotUpToDate(Path(input), Path("target"), ctx) {
-      val scalac = antScalac
-      scalac.setSrcDir(AntPath(input))
-      scalac.setDestDir(Path(output))
-      scalac.setClasspath(AntPath(compileCp))
-      scalac.execute
+
+      val compilerFilter = """.*scala-((library)|(compiler)|(reflect)).*""".r
+
+      new addons.scala.Scalac(
+        deprecation = true, unchecked = true, debugInfo = "vars", target = "jvm-1.5",
+        fork = true,
+        compilerClasspath = ctx.fileDependencies.filter(f => compilerFilter.pattern.matcher(f.getName).matches),
+        srcDir = Path(input),
+        destDir = Path(output),
+        classpath = ctx.fileDependencies
+      ).execute
     }
   }
 
@@ -75,17 +73,17 @@ class SBuild(implicit project: Project) {
     }.execute
   }
 
-  Target("phony:scaladoc") dependsOn compileCp exec { ctx: TargetContext =>
-    AntMkdir(dir = Path("target/scaladoc"))
-    IfNotUpToDate(Path("src/main/scala"), Path("target"), ctx) {
-      scala_tools_ant.AntScaladoc(
-        deprecation = "on",
-        unchecked = "on",
-        classpath = AntPath(ctx.prerequisites),
-        srcDir = AntPath("src/main/scala"),
-        destDir = Path("target/scaladoc")
-      )
-    }
-  }
+//   Target("phony:scaladoc") dependsOn compileCp exec { ctx: TargetContext =>
+//     AntMkdir(dir = Path("target/scaladoc"))
+//     IfNotUpToDate(Path("src/main/scala"), Path("target"), ctx) {
+//       scala_tools_ant.AntScaladoc(
+//         deprecation = "on",
+//         unchecked = "on",
+//         classpath = AntPath(ctx.prerequisites),
+//         srcDir = AntPath("src/main/scala"),
+//         destDir = Path("target/scaladoc")
+//       )
+//     }
+//   }
 
 }
