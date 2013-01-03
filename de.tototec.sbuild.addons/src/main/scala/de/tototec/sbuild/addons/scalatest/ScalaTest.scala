@@ -5,6 +5,7 @@ import java.io.File
 import java.net.URLClassLoader
 import de.tototec.sbuild.ExecutionFailedException
 import de.tototec.sbuild.LogLevel
+import de.tototec.sbuild.addons.support.ForkSupport
 
 object ScalaTest {
   def apply(
@@ -21,7 +22,9 @@ object ScalaTest {
     packages: Seq[String] = null,
     packagesRecursive: Seq[String] = null,
     testNgTests: Seq[String] = null,
-    junitTests: Seq[String] = null)(implicit project: Project) =
+    junitTests: Seq[String] = null,
+    // since 0.2.0.9000
+    fork: java.lang.Boolean = null)(implicit project: Project) =
     new ScalaTest(
       classpath = classpath,
       runPath = runPath,
@@ -35,12 +38,13 @@ object ScalaTest {
       packages = packages,
       packagesRecursive = packagesRecursive,
       testNgTests = testNgTests,
-      junitTests = junitTests
+      junitTests = junitTests,
+      fork = fork
     ).execute
 }
 
 class ScalaTest(
-  /** The classpath used to run the ScalaTest itself. Also the test classes may be made available on the classpath, in wich case no runpath need be specified.  */
+  /** The classpath used to run the ScalaTest itself. Also the test classes may be made available on the classpath, in which case no runpath need be specified.  */
   var classpath: Seq[File] = null,
   /** A list of filenames, directory paths, and/or URLs that Runner uses to load classes for the running test. If runpath is specified, Runner creates a custom class loader to load classes available on the runpath. The graphical user interface reloads the test classes anew for each run by creating and using a new instance of the custom class loader for each run. The classes that comprise the test may also be made available on the classpath, in which case no runpath need be specified. */
   var runPath: Seq[String] = null,
@@ -55,7 +59,11 @@ class ScalaTest(
   var packages: Seq[String] = null,
   var packagesRecursive: Seq[String] = null,
   var testNgTests: Seq[String] = null,
-  var junitTests: Seq[String] = null)(implicit project: Project) {
+  var junitTests: Seq[String] = null,
+  // since 0.2.0.9000
+  var fork: java.lang.Boolean = null)(implicit project: Project) {
+
+  val scalaTestClassName = "org.scalatest.tools.Runner"
 
   def execute {
 
@@ -94,46 +102,60 @@ class ScalaTest(
     if (testNgTests != null && !testNgTests.isEmpty) args ++= Array("-t", whiteSpaceSeparated(testNgTests))
     if (junitTests != null && !junitTests.isEmpty) args ++= Array("-j", whiteSpaceSeparated(junitTests))
 
-    val cl = classpath match {
-      case null => getClass.getClassLoader
-      case Seq() => getClass.getClassLoader
-      case cp =>
-        // Use a classloader that only loads from parent classloader if the given URLs do not contain the requested class.
-        new URLClassLoader(cp.map { f => f.toURI().toURL() }.toArray, null) {
-          override protected def loadClass(className: String, resolve: Boolean): Class[_] = {
-            synchronized {
-              try {
-                super.loadClass(className, resolve)
-              } catch {
-                case e: NoClassDefFoundError =>
-                  classOf[ScalaTest].getClassLoader().loadClass(className);
+    if (fork != null && fork.booleanValue) {
+      val command = Array("java", "-cp", ForkSupport.pathAsArg(classpath), scalaTestClassName) ++ args
+      val result = ForkSupport.runAndWait(command: _*)
+      if (result != 0) {
+        val e = new ExecutionFailedException("ScalaTest Errors.")
+        e.buildScript = Some(project.projectFile)
+        throw e
+      }
+
+    } else {
+
+      val cl = classpath match {
+        case null => getClass.getClassLoader
+        case Seq() => getClass.getClassLoader
+        case cp =>
+          // TODO: make inclusion of parent classloader an option (e.g. includeSBuildRuntime)
+          // Use a classloader that only loads from parent classloader if the given URLs do not contain the requested class.
+          new URLClassLoader(cp.map { f => f.toURI().toURL() }.toArray, null) {
+            override protected def loadClass(className: String, resolve: Boolean): Class[_] = {
+              synchronized {
+                try {
+                  super.loadClass(className, resolve)
+                } catch {
+                  case e: NoClassDefFoundError =>
+                    classOf[ScalaTest].getClassLoader().loadClass(className);
+                }
               }
             }
           }
-        }
+      }
+
+      //    Runner.run(args)
+
+      val runnerClass = try {
+        cl.loadClass(scalaTestClassName)
+      } catch {
+        case e: ClassNotFoundException =>
+          throw new ExecutionFailedException("org.scalatest.tools.Runner was not found on the classpath.\nPlease add it to the 'classpath' attribute or the SBuild classapth.")
+      }
+
+      project.log.log(LogLevel.Debug, "Running ScalaTest with\n  classpath: " + (cl match {
+        case cp: URLClassLoader => cp.getURLs.mkString(", ")
+        case x => "SBuild classpath"
+      }) + "\n  args: " + args.mkString(", "))
+
+      val runMethod = runnerClass.asInstanceOf[Class[_]].getMethod("run", classOf[Array[String]])
+      runMethod.invoke(null, args) match {
+        case x if x.isInstanceOf[Boolean] && x == true => // success
+        case _ =>
+          throw new ExecutionFailedException("Some ScalaTest tests failed.")
+      }
+
     }
-
-    //    Runner.run(args)
-
-    val runnerClass = try {
-      cl.loadClass("org.scalatest.tools.Runner")
-    } catch {
-      case e: ClassNotFoundException =>
-        throw new ExecutionFailedException("org.scalatest.tools.Runner was not found on the classpath.\nPlease add it to the 'classpath' attribute or the SBuild classapth.")
-    }
-
-    project.log.log(LogLevel.Debug, "Running ScalaTest with\n  classpath: " + (cl match {
-      case cp: URLClassLoader => cp.getURLs.mkString(", ")
-      case x => "SBuild classpath"
-    }) + "\n  args: " + args.mkString(", "))
-
-    val runMethod = runnerClass.asInstanceOf[Class[_]].getMethod("run", classOf[Array[String]])
-    runMethod.invoke(null, args) match {
-      case x if x.isInstanceOf[Boolean] && x == true => // success
-      case _ =>
-        throw new ExecutionFailedException("Some ScalaTest tests failed.")
-    }
-
   }
 
 }
+
