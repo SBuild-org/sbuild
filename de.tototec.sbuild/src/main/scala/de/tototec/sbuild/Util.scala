@@ -1,21 +1,21 @@
 package de.tototec.sbuild
 
-import java.io.FileNotFoundException
-import scala.util.matching.Regex
-import java.io.RandomAccessFile
-import java.io.IOException
-import java.net.URL
 import java.io.BufferedInputStream
-import java.io.ByteArrayOutputStream
-import de.tototec.sbuild.runner.SBuildRunner
-import java.io.File
-import java.util.zip.ZipFile
 import java.io.BufferedOutputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileNotFoundException
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.io.RandomAccessFile
+import java.net.URL
 import java.util.zip.ZipInputStream
-import java.io.FileInputStream
+
+import scala.Array.canBuildFrom
+import scala.util.matching.Regex
 
 object Util {
 
@@ -194,7 +194,7 @@ object Util {
 
         zipEntry = zipIs.getNextEntry()
       }
-      
+
       zipIs.close
     } catch {
       case e: IOException =>
@@ -204,7 +204,7 @@ object Util {
 
   }
 
-  private def copy(in: InputStream, out: OutputStream) {
+  def copy(in: InputStream, out: OutputStream) {
     val buf = new Array[Byte](1024)
     var len = 0
     while ({
