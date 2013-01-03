@@ -340,7 +340,7 @@ class ProjectScript(_scriptFile: File,
   def newCompile(classpath: Array[String], includes: Array[File]) {
     cleanScala()
     targetDir.mkdirs
-    log.log(LogLevel.Debug, "Compiling build script: " + scriptFile)
+    log.log(LogLevel.Debug, "Compiling build script: " + scriptFile + (if(includes.isEmpty) "" else " and "+ includes.size + " included files"))
 
     compile(classpath.mkString(File.pathSeparator), includes)
 

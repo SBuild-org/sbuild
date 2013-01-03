@@ -22,6 +22,8 @@ object SBuildRunner {
   def main(args: Array[String]) {
     val bootstrapStart = System.currentTimeMillis
 
+    val aboutAndVersion = "SBuild " + SBuildVersion.version + " (c) 2011, 2012, ToToTec GbR, Tobias Roeser"
+
     val config = new Config()
     val classpathConfig = new ClasspathConfig()
     val cmdlineConfig = new {
@@ -32,10 +34,14 @@ object SBuildRunner {
       var help = false
     }
     val cp = new CmdlineParser(config, classpathConfig, cmdlineConfig)
+    cp.setResourceBundle(getClass.getPackage + ".Messages", getClass.getClassLoader())
+    cp.setAboutLine(aboutAndVersion)
+    cp.setProgramName("sbuild")
+    
     cp.parse(args: _*)
 
     if (cmdlineConfig.showVersion) {
-      println("SBuild " + SBuildVersion.version + " (c) 2011, 2012, ToToTec GbR, Tobias Roeser")
+      println(aboutAndVersion)
     }
 
     if (cmdlineConfig.help) {
@@ -272,7 +278,8 @@ class """ + className + """(implicit project: Project) {
     /** <code>true</code> if the target was already up-to-date or determined itself as up-to-date while its execution by setting {@link TargetContext#targetWasUpToDate}. */
     val wasUpToDate: Boolean,
     /** An Id specific for this execution request. */
-    val requestId: Option[String])
+    val requestId: Option[String],
+    val ran: Boolean)
 
   class ExecState(var maxCount: Int, var currentNr: Int = 1)
 
@@ -430,17 +437,20 @@ class """ + className + """(implicit project: Project) {
           }
 
           val ctx = new TargetContextImpl(node)
+          var ran: Boolean = false
 
           if (execPhonyUpToDateOrSkip) {
             ctx.targetWasUpToDate = true
           } else {
             // Need to execute
             node.action match {
-              case null => log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(node))
+              case null => 
+                log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(node))
               case exec =>
                 try {
                   log.log(LogLevel.Debug, "Executing target: " + formatTarget(node))
                   ctx.start
+                  ran = true
                   exec.apply(ctx)
                   ctx.end
                   log.log(LogLevel.Debug, "Executed target: " + formatTarget(node) + " in " + ctx.execDurationMSec + " msec")
@@ -461,7 +471,8 @@ class """ + className + """(implicit project: Project) {
             new ExecutedTarget(
               target = node,
               wasUpToDate = execPhonyUpToDateOrSkip || ctx.targetWasUpToDate,
-              requestId = requestId))
+              requestId = requestId,
+              ran = ran))
         }
 
         alreadyRun ++ preorderedDependencies(tail,
