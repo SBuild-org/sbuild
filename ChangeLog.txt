@@ -1,3 +1,11 @@
+SBuild 0.2.1 - 2013-01-04
+
+* ZipSchemeHandler: Fixed issue with fail of unpacking of some zip files.
+* New Scalac Addon which is independent of SBuild Scalac Runtime. Thus, it is
+  now possible to compile for Scala versions different than SBuild's one.
+* ScalaTest Addon: Added fork option.
+* Prepared SBuild to be compatible to Scala 2.10
+
 SBuild 0.2.0 - 2012-11-08
 
 * A buildfile can now include other scala files. Added @include to share common
