@@ -9,19 +9,12 @@ object SBuildConfig {
   def cmdOptionVersion = "0.2.0"
   def cmdOptionSource = "http://cmdoption.tototec.de/cmdoption/attachments/download/6/de.tototec.cmdoption-0.2.0.jar"
 
-//  def scalaVersion = "2.10.0"
-//  def scalaBinVersion = "2.10"
+  def scalaVersion = "2.10.0"
+  def scalaBinVersion = "2.10"
 
-//  def compilerPath(implicit project: Project) = 
-//    ("mvn:org.scala-lang:scala-library:" + scalaVersion) ~
-//    ("mvn:org.scala-lang:scala-compiler:" + scalaVersion) ~
-//    ("mvn:org.scala-lang:scala-reflect:" + scalaVersion)
-
-  def scalaVersion = "2.9.2"
-  def scalaBinVersion = "2.9.2"
-
-  def compilerPath(implicit project: Project) = 
+  def compilerPath(implicit project: Project) =
     ("mvn:org.scala-lang:scala-library:" + scalaVersion) ~
-    ("mvn:org.scala-lang:scala-compiler:" + scalaVersion)
+    ("mvn:org.scala-lang:scala-compiler:" + scalaVersion) ~
+    ("mvn:org.scala-lang:scala-reflect:" + scalaVersion)
 
 }

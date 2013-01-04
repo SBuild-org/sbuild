@@ -3,9 +3,6 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
-// classpath
-//   "http://repo1.maven.org/maven2/org/apache/ant/ant-launcher/1.8.3/ant-launcher-1.8.3.jar",
-//   "http://repo1.maven.org/maven2/junit/junit/4.10/junit-4.10.jar"
 @version("0.2.0")
 @include(
   "../SBuildConfig.scala",
@@ -28,14 +25,9 @@ class SBuild(implicit _project: Project) {
     ("mvn:org.scala-lang:scala-library:" + SBuildConfig.scalaVersion) ~
       SBuildConfig.cmdOptionSource
 
-  val scalaTestCp = if(SBuildConfig.scalaBinVersion.startsWith("2.9")) {
-      ("mvn:org.scalatest:scalatest_" + SBuildConfig.scalaBinVersion + ":1.9.1")
-    } else {
+  val testCp = compileCp ~
       ("mvn:org.scalatest:scalatest_" + SBuildConfig.scalaBinVersion + ":1.9.1") ~
       ("mvn:org.scala-lang:scala-actors:" + SBuildConfig.scalaVersion)
-  }
-
-  val testCp = compileCp ~ scalaTestCp
 
   ExportDependencies("eclipse.classpath", testCp)
 
@@ -76,43 +68,6 @@ object SBuildVersion {
     }
   }
 
-  //   def antScalac = new scala_tools_ant.AntScalac(
-  //     target = "jvm-1.5",
-  //     encoding = "UTF-8",
-  //     deprecation = "on",
-  //     unchecked = "on",
-  //     debugInfo = "vars",
-  //     // this is necessary, because the scala ant tasks outsmarts itself 
-  //     // when more than one scala class is defined in the same .scala file
-  //     force = true)
-
-  //   Target("phony:old-compile") dependsOn compileCp ~ versionScalaFile exec { ctx: TargetContext =>
-  //     val output = "target/classes"
-  //     AntMkdir(dir = Path(output))
-  //     IfNotUpToDate(Seq(Path("src/main/scala"), Path("src/main/java"), Path("target/generated-scala")), Path("target"), ctx) {
-  //       // compile scala files (compiler will also see java files
-  //       val scalac = antScalac
-  //       scalac.setSrcDir(AntPath(paths = Seq("src/main/scala", "src/main/java", "target/generated-scala")))
-  //       scalac.setDestDir(Path(output))
-  //       scalac.setClasspath(AntPath(locations = ctx.fileDependencies))
-  //       scalac.execute
-  // 
-  //       // compile java files
-  //       AntJavac(
-  //         srcDir = AntPath("src/main/java"),
-  //         destDir = Path("target/classes"),
-  //         classpath = AntPath(locations = ctx.fileDependencies),
-  //         fork = true,
-  //         source = "1.5",
-  //         target = "1.5",
-  //         encoding = "UTF-8",
-  //         debug = true,
-  //         includeAntRuntime = false)
-  //     }
-  // 
-  //     validateGeneratedVersions(ctx.fileDependencies)
-  //   }
-
   Target("phony:compile") dependsOn SBuildConfig.compilerPath ~ compileCp ~ versionScalaFile exec { ctx: TargetContext =>
     val output = "target/classes"
     AntMkdir(dir = Path(output))
@@ -141,6 +96,9 @@ object SBuildVersion {
         includeAntRuntime = false)
 
     }
+
+    // re-enable when used SBuild version used Scala 2.10
+    // validateGeneratedVersions(ctx.fileDependencies)
   }
 
   Target("phony:checkResources") exec { ctx: TargetContext =>
