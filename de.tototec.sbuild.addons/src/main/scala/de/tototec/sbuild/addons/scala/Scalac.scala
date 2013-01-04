@@ -11,6 +11,40 @@ import java.io.InputStream
 import java.io.OutputStream
 import de.tototec.sbuild.addons.support.ForkSupport
 
+object Scalac {
+
+  def apply(
+    compilerClasspath: Seq[File] = null,
+    classpath: Seq[File] = null,
+    srcDir: File = null,
+    srcDirs: Seq[File] = null,
+    destDir: File = null,
+    encoding: String = "UTF-8",
+    unchecked: java.lang.Boolean = null,
+    deprecation: java.lang.Boolean = null,
+    verbose: java.lang.Boolean = null,
+    target: String = null,
+    debugInfo: String = null,
+    fork: Boolean = false,
+    additionalScalacArgs: String = null)(implicit project: Project) =
+    new Scalac(
+      compilerClasspath = compilerClasspath,
+      classpath = classpath,
+      srcDir = srcDir,
+      srcDirs = srcDirs,
+      destDir = destDir,
+      encoding = encoding,
+      unchecked = unchecked,
+      deprecation = deprecation,
+      verbose = verbose,
+      target = target,
+      debugInfo = debugInfo,
+      fork = fork,
+      additionalScalacArgs = additionalScalacArgs
+    ).execute
+
+}
+
 class Scalac(
   var compilerClasspath: Seq[File] = null,
   var classpath: Seq[File] = null,
@@ -28,7 +62,6 @@ class Scalac(
 
   val scalacClassName = "scala.tools.nsc.Main"
 
- 
   def execute {
     require(compilerClasspath != null && !compilerClasspath.isEmpty, "No compiler classpath set.")
 
