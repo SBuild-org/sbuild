@@ -19,12 +19,12 @@ import de.tototec.sbuild.LogLevel
 import de.tototec.sbuild.ProjectConfigurationException
 
 class ProjectScript(_scriptFile: File,
-  sbuildClasspath: Array[String],
-  compileClasspath: Array[String],
-  additionalProjectClasspath: Array[String],
-  noFsc: Boolean,
-  downloadCache: DownloadCache,
-  log: SBuildLogger) {
+                    sbuildClasspath: Array[String],
+                    compileClasspath: Array[String],
+                    additionalProjectClasspath: Array[String],
+                    noFsc: Boolean,
+                    downloadCache: DownloadCache,
+                    log: SBuildLogger) {
 
   def this(scriptFile: File, classpathConfig: ClasspathConfig, downloadCache: DownloadCache, log: SBuildLogger) {
     this(scriptFile,
@@ -45,7 +45,7 @@ class ProjectScript(_scriptFile: File,
 
   val scriptBaseName = scriptFile.getName.endsWith(".scala") match {
     case true => scriptFile.getName.substring(0, scriptFile.getName.length - 6)
-    case false => 
+    case false =>
       log.log(LogLevel.Debug, "Scriptfile name does not end in '.scala'")
       scriptFile.getName
   }
@@ -75,7 +75,7 @@ class ProjectScript(_scriptFile: File,
     val includes: Array[File] = readIncludeFiles
 
     if (!checkInfoFileUpToDate(includes)) {
-      println("Compiling build script " + scriptFile + "...")
+      //      println("Compiling build script " + scriptFile + "...")
       newCompile(sbuildClasspath ++ addCp, includes)
     }
 
@@ -279,7 +279,7 @@ class ProjectScript(_scriptFile: File,
               }
             }
           } catch {
-            case e =>
+            case e: Exception =>
               log.log(LogLevel.Debug, "Could not use download cache for resource: " + entry + "\n" + e)
               if (file.exists) file.delete
           }
@@ -299,7 +299,7 @@ class ProjectScript(_scriptFile: File,
               downloadCache.registerEntry(url, file)
             }
           } catch {
-            case e =>
+            case e: Exception =>
               log.log(LogLevel.Debug, "Could not use download cache for resource: " + entry + "\n" + e)
           }
         }
@@ -340,7 +340,7 @@ class ProjectScript(_scriptFile: File,
   def newCompile(classpath: Array[String], includes: Array[File]) {
     cleanScala()
     targetDir.mkdirs
-    log.log(LogLevel.Debug, "Compiling build script: " + scriptFile + (if(includes.isEmpty) "" else " and "+ includes.size + " included files"))
+    log.log(LogLevel.Info, "Compiling build script: " + scriptFile + (if (includes.isEmpty) "" else " and " + includes.size + " included files") + "...")
 
     compile(classpath.mkString(File.pathSeparator), includes)
 
