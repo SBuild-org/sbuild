@@ -24,7 +24,7 @@ object ScalaTest {
     testNgTests: Seq[String] = null,
     junitTests: Seq[String] = null,
     // since 0.2.0.9000
-    fork: java.lang.Boolean = null)(implicit project: Project) =
+    fork: Boolean = false)(implicit project: Project) =
     new ScalaTest(
       classpath = classpath,
       runPath = runPath,
@@ -61,7 +61,7 @@ class ScalaTest(
   var testNgTests: Seq[String] = null,
   var junitTests: Seq[String] = null,
   // since 0.2.0.9000
-  var fork: java.lang.Boolean = null)(implicit project: Project) {
+  var fork: Boolean = false)(implicit project: Project) {
 
   val scalaTestClassName = "org.scalatest.tools.Runner"
 
@@ -102,7 +102,7 @@ class ScalaTest(
     if (testNgTests != null && !testNgTests.isEmpty) args ++= Array("-t", whiteSpaceSeparated(testNgTests))
     if (junitTests != null && !junitTests.isEmpty) args ++= Array("-j", whiteSpaceSeparated(junitTests))
 
-    if (fork != null && fork.booleanValue) {
+    if (fork) {
       val command = Array("java", "-cp", ForkSupport.pathAsArg(classpath), scalaTestClassName) ++ args
       val result = ForkSupport.runAndWait(command: _*)
       if (result != 0) {
