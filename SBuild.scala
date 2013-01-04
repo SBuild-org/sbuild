@@ -3,7 +3,7 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
-@version("0.2.0")
+@version("0.3.0")
 @include("SBuildConfig.scala")
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar"
@@ -18,14 +18,14 @@ class SBuild(implicit project: Project) {
 
   val scalaVersion = SBuildConfig.scalaVersion
 
-  val binJar = "de.tototec.sbuild/target/de.tototec.sbuild-" + SBuildConfig.sbuildVersion + ".jar"
-  val antJar = "de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-" + SBuildConfig.sbuildVersion + ".jar"
-  val addonsJar = "de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-" + SBuildConfig.sbuildVersion + ".jar"
+  val binJar = s"de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar"
+  val antJar = s"de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-${SBuildConfig.sbuildVersion}.jar"
+  val addonsJar = s"de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-${SBuildConfig.sbuildVersion}.jar"
   val cmdOptionJar = SBuildConfig.cmdOptionSource
 //   val scalaJar = "mvn:org.scala-lang:scala-library:" + SBuildConfig.scalaVersion
 //   val scalaCompilerJar = "mvn:org.scala-lang:scala-compiler:" + SBuildConfig.scalaVersion
 
-  val distName = "sbuild-" + SBuildConfig.sbuildVersion
+  val distName = s"sbuild-${SBuildConfig.sbuildVersion}"
   val distDir = "target/" + distName
 
   val distZip = "target/" + distName + "-dist.zip"
@@ -59,10 +59,10 @@ class SBuild(implicit project: Project) {
   }
 
   Target(classpathProperties) exec { ctx: TargetContext =>
-    val properties = """# Classpath configuration for SBuild """ + SBuildConfig.sbuildVersion + """
-sbuildClasspath = de.tototec.sbuild-""" + SBuildConfig.sbuildVersion + """.jar
-compileClasspath = scala-compiler-""" + SBuildConfig.scalaVersion + """.jar:scala-reflect-""" + SBuildConfig.scalaVersion + """.jar
-projectClasspath = scala-library-""" + SBuildConfig.scalaVersion + """.jar:de.tototec.sbuild.ant-""" + SBuildConfig.sbuildVersion + """.jar:de.tototec.sbuild.addons-""" + SBuildConfig.sbuildVersion + """.jar
+    val properties = s"""# Classpath configuration for SBuild ${SBuildConfig.sbuildVersion}
+sbuildClasspath = de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar
+compileClasspath = scala-compiler-${SBuildConfig.scalaVersion}.jar:scala-reflect-${SBuildConfig.scalaVersion}.jar
+projectClasspath = scala-library-${SBuildConfig.scalaVersion}.jar:de.tototec.sbuild.ant-${SBuildConfig.sbuildVersion}.jar:de.tototec.sbuild.addons-${SBuildConfig.sbuildVersion}.jar
 """
     AntMkdir(dir = ctx.targetFile.get.getParentFile)
     AntEcho(message = properties, file = ctx.targetFile.get)

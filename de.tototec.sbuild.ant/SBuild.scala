@@ -3,11 +3,9 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
-@version("0.2.0")
+@version("0.3.0")
 @include(
-  "../SBuildConfig.scala",
-  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/support/ForkSupport.scala",
-  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/scala/Scalac.scala"
+  "../SBuildConfig.scala"
 )
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar"
@@ -17,15 +15,15 @@ class SBuild(implicit _project: Project) {
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
   SchemeHandler("mvn", new MvnSchemeHandler())
 
-  val jar = "target/de.tototec.sbuild.ant-" + SBuildConfig.sbuildVersion + ".jar"
+  val jar = s"target/de.tototec.sbuild.ant-${SBuildConfig.sbuildVersion}.jar"
 
   // Current version of bnd (with ant tasks) is not in Maven repo 
   val bnd_1_50_0 = "http://dl.dropbox.com/u/2590603/bnd/biz.aQute.bnd.jar"
 
   val compileCp =
-    ("../de.tototec.sbuild/target/de.tototec.sbuild-" + SBuildConfig.sbuildVersion + ".jar") ~
-      ("mvn:org.scala-lang:scala-library:" + SBuildConfig.scalaVersion) ~
-      ("mvn:org.scala-lang:scala-compiler:" + SBuildConfig.scalaVersion) ~
+    s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" ~
+      s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
+      s"mvn:org.scala-lang:scala-compiler:${SBuildConfig.scalaVersion}" ~
       "mvn:org.apache.ant:ant:1.8.3" ~
       "mvn:org.liquibase:liquibase-core:2.0.3" ~
       bnd_1_50_0

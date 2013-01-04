@@ -5,9 +5,7 @@ import de.tototec.sbuild.ant.tasks._
 
 @version("0.2.0")
 @include(
-  "../SBuildConfig.scala",
-  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/support/ForkSupport.scala",
-  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/scala/Scalac.scala"
+  "../SBuildConfig.scala"
 )
 @classpath(
   "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar"
@@ -17,11 +15,11 @@ class SBuild(implicit _project: Project) {
   SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
   SchemeHandler("mvn", new MvnSchemeHandler())
 
-  val addonsJar = "target/de.tototec.sbuild.addons-" + SBuildConfig.sbuildVersion + ".jar"
+  val addonsJar = s"target/de.tototec.sbuild.addons-${SBuildConfig.sbuildVersion}.jar"
 
   val compileCp =
-    ("mvn:org.scala-lang:scala-library:" + SBuildConfig.scalaVersion) ~
-      ("../de.tototec.sbuild/target/de.tototec.sbuild-" + SBuildConfig.sbuildVersion + ".jar")
+    s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
+      s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar"
 //      ("mvn: org.scalatest:scalatest_" + scalaVersion + ":1.6.1") ~
 //      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10.jar") ~
 //      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10-src.jar")
