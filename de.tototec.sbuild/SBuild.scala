@@ -28,8 +28,14 @@ class SBuild(implicit _project: Project) {
     ("mvn:org.scala-lang:scala-library:" + SBuildConfig.scalaVersion) ~
       SBuildConfig.cmdOptionSource
 
-  val testCp = compileCp ~
-    ("mvn: org.scalatest:scalatest_" + SBuildConfig.scalaBinVersion + ":1.9.1")
+  val scalaTestCp = if(SBuildConfig.scalaBinVersion.startsWith("2.9")) {
+      ("mvn:org.scalatest:scalatest_" + SBuildConfig.scalaBinVersion + ":1.9.1")
+    } else {
+      ("mvn:org.scalatest:scalatest_" + SBuildConfig.scalaBinVersion + ":1.9.1") ~
+      ("mvn:org.scala-lang:scala-actors:" + SBuildConfig.scalaVersion)
+  }
+
+  val testCp = compileCp ~ scalaTestCp
 
   ExportDependencies("eclipse.classpath", testCp)
 
