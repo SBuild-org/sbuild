@@ -292,7 +292,7 @@ class Project(_projectFile: File,
           }
           UniqueTargetFile(Path(outputRef.nameWithoutProto)(this), phony, Some(handler))
         case None =>
-          val e = new UnsupportedSchemeException("No scheme handler registered, that supports scheme:" + proto)
+          val e = new UnsupportedSchemeException("No scheme handler registered, that supports scheme: " + proto)
           e.buildScript = foreignProject match {
             case None => Some(projectFile)
             case x => x
