@@ -19,10 +19,11 @@ class SBuild(implicit _project: Project) {
 
   val compileCp =
     s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
-      s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar"
-//      ("mvn: org.scalatest:scalatest_" + scalaVersion + ":1.6.1") ~
-//      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10.jar") ~
-//      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10-src.jar")
+      s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" ~
+      //      ("mvn: org.scalatest:scalatest_" + scalaVersion + ":1.6.1") ~
+      //      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10.jar") ~
+      //      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10-src.jar")
+      "mvn:biz.aQute:bndlib:1.50.0"
 
   ExportDependencies("eclipse.classpath", compileCp)
 
