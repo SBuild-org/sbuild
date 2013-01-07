@@ -124,19 +124,8 @@ class Scalac(
 
   def compileInternal(args: Array[String]) {
 
-    val compilerClassLoader = new URLClassLoader(compilerClasspath.map { f => f.toURI().toURL() }.toArray) {
-      //     load child first
-      override protected def loadClass(className: String, resolve: Boolean): Class[_] = {
-        synchronized {
-          if (className.startsWith("java.") || className.startsWith("[Ljava.")) {
-            classOf[Scalac].getClassLoader.loadClass(className)
-          } else {
-            super.loadClass(className, resolve)
-          }
-        }
-      }
-    }
-    project.log.log(LogLevel.Debug, "Using compiler classpath: " + compilerClassLoader.getURLs().mkString(", "))
+    val compilerClassLoader = new URLClassLoader(compilerClasspath.map { f => f.toURI().toURL() }.toArray, classOf[Scalac].getClassLoader)
+    project.log.log(LogLevel.Debug, "Using addional compiler classpath: " + compilerClassLoader.getURLs().mkString(", "))
 
     //    val arrayClass = compilerClassLoader.loadClass("[Ljava.lang.String;")
     val arrayInstance = java.lang.reflect.Array.newInstance(classOf[String], args.size)
