@@ -93,7 +93,7 @@ class Scalac(
 
     val sourceFiles: Seq[File] = allSrcDirs.flatMap { dir =>
       project.log.log(LogLevel.Debug, "Search files in dir: " + dir)
-      val files = Util.recursiveListFiles(dir, """.*\.(java|scala)$|""".r)
+      val files = Util.recursiveListFiles(dir, """.*\.(java|scala)$""".r)
       project.log.log(LogLevel.Debug, "Found files: " + files.mkString(", "))
       files
     }
@@ -104,6 +104,8 @@ class Scalac(
       args ++= absSourceFiles
     }
 
+    project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} source files...")
+    
     if (fork) {
       compileExternal(args)
     } else {
@@ -114,7 +116,7 @@ class Scalac(
 
   def compileExternal(args: Array[String]) {
     val command = Array("java", "-cp", ForkSupport.pathAsArg(compilerClasspath), scalacClassName) ++ args
-    val result = ForkSupport.runAndWait(command: _*)
+    val result = ForkSupport.runAndWait(command)
     if (result != 0) {
       val e = new ExecutionFailedException("Compile Errors. See compiler output.")
       e.buildScript = Some(project.projectFile)

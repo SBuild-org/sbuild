@@ -9,7 +9,7 @@ import de.tototec.sbuild.LogLevel
 
 object ForkSupport {
 
-  def runAndWait(command: String*)(implicit project: Project): Int = {
+  def runAndWait(command: Array[String], interactive: Boolean = false)(implicit project: Project): Int = {
     val pb = new ProcessBuilder(command: _*)
     project.log.log(LogLevel.Debug, "Run command: " + command.mkString(" "))
     pb.directory(Path("."))
@@ -18,10 +18,41 @@ object ForkSupport {
     ForkSupport.copyInThread(p.getErrorStream, Console.err)
     ForkSupport.copyInThread(p.getInputStream, Console.out)
 
-    val result: Int = p.waitFor
-    p.getErrorStream.close
-    p.getInputStream.close
+    
+    val in = System.in
+    val out = p.getOutputStream
 
+    val outThread = new Thread() {
+      override def run {
+        try {
+          while (true) {
+            if (in.available > 0) {
+              in.read match {
+                case -1 =>
+                case read =>
+                  out.write(read)
+                  out.flush
+              }
+            } else {
+              Thread.sleep(50)
+            }
+          }
+        } catch {
+          case e: InterruptedException => // this is ok
+        }
+      }
+    }
+    outThread.start()
+    
+    var result:Int = -1
+    try {
+    	result = p.waitFor
+    } finally {
+    	outThread.interrupt
+    	p.getErrorStream.close
+    	p.getInputStream.close
+    }
+    
     result
   }
 

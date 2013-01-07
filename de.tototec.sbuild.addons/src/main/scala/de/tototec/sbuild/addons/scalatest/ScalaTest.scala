@@ -102,9 +102,11 @@ class ScalaTest(
     if (testNgTests != null && !testNgTests.isEmpty) args ++= Array("-t", whiteSpaceSeparated(testNgTests))
     if (junitTests != null && !junitTests.isEmpty) args ++= Array("-j", whiteSpaceSeparated(junitTests))
 
+    project.log.log(LogLevel.Info, "Running ScalaTest...")
+    
     if (fork) {
       val command = Array("java", "-cp", ForkSupport.pathAsArg(classpath), scalaTestClassName) ++ args
-      val result = ForkSupport.runAndWait(command: _*)
+      val result = ForkSupport.runAndWait(command)
       if (result != 0) {
         val e = new ExecutionFailedException("ScalaTest Errors.")
         e.buildScript = Some(project.projectFile)
