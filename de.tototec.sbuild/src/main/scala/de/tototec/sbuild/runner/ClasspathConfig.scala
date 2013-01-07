@@ -45,7 +45,10 @@ class ClasspathConfig {
   var projectClasspath: Array[String] = Array()
 
   @CmdOption(names = Array("--no-fsc"), description = "Do not try to use the fast scala compiler (client/server)")
-  var noFsc: Boolean = false
+  var noFsc: Boolean = true
+  
+  @CmdOption(names = Array("--fsc"), description = "Use the fast scala compiler (client/server)", conflictsWith = Array("--no-fsc"))
+  def fsc = noFsc = true
 
   def validate: Boolean = {
     sbuildClasspath.forall { new File(_).exists } &&
