@@ -39,5 +39,15 @@ class TargetRef(val ref: String)(implicit project: Project) {
 
   override def toString = name
 
+  /**
+   * Get the files, this TargetRef is referencing or producing, if any.
+   */
+  def files: Seq[File] = project.findTarget(this, true) match {
+    case Some(t) => t.targetFile match {
+      case Some(f) => Seq(f)
+      case _ => Seq()
+    }
+    case _ => Seq() 
+  }
 }
 
