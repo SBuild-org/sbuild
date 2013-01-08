@@ -63,7 +63,7 @@ class Project(_projectFile: File,
               _projectPool: Option[ProjectPool] = None,
               val log: SBuildLogger = SBuildNoneLogger) {
 
-  val projectFile: File = _projectFile.getAbsoluteFile.getCanonicalFile
+  val projectFile: File = Path.normalize(_projectFile)
   if (!projectFile.exists)
     throw new ProjectConfigurationException("Project file '" + projectFile + "' does not exists")
 

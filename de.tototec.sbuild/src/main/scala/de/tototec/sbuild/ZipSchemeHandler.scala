@@ -71,13 +71,10 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
 
     val targetFile = pairs.get("targetFile") match {
       case Some(targetFile) => Path(targetFile)
-      case None => new File(file) match {
-        case f if f.isAbsolute => f
-        case _ => new File(baseDir, fileBaseLocation + "/" + file)
-      }
+      case None => Path.normalize(new File(file), new File(baseDir, fileBaseLocation))
     }
 
-    Config(fileInArchive = file, archive = archive, targetFile = targetFile.getAbsoluteFile.getCanonicalFile)
+    Config(fileInArchive = file, archive = archive, targetFile = targetFile)
   }
 
   def zipFile(config: Config): File = {

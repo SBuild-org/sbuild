@@ -5,7 +5,7 @@ import java.io.File
 
 class ZipSchemeHandlerTest extends FunSuite {
 
-  val projDir = new File("target/test-output/ZipSchemeHandlerTest").getAbsoluteFile().getCanonicalPath()
+  val projDir = Path.normalize(new File("target/test-output/ZipSchemeHandlerTest"))
 
   new File(projDir).mkdirs
   val dummyProjectFile = new File(projDir, "SBuild.scala")

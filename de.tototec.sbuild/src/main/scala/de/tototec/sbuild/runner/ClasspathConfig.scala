@@ -7,6 +7,7 @@ import java.io.FileReader
 import java.io.BufferedInputStream
 import java.io.FileInputStream
 import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.Path
 
 class ClasspathConfig {
   @CmdOption(names = Array("--sbuild-home"), args = Array("PATH"), hidden = true)
@@ -57,7 +58,7 @@ class ClasspathConfig {
   }
 
   def readFromPropertiesFile(propertiesFile: File) {
-    val libDir = propertiesFile.getAbsoluteFile.getCanonicalFile.getParentFile
+    val libDir = Path.normalize(propertiesFile).getParentFile
 
     val stream = new BufferedInputStream(new FileInputStream(propertiesFile))
     val props = new Properties()

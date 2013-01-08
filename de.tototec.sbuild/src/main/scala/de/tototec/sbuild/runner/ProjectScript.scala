@@ -9,6 +9,7 @@ import java.net.URLClassLoader
 import scala.io.BufferedSource
 import de.tototec.sbuild.HttpSchemeHandlerBase
 import de.tototec.sbuild.OSGiVersion
+import de.tototec.sbuild.Path
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ResolveResult
 import de.tototec.sbuild.SBuildException
@@ -36,7 +37,7 @@ class ProjectScript(_scriptFile: File,
       log)
   }
 
-  val scriptFile: File = _scriptFile.getAbsoluteFile.getCanonicalFile
+  val scriptFile: File = Path.normalize(_scriptFile)
   require(scriptFile.isFile, "scriptFile must be a file")
   val projectDir: File = scriptFile.getParentFile
 
@@ -227,10 +228,7 @@ class ProjectScript(_scriptFile: File,
     log.log(LogLevel.Debug, "Using include files: " + cp.mkString(", "))
 
     cp.map { entry =>
-      val fileEntry = new File(entry) match {
-        case x if x.isAbsolute => x
-        case x => new File(projectDir, entry).getCanonicalFile
-      }
+      val fileEntry = Path.normalize(new File(entry), projectDir)
       if (!fileEntry.exists) {
         val ex = new ProjectConfigurationException("Could not found include file: " + entry)
         ex.buildScript = Some(scriptFile)
@@ -267,7 +265,7 @@ class ProjectScript(_scriptFile: File,
               log.log(LogLevel.Debug, "Resolving classpath entry from download cache: " + url)
               val cachedEntry = downloadCache.getEntry(url)
 
-              file.getCanonicalFile.getParentFile.mkdirs
+              Path.normalize(file).getParentFile.mkdirs
               file.createNewFile
 
               val fileOutputStream = new FileOutputStream(file)
@@ -307,10 +305,7 @@ class ProjectScript(_scriptFile: File,
         file.getPath
         // end http:
       } else {
-        val fileEntry = new File(entry) match {
-          case x if x.isAbsolute => x
-          case x => new File(projectDir, entry).getCanonicalFile
-        }
+        val fileEntry = Path.normalize(new File(entry), projectDir)
         if (!fileEntry.exists) {
           println("Could not found classpath entry: " + entry)
         }
