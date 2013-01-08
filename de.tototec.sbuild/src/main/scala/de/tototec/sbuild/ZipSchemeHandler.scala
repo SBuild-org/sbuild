@@ -26,7 +26,9 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
 
     targetContext.fileDependencies match {
       case Seq(zipFile) =>
-        Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)))
+        if (!file.exists) {
+          Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)))
+        }
       case x =>
         // something wrong
         throw new IllegalStateException("Expected exactly one zip file as dependency, but got: " + x)
