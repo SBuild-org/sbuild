@@ -5,6 +5,10 @@ SBuild 0.3.0.9000
   commandline option "--fsc" to enable fsc.
 * Pathes and file dependencies pointing to symbolic links will be no longer
   implicitly resolved.
+* ZipSchemeHandler: Fixed up-to-date detected issue, when a ZIP entry gets
+  always reextracted.
+* ZipSchemeHandler: Fixed bug, where extraction of files, that don't exists in
+  ZIP file, were silently ignored.
 
 SBuild 0.3.0 - 2013-01-04
 

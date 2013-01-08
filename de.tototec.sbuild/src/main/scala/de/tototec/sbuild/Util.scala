@@ -131,7 +131,7 @@ object Util {
 
   def unzip(archive: File, targetDir: File, _selectedFiles: List[(String, File)]) {
 
-    if (!archive.exists || !archive.isFile) throw new RuntimeException("Zip file cannot be found: " + archive);
+    if (!archive.exists || !archive.isFile) throw new FileNotFoundException("Zip file cannot be found: " + archive);
     targetDir.mkdirs
 
     log.log(LogLevel.Debug, "Extracting zip archive '" + archive + "' to: " + targetDir)
@@ -202,6 +202,10 @@ object Util {
           e)
     }
 
+    if(!selectedFiles.isEmpty) {
+      throw new FileNotFoundException(s"""Could not found file "${selectedFiles.head._1}" in zip archive "${archive}".""")
+    }
+    
   }
 
   def copy(in: InputStream, out: OutputStream) {

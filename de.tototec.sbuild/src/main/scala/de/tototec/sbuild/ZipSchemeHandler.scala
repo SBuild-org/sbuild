@@ -2,6 +2,7 @@ package de.tototec.sbuild
 
 import java.io.File
 import java.security.MessageDigest
+import java.io.FileNotFoundException
 
 class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) extends SchemeHandlerWithDependencies {
 
@@ -27,7 +28,15 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
     targetContext.fileDependencies match {
       case Seq(zipFile) =>
         if (!file.exists) {
-          Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)))
+          try {
+            Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)))
+          } catch {
+            case e: FileNotFoundException =>
+              val ex = new ExecutionFailedException(s"""Could not resolve "${targetContext.name}" to "${file}".
+${e.getMessage}""", e)
+              ex.buildScript = Some(project.projectFile)
+              throw ex
+          }
         }
       case x =>
         // something wrong
