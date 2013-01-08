@@ -104,7 +104,7 @@ class Scalac(
       args ++= absSourceFiles
     }
 
-    project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} source files...")
+    project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} source files to ${destDir}")
     
     if (fork) {
       compileExternal(args)
