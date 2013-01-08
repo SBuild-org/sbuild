@@ -15,7 +15,8 @@ object BndJar {
       bndClasspath = bndClasspath,
       classpath = classpath,
       props = props,
-      destFile = destFile)
+      destFile = destFile
+    ).execute
 
 }
 
@@ -35,32 +36,29 @@ class BndJar(
         cl
     }
 
-    val bndJarImplClassName = (classOf[BndJar].getPackage match {
-      case null => ""
-      case p => p.getName + "."
-    }) + "BndJarImpl"
-    val bndJarImplClass = bndClassLoader.loadClass(bndJarImplClassName)
-    val bndJarImplCtr = bndJarImplClass.getConstructor(classOf[Seq[File]], classOf[Map[String, String]], classOf[File], classOf[Project])
-    bndJarImplCtr.newInstance(classpath, props, destFile, project)
+    val builderClassName = "aQute.lib.osgi.Builder"
+    val builderClass = bndClassLoader.loadClass(builderClassName)
+    val builder = builderClass.newInstance
+
+    val addClasspathMethod = builderClass.getMethod("addClasspath", classOf[File])
+    classpath.foreach { file =>
+      addClasspathMethod.invoke(builder, file)
+    }
+
+    val setPropertyMethod = builderClass.getMethod("setProperty", classOf[String], classOf[String])
+    props.foreach {
+      case (key, value) => setPropertyMethod.invoke(builder, key, value)
+    }
+
+    val buildMethod = builderClass.getMethod("build")
+    val jar = buildMethod.invoke(builder)
+
+    val jarClassName = "aQute.lib.osgi.Jar"
+    val jarClass = bndClassLoader.loadClass(jarClassName)
+    val writeMethod = jarClass.getMethod("write", classOf[File])
+
+    writeMethod.invoke(jar, destFile)
 
   }
-
-}
-
-import aQute.lib.osgi.Builder
-
-class BndJarImpl(
-  classpath: Seq[File],
-  props: Map[String, String],
-  destFile: File,
-  project: Project) {
-
-  val builder = new Builder()
-
-  classpath.foreach { file => builder.addClasspath(file) }
-  props.foreach { case (key, value) => builder.setProperty(key, value) }
-
-  val jar = builder.build
-  jar.write(destFile)
 
 }
