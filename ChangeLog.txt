@@ -3,6 +3,8 @@ SBuild 0.3.0.9000
 * Added ability to translate/resolve target refs to files.
 * Changed default to not use fsc when compiling build files and added new
   commandline option "--fsc" to enable fsc.
+* Pathes and file dependencies pointing to symbolic links will be no longer
+  implicitly resolved.
 
 SBuild 0.3.0 - 2013-01-04
 
