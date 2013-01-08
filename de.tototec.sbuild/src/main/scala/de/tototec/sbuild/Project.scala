@@ -332,7 +332,9 @@ class Project(_projectFile: File,
 
   //  def prerequisitesMap: Map[Target, List[Target]] = targets.values.map(goal => (goal, prerequisites(goal))).toMap
 
-  private var schemeHandlers: Map[String, SchemeHandler] = Map()
+  private[this] var _schemeHandlers: Map[String, SchemeHandler] = Map()
+  private[sbuild] def schemeHandlers: Map[String, SchemeHandler] = _schemeHandlers
+  private[this] def schemeHandlers_=(schemeHandlers: Map[String, SchemeHandler]) = _schemeHandlers = schemeHandlers
 
   def registerSchemeHandler(scheme: String, handler: SchemeHandler) {
     schemeHandlers += ((scheme, handler))

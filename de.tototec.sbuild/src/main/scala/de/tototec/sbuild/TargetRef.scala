@@ -39,15 +39,35 @@ class TargetRef(val ref: String)(implicit project: Project) {
 
   override def toString = name
 
+  protected[sbuild] def targetProject: Option[Project] =
+    if (explicitProject == None || project.projectFile == explicitProject.get)
+      Some(project)
+    else
+      project.findModule(explicitProject.get.getName)
+
+  protected[sbuild] def safeTargetProject: Project =
+    targetProject match {
+      case Some(p) => p
+      case _ =>
+        val e = new TargetNotFoundException(s"""Project "${explicitProject.get}" not found.""")
+        e.buildScript = Some(project.projectFile)
+        throw e
+    }
+
   /**
    * Get the files, this TargetRef is referencing or producing, if any.
    */
-  def files: Seq[File] = project.findTarget(this, true) match {
-    case Some(t) => t.targetFile match {
-      case Some(f) => Seq(f)
-      case _ => Seq()
+  def files: Seq[File] = explicitProto match {
+    case Some("phony") => Seq()
+    case None | Some("file") => Seq(Path(nameWithoutProto)(safeTargetProject))
+    case Some(scheme) => safeTargetProject.schemeHandlers.get(scheme) match {
+      case Some(handler) => Seq(Path(TargetRef(handler.localPath(nameWithoutProto)).nameWithoutProto)(safeTargetProject))
+      case _ =>
+        val e = new ProjectConfigurationException(s"""No scheme handler registered for scheme "${scheme}".""")
+        e.buildScript = Some(project.projectFile)
+        throw e
     }
-    case _ => Seq() 
   }
+
 }
 
