@@ -40,6 +40,9 @@ class BndJar(
     val builderClass = bndClassLoader.loadClass(builderClassName)
     val builder = builderClass.newInstance
 
+    val setBaseMethod = builderClass.getMethod("setBase", classOf[File])
+    setBaseMethod.invoke(builder, project.projectDirectory)
+
     val addClasspathMethod = builderClass.getMethod("addClasspath", classOf[File])
     classpath.foreach { file =>
       addClasspathMethod.invoke(builder, file)
