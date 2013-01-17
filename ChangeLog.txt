@@ -10,6 +10,7 @@ SBuild 0.3.0.9000
 * ZipSchemeHandler: Fixed bug, where extraction of files, that don't exists in
   ZIP file, were silently ignored.
 * New BndJar Addon to generate OSGi Bundles based on bndlib.
+* Fixed Windows start script.
 
 SBuild 0.3.0 - 2013-01-04
 
