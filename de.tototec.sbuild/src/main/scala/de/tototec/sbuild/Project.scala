@@ -59,7 +59,7 @@ object Project {
 }
 
 class Project(_projectFile: File,
-              projectReader: ProjectReader,
+              projectReader: Option[ProjectReader] = None,
               _projectPool: Option[ProjectPool] = None,
               val log: SBuildLogger = SBuildNoneLogger) {
 
@@ -99,7 +99,7 @@ class Project(_projectFile: File,
 
   private[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean = true): Project = {
     // various checks
-    if (projectReader == null) {
+    if (projectReader.isEmpty) {
       throw new SBuildException("Does not know how to read the sub project")
     }
 
@@ -137,7 +137,7 @@ class Project(_projectFile: File,
           case (key, value) => newProject.addProperty(key, value)
         }
 
-        projectReader.readProject(newProject, newProjectFile)
+        projectReader.get.readProject(newProject, newProjectFile)
 
         projectPool.addProject(newProject)
 
@@ -337,7 +337,18 @@ class Project(_projectFile: File,
   private[this] def schemeHandlers_=(schemeHandlers: Map[String, SchemeHandler]) = _schemeHandlers = schemeHandlers
 
   def registerSchemeHandler(scheme: String, handler: SchemeHandler) {
+    schemeHandlers.get(scheme).map {
+      _ => log.log(LogLevel.Info, s"""Replacing scheme handler "${scheme}" for project "${projectFile}".""")
+    }
     schemeHandlers += ((scheme, handler))
+  }
+
+  // Default Scheme Handler
+  {
+    implicit val p = this
+    SchemeHandler("http", new HttpSchemeHandler())
+    SchemeHandler("mvn", new MvnSchemeHandler())
+    SchemeHandler("zip", new ZipSchemeHandler())
   }
 
   private var _properties: Map[String, String] = Map()

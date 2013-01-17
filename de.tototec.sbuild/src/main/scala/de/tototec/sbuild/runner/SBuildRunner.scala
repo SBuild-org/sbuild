@@ -1,17 +1,19 @@
 package de.tototec.sbuild.runner
 
-import java.io.File
-import java.util.Date
-import scala.collection.JavaConversions._
-import de.tototec.cmdoption.CmdlineParser
-import de.tototec.sbuild._
-import java.util.UUID
-import java.io.FileOutputStream
 import java.io.BufferedOutputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
+import java.util.Date
+import java.util.UUID
+
+import scala.collection.JavaConversions._
+
+import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdOption
-import java.io.FileInputStream
+import de.tototec.sbuild._
 
 object SBuildRunner {
 
@@ -37,7 +39,7 @@ object SBuildRunner {
     cp.setResourceBundle(getClass.getPackage + ".Messages", getClass.getClassLoader())
     cp.setAboutLine(aboutAndVersion)
     cp.setProgramName("sbuild")
-    
+
     cp.parse(args: _*)
 
     if (cmdlineConfig.showVersion) {
@@ -126,10 +128,11 @@ class """ + className + """(implicit project: Project) {
 
     val projectReader: ProjectReader = new SimpleProjectReader(config, classpathConfig, log)
 
-    val project = new Project(projectFile, projectReader, None, log)
+    val project = new Project(projectFile, Some(projectReader), None, log)
     config.defines foreach {
       case (key, value) => project.addProperty(key, value)
     }
+
 
     projectReader.readProject(project, projectFile)
 
@@ -444,7 +447,7 @@ class """ + className + """(implicit project: Project) {
           } else {
             // Need to execute
             node.action match {
-              case null => 
+              case null =>
                 log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(node))
               case exec =>
                 try {

@@ -6,7 +6,9 @@ import java.io.FileOutputStream
 import java.io.FileWriter
 import java.net.URL
 import java.net.URLClassLoader
+
 import scala.io.BufferedSource
+
 import de.tototec.sbuild.HttpSchemeHandlerBase
 import de.tototec.sbuild.OSGiVersion
 import de.tototec.sbuild.Path
@@ -18,16 +20,23 @@ import de.tototec.sbuild.SBuildVersion
 import de.tototec.sbuild.Util
 import de.tototec.sbuild.LogLevel
 import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.TargetRef
+import de.tototec.sbuild.TargetNotFoundException
+import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.ProjectConfigurationException
 
 class ProjectScript(_scriptFile: File,
                     sbuildClasspath: Array[String],
                     compileClasspath: Array[String],
                     additionalProjectClasspath: Array[String],
                     noFsc: Boolean,
-                    downloadCache: DownloadCache,
+                    downloadCache: Option[DownloadCache],
                     log: SBuildLogger) {
 
-  def this(scriptFile: File, classpathConfig: ClasspathConfig, downloadCache: DownloadCache, log: SBuildLogger) {
+  def this(scriptFile: File,
+           classpathConfig: ClasspathConfig,
+           downloadCache: Option[DownloadCache],
+           log: SBuildLogger) {
     this(scriptFile,
       classpathConfig.sbuildClasspath,
       classpathConfig.compileClasspath,
@@ -71,9 +80,9 @@ class ProjectScript(_scriptFile: File,
       throw new SBuildException("The buildscript '" + scriptFile + "' requires at least SBuild version: " + version)
     }
 
-    val addCp: Array[String] = readAdditionalClasspath ++ additionalProjectClasspath
+    val addCp: Array[String] = readAdditionalClasspath(project) ++ additionalProjectClasspath
 
-    val includes: Array[File] = readIncludeFiles
+    val includes: Array[File] = readIncludeFiles(project)
 
     if (!checkInfoFileUpToDate(includes)) {
       //      println("Compiling build script " + scriptFile + "...")
@@ -222,23 +231,53 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  def readIncludeFiles: Array[File] = {
+  def readIncludeFiles(project: Project): Array[File] = {
     log.log(LogLevel.Debug, "About to find include files.")
     val cp = readAnnotationWithVarargAttribute(annoName = "include", valueName = "value")
     log.log(LogLevel.Debug, "Using include files: " + cp.mkString(", "))
 
-    cp.map { entry =>
-      val fileEntry = Path.normalize(new File(entry), projectDir)
-      if (!fileEntry.exists) {
-        val ex = new ProjectConfigurationException("Could not found include file: " + entry)
-        ex.buildScript = Some(scriptFile)
-        throw ex
-      }
-      fileEntry
-    }.distinct
+    // TODO: specific error message, when fetch or download fails
+    resolveViaProject(cp, project, "@include entry")
+
+    //    cp.map { entry =>
+    //      val fileEntry = Path.normalize(new File(entry), projectDir)
+    //      if (!fileEntry.exists) {
+    //        val ex = new ProjectConfigurationException("Could not found include file: " + entry)
+    //        ex.buildScript = Some(scriptFile)
+    //        throw ex
+    //      }
+    //      fileEntry
+    //    }.distinct
   }
 
-  def readAdditionalClasspath: Array[String] = {
+  def resolveViaProject(targets: Array[String], project: Project, purposeOfEntry: String): Array[File] =
+    targets.flatMap { cpEntry =>
+      val entryRef = TargetRef(cpEntry)(project)
+      val files = try {
+        entryRef.files.toArray
+      } catch {
+        case e: Exception =>
+          val ex = new ProjectConfigurationException(s"""Could not resolve ${purposeOfEntry} "${cpEntry}". ${e.getMessage}""", e)
+          ex.buildScript = Some(scriptFile)
+          throw ex
+      }
+
+      files.find(file => !file.exists).map { file =>
+        // need to resolve cpEntry via project
+        val target = project.findOrCreateTarget(targetRef = entryRef, isImplicit = true)
+        try {
+          SBuildRunner.preorderedDependencies(List(target))(project)
+        } catch {
+          case e: Exception =>
+            val ex = new ProjectConfigurationException(s"""Could not resolve ${purposeOfEntry} "${cpEntry}". ${e.getMessage}""", e)
+            ex.buildScript = Some(scriptFile)
+            throw ex
+        }
+      }
+      files
+    }
+
+  def readAdditionalClasspath(project: Project): Array[String] = {
     log.log(LogLevel.Debug, "About to find additional classpath entries.")
     val cp = readAnnotationWithVarargAttribute(annoName = "classpath", valueName = "value")
     log.log(LogLevel.Debug, "Using additional classpath entries: " + cp.mkString(", "))
@@ -251,67 +290,73 @@ class ProjectScript(_scriptFile: File,
       new HttpSchemeHandlerBase(downloadDir)
     }
 
-    cp.map { entry =>
-      if (entry.startsWith("http:")) {
-        // we need to download it
-        log.log(LogLevel.Debug, "Classpath entry is a HTTP resource: " + entry)
-        val path = entry.substring("http:".length, entry.length)
-        val file = httpHandler.localFile(path)
+    resolveViaProject(cp, project, "@classpath entry").map { _.getPath }
 
-        if (!file.exists) {
-          try {
-            val url = new URL(entry)
-            if (downloadCache.hasEntry(url)) {
-              log.log(LogLevel.Debug, "Resolving classpath entry from download cache: " + url)
-              val cachedEntry = downloadCache.getEntry(url)
-
-              Path.normalize(file).getParentFile.mkdirs
-              file.createNewFile
-
-              val fileOutputStream = new FileOutputStream(file)
-              try {
-                fileOutputStream.getChannel.transferFrom(
-                  new FileInputStream(cachedEntry).getChannel, 0, Long.MaxValue)
-              } finally {
-                if (fileOutputStream != null) fileOutputStream.close
-              }
-            }
-          } catch {
-            case e: Exception =>
-              log.log(LogLevel.Debug, "Could not use download cache for resource: " + entry + "\n" + e)
-              if (file.exists) file.delete
-          }
-        }
-
-        if (!file.exists) {
-          log.log(LogLevel.Debug, "Need to download: " + entry)
-          httpHandler.download(path)
-        }
-        if (!file.exists) {
-          println("Could not resolve classpath entry: " + entry)
-        } else {
-          log.log(LogLevel.Debug, "Resolved: " + entry + " => " + file)
-          try {
-            val url = new URL(entry)
-            if (!downloadCache.hasEntry(url)) {
-              downloadCache.registerEntry(url, file)
-            }
-          } catch {
-            case e: Exception =>
-              log.log(LogLevel.Debug, "Could not use download cache for resource: " + entry + "\n" + e)
-          }
-        }
-
-        file.getPath
-        // end http:
-      } else {
-        val fileEntry = Path.normalize(new File(entry), projectDir)
-        if (!fileEntry.exists) {
-          println("Could not found classpath entry: " + entry)
-        }
-        fileEntry.getPath
-      }
-    }
+    //    cp.map { entry =>
+    //      if (entry.startsWith("http:")) {
+    //        // we need to download it
+    //        log.log(LogLevel.Debug, "Classpath entry is a HTTP resource: " + entry)
+    //        val path = entry.substring("http:".length, entry.length)
+    //        val file = httpHandler.localFile(path)
+    //
+    //        if (!file.exists) {
+    //          downloadCache.map { cache =>
+    //            try {
+    //              val url = new URL(entry)
+    //              if (cache.hasEntry(url)) {
+    //                log.log(LogLevel.Debug, "Resolving classpath entry from download cache: " + url)
+    //                val cachedEntry = cache.getEntry(url)
+    //
+    //                Path.normalize(file).getParentFile.mkdirs
+    //                file.createNewFile
+    //
+    //                val fileOutputStream = new FileOutputStream(file)
+    //                try {
+    //                  fileOutputStream.getChannel.transferFrom(
+    //                    new FileInputStream(cachedEntry).getChannel, 0, Long.MaxValue)
+    //                } finally {
+    //                  if (fileOutputStream != null) fileOutputStream.close
+    //                }
+    //              }
+    //            } catch {
+    //              case e: Exception =>
+    //                log.log(LogLevel.Debug, "Could not use download cache for resource: " + entry + "\n" + e)
+    //                if (file.exists) file.delete
+    //            }
+    //          }
+    //        }
+    //
+    //        if (!file.exists) {
+    //          log.log(LogLevel.Debug, "Need to download: " + entry)
+    //          httpHandler.download(path)
+    //        }
+    //        if (!file.exists) {
+    //          println("Could not resolve classpath entry: " + entry)
+    //        } else {
+    //          log.log(LogLevel.Debug, "Resolved: " + entry + " => " + file)
+    //          try {
+    //            val url = new URL(entry)
+    //            downloadCache.map { cache =>
+    //              if (!cache.hasEntry(url)) {
+    //                cache.registerEntry(url, file)
+    //              }
+    //            }
+    //          } catch {
+    //            case e: Exception =>
+    //              log.log(LogLevel.Debug, "Could not use download cache for resource: " + entry + "\n" + e)
+    //          }
+    //        }
+    //
+    //        file.getPath
+    //        // end http:
+    //      } else {
+    //        val fileEntry = Path.normalize(new File(entry), projectDir)
+    //        if (!fileEntry.exists) {
+    //          println("Could not found classpath entry: " + entry)
+    //        }
+    //        fileEntry.getPath
+    //      }
+    //    }
   }
 
   def useExistingCompiled(project: Project, classpath: Array[String]): Any = {

@@ -11,7 +11,7 @@ class SimpleProjectReader(config: Config, classpathConfig: ClasspathConfig, log:
   val downloadCache: DownloadCache = new SimpleDownloadCache()
   
   override def readProject(projectToRead: Project, projectFile: File): Any = {
-    val script = new ProjectScript(projectFile, classpathConfig, downloadCache, log)
+    val script = new ProjectScript(projectFile, classpathConfig, Some(downloadCache), log)
     if (config.clean) {
       script.clean
     }
