@@ -69,6 +69,8 @@ object Util {
             var alreadyLogged = false
 
             def logProgress = log.log(LogLevel.Info, s"Downloaded ${format.format(len / 1024)} kb")
+
+            var buffer = new Array[Byte](1024)
             
             while (!break) {
               val now = System.currentTimeMillis
@@ -77,11 +79,11 @@ object Util {
                 logProgress
                 last = now;
               }
-              inStream.read() match {
+              inStream.read(buffer, 0, 1024) match {
                 case x if x < 0 => break = true
-                case x => {
-                  len = len + 1
-                  outStream.write(x)
+                case count => {
+                  len = len + count
+                  outStream.write(buffer, 0, count)
                 }
               }
             }
