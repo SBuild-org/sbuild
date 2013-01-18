@@ -98,22 +98,24 @@ object SBuildRunner {
           val className = if (projectFile.getName.endsWith(".scala")) {
             projectFile.getName.substring(0, projectFile.getName.length - 6)
           } else { projectFile.getName }
-          """import de.tototec.sbuild._
-import de.tototec.sbuild.TargetRefs._
-import de.tototec.sbuild.ant._
-import de.tototec.sbuild.ant.tasks._
-
-@version(""" + "\"" + SBuildVersion.osgiVersion + "\"" + """)
-@classpath("http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.4/ant-1.8.4.jar")
-class """ + className + """(implicit project: Project) {
-
-  Target("phony:hello") help "Say hello" exec {
-    AntEcho(message = "Hello!")
-  }
-
-}
-"""
-
+          
+          s"""|import de.tototec.sbuild._
+              |import de.tototec.sbuild.TargetRefs._
+              |import de.tototec.sbuild.ant._
+              |import de.tototec.sbuild.ant.tasks._
+              |
+              |@version("${SBuildVersion.osgiVersion}")
+              |@classpath(
+              |  "mvn:org.apache.ant:ant:1.8.4"
+              |)
+              |class ${className}(implicit project: Project) {
+              |
+              |  Target("phony:hello") help "Say hello" exec {
+              |    AntEcho(message = "Hello!")
+              |  }
+              |
+              |}
+              |""".stripMargin
       }
 
       val outStream = new PrintStream(new FileOutputStream(projectFile))
@@ -132,7 +134,6 @@ class """ + className + """(implicit project: Project) {
     config.defines foreach {
       case (key, value) => project.addProperty(key, value)
     }
-
 
     projectReader.readProject(project, projectFile)
 
