@@ -13,9 +13,9 @@ import java.io.OutputStream
 import java.io.RandomAccessFile
 import java.net.URL
 import java.util.zip.ZipInputStream
-
 import scala.Array.canBuildFrom
 import scala.util.matching.Regex
+import java.text.DecimalFormat
 
 object Util {
 
@@ -36,7 +36,7 @@ object Util {
     })
   }
 
-  def download(url: String, target: String): Option[Throwable] = {
+  def download(url: String, target: String, log:SBuildLogger = log): Option[Throwable] = {
 
     try {
 
@@ -49,58 +49,69 @@ object Util {
         }
         case false => { // File needs download
 
-          def downloadIntoBuffer(url: String): Array[Byte] = {
+          val format = new DecimalFormat("#,##0.0")
 
-            val buff = new ByteArrayOutputStream
-            try {
-              log.log(LogLevel.Debug, "Downloading '" + url + "'")
-              val fileUrl = new URL(url)
-              val in = new BufferedInputStream(fileUrl.openStream())
-              var last = System.currentTimeMillis
-              var len = 0
-              var break = false
-              while (!break) {
-                val now = System.currentTimeMillis();
-                if (now > last + 1000) {
-                  log.log(LogLevel.Debug, "Downloaded " + len + " bytes");
-                  last = now;
-                }
-                in.read() match {
-                  case x if x < 0 => break = true
-                  case x => {
-                    len = len + 1
-                    buff.write(x)
-                  }
+          log.log(LogLevel.Info, s"Downloading ${url}")
+
+          // copy into temp file
+
+          val dir = targetFile.getAbsoluteFile.getParentFile
+          dir.mkdirs
+          val downloadTargetFile = File.createTempFile(".~" + targetFile.getName, "", dir)
+
+          val outStream = new BufferedOutputStream(new FileOutputStream(downloadTargetFile))
+          try {
+            val inStream = new BufferedInputStream(new URL(url).openStream)
+
+            var last = System.currentTimeMillis
+            var len = 0
+            var break = false
+            var alreadyLogged = false
+
+            def logProgress = log.log(LogLevel.Info, s"Downloaded ${format.format(len / 1024)} kb")
+            
+            while (!break) {
+              val now = System.currentTimeMillis
+              if (len > 0 && now > last + 5000) {
+                alreadyLogged = true
+                logProgress
+                last = now;
+              }
+              inStream.read() match {
+                case x if x < 0 => break = true
+                case x => {
+                  len = len + 1
+                  outStream.write(x)
                 }
               }
-              in.close
-            } catch {
-              case e: FileNotFoundException => throw new SBuildException("Download resource does not exists: " + url, e);
-              case e: IOException => throw new SBuildException("Error while downloading file: " + url, e);
             }
-            buff.toByteArray
+
+            if(alreadyLogged && len > 0) {
+                logProgress
+            }
+
+            inStream.close
+          } catch {
+            case e: FileNotFoundException => throw new SBuildException("Download resource does not exists: " + url, e);
+            case e: IOException => throw new SBuildException("Error while downloading file: " + url, e);
+          } finally {
+            outStream.close
           }
 
-          def writeDataToFile(data: Array[Byte], targetFile: File): Boolean = {
-            targetFile.getParentFile match {
-              case dir: File => dir.mkdirs
-              case _ =>
-            }
-            try {
-              val outFile = new RandomAccessFile(targetFile, "rw");
-              outFile.setLength(data.length)
-              outFile.write(data)
-              outFile.close
-              true
-            } catch {
-              case e: IOException => throw new SBuildException("Error saving file: " + target, e)
-            }
+          // move temp file to dest file
+          val out = new FileOutputStream(targetFile)
+          val in = new FileInputStream(downloadTargetFile)
+          try {
+            out.getChannel.transferFrom(in.getChannel, 0, Long.MaxValue)
+          } finally {
+            in.close
+            out.close
           }
 
-          writeDataToFile(downloadIntoBuffer(url), targetFile)
+          downloadTargetFile.delete
+
         }
       }
-
       None
     } catch {
       case x: Throwable => Some(x)
@@ -202,10 +213,10 @@ object Util {
           e)
     }
 
-    if(!selectedFiles.isEmpty) {
+    if (!selectedFiles.isEmpty) {
       throw new FileNotFoundException(s"""Could not found file "${selectedFiles.head._1}" in zip archive "${archive}".""")
     }
-    
+
   }
 
   def copy(in: InputStream, out: OutputStream) {

@@ -16,7 +16,7 @@ import java.io.FileNotFoundException
  */
 class MvnSchemeHandler(
   val downloadPath: File = new File(System.getProperty("user.home", ".") + "/.m2/repository"),
-  repos: Seq[String] = Seq("http://repo1.maven.org/maven2/")) extends SchemeHandler {
+  repos: Seq[String] = Seq("http://repo1.maven.org/maven2/"))(implicit project: Project) extends SchemeHandler {
 
   protected var provisionedResources: Map[String, String] = Map()
 
@@ -67,11 +67,11 @@ class MvnSchemeHandler(
 
     val target = localFile(path).getAbsoluteFile
     if (online && repos.size > 0) {
-      println("Downloading " + path + "...")
+      //      println("Downloading " + path + "...")
       var result: Option[Throwable] = None
       repos.takeWhile(repo => {
         val url = repo + "/" + constructMvnPath(path)
-        result = Util.download(url, target.getPath)
+        result = Util.download(url, target.getPath, project.log)
         result.isDefined || !target.exists
       })
       targetContext.targetWasUpToDate = false

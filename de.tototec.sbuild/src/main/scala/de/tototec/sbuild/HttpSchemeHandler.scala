@@ -20,7 +20,7 @@ class HttpSchemeHandler(downloadDir: File = null,
   forceDownload) with SchemeHandler {
 
   override def resolve(path: String, targetContext: TargetContext) = {
-    targetContext.targetWasUpToDate = download(path)
+    targetContext.targetWasUpToDate = download(path, project.log)
   }
 
 }
@@ -42,15 +42,15 @@ class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = 
   /**
    * @return <code>true</code>, if the file was already up-to-date
    */
-  def download(path: String): Boolean = {
+  def download(path: String, log: SBuildLogger): Boolean = {
     val target = localFile(path)
     if (online) {
       if (!forceDownload && target.exists) {
         true
       } else {
         val url = this.url(path)
-        println("Downloading " + url + "...")
-        Util.download(url.toString, target.getPath) match {
+//        println("Downloading " + url + "...")
+        Util.download(url.toString, target.getPath, log) match {
           case Some(e) => throw e
           case _ => false
         }
