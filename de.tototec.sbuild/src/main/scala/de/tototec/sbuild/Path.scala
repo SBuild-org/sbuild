@@ -3,7 +3,7 @@ package de.tototec.sbuild
 import java.io.File
 
 object Path {
-  
+
   def apply(path: String, pathes: String*)(implicit project: Project): File = {
     val file = normalize(new File(path), project.projectDirectory)
     if (pathes.isEmpty) {
@@ -20,3 +20,7 @@ object Path {
 
 }
 
+object Pathes {
+  def apply(pathes: Seq[String])(implicit project: Project): Seq[File] =
+    pathes.map(path => Path(path))
+}
