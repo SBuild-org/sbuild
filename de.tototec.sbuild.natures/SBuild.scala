@@ -29,7 +29,7 @@ class SBuild(implicit project: Project) {
 
   new CleanNature with CompileScalaNature with JarNature with ScalaSourcesNature {
 
-    override def artifact_name = "de.tototec.sbuild.natures"
+    override def artifact_name = "de.tototec.sbuild.natures.experimental"
     override def artifact_version = SBuildConfig.sbuildVersion
     override def compileScala_compileClasspath = compileCp
     override def jar_dependsOn = compileScala_targetName
