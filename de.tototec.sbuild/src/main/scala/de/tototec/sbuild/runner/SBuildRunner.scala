@@ -108,7 +108,7 @@ object SBuildRunner {
               |@classpath(
               |  "mvn:org.apache.ant:ant:1.8.4"
               |)
-              |class ${className}(implicit project: Project) {
+              |class ${className}(implicit _project: Project) {
               |
               |  Target("phony:hello") help "Say hello" exec {
               |    AntEcho(message = "Hello!")
@@ -130,7 +130,7 @@ object SBuildRunner {
 
     val projectReader: ProjectReader = new SimpleProjectReader(config, classpathConfig, log)
 
-    val project = new Project(projectFile, Some(projectReader), None, log)
+    val project = new Project(projectFile, projectReader, None, log)
     config.defines foreach {
       case (key, value) => project.addProperty(key, value)
     }

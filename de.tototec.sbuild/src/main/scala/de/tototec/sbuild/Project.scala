@@ -59,10 +59,12 @@ object Project {
 }
 
 class Project(_projectFile: File,
-              projectReader: Option[ProjectReader] = None,
+              _projectReader: ProjectReader = null,
               _projectPool: Option[ProjectPool] = None,
               val log: SBuildLogger = SBuildNoneLogger) {
 
+  private val projectReader: Option[ProjectReader] = Option(_projectReader) 
+  
   val projectFile: File = Path.normalize(_projectFile)
   if (!projectFile.exists)
     throw new ProjectConfigurationException("Project file '" + projectFile + "' does not exists")
@@ -131,7 +133,7 @@ class Project(_projectFile: File,
     val module = projectAlreadyIncluded match {
       case Some(existing) => existing
       case _ =>
-        val newProject = new Project(newProjectFile, projectReader, Some(projectPool), log)
+        val newProject = new Project(newProjectFile, projectReader.getOrElse(null), Some(projectPool), log)
         // copy project properties 
         if (copyProperties) properties.foreach {
           case (key, value) => newProject.addProperty(key, value)
