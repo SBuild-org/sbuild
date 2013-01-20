@@ -5,16 +5,20 @@ import de.tototec.sbuild.ant.tasks._
 
 import de.tototec.sbuild.natures.experimental._
 
-@version("0.3.1.9000") 
+@version("0.3.1") 
 // Lets just use all the natures of this project directly :-)
 @include(
   "../SBuildConfig.scala",
   "Natures-Snapshot-201301191524.scala"
 )
 @classpath(
-  "mvn:org.apache.ant:ant:1.8.4"
+  "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.4/ant-1.8.4.jar"
 )
 class SBuild(implicit project: Project) {
+
+  SchemeHandler("mvn", new MvnSchemeHandler())
+  SchemeHandler("http", new HttpSchemeHandler())
+  SchemeHandler("zip", new ZipSchemeHandler())
 
   val compileCp =
     s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
