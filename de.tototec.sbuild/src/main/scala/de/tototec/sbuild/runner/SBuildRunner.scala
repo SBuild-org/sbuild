@@ -41,7 +41,7 @@ object SBuildRunner {
       var help = false
     }
     val cp = new CmdlineParser(config, classpathConfig, cmdlineConfig)
-    cp.setResourceBundle(getClass.getPackage + ".Messages", getClass.getClassLoader())
+    cp.setResourceBundle("de.tototec.sbuild.runner.Messages", getClass.getClassLoader())
     cp.setAboutLine(aboutAndVersion)
     cp.setProgramName("sbuild")
 
@@ -64,14 +64,14 @@ object SBuildRunner {
       case e: ProjectConfigurationException =>
         Console.err.println("\n!!! SBuild detected an failure in the project configuration or the build scripts.")
         if (e.buildScript.isDefined) Console.err.println("!!! Project: " + e.buildScript.get)
-        Console.err.println("!!! Message: " + e.getMessage)
+        Console.err.println("!!! Message: " + e.getLocalizedMessage)
         if (verbose) throw e
         1
       case e: SBuildException =>
         Console.err.println("\n!!! SBuild failed with an exception (" + e.getClass.getSimpleName + ").")
         if (e.isInstanceOf[BuildScriptAware] && e.asInstanceOf[BuildScriptAware].buildScript.isDefined)
           Console.err.println("!!! Project: " + e.asInstanceOf[BuildScriptAware].buildScript.get)
-        Console.err.println("!!! Message: " + e.getMessage)
+        Console.err.println("!!! Message: " + e.getLocalizedMessage)
         if (verbose) throw e
         1
     }
