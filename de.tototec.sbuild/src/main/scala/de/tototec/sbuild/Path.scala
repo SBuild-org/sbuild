@@ -20,6 +20,7 @@ object Path {
 
 }
 
+// since SBuild 0.3.1.9000
 object Pathes {
   def apply(pathes: Seq[String])(implicit project: Project): Seq[File] =
     pathes.map(path => Path(path))
