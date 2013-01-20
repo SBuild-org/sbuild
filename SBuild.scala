@@ -30,14 +30,19 @@ class SBuild(implicit project: Project) {
 
   val classpathProperties = distDir + "/lib/classpath.properties"
 
-  val modules = Seq("de.tototec.sbuild", "de.tototec.sbuild.ant", "de.tototec.sbuild.addons")
+  val modules = Seq(
+    "de.tototec.sbuild", 
+    "de.tototec.sbuild.ant", 
+    "de.tototec.sbuild.addons",
+    "de.tototec.sbuild.natures"
+  )
   modules.foreach { Module(_) }
 
-  Target("phony:clean") dependsOn (modules.map(m => TargetRefs(m + "::clean")).reduceLeft(_ ~ _)) exec {
+  Target("phony:clean") dependsOn modules.map(m => TargetRef(m + "::clean")) exec {
     AntDelete(dir = Path("target"))
   } help "Clean all"
 
-  Target("phony:all") dependsOn ((modules.map(m => TargetRefs(m + "::all")).reduceLeft(_ ~ _)) ~ distZip) help "Build all"
+  Target("phony:all") dependsOn modules.map(m => TargetRef(m + "::all")) ~ distZip help "Build all"
 
   Target("phony:test") dependsOn ("de.tototec.sbuild::test") help "Run all tests"
 
@@ -45,7 +50,7 @@ class SBuild(implicit project: Project) {
     AntZip(destFile = ctx.targetFile.get, baseDir = Path("target"), includes = distName + "/**")
   }
 
-  Target("phony:createDistDir") dependsOn "copyJars" ~ classpathProperties ~ (distDir + "/bin/sbuild") ~ (distDir + "/bin/sbuild.bat") ~ "LICENSE.txt" exec {
+  Target("phony:createDistDir") dependsOn "copyJars" ~ classpathProperties ~ s"${distDir}/bin/sbuild" ~ s"${distDir}/bin/sbuild.bat" ~ "LICENSE.txt" exec {
     AntCopy(file = Path("LICENSE.txt"), toDir = Path(distDir + "/doc"))
     AntCopy(file = Path("ChangeLog.txt"), toDir = Path(distDir + "/doc"))
   }
