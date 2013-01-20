@@ -138,7 +138,7 @@ trait CompileScalaNature extends OutputDirNature with ScalaSourcesNature {
           compilerClasspath ~ compileScala_compileClasspath ~ compileScala_extraDependsOn exec
           { ctx: TargetContext =>
 
-            val sources = Pathes(scalaSources_sources ++ compileScala_extraSources)
+            val sources = (scalaSources_sources ++ compileScala_extraSources).map(s => Path(s))
 
             IfNotUpToDate(sources ++ ctx.fileDependencies, Path(outputDir), ctx) {
               AntMkdir(dir = Path(compileScala_outputDir))
