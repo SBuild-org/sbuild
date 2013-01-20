@@ -4,6 +4,9 @@ SBuild 0.3.1.9000
   can be overridden as usual.
 * All by-default registered scheme handler can now be used in @classpath and
   @include elements.
+* Changed behavior of --version command line option. It now exists the 
+  application as expected.
+* Added new AntZipFileSet for conveniene when using AntZip.
 
 SBuild 0.3.1 - 2013-01-17
 
