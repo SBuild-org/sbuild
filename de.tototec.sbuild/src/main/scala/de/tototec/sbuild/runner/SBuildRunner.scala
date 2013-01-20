@@ -22,6 +22,11 @@ object SBuildRunner {
   private var log: SBuildLogger = new SBuildConsoleLogger(LogLevel.Info)
 
   def main(args: Array[String]) {
+    val retval = run(args)
+    sys.exit(retval)
+  }
+
+  def run(args: Array[String]): Int = {
     val bootstrapStart = System.currentTimeMillis
 
     val aboutAndVersion = "SBuild " + SBuildVersion.version + " (c) 2011, 2012, ToToTec GbR, Tobias Roeser"
@@ -29,7 +34,7 @@ object SBuildRunner {
     val config = new Config()
     val classpathConfig = new ClasspathConfig()
     val cmdlineConfig = new {
-      @CmdOption(names = Array("--version"), description = "Show SBuild version.")
+      @CmdOption(names = Array("--version"), isHelp = true, description = "Show SBuild version.")
       var showVersion = false
 
       @CmdOption(names = Array("--help", "-h"), isHelp = true, description = "Show this help screen.")
@@ -42,31 +47,33 @@ object SBuildRunner {
 
     cp.parse(args: _*)
 
-    if (cmdlineConfig.showVersion) {
-      println(aboutAndVersion)
-    }
-
     if (cmdlineConfig.help) {
       cp.usage
-      System.exit(0)
+      return 0
+    }
+
+    if (cmdlineConfig.showVersion) {
+      println(aboutAndVersion)
+      return 0
     }
 
     try {
       run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
+      0
     } catch {
       case e: ProjectConfigurationException =>
         Console.err.println("\n!!! SBuild detected an failure in the project configuration or the build scripts.")
         if (e.buildScript.isDefined) Console.err.println("!!! Project: " + e.buildScript.get)
         Console.err.println("!!! Message: " + e.getMessage)
         if (verbose) throw e
-        System.exit(1)
+        1
       case e: SBuildException =>
         Console.err.println("\n!!! SBuild failed with an exception (" + e.getClass.getSimpleName + ").")
         if (e.isInstanceOf[BuildScriptAware] && e.asInstanceOf[BuildScriptAware].buildScript.isDefined)
           Console.err.println("!!! Project: " + e.asInstanceOf[BuildScriptAware].buildScript.get)
         Console.err.println("!!! Message: " + e.getMessage)
         if (verbose) throw e
-        System.exit(1)
+        1
     }
   }
 
@@ -98,7 +105,7 @@ object SBuildRunner {
           val className = if (projectFile.getName.endsWith(".scala")) {
             projectFile.getName.substring(0, projectFile.getName.length - 6)
           } else { projectFile.getName }
-          
+
           s"""|import de.tototec.sbuild._
               |import de.tototec.sbuild.TargetRefs._
               |import de.tototec.sbuild.ant._
