@@ -83,7 +83,7 @@ trait CompileJavaNature extends JavaSourcesNature with ClassesDirNature {
   def compileJava_classpath: TargetRefs = TargetRefs()
   def compileJava_extraDependsOn: TargetRefs = new TargetRefs()
   def compileJava_extraSources: Seq[String] = Seq()
-  def compileJava_target: Option[String] = None
+  def compileJava_target: String
 
   abstract override def createTargets(implicit sbuildProject: Project): Seq[Target] = {
 
@@ -95,7 +95,7 @@ trait CompileJavaNature extends JavaSourcesNature with ClassesDirNature {
         AntJavac(
           // TODO: add more
           source = javaSources_source.getOrElse(null),
-          target = compileJava_target.getOrElse(null),
+          target = compileJava_target,
           encoding = javaSources_encoding,
           classpath = AntPath(locations = ctx.fileDependencies),
           destDir = Path(compileJava_outputDir),
@@ -110,7 +110,7 @@ trait CompileJavaNature extends JavaSourcesNature with ClassesDirNature {
 
 trait Java6CompilerNature extends CompileJavaNature {
   override def javaSources_source = Some("1.6")
-  override def compileJava_target = Some("1.6")
+  override def compileJava_target = "1.6"
 }
 
 trait ScalaSourcesNature extends Nature {
@@ -128,7 +128,7 @@ trait CompileScalaNature extends ScalaSourcesNature with ClassesDirNature {
   def compileScala_deprecation: Boolean = true
   def compileScala_uncecked: Boolean = true
   def compileScala_classpath: TargetRefs = TargetRefs()
-  def compileScala_scalaVersion: String = "2.10.0"
+  def compileScala_scalaVersion: String
   def compileScala_compilerClasspath: Option[TargetRefs] = None
 
   abstract override def createTargets(implicit sbuildProject: Project) = {
@@ -168,26 +168,26 @@ trait CompileScalaNature extends ScalaSourcesNature with ClassesDirNature {
     super.createTargets(sbuildProject) ++
       Seq(
         Target("phony:" + compileScala_targetName) dependsOn
-          compilerClasspath ~ compileScala_classpath ~ compileScala_extraDependsOn exec
-          { ctx: TargetContext =>
+          compilerClasspath ~ compileScala_classpath ~ compileScala_extraDependsOn exec {
+            ctx: TargetContext =>
 
-            val sources = Pathes(scalaSources_sources ++ compileScala_extraSources)
+              val sources = Pathes(scalaSources_sources ++ compileScala_extraSources)
 
-            IfNotUpToDate(sources ++ ctx.fileDependencies, Path(outputDir), ctx) {
-              AntMkdir(dir = Path(compileScala_outputDir))
-              addons.scala.Scalac(
-                target = compileScala_target.getOrElse(null),
-                encoding = scalaSources_encoding,
-                deprecation = compileScala_deprecation,
-                unchecked = compileScala_uncecked,
-                debugInfo = compileScala_debugInfo,
-                fork = true,
-                destDir = Path(compileScala_outputDir),
-                srcDirs = sources,
-                compilerClasspath = compilerClasspath.files,
-                classpath = compileScala_classpath.files
-              )
-            }
+              IfNotUpToDate(sources ++ ctx.fileDependencies, Path(outputDir), ctx) {
+                AntMkdir(dir = Path(compileScala_outputDir))
+                addons.scala.Scalac(
+                  target = compileScala_target.getOrElse(null),
+                  encoding = scalaSources_encoding,
+                  deprecation = compileScala_deprecation,
+                  unchecked = compileScala_uncecked,
+                  debugInfo = compileScala_debugInfo,
+                  fork = true,
+                  destDir = Path(compileScala_outputDir),
+                  srcDirs = sources,
+                  compilerClasspath = compilerClasspath.files,
+                  classpath = compileScala_classpath.files
+                )
+              }
 
           }
       )
