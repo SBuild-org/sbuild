@@ -31,15 +31,16 @@ class SBuild(implicit project: Project) {
 
   val tAll = Target("phony:all") help "Default target: Build all"
 
-  new CleanNature with CompileScalaNature with JarNature with ScalaSourcesNature {
+  val nat1 = new CleanNature with CompileScalaNature with JarNature with ScalaSourcesNature {
 
     override def artifact_name = "de.tototec.sbuild.natures.experimental"
     override def artifact_version = SBuildConfig.sbuildVersion
     override def compileScala_compileClasspath = compileCp
     override def jar_dependsOn = compileScala_targetName
 
-    tAll dependsOn jar_output
+  }
 
-  }.createTargets
+  tAll dependsOn nat1.jar_output
+  nat1.createTargets
 
 }
