@@ -25,6 +25,22 @@ import de.tototec.sbuild.TargetNotFoundException
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.ProjectConfigurationException
 
+object ProjectScript {
+  def cutSimpleComment(str: String): String = {
+    var index = str.indexOf("//")
+    while (index >= 0) {
+      val substring = str.substring(0, index)
+      if (substring.length > 0 && substring.endsWith("\\")) {
+        // ignore this one
+        index = str.indexOf("//", index + 1)
+      } else {
+        return substring
+      }
+    }
+    str
+  }
+}
+
 class ProjectScript(_scriptFile: File,
                     sbuildClasspath: Array[String],
                     compileClasspath: Array[String],
@@ -32,6 +48,8 @@ class ProjectScript(_scriptFile: File,
                     noFsc: Boolean,
                     downloadCache: Option[DownloadCache],
                     log: SBuildLogger) {
+
+  import ProjectScript._
 
   def this(scriptFile: File,
            classpathConfig: ClasspathConfig,
@@ -129,13 +147,14 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  def readAnnotationWithVarargAttribute(annoName: String, valueName: String): Array[String] = {
+  def readAnnotationWithVarargAttribute(annoName: String, valueName: String, singleArg: Boolean = false): Array[String] = {
     var inClasspath = false
     var skipRest = false
     val it = new BufferedSource(new FileInputStream(scriptFile)).getLines()
     var annoLine = ""
     while (!skipRest && it.hasNext) {
-      var line = it.next.trim
+      var line = cutSimpleComment(it.next).trim
+
       if (inClasspath) {
         if (line.endsWith(")")) {
           skipRest = true
@@ -165,13 +184,12 @@ class ProjectScript(_scriptFile: File,
           throw new RuntimeException("Expected a '=' sign but got a '" + annoLine(0) + "'")
         }
       }
-      //      if (annoLine.startsWith("Array(") && annoLine.endsWith(")")) {
-      //        annoLine = annoLine.substring(6, annoLine.length - 1)
-      //      } else {
-      //        throw new RuntimeException("Expected a 'Array(...) expression, but got: " + annoLine)
-      //      }
 
-      val annoItems = annoLine.split(",")
+      val annoItems =
+        if (singleArg) Array(annoLine)
+        else
+          annoLine.split(",")
+
       val finalAnnoItems = annoItems map { item => item.trim } map { item =>
         if (item.startsWith("\"") && item.endsWith("\"")) {
           item.substring(1, item.length - 1)
@@ -179,6 +197,7 @@ class ProjectScript(_scriptFile: File,
           throw new RuntimeException("Unexpection token found: " + item)
         }
       }
+
       finalAnnoItems
     } else {
       Array()
@@ -186,48 +205,10 @@ class ProjectScript(_scriptFile: File,
   }
 
   def readAnnotationWithSingleAttribute(annoName: String, valueName: String): String = {
-    var inClasspath = false
-    var skipRest = false
-    val it = new BufferedSource(new FileInputStream(scriptFile)).getLines()
-    var annoLine = ""
-    while (!skipRest && it.hasNext) {
-      var line = it.next.trim
-      if (inClasspath) {
-        if (line.endsWith(")")) {
-          skipRest = true
-          line = line.substring(0, line.length - 1).trim
-        }
-        annoLine = annoLine + " " + line
-      }
-      if (line.startsWith("@" + annoName + "(")) {
-        line = line.substring(annoName.length + 2).trim
-        if (line.endsWith(")")) {
-          line = line.substring(0, line.length - 1).trim
-          skipRest = true
-        }
-        inClasspath = true
-        annoLine = line
-      }
-    }
-
-    annoLine = annoLine.trim
-
-    if (annoLine.length > 0) {
-      if (annoLine.startsWith(valueName)) {
-        annoLine = annoLine.substring(valueName.length).trim
-        if (annoLine.startsWith("=")) {
-          annoLine = annoLine.substring(1).trim
-        } else {
-          throw new RuntimeException("Expected a '=' sign but got a '" + annoLine(0) + "'")
-        }
-      }
-      if (annoLine.startsWith("\"") && annoLine.endsWith("\"")) {
-        annoLine.substring(1, annoLine.length - 1)
-      } else {
-        throw new RuntimeException("Expected a string enclosed within double colons but got: " + annoLine)
-      }
-    } else {
-      ""
+    readAnnotationWithVarargAttribute(annoName, valueName, true) match {
+      case Array() => ""
+      case Array(value) => value
+      case _ => throw new RuntimeException("Unexpected annotation syntax detected. Expected single arg annotation @" + annoName)
     }
   }
 
