@@ -26,7 +26,7 @@ object Scalac {
     target: String = null,
     debugInfo: String = null,
     fork: Boolean = false,
-    additionalScalacArgs: String = null)(implicit project: Project) =
+    additionalScalacArgs: Array[String] = null)(implicit project: Project) =
     new Scalac(
       compilerClasspath = compilerClasspath,
       classpath = classpath,
@@ -58,7 +58,7 @@ class Scalac(
   var target: String = null,
   var debugInfo: String = null,
   var fork: Boolean = false,
-  var additionalScalacArgs: String = null)(implicit project: Project) {
+  var additionalScalacArgs: Array[String] = null)(implicit project: Project) {
 
   val scalacClassName = "scala.tools.nsc.Main"
 
@@ -84,7 +84,7 @@ class Scalac(
       args ++= Array("-g:" + debugInfo)
     }
 
-    if (additionalScalacArgs != null) args ++= Array(additionalScalacArgs)
+    if (additionalScalacArgs != null && !additionalScalacArgs.isEmpty) args ++= additionalScalacArgs
 
     var allSrcDirs = Seq[File]()
     if (srcDir != null) allSrcDirs ++= Seq(srcDir)
