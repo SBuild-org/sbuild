@@ -29,12 +29,22 @@ object ProjectScript {
   def cutSimpleComment(str: String): String = {
     var index = str.indexOf("//")
     while (index >= 0) {
+      // found a comment candidate
       val substring = str.substring(0, index)
       if (substring.length > 0 && substring.endsWith("\\")) {
-        // ignore this one
+        // detected escaped comment, ignore this one
         index = str.indexOf("//", index + 1)
       } else {
-        return substring
+        // check, that we were not inside of a string
+        val DoubleQuote = """[^\\](\\)*"""".r
+        val doubleQuoteCount = DoubleQuote.findAllIn(substring).size
+        if ((doubleQuoteCount % 2) == 0) {
+          // a real comment, remove this one
+          return substring
+        } else {
+          // detected comment in quote
+          index = str.indexOf("//", index + 1)
+        }
       }
     }
     str
@@ -148,14 +158,14 @@ class ProjectScript(_scriptFile: File,
   }
 
   def readAnnotationWithVarargAttribute(annoName: String, valueName: String, singleArg: Boolean = false): Array[String] = {
-    var inClasspath = false
+    var inAnno = false
     var skipRest = false
     val it = new BufferedSource(new FileInputStream(scriptFile)).getLines()
     var annoLine = ""
     while (!skipRest && it.hasNext) {
       var line = cutSimpleComment(it.next).trim
 
-      if (inClasspath) {
+      if (inAnno) {
         if (line.endsWith(")")) {
           skipRest = true
           line = line.substring(0, line.length - 1).trim
@@ -168,7 +178,7 @@ class ProjectScript(_scriptFile: File,
           line = line.substring(0, line.length - 1).trim
           skipRest = true
         }
-        inClasspath = true
+        inAnno = true
         annoLine = line
       }
     }
