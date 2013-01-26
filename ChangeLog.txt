@@ -8,6 +8,7 @@ SBuild 0.3.1.9000
   application as expected.
 * Added new AntZipFileSet for conveniene when using AntZip.
 * Added new ScalaRepl addon providing access to the interactive Scala console.
+* Fixed issues in parser for @classpath and @include.
 
 SBuild 0.3.1 - 2013-01-17
 

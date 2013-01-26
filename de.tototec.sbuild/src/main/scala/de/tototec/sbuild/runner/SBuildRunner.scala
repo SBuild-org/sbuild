@@ -29,7 +29,7 @@ object SBuildRunner {
   def run(args: Array[String]): Int = {
     val bootstrapStart = System.currentTimeMillis
 
-    val aboutAndVersion = "SBuild " + SBuildVersion.version + " (c) 2011, 2012, ToToTec GbR, Tobias Roeser"
+    val aboutAndVersion = "SBuild " + SBuildVersion.version + " (c) 2011 - 2013, ToToTec GbR, Tobias Roeser"
 
     val config = new Config()
     val classpathConfig = new ClasspathConfig()
