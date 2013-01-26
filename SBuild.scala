@@ -33,8 +33,7 @@ class SBuild(implicit project: Project) {
   val modules = Seq(
     "de.tototec.sbuild", 
     "de.tototec.sbuild.ant", 
-    "de.tototec.sbuild.addons",
-    "de.tototec.sbuild.natures"
+    "de.tototec.sbuild.addons"
   )
   modules.foreach { Module(_) }
 
