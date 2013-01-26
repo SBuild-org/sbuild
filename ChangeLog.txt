@@ -1,4 +1,4 @@
-SBuild 0.3.1.9000 
+SBuild 0.3.2 - 2013-01-26
 
 * Common scheme handlers (mvn, http, zip) are now registered by default, but
   can be overridden as usual.
