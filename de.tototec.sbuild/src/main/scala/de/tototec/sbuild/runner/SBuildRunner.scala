@@ -222,6 +222,8 @@ object SBuildRunner {
     }
 
     if (config.showDependencyTree) {
+      // trigger lazy evaluated chain
+      chain
       val showGoUp = true
       var lastDepth = 0
       var lastShown = Map[Int, Target]()
