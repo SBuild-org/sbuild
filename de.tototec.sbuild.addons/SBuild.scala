@@ -3,17 +3,14 @@ import de.tototec.sbuild.TargetRefs._
 import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 
-@version("0.2.0")
+@version("0.3.2")
 @include(
   "../SBuildConfig.scala"
 )
 @classpath(
-  "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar"
+  "mvn:org.apache.ant:ant:1.8.4"
 )
 class SBuild(implicit _project: Project) {
-
-  SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
-  SchemeHandler("mvn", new MvnSchemeHandler())
 
   val addonsJar = s"target/de.tototec.sbuild.addons-${SBuildConfig.sbuildVersion}.jar"
 
@@ -42,7 +39,7 @@ class SBuild(implicit _project: Project) {
       val compilerFilter = """.*scala-((library)|(compiler)|(reflect)).*""".r
 
       new addons.scala.Scalac(
-        deprecation = true, unchecked = true, debugInfo = "vars", target = "jvm-1.5",
+        deprecation = true, unchecked = true, debugInfo = "vars", target = "jvm-1.6",
         fork = true,
         compilerClasspath = ctx.fileDependencies.filter(f => compilerFilter.pattern.matcher(f.getName).matches),
         srcDir = Path(input),

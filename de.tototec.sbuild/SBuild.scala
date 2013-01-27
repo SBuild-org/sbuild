@@ -3,17 +3,14 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
-@version("0.3.0")
+@version("0.3.2")
 @include(
   "../SBuildConfig.scala"
 )
 @classpath(
-  "http://repo1.maven.org/maven2/org/apache/ant/ant/1.8.3/ant-1.8.3.jar"
+  "mvn:org.apache.ant:ant:1.8.4"
 ) 
 class SBuild(implicit _project: Project) {
-
-  SchemeHandler("http", new HttpSchemeHandler(Path(".sbuild/http")))
-  SchemeHandler("mvn", new MvnSchemeHandler())
 
   val jar = s"target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar"
   val sourcesZip = s"target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}-sources.jar"
@@ -85,8 +82,8 @@ object SBuildVersion {
         destDir = Path(output),
         classpath = AntPath(locations = ctx.fileDependencies),
         fork = true,
-        source = "1.5",
-        target = "1.5",
+        source = "1.6",
+        target = "1.6",
         encoding = "UTF-8",
         debug = true,
         includeAntRuntime = false)
@@ -169,7 +166,7 @@ object SBuildVersion {
       deprecation = true,
       unchecked = true,
       debugInfo = "vars",
-      target = "jvm-1.5",
+      target = "jvm-1.6",
       fork = true
     ).execute
   }
