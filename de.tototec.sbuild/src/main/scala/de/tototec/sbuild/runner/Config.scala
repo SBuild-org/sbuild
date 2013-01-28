@@ -60,7 +60,11 @@ class Config {
   var noProgress = false
 
   @CmdOption(names = Array("--check"),
-    description = "Check ")
+    description = "Check targets for cycles and missing scheme handlers.")
   var check = false
+
+  @CmdOption(names = Array("--check-recursive"),
+    description = "Check targets of this project and all its modules for cycles and missing scheme handlers.")
+  var checkRecusive = false
 
 }

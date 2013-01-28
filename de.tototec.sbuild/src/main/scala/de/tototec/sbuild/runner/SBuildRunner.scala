@@ -184,10 +184,10 @@ class SBuildRunner {
 
     // Format listing of target and return
     if (config.listTargets || config.listTargetsRecursive) {
-      val projectsToList = if (config.listTargets) {
-        Seq(project) ++ additionalProjects
-      } else {
+      val projectsToList = if (config.listTargetsRecursive) {
         project.projectPool.projects
+      } else {
+        Seq(project) ++ additionalProjects
       }
       val out = projectsToList.sortWith(projectSorter _).map { p => formatTargetsOf(p) }
       Console.println(out.mkString("\n\n"))
@@ -261,6 +261,39 @@ class SBuildRunner {
       Console.println(output)
       // early exit
       return 0
+    }
+
+    if (config.check || config.checkRecusive) {
+
+      val projectsToCheck = if (config.checkRecusive) {
+        project.projectPool.projects
+      } else {
+        Seq(project) ++ additionalProjects
+      }
+
+      val targetsToCheck = projectsToCheck.sortWith(projectSorter _).flatMap { p =>
+        p.targets.values.filterNot(_.isImplicit)
+      }
+      // Console.println("About to check targets: "+targetsToCheck.mkString(", "))
+      var errors: Seq[(Target, String)] = Seq()
+      targetsToCheck.foreach { target =>
+        Console.print("Checking target: " + formatTarget(target)(project))
+        try {
+          preorderedDependenciesTree(curTarget = target, skipExec = true)(project)
+          Console.println("  \tOK")
+        } catch {
+          case e: SBuildException =>
+            Console.println("  \tFAILED: " + e.getMessage)
+            errors ++= Seq(target -> e.getMessage)
+        }
+      }
+      if(!errors.isEmpty) Console.println(s"Found the following ${errors.size} problems:")
+      errors.foreach {
+        case (target, message) =>
+          Console.println(formatTarget(target)(project) + ": " + message)
+      }
+      // When errors, then return with 1 else with 0
+      return if (errors.isEmpty) 0 else 1
     }
 
     // force evaluation of lazy val chain, if required, and switch afterwards from bootstrap to execution time benchmarking.
