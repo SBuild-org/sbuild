@@ -25,6 +25,10 @@ class Config {
     description = "Show a list of targets defined in the current buildfile and all modules")
   var listTargetsRecursive = false
 
+  @CmdOption(names = Array("--list-modules"),
+    description = "Show a list of modules involved in this project")
+  var listModules = false
+
   @CmdOption(names = Array("--define", "-D"), args = Array("KEY=VALUE"), maxCount = -1,
     description = "Define or override properties. If VALUE is omitted it defaults to \"true\".")
   def addDefine(keyValue: String) {

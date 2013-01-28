@@ -169,20 +169,31 @@ object SBuildRunner {
       }.mkString("\n")
     }
 
-    // Format listing of target
+    def projectSorter(l: Project, r: Project): Boolean = (l, r) match {
+      // ensure main project file is on top
+      case (l, r) if l.eq(project) => true
+      case (l, r) if r.eq(project) => false
+      case (l, r) => l.projectFile.compareTo(r.projectFile) < 0
+    }
+
+    // Format listing of target and return
     if (config.listTargets || config.listTargetsRecursive) {
       val projectsToList = if (config.listTargets) {
         Seq(project) ++ additionalProjects
       } else {
         project.projectPool.projects
       }
-      val out = projectsToList.sortWith {
-        // ensure main project file is on top
-        case (l, r) if l.eq(project) => true
-        case (l, r) if r.eq(project) => false
-        case (l, r) => l.projectFile.compareTo(r.projectFile) < 0
-      }.map { p => formatTargetsOf(p) }
+      val out = projectsToList.sortWith(projectSorter _).map { p => formatTargetsOf(p) }
       Console.println(out.mkString("\n\n"))
+      // early exit
+      System.exit(0)
+    }
+
+    if (config.listModules) {
+      val moduleNames = project.projectPool.projects.sortWith(projectSorter _).map {
+        p => p.projectFile
+      }
+      Console.println(moduleNames.mkString("\n"))
       System.exit(0)
     }
 
