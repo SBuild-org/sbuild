@@ -18,15 +18,15 @@ class Config {
   var verbose = false
 
   @CmdOption(names = Array("--list-targets", "-l"),
-    description = "Show a list of targets defined in the current buildfile")
+    description = "Show a list of targets defined in the current buildfile.")
   var listTargets = false
 
   @CmdOption(names = Array("--list-targets-recursive", "-L"),
-    description = "Show a list of targets defined in the current buildfile and all modules")
+    description = "Show a list of targets defined in the current buildfile and all modules.")
   var listTargetsRecursive = false
 
   @CmdOption(names = Array("--list-modules"),
-    description = "Show a list of modules involved in this project")
+    description = "Show a list of modules involved in this project.")
   var listModules = false
 
   @CmdOption(names = Array("--define", "-D"), args = Array("KEY=VALUE"), maxCount = -1,
