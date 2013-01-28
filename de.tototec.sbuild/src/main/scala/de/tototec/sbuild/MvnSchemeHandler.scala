@@ -67,21 +67,20 @@ class MvnSchemeHandler(
 
     val target = localFile(path).getAbsoluteFile
     if (online && repos.size > 0) {
-      //      println("Downloading " + path + "...")
       var result: Option[Throwable] = None
       repos.takeWhile(repo => {
         val url = repo + "/" + constructMvnPath(path)
         result = Util.download(url, target.getPath, project.log)
         result.isDefined || !target.exists
       })
-      targetContext.targetWasUpToDate = false
       result match {
         case Some(e) => throw e
         case _ =>
       }
+      targetContext.targetLastModified = target.lastModified
     } else {
       if (target.exists) {
-        targetContext.targetWasUpToDate = false
+        targetContext.targetLastModified = target.lastModified
       } else {
         throw new FileNotFoundException("File is not present and can not be downloaded in offline-mode: " + target.getPath)
       }

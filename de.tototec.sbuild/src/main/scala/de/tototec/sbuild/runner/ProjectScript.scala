@@ -257,7 +257,7 @@ class ProjectScript(_scriptFile: File,
         // need to resolve cpEntry via project
         val target = project.findOrCreateTarget(targetRef = entryRef, isImplicit = true)
         try {
-          SBuildRunner.preorderedDependencies(List(target))(project)
+          SBuildRunner.preorderedDependenciesTree(target)(project)
         } catch {
           case e: Exception =>
             val ex = new ProjectConfigurationException(s"""Could not resolve ${purposeOfEntry} "${cpEntry}". ${e.getMessage}""", e)

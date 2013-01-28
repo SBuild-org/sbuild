@@ -15,16 +15,37 @@ import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdOption
 import de.tototec.sbuild._
 
-object SBuildRunner {
+object SBuildRunner extends SBuildRunner {
+  def main(args: Array[String]) {
+    val retval = run(args)
+    sys.exit(retval)
+  }
+}
+
+class SBuildRunner {
 
   private[runner] var verbose = false
 
   private var log: SBuildLogger = new SBuildConsoleLogger(LogLevel.Info)
 
-  def main(args: Array[String]) {
-    val retval = run(args)
-    sys.exit(retval)
-  }
+  def createSbuildStub(className: String): String =
+    s"""|import de.tototec.sbuild._
+        |import de.tototec.sbuild.TargetRefs._
+        |import de.tototec.sbuild.ant._
+        |import de.tototec.sbuild.ant.tasks._
+        |
+        |@version("${SBuildVersion.osgiVersion}")
+        |@classpath(
+        |  "mvn:org.apache.ant:ant:1.8.4"
+        |)
+        |class ${className}(implicit _project: Project) {
+        |
+        |  Target("phony:hello") help "Say hello" exec {
+        |    AntEcho(message = "Hello!")
+        |  }
+        |
+        |}
+        |""".stripMargin
 
   def run(args: Array[String]): Int = {
     val bootstrapStart = System.currentTimeMillis
@@ -59,7 +80,6 @@ object SBuildRunner {
 
     try {
       run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
-      0
     } catch {
       case e: ProjectConfigurationException =>
         Console.err.println("\n!!! SBuild detected an failure in the project configuration or the build scripts.")
@@ -77,12 +97,11 @@ object SBuildRunner {
     }
   }
 
-  def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis) {
+  def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis): Int = {
 
     SBuildRunner.verbose = config.verbose
     if (verbose) {
       log = new SBuildConsoleLogger(LogLevel.Info, LogLevel.Debug)
-      Project.log = log
       Util.log = log
     }
 
@@ -106,23 +125,7 @@ object SBuildRunner {
             projectFile.getName.substring(0, projectFile.getName.length - 6)
           } else { projectFile.getName }
 
-          s"""|import de.tototec.sbuild._
-              |import de.tototec.sbuild.TargetRefs._
-              |import de.tototec.sbuild.ant._
-              |import de.tototec.sbuild.ant.tasks._
-              |
-              |@version("${SBuildVersion.osgiVersion}")
-              |@classpath(
-              |  "mvn:org.apache.ant:ant:1.8.4"
-              |)
-              |class ${className}(implicit _project: Project) {
-              |
-              |  Target("phony:hello") help "Say hello" exec {
-              |    AntEcho(message = "Hello!")
-              |  }
-              |
-              |}
-              |""".stripMargin
+          createSbuildStub(className)
       }
 
       val outStream = new PrintStream(new FileOutputStream(projectFile))
@@ -132,7 +135,7 @@ object SBuildRunner {
         if (outStream != null) outStream.close
       }
 
-      System.exit(0)
+      return 0
     }
 
     val projectReader: ProjectReader = new SimpleProjectReader(config, classpathConfig, log)
@@ -160,6 +163,9 @@ object SBuildRunner {
 
     log.log(LogLevel.Debug, "Targets: \n" + project.targets.values.mkString("\n"))
 
+    /**
+     * Format a target relative to the base project <code>p</code>.
+     */
     def formatTargetsOf(p: Project): String = {
       p.targets.values.toSeq.filter(!_.isImplicit).sortBy(_.name).map { t =>
         formatTarget(t)(project) + " \t" + (t.help match {
@@ -186,7 +192,7 @@ object SBuildRunner {
       val out = projectsToList.sortWith(projectSorter _).map { p => formatTargetsOf(p) }
       Console.println(out.mkString("\n\n"))
       // early exit
-      System.exit(0)
+      return 0
     }
 
     if (config.listModules) {
@@ -194,30 +200,32 @@ object SBuildRunner {
         p => p.projectFile
       }
       Console.println(moduleNames.mkString("\n"))
-      System.exit(0)
+      return 0
     }
 
-    // Targets requested from cmdline
+    // Check targets requested from cmdline an throw a exception, if invalid targets were requested
     val (requested: Seq[Target], invalid: Seq[String]) = determineRequestedTargets(config.params)(project)
     if (!invalid.isEmpty) {
       throw new TargetNotFoundException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", ") + ". For a list of available targets use --list-targets or --list-targets-recursive.");
     }
     val targets = requested.toList
 
-    // Execution plan
+    // The dependencyTree will be populated by the treePrinter, in case it was requested on commandline
     var dependencyTree = Seq[(Int, Target)]()
     val treePrinter = config.showDependencyTree match {
       case true => Some((depth: Int, node: Target) => { dependencyTree ++= Seq((depth, node)) })
       case _ => None
     }
 
+    // The execution plan (chain) will be evaluated on first need
     lazy val chain: Array[ExecutedTarget] = {
       if (!targets.isEmpty && !config.noProgress) {
         log.log(LogLevel.Info, "Calculating dependency tree...")
       }
-      preorderedDependencies(targets, skipExec = true, treePrinter = treePrinter)(project)
+      preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter)(project)
     }
 
+    // Execution plan
     def execPlan = {
       var line = 0
       "Execution plan: \n" + chain.map { execT =>
@@ -227,7 +235,8 @@ object SBuildRunner {
     }
     if (config.showExecutionPlan) {
       Console.println(execPlan)
-      System.exit(0)
+      // early exit
+      return 0
     } else {
       log.log(LogLevel.Debug, execPlan)
     }
@@ -250,11 +259,12 @@ object SBuildRunner {
           prefix + List.fill(depth)("  ").mkString + "  " + formatTarget(target)(project)
       }.mkString("\n")
       Console.println(output)
-      System.exit(0)
+      // early exit
+      return 0
     }
 
-    // force evaluation of val chain, if required, and switch afterwards from bootstrap to execution time benchmarking.
-    val execState = if (config.noProgress) None else Some(new ExecState(maxCount = chain.size))
+    // force evaluation of lazy val chain, if required, and switch afterwards from bootstrap to execution time benchmarking.
+    val execProgress = if (config.noProgress) None else Some(new ExecProgress(maxCount = chain.size))
 
     val executionStart = System.currentTimeMillis
     val bootstrapTime = executionStart - bootstrapStart
@@ -263,49 +273,45 @@ object SBuildRunner {
       log.log(LogLevel.Info, "Executing...")
     }
 
-    preorderedDependencies(targets, execState = execState)(project)
+    preorderedDependenciesForest(targets, execProgress = execProgress)(project)
     if (!targets.isEmpty && !config.noProgress) {
       println("[100%] Execution finished. SBuild init time: " + bootstrapTime +
         " msec, Execution time: " + (System.currentTimeMillis - executionStart) + " msec")
     }
 
     log.log(LogLevel.Debug, "Finished")
+    // return with 0, indicating no errors
+    0
   }
 
   def determineRequestedTargets(targets: Seq[String])(implicit project: Project): (Seq[Target], Seq[String]) = {
 
-    // The compile will throw a warning here, but we want this so
-    val (requested: Seq[Target], invalid: Seq[String]) =
-      targets.map { t =>
-        project.findTarget(t, searchInAllProjects = false) match {
-          case Some(target) => target
-          case None => TargetRef(t).explicitProto match {
-            case None | Some("phony") | Some("file") => t
-            case _ =>
-              // A scheme handler might be able to resolve this thing
-              project.createTarget(TargetRef(t))
-          }
+    // The compile will throw a warning here, so we use the erasure version and keep the intent as comment
+    // val (requested: Seq[Target], invalid: Seq[String]) =
+    val (requested, invalid) = targets.map { t =>
+      project.findTarget(t, searchInAllProjects = false) match {
+        case Some(target) => target
+        case None => TargetRef(t).explicitProto match {
+          case None | Some("phony") | Some("file") => t
+          case _ =>
+            // A scheme handler might be able to resolve this thing
+            project.createTarget(TargetRef(t))
         }
-      }.partition(_.isInstanceOf[Target])
+      }
+    }.partition(_.isInstanceOf[Target])
 
-    (requested, invalid)
-    //    if (!invalid.isEmpty) {
-    //      throw new TargetNotFoundException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", ") + ". For a list of available targets use --list-targets or --list-targets-recursive.");
-    //    }
-    //
-    //    requested
+    (requested.asInstanceOf[Seq[Target]], invalid.asInstanceOf[Seq[String]])
   }
 
   class ExecutedTarget(
     /** The executed target. */
     val target: Target,
-    /** <code>true</code> if the target was already up-to-date or determined itself as up-to-date while its execution by setting {@link TargetContext#targetWasUpToDate}. */
-    val wasUpToDate: Boolean,
     /** An Id specific for this execution request. */
     val requestId: Option[String],
-    val ran: Boolean)
+    val ran: Boolean,
+    val targetContext: TargetContext)
 
-  class ExecState(var maxCount: Int, var currentNr: Int = 1)
+  class ExecProgress(var maxCount: Int, var currentNr: Int = 1)
 
   def formatTarget(target: Target)(implicit project: Project) =
     (
@@ -313,200 +319,248 @@ object SBuildRunner {
         project.projectDirectory.toURI.relativize(target.project.projectFile.toURI).getPath + "::"
       } else "") + TargetRef(target).nameWithoutStandardProto
 
-  def preorderedDependencies(request: List[Target],
-                             rootRequest: Option[Target] = None,
-                             execState: Option[ExecState] = None,
-                             skipExec: Boolean = false,
-                             requestId: Option[String] = None,
-                             dependencyTrace: List[Target] = List(),
-                             depth: Int = 0,
-                             treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] = {
+  /**
+   * Visit a forest of targets, each target of parameter <code>request</code> is the root of a tree.
+   * Each tree will search deep-first. If parameter <code>skipExec</code> is <code>true</code>, the associated actions will not executed.
+   * If <code>skipExec</code> is <code>false</code>, for each target the up-to-date state will be evaluated,
+   * and if the target is no up-to-date, the associated action will be executed.
+   */
+  def preorderedDependenciesForest(request: List[Target],
+                                   execProgress: Option[ExecProgress] = None,
+                                   skipExec: Boolean = false,
+                                   requestId: Option[String] = None,
+                                   dependencyTrace: List[Target] = List(),
+                                   depth: Int = 0,
+                                   treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] = {
     request match {
       case Nil => Array()
-      case node :: tail =>
+      case firstTarget :: otherTargets =>
 
-        // detect collisions
+        // walk the current target (deep first)
+        val alreadyRun = preorderedDependenciesTree(
+          curTarget = firstTarget,
+          execProgress = execProgress,
+          skipExec = skipExec,
+          requestId = requestId,
+          dependencyTrace = dependencyTrace,
+          depth = depth,
+          treePrinter = treePrinter
+        )
 
-        treePrinter match {
-          case Some(printFunc) => printFunc(depth, node)
-          case _ =>
-        }
-
-        val root = rootRequest match {
-          case Some(root) =>
-            if (root == node) {
-              val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + formatTarget(root))
-              ex.buildScript = Some(root.project.projectFile)
-              throw ex
-            }
-            root
-          case None => node
-        }
-
-        // build prerequisites map
-
-        val alreadyRun: Array[ExecutedTarget] = {
-
-          val skipOrUpToDate = skipExec || Project.isTargetUpToDate(node, searchInAllProjects = true)
-          // Execute prerequisites
-          // log.log(LogLevel.Debug, "determine dependencies of: " + node.name)
-          val dependencies = node.project.prerequisites(target = node, searchInAllProjects = true)
-          log.log(LogLevel.Debug, "dependencies of: " + formatTarget(node) + " => " + dependencies.map(formatTarget(_)).mkString(", "))
-
-          // detect cycles
-          if (dependencies.contains(node)) {
-            val ex = new ProjectConfigurationException("Cycles in dependency chain detected. Target " + formatTarget(node) + " contains itself as dependency.")
-            ex.buildScript = Some(node.project.projectFile)
-            throw ex
-          }
-
-          // TODO: check dependencyTrace of cycles
-
-          // All direct dependencies share the same request id.
-          // Later we can identify them and check, if they were up-to-date.
-          val resolveDirectDepsRequestId = Some(UUID.randomUUID.toString)
-
-          val executed = preorderedDependencies(
-            request = dependencies.toList,
-            rootRequest = Some(root),
-            execState = execState,
-            skipExec = skipOrUpToDate,
-            requestId = resolveDirectDepsRequestId,
-            dependencyTrace = node :: dependencyTrace,
-            depth = depth + 1,
-            treePrinter = treePrinter)
-
-          log.log(LogLevel.Debug, "Executed dependency count: " + executed.size);
-
-          val doContextChecks = true
-
-          //          verboseTrackDeps("Evaluating up-to-date state of: " + formatTarget(node))
-
-          // print dep-tree
-          val trace = dependencyTrace match {
-            case x if x.isEmpty => ""
-            case x =>
-              var _toAdd = "     "
-              def toAdd = {
-                _toAdd += "  "
-                _toAdd
-              }
-              x.map { "\n" + toAdd + formatTarget(_) }.mkString
-          }
-
-          if (!skipExec) this.log.log(LogLevel.Debug, "===> " + formatTarget(node) + " is current execution, with tree: " + trace + " <===")
-
-          val execPhonyUpToDateOrSkip = skipOrUpToDate match {
-            case true =>
-              // already known as up-to-date
-              true
-            case false =>
-              // not up-to-date but we check the context
-              if (!doContextChecks) {
-                // we dont want to check the context, so this is realy not up-to-date
-                false
-              } else {
-                // Evaluate up-to-date state based on the list of already executed tasks
-                // only use direct dependencies
-                log.log(LogLevel.Debug, "Request-ID used for dependencies: " + resolveDirectDepsRequestId)
-                //                log.log(LogLevel.Debug, "Existing request ID -> count: " + executed.groupBy { et: ExecutedTarget => et.requestId }.map { case (k, vl) => (k, vl.size) })
-                val directDepsExecuted = executed.filter(_.requestId == resolveDirectDepsRequestId)
-                // group direct dependencies by target and then return a map with the up-to-date state for each target
-                val targetWhichWereUpToDateStates: Map[Target, Boolean] =
-                  directDepsExecuted.toList.groupBy(e => e.target).map {
-                    case (t: Target, execs: List[ExecutedTarget]) =>
-                      val wasSkipped = execs.forall(_.wasUpToDate)
-                      log.log(LogLevel.Debug, "  Direct dependency " + formatTarget(t) + (if (wasSkipped) " was skipped " else " was not skipped"))
-                      (t -> wasSkipped)
-                  }
-
-                //              // Imagine the case were the same 
-                //              // dependencies was added twice to the direct dependencies. Both would be associated by the same target,
-                //              // so the up-to-date state of the first executed dependency would always be used for all same
-                //              // dependencies. Because of this, we must aggregate all running state of one target, even if that means 
-                //              // we miss some skip-able targets  
-                //              val targetWhichWereUpToDateStates: Map[Target, Boolean] =
-                //                project.prerequisites(node).toList.distinct.map { t =>
-                //                  executed.filter(e => e.target == t) match {
-                //                    case Array() => (t -> false)
-                //                    case xs => xs.find(e => e.needsExec) match {
-                //                      case Some(_) => (t -> false)
-                //                      case None => (t -> true)
-                //                    }
-                //                  }
-                //                }.toMap
-
-                Project.isTargetUpToDate(node, targetWhichWereUpToDateStates, searchInAllProjects = true)
-              }
-          }
-          if (!skipOrUpToDate && execPhonyUpToDateOrSkip) {
-            log.log(LogLevel.Debug, "All executed phony dependencies of '" + formatTarget(node) + "' were up-to-date.")
-          }
-
-          // Print State
-          execState map { state =>
-            val percent = (state.currentNr, state.maxCount) match {
-              case (c, m) if (c > 0 && m > 0) =>
-                val p = (c - 1) * 100 / m
-                "[" + math.min(100, math.max(0, p)) + "%]"
-              case (c, m) => "[" + c + "/" + m + "]"
-            }
-
-            if (execPhonyUpToDateOrSkip || node.action == null) {
-              log.log(LogLevel.Debug, percent + " Skipping target: " + formatTarget(node))
-            } else {
-              println(percent + " Executing target: " + formatTarget(node))
-            }
-            state.currentNr += 1
-          }
-
-          val ctx = new TargetContextImpl(node)
-          var ran: Boolean = false
-
-          if (execPhonyUpToDateOrSkip) {
-            ctx.targetWasUpToDate = true
-          } else {
-            // Need to execute
-            node.action match {
-              case null =>
-                log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(node))
-              case exec =>
-                try {
-                  log.log(LogLevel.Debug, "Executing target: " + formatTarget(node))
-                  ctx.start
-                  ran = true
-                  exec.apply(ctx)
-                  ctx.end
-                  log.log(LogLevel.Debug, "Executed target: " + formatTarget(node) + " in " + ctx.execDurationMSec + " msec")
-                  if (ctx.targetWasUpToDate) {
-                    log.log(LogLevel.Debug, "Target " + formatTarget(node) + " determined itself as up-to-date while it was executed. Request-ID: " + requestId)
-                  }
-                } catch {
-                  case e: Throwable => {
-                    ctx.end
-                    println("Execution of target " + formatTarget(node) + " aborted after " + ctx.execDurationMSec + " msec with errors: " + e.getMessage);
-                    throw e
-                  }
-                }
-            }
-          }
-
-          executed ++ Array(
-            new ExecutedTarget(
-              target = node,
-              wasUpToDate = execPhonyUpToDateOrSkip || ctx.targetWasUpToDate,
-              requestId = requestId,
-              ran = ran))
-        }
-
-        alreadyRun ++ preorderedDependencies(tail,
-          execState = execState,
+        // and then walk other requested
+        alreadyRun ++ preorderedDependenciesForest(otherTargets,
+          execProgress = execProgress,
           skipExec = skipExec,
           dependencyTrace = dependencyTrace,
           requestId = requestId,
           depth = depth,
           treePrinter = treePrinter)
     }
+  }
+
+  /**
+   * Visit each target of tree <code>node</code> deep-first.
+   * If parameter <code>skipExec</code> is <code>true</code>, the associated actions will not executed.
+   * If <code>skipExec</code> is <code>false</code>, for each target the up-to-date state will be evaluated,
+   * and if the target is no up-to-date, the associated action will be executed.
+   */
+  def preorderedDependenciesTree(curTarget: Target,
+                                 execProgress: Option[ExecProgress] = None,
+                                 skipExec: Boolean = false,
+                                 requestId: Option[String] = None,
+                                 dependencyTrace: List[Target] = List(),
+                                 depth: Int = 0,
+                                 treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] = {
+
+    treePrinter match {
+      case Some(printFunc) => printFunc(depth, curTarget)
+      case _ =>
+    }
+
+    // check for cycles
+    dependencyTrace.find(dep => dep == curTarget) match {
+      case Some(cycle) =>
+        val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + formatTarget(cycle) +
+          ". The dependency chain:" + (curTarget :: dependencyTrace).reverse.map(d => formatTarget(d)).mkString(" -> "))
+        ex.buildScript = Some(cycle.project.projectFile)
+        throw ex
+      case _ =>
+    }
+
+    // build prerequisites map
+
+    //  val skipOrUpToDate = skipExec || Project.isTargetUpToDate(node, searchInAllProjects = true)
+    // Execute prerequisites
+    // log.log(LogLevel.Debug, "determine dependencies of: " + node.name)
+    val dependencies: List[Target] = curTarget.project.prerequisites(target = curTarget, searchInAllProjects = true)
+    log.log(LogLevel.Debug, "dependencies of: " + formatTarget(curTarget) + " => " + dependencies.map(formatTarget(_)).mkString(", "))
+
+    // All direct dependencies share the same request id.
+    // Later we can identify them and check, if they were up-to-date.
+    val resolveDirectDepsRequestId = Some(UUID.randomUUID.toString)
+
+    val executedDependencies: Array[ExecutedTarget] = preorderedDependenciesForest(
+      request = dependencies,
+      execProgress = execProgress,
+      skipExec = skipExec,
+      requestId = resolveDirectDepsRequestId,
+      dependencyTrace = curTarget :: dependencyTrace,
+      depth = depth + 1,
+      treePrinter = treePrinter)
+
+    log.log(LogLevel.Debug, "Executed dependency count: " + executedDependencies.size);
+
+    //          verboseTrackDeps("Evaluating up-to-date state of: " + formatTarget(node))
+
+    // print dep-tree
+    lazy val trace = dependencyTrace match {
+      case Nil => ""
+      case x =>
+        var _prefix = "     "
+        def prefix = {
+          _prefix += "  "
+          _prefix
+        }
+        x.map { "\n" + prefix + formatTarget(_) }.mkString
+    }
+
+    val ctx = new TargetContextImpl(curTarget)
+
+    if (!skipExec) this.log.log(LogLevel.Debug, "===> " + formatTarget(curTarget) +
+      " is current execution, with tree: " + trace + " <===")
+
+    val executeCurTarget = if (skipExec) {
+      // already known as up-to-date
+      false
+    } else {
+      // not skipped execution, determine if dependencies were up-to-date
+
+      log.log(LogLevel.Debug, "Request-ID used for dependencies: " + resolveDirectDepsRequestId)
+      val directDepsExecuted = executedDependencies.filter(_.requestId == resolveDirectDepsRequestId)
+
+      lazy val depsLastModified: Long = dependenciesLastModified(directDepsExecuted)
+      log.log(LogLevel.Debug, s"Evaluated last modified value '${depsLastModified}' for dependencies: " + directDepsExecuted.map { d => formatTarget(d.target) }.mkString(","))
+
+      val needsToRun: Boolean = curTarget.targetFile match {
+        case Some(file) =>
+          // file target
+          !file.exists || file.lastModified < depsLastModified
+
+        case None if curTarget.action == null =>
+          // phony target but just a collector of dependencies
+          ctx.targetLastModified = depsLastModified
+          false
+
+        case None =>
+          // phony target, have to run it always. Any laziness is up to it implementation
+          true
+      }
+
+      needsToRun
+      //      
+      //      // not up-to-date but we check the context
+      //      // Evaluate up-to-date state based on the list of already executed tasks
+      //      // only use direct dependencies
+      //      //                log.log(LogLevel.Debug, "Existing request ID -> count: " + executed.groupBy { et: ExecutedTarget => et.requestId }.map { case (k, vl) => (k, vl.size) })
+      //      // group direct dependencies by target and then return a map with the up-to-date state for each target
+      //      val targetWhichWereUpToDateStates: Map[Target, Boolean] =
+      //        directDepsExecuted.toList.groupBy(e => e.target).map {
+      //          case (t: Target, execs: List[ExecutedTarget]) =>
+      //            val wasSkipped = execs.forall(_.wasUpToDate)
+      //            log.log(LogLevel.Debug, "  Direct dependency " + formatTarget(t) + (if (wasSkipped) " was skipped " else " was not skipped"))
+      //            (t -> wasSkipped)
+      //        }
+      //
+      //      Target.isUpToDate(curTarget, targetWhichWereUpToDateStates, searchInAllProjects = true)
+    }
+    if (!skipExec && !executeCurTarget) {
+      log.log(LogLevel.Debug, "Target '" + formatTarget(curTarget) + "' does not need to run.")
+    }
+
+    // Print State
+    execProgress map { state =>
+      val progress = (state.currentNr, state.maxCount) match {
+        case (c, m) if (c > 0 && m > 0) =>
+          val p = (c - 1) * 100 / m
+          "[" + math.min(100, math.max(0, p)) + "%]"
+        case (c, m) => "[" + c + "/" + m + "]"
+      }
+
+      if (executeCurTarget) {
+        println(progress + " Executing target: " + formatTarget(curTarget))
+      } else {
+        log.log(LogLevel.Debug, progress + " Skipping target: " + formatTarget(curTarget))
+      }
+
+      state.currentNr += 1
+    }
+
+    var ran: Boolean = false
+
+    if (executeCurTarget) {
+      curTarget.action match {
+        case null =>
+          log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(curTarget))
+        case exec =>
+          try {
+            log.log(LogLevel.Debug, "Executing target: " + formatTarget(curTarget))
+            ctx.start
+            ran = true
+            exec.apply(ctx)
+            ctx.end
+            log.log(LogLevel.Debug, s"Executed target '${formatTarget(curTarget)}' in ${ctx.execDurationMSec} msec")
+            ctx.targetLastModified match {
+              case Some(lm) =>
+                log.log(LogLevel.Debug, s"The context of target '${formatTarget(curTarget)}' reports a last modified value of '${lm}'. Request-ID: ${requestId}")
+              case _ =>
+            }
+          } catch {
+            case e: Throwable => {
+              ctx.end
+              println(s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
+              throw e
+            }
+          }
+      }
+    }
+
+    executedDependencies ++ Array(
+      new ExecutedTarget(
+        target = curTarget,
+        requestId = requestId,
+        ran = ran,
+        targetContext = ctx
+      )
+    )
+
+  }
+
+  def dependenciesLastModified(dependencies: Array[ExecutedTarget])(implicit project: Project): Long = {
+    var lastModified: Long = 0
+    def updateLastModified(lm: Long) {
+      lastModified = math.max(lastModified, lm)
+    }
+    dependencies.foreach { dep =>
+      dep.target.targetFile match {
+        case Some(file) if !file.exists =>
+          log.log(LogLevel.Info, s"""The file "${file}" created by dependency "${formatTarget(dep.target)}" does no longer exists.""")
+          updateLastModified(Long.MaxValue)
+        case Some(file) =>
+          // file target and file exists, so we use it last modified
+          updateLastModified(file.lastModified)
+        case None =>
+          // phony target, so we ask its target context 
+          dep.targetContext.targetLastModified match {
+            case Some(lm) =>
+              // context has an associated last modified, which we will use
+              updateLastModified(lm)
+            case None =>
+              // target context does not know something, so we fall back to a last modified of NOW
+              updateLastModified(Long.MaxValue)
+          }
+      }
+    }
+    lastModified
   }
 
 }

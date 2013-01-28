@@ -36,7 +36,7 @@ object Util {
     })
   }
 
-  def download(url: String, target: String, log:SBuildLogger = log): Option[Throwable] = {
+  def download(url: String, target: String, log: SBuildLogger = log): Option[Throwable] = {
 
     try {
 
@@ -59,6 +59,11 @@ object Util {
           dir.mkdirs
           val downloadTargetFile = File.createTempFile(".~" + targetFile.getName, "", dir)
 
+          def cleanup =
+            if (downloadTargetFile.exists)
+              if (!downloadTargetFile.delete)
+                downloadTargetFile.deleteOnExit
+
           val outStream = new BufferedOutputStream(new FileOutputStream(downloadTargetFile))
           try {
             val inStream = new BufferedInputStream(new URL(url).openStream)
@@ -71,7 +76,7 @@ object Util {
             def logProgress = log.log(LogLevel.Info, s"Downloaded ${format.format(len / 1024)} kb")
 
             var buffer = new Array[Byte](1024)
-            
+
             while (!break) {
               val now = System.currentTimeMillis
               if (len > 0 && now > last + 5000) {
@@ -88,29 +93,37 @@ object Util {
               }
             }
 
-            if(alreadyLogged && len > 0) {
-                logProgress
+            if (alreadyLogged && len > 0) {
+              logProgress
             }
 
             inStream.close
           } catch {
-            case e: FileNotFoundException => throw new SBuildException("Download resource does not exists: " + url, e);
-            case e: IOException => throw new SBuildException("Error while downloading file: " + url, e);
+            case e: FileNotFoundException =>
+              outStream.close
+              cleanup
+              throw new SBuildException("Download resource does not exists: " + url, e);
+            case e: IOException =>
+              outStream.close
+              cleanup
+              throw new SBuildException("Error while downloading file: " + url, e);
           } finally {
             outStream.close
           }
 
-          // move temp file to dest file
-          val out = new FileOutputStream(targetFile)
-          val in = new FileInputStream(downloadTargetFile)
-          try {
-            out.getChannel.transferFrom(in.getChannel, 0, Long.MaxValue)
-          } finally {
-            in.close
-            out.close
+          val renameSuccess = downloadTargetFile.renameTo(targetFile)
+          if (!renameSuccess) {
+            // move temp file to dest file
+            val out = new FileOutputStream(targetFile)
+            val in = new FileInputStream(downloadTargetFile)
+            try {
+              out.getChannel.transferFrom(in.getChannel, 0, Long.MaxValue)
+            } finally {
+              out.close
+              in.close
+            }
+            cleanup
           }
-
-          downloadTargetFile.delete
 
         }
       }

@@ -3,6 +3,9 @@ SBuild 0.3.2.9000
 * Fixed --dependencyTree not showing up on when not used with --verbose.
 * Added new commandline option --list-modules to show a list of all involved
   modules (sub-projects).
+* Based up-to-date detection of phony targets on virtual last modified time
+  stamps instead of boolean marker.
+* Reworked preorder dependency algorithm.
 
 SBuild 0.3.2 - 2013-01-26
 

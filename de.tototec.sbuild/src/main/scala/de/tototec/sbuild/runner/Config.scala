@@ -59,4 +59,8 @@ class Config {
   @CmdOption(names = Array("-q", "--quiet", "--no-progress"), description = "Quiet mode. Don't show progress messages with progress in percent. (This will speed up SBuild initialization.)")
   var noProgress = false
 
+  @CmdOption(names = Array("--check"),
+    description = "Check ")
+  var check = false
+
 }

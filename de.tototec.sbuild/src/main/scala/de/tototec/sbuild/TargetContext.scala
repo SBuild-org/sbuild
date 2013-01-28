@@ -16,7 +16,7 @@ trait TargetContext {
    * The file this targets produces, or <code>None</code> if this target is phony.
    */
   def targetFile: Option[File]
-  
+
   /** The prerequisites (direct dependencies) of this target. */
   def prerequisites: Seq[TargetRef]
 
@@ -25,17 +25,16 @@ trait TargetContext {
    * Dependencies with phony scheme or which resolve to phony will not be included.
    */
   def fileDependencies: Seq[File]
-  
+
   /**
    * The time in milliseconds this target took to execute.
    * In case this target is still running, the time since it started.
    */
   def execDurationMSec: Long
 
-  def targetWasUpToDate: Boolean
-  def targetWasUpToDate_=(targetWasUpToDate: Boolean)
-  def addToTargetWasUpToDate(targetWasUpToDate: Boolean)
-  
+  def targetLastModified: Option[Long]
+  def targetLastModified_=(targetLastModified: Long)
+
   def project: Project
 }
 
@@ -88,19 +87,14 @@ class TargetContextImpl(target: Target) extends TargetContext {
     }
   } filter { f => f != null }
 
-  /**
-   * Set this to <code>true</code>, if this target execution did not produced anything new,
-   * which means, the target was already up-to-date.
-   * In later versions, SBuild will honor this setting, and might be able to skip targets,
-   * that depend on this on.
-   */
-  private var _targetWasUpToDate: List[Boolean] = List()
-  override def targetWasUpToDate: Boolean = _targetWasUpToDate match {
-    case List() => false
-    case x => x.forall(upToDate => upToDate)
-  }
-  override def targetWasUpToDate_=(targetWasUpToDate: Boolean) = _targetWasUpToDate = List(targetWasUpToDate)
-  override def addToTargetWasUpToDate(targetWasUpToDate: Boolean) = _targetWasUpToDate ::= targetWasUpToDate
+  private var _targetLastModified: Option[Long] = None
+  override def targetLastModified: Option[Long] = _targetLastModified
+  override def targetLastModified_=(targetLastModified: Long) = _targetLastModified =
+    _targetLastModified match {
+      case Some(previous) => Some(math.max(previous, targetLastModified))
+      case None if targetLastModified > 0 => Some(targetLastModified)
+      case _ => None
+    }
 
   override def project: Project = target.project
 }

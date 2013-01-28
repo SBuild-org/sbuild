@@ -2,69 +2,13 @@ package de.tototec.sbuild
 
 import java.io.File
 
-object Project {
-
-  var log: SBuildLogger = SBuildNoneLogger
-
-  /**
-   * Check if the target is up-to-date. This check will respect the up-to-date state of direct dependencies.
-   */
-  def isTargetUpToDate(target: Target,
-                       dependenciesWhichWereUpToDateStates: Map[Target, Boolean] = Map(),
-                       searchInAllProjects: Boolean = false): Boolean = {
-    lazy val prefix = "Target " + target.name + ": "
-    def verbose(msg: => String) = log.log(LogLevel.Debug, prefix + msg)
-    def exit(cause: String): Boolean = {
-      log.log(LogLevel.Debug, prefix + "Not up-to-date: " + cause)
-      false
-    }
-
-    if (target.phony) {
-      if (target.action != null) exit("Target is phony")
-      else {
-        val deps = target.project.prerequisites(target, searchInAllProjects = searchInAllProjects)
-        val firstNoUpToDateTarget = deps.find(t => !dependenciesWhichWereUpToDateStates.getOrElse(t, false))
-        if (firstNoUpToDateTarget.isDefined) {
-          exit("The dependency " + firstNoUpToDateTarget + " was not up-to-date")
-        } else {
-          // EXPERIMENTAL: an empty phony target with complete up-to-date dependency set
-          true
-        }
-      }
-    } else {
-      if (target.targetFile.isEmpty || !target.targetFile.get.exists) exit("Target file does not exists") else {
-        val (phonyPrereqs, filePrereqs) = target.project.prerequisites(target, searchInAllProjects = searchInAllProjects).partition(_.phony)
-        val phonyNonUpToDateTarget = phonyPrereqs.find(t => !dependenciesWhichWereUpToDateStates.getOrElse(t, false))
-        if (phonyNonUpToDateTarget.isDefined) {
-          // phony targets can only be considered up-to-date, if they retrieved their up-to-date state themselves while beeing executed
-          // verbose("Checked " + phonyNonUpToDateTarget.get + " against up-to-date-state-map: " + dependenciesWhichWereUpToDateStates)
-          exit("The phony dependency " + phonyNonUpToDateTarget.get.name + " was not up-to-date")
-        } else {
-          val fileThatdoesNotExists = filePrereqs.find(t => t.targetFile.isEmpty || !t.targetFile.get.exists)
-          if (fileThatdoesNotExists.isDefined) exit("Some prerequisites does not exists: " + fileThatdoesNotExists.get) else {
-
-            val fileLastModified = target.targetFile.get.lastModified
-            verbose("Target file last modified: " + fileLastModified)
-
-            val prereqsLastModified = filePrereqs.foldLeft(0: Long)((max, goal) => math.max(max, goal.targetFile.get.lastModified))
-            verbose("Prereqisites last modified: " + prereqsLastModified)
-
-            if (fileLastModified < prereqsLastModified) exit("Prerequisites are newer") else true
-          }
-        }
-      }
-    }
-  }
-
-}
-
 class Project(_projectFile: File,
               _projectReader: ProjectReader = null,
               _projectPool: Option[ProjectPool] = None,
               val log: SBuildLogger = SBuildNoneLogger) {
 
-  private val projectReader: Option[ProjectReader] = Option(_projectReader) 
-  
+  private val projectReader: Option[ProjectReader] = Option(_projectReader)
+
   val projectFile: File = Path.normalize(_projectFile)
   if (!projectFile.exists)
     throw new ProjectConfigurationException("Project file '" + projectFile + "' does not exists")

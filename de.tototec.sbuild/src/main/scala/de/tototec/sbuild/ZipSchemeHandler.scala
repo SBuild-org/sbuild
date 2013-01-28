@@ -4,6 +4,9 @@ import java.io.File
 import java.security.MessageDigest
 import java.io.FileNotFoundException
 
+/*
+ * TODO: touch to file, do not preserve lastModified from archive, to support proper up-to-date detection
+ */
 class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) extends SchemeHandlerWithDependencies {
 
   val baseDir: File = _baseDir match {
@@ -30,6 +33,7 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
         if (!file.exists) {
           try {
             Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)))
+            file.setLastModified(System.currentTimeMillis)
           } catch {
             case e: FileNotFoundException =>
               val ex = new ExecutionFailedException(s"""Could not resolve "${targetContext.name}" to "${file}".
