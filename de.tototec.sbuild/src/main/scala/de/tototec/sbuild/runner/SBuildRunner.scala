@@ -195,7 +195,7 @@ class SBuildRunner {
 
     if (config.listModules) {
       val moduleNames = project.projectPool.projects.sortWith(projectSorter _).map {
-        p => p.projectFile
+        p => formatProject(p)(project)
       }
       Console.println(moduleNames.mkString("\n"))
       return 0
@@ -344,11 +344,15 @@ class SBuildRunner {
 
   class ExecProgress(var maxCount: Int, var currentNr: Int = 1)
 
+  def formatProject(project: Project)(implicit baseProject: Project) =
+    if (baseProject != project)
+      baseProject.projectDirectory.toURI.relativize(project.projectFile.toURI).getPath
+    else project.projectFile.getName
+
   def formatTarget(target: Target)(implicit project: Project) =
-    (
-      if (project != target.project) {
-        project.projectDirectory.toURI.relativize(target.project.projectFile.toURI).getPath + "::"
-      } else "") + TargetRef(target).nameWithoutStandardProto
+    (if (project != target.project) {
+      project.projectDirectory.toURI.relativize(target.project.projectFile.toURI).getPath + "::"
+    } else "") + TargetRef(target).nameWithoutStandardProto
 
   /**
    * Visit a forest of targets, each target of parameter <code>request</code> is the root of a tree.

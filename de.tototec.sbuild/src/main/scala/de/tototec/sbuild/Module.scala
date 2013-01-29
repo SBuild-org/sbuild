@@ -7,7 +7,7 @@ object Module {
     _project.findOrCreateModule(dirOrFile)
     new Module(dirOrFile, _project)
   }
-  @deprecated(since = "0.3.2.9000", message = "Use Modules() instead.")
+  @deprecated(message = "Use Modules() instead.", since = "0.3.2.9000")
   def apply(dirOrFiles: String*)(implicit _project: Project): Seq[Module] =
     dirOrFiles.map { dirOrFile => Module(dirOrFile) }
 }
