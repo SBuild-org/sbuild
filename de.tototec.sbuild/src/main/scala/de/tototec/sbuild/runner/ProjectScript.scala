@@ -400,11 +400,11 @@ class ProjectScript(_scriptFile: File,
   }
 
   def compile(classpath: String, includes: Array[File]) {
-    val params = Array("-classpath", classpath, "-g:vars", "-d", targetDir.getPath, scriptFile.getPath) ++ (includes.map { file => file.getPath })
+    val params = Array("-classpath", classpath, "-deprecation", "-g:vars", "-d", targetDir.getPath, scriptFile.getPath) ++ (includes.map { file => file.getPath })
     log.log(LogLevel.Debug, "Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
     val compilerClassloader = new URLClassLoader(compileClasspath.map { f => new File(f).toURI.toURL }, getClass.getClassLoader)
 
-    def compileWithFsc() {
+    def compileWithFsc {
       val compileClient = compilerClassloader.loadClass("scala.tools.nsc.StandardCompileClient").newInstance
       //      import scala.tools.nsc.StandardCompileClient
       //      val compileClient = new StandardCompileClient
@@ -414,7 +414,7 @@ class ProjectScript(_scriptFile: File,
       if (!retVal) throw new SBuildException("Could not compile build file " + scriptFile.getAbsolutePath + " with CompileClient. See compiler output.")
     }
 
-    def compileWithoutFsc() {
+    def compileWithoutFsc {
       val compiler = compilerClassloader.loadClass("scala.tools.nsc.Main")
       val compilerMethod = compiler.getMethod("process", Array(classOf[Array[String]]): _*)
       log.log(LogLevel.Debug, "Executing Scala Compile with args: " + params.mkString(" "))

@@ -11,6 +11,13 @@ SBuild 0.3.2.9000
   This improves all scheme handlers as well.
 * Added new commandline options --check and --check-recursive to check all 
   defined targets for cycles and potentially missing scheme handlers.
+* Added new class Module which can be used to easily create target references
+  to targets in that module with Module.targetRef(String) and
+  Module.targetRefs(String*).
+* Module() and Modules() now return a Module resp. Seq[Module].
+* Deprecated Module.apply(String*) as the return value differs from
+  Module.apply(String), which is not obvious. Use Modules.apply() instead.
+* Build script compiler now emits deprecation warnings.
 
 SBuild 0.3.2 - 2013-01-26
 
