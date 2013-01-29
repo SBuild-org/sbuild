@@ -287,7 +287,7 @@ class SBuildRunner {
             errors ++= Seq(target -> e.getMessage)
         }
       }
-      if(!errors.isEmpty) Console.println(s"Found the following ${errors.size} problems:")
+      if (!errors.isEmpty) Console.println(s"Found the following ${errors.size} problems:")
       errors.foreach {
         case (target, message) =>
           Console.println(formatTarget(target)(project) + ": " + message)
@@ -414,7 +414,7 @@ class SBuildRunner {
     dependencyTrace.find(dep => dep == curTarget) match {
       case Some(cycle) =>
         val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + formatTarget(cycle) +
-          ". The dependency chain:" + (curTarget :: dependencyTrace).reverse.map(d => formatTarget(d)).mkString(" -> "))
+          ". The dependency chain: " + (curTarget :: dependencyTrace).reverse.map(d => formatTarget(d)).mkString(" -> "))
         ex.buildScript = Some(cycle.project.projectFile)
         throw ex
       case _ =>
@@ -425,7 +425,15 @@ class SBuildRunner {
     //  val skipOrUpToDate = skipExec || Project.isTargetUpToDate(node, searchInAllProjects = true)
     // Execute prerequisites
     // log.log(LogLevel.Debug, "determine dependencies of: " + node.name)
-    val dependencies: List[Target] = curTarget.project.prerequisites(target = curTarget, searchInAllProjects = true)
+    val dependencies: List[Target] = try {
+      curTarget.project.prerequisites(target = curTarget, searchInAllProjects = true)
+    } catch {
+      case e: UnsupportedSchemeException =>
+        val ex = new UnsupportedSchemeException("Unsupported Scheme in dependencies of target: " +
+          formatTarget(curTarget) + ". " + e.getMessage)
+        ex.buildScript = e.buildScript
+        throw ex
+    }
     log.log(LogLevel.Debug, "dependencies of: " + formatTarget(curTarget) + " => " + dependencies.map(formatTarget(_)).mkString(", "))
 
     // All direct dependencies share the same request id.

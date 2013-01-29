@@ -141,7 +141,7 @@ class Project(_projectFile: File,
         }
       case None =>
         uniqueTargetFile(targetRef) match {
-          case UniqueTargetFile(file, phony, handler) => targets.get(file) match {
+          case UniqueTargetFile(file, phony, _) => targets.get(file) match {
             // If nothing was found and the target in question is a file target and searchInAllProjects was requested, then search in other projects
             case None if searchInAllProjects && !phony =>
               // search in other projects
