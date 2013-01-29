@@ -28,24 +28,48 @@ class SBuildRunner {
 
   private var log: SBuildLogger = new SBuildConsoleLogger(LogLevel.Info)
 
-  def createSbuildStub(className: String): String =
-    s"""|import de.tototec.sbuild._
-        |import de.tototec.sbuild.TargetRefs._
-        |import de.tototec.sbuild.ant._
-        |import de.tototec.sbuild.ant.tasks._
-        |
-        |@version("${SBuildVersion.osgiVersion}")
-        |@classpath(
-        |  "mvn:org.apache.ant:ant:1.8.4"
-        |)
-        |class ${className}(implicit _project: Project) {
-        |
-        |  Target("phony:hello") help "Say hello" exec {
-        |    AntEcho(message = "Hello!")
-        |  }
-        |
-        |}
-        |""".stripMargin
+  def createSBuildStub(projectFile: File, stubDir: File) {
+    if (projectFile.exists) {
+      throw new SBuildException("File '" + projectFile.getName + "' already exists. ")
+    }
+
+    val sbuildStub = new File(stubDir, projectFile.getName) match {
+
+      case stubFile if stubFile.exists =>
+        val source = io.Source.fromFile(stubFile)
+        val text = source.mkString
+        source.close
+        text
+
+      case _ =>
+        val className = if (projectFile.getName.endsWith(".scala")) {
+          projectFile.getName.substring(0, projectFile.getName.length - 6)
+        } else { projectFile.getName }
+
+        s"""|import de.tototec.sbuild._
+          |import de.tototec.sbuild.TargetRefs._
+          |import de.tototec.sbuild.ant._
+          |import de.tototec.sbuild.ant.tasks._
+          |
+          |@version("${SBuildVersion.osgiVersion}")
+          |@classpath("mvn:org.apache.ant:ant:1.8.4")
+          |class ${className}(implicit _project: Project) {
+          |
+          |  Target("phony:hello") help "Say hello" exec {
+          |    AntEcho(message = "Hello!")
+          |  }
+          |
+          |}
+          |""".stripMargin
+    }
+
+    val outStream = new PrintStream(new FileOutputStream(projectFile))
+    try {
+      outStream.print(sbuildStub)
+    } finally {
+      if (outStream != null) outStream.close
+    }
+  }
 
   def run(args: Array[String]): Int = {
     val bootstrapStart = System.currentTimeMillis
@@ -108,33 +132,7 @@ class SBuildRunner {
     val projectFile = new File(config.buildfile)
 
     if (config.createStub) {
-      if (projectFile.exists) {
-        throw new SBuildException("File '" + config.buildfile + "' already exists. ")
-      }
-
-      val sbuildStub = new File(classpathConfig.sbuildHomeDir, "stub/SBuild.scala") match {
-
-        case stubFile if stubFile.exists =>
-          val source = io.Source.fromFile(stubFile)
-          val text = source.mkString
-          source.close
-          text
-
-        case _ =>
-          val className = if (projectFile.getName.endsWith(".scala")) {
-            projectFile.getName.substring(0, projectFile.getName.length - 6)
-          } else { projectFile.getName }
-
-          createSbuildStub(className)
-      }
-
-      val outStream = new PrintStream(new FileOutputStream(projectFile))
-      try {
-        outStream.print(sbuildStub)
-      } finally {
-        if (outStream != null) outStream.close
-      }
-
+      createSBuildStub(projectFile, new File(classpathConfig.sbuildHomeDir, "stub"))
       return 0
     }
 
