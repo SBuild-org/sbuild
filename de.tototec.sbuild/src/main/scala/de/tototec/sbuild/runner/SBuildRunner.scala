@@ -14,12 +14,20 @@ import scala.collection.JavaConversions._
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdOption
 import de.tototec.sbuild._
+import org.fusesource.jansi.AnsiConsole
+import org.fusesource.jansi.Ansi._
+import org.fusesource.jansi.Ansi.Color._
 
 object SBuildRunner extends SBuildRunner {
+
   def main(args: Array[String]) {
+
+    AnsiConsole.systemInstall
+
     val retval = run(args)
     sys.exit(retval)
   }
+
 }
 
 class SBuildRunner {
@@ -306,7 +314,7 @@ class SBuildRunner {
 
     preorderedDependenciesForest(targets, execProgress = execProgress)(project)
     if (!targets.isEmpty && !config.noProgress) {
-      println("[100%] Execution finished. SBuild init time: " + bootstrapTime +
+      println(fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
         " msec, Execution time: " + (System.currentTimeMillis - executionStart) + " msec")
     }
 
@@ -314,6 +322,11 @@ class SBuildRunner {
     // return with 0, indicating no errors
     0
   }
+
+  def fPercent(text: String) = ansi.fgBright(CYAN).a(text).fg(DEFAULT)
+  def fTarget(text: String) = ansi.bold.a(text).boldOff
+    
+  
 
   def determineRequestedTargets(targets: Seq[String])(implicit project: Project): (Seq[Target], Seq[String]) = {
 
@@ -353,7 +366,6 @@ class SBuildRunner {
     (if (project != target.project) {
       project.projectDirectory.toURI.relativize(target.project.projectFile.toURI).getPath + "::"
     } else "") + TargetRef(target).nameWithoutStandardProto
-
   /**
    * Visit a forest of targets, each target of parameter <code>request</code> is the root of a tree.
    * Each tree will search deep-first. If parameter <code>skipExec</code> is <code>true</code>, the associated actions will not executed.
@@ -525,12 +537,12 @@ class SBuildRunner {
       val progress = (state.currentNr, state.maxCount) match {
         case (c, m) if (c > 0 && m > 0) =>
           val p = (c - 1) * 100 / m
-          "[" + math.min(100, math.max(0, p)) + "%]"
+          fPercent("[" + math.min(100, math.max(0, p)) + "%]")
         case (c, m) => "[" + c + "/" + m + "]"
       }
 
       if (executeCurTarget) {
-        println(progress + " Executing target: " + formatTarget(curTarget))
+        println(progress + " Executing target: " + ansi.bold.a(formatTarget(curTarget)).boldOff)
       } else {
         log.log(LogLevel.Debug, progress + " Skipping target: " + formatTarget(curTarget))
       }

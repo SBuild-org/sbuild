@@ -17,6 +17,7 @@ class SBuild(implicit _project: Project) {
 
   val compileCp =
     s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
+      "http://repo.fusesource.com/nexus/content/groups/public/org/fusesource/jansi/jansi/1.9/jansi-1.9.jar" ~
       SBuildConfig.cmdOptionSource
 
   val testCp = compileCp ~
