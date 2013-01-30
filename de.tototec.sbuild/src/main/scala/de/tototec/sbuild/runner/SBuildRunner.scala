@@ -15,8 +15,6 @@ import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdOption
 import de.tototec.sbuild._
 import org.fusesource.jansi.AnsiConsole
-import org.fusesource.jansi.Ansi._
-import org.fusesource.jansi.Ansi.Color._
 
 object SBuildRunner extends SBuildRunner {
 
@@ -110,20 +108,28 @@ class SBuildRunner {
       return 0
     }
 
+    def errorOutput(e: Throwable, msg: String = null) = {
+    	Console.err.println()
+      if (msg != null)
+        Console.err.println(fMainError(msg))
+      if (e.isInstanceOf[BuildScriptAware] && e.asInstanceOf[BuildScriptAware].buildScript.isDefined)
+        Console.err.println(fMainError("Project: " + e.asInstanceOf[BuildScriptAware].buildScript.get))
+      Console.err.println(fMainError(e.getLocalizedMessage))
+    }
+
     try {
       run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
     } catch {
       case e: ProjectConfigurationException =>
-        Console.err.println("\n!!! SBuild detected an failure in the project configuration or the build scripts.")
-        if (e.buildScript.isDefined) Console.err.println("!!! Project: " + e.buildScript.get)
-        Console.err.println("!!! Message: " + e.getLocalizedMessage)
+        errorOutput(e, "SBuild detected an failure in the project configuration or the build scripts.")
         if (verbose) throw e
         1
-      case e: SBuildException =>
-        Console.err.println("\n!!! SBuild failed with an exception (" + e.getClass.getSimpleName + ").")
-        if (e.isInstanceOf[BuildScriptAware] && e.asInstanceOf[BuildScriptAware].buildScript.isDefined)
-          Console.err.println("!!! Project: " + e.asInstanceOf[BuildScriptAware].buildScript.get)
-        Console.err.println("!!! Message: " + e.getLocalizedMessage)
+      case e: TargetNotFoundException =>
+        errorOutput(e, "SBuild failed because an invalid target was requested.")
+        if (verbose) throw e
+        1
+      case e: Exception =>
+        errorOutput(e, "SBuild failed with an unexpected exception (" + e.getClass.getSimpleName + ").")
         if (verbose) throw e
         1
     }
@@ -286,10 +292,10 @@ class SBuildRunner {
         Console.print("Checking target: " + formatTarget(target)(project))
         try {
           preorderedDependenciesTree(curTarget = target, skipExec = true)(project)
-          Console.println("  \tOK")
+          Console.println("  \t" + fOk("OK"))
         } catch {
           case e: SBuildException =>
-            Console.println("  \tFAILED: " + e.getMessage)
+            Console.println("  \t" + fError("FAILED: " + e.getMessage))
             errors ++= Seq(target -> e.getMessage)
         }
       }
@@ -322,11 +328,6 @@ class SBuildRunner {
     // return with 0, indicating no errors
     0
   }
-
-  def fPercent(text: String) = ansi.fgBright(CYAN).a(text).fg(DEFAULT)
-  def fTarget(text: String) = ansi.bold.a(text).boldOff
-    
-  
 
   def determineRequestedTargets(targets: Seq[String])(implicit project: Project): (Seq[Target], Seq[String]) = {
 
@@ -542,7 +543,8 @@ class SBuildRunner {
       }
 
       if (executeCurTarget) {
-        println(progress + " Executing target: " + ansi.bold.a(formatTarget(curTarget)).boldOff)
+        val ft = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
+        println(progress + " Executing target: " + ft(formatTarget(curTarget)))
       } else {
         log.log(LogLevel.Debug, progress + " Skipping target: " + formatTarget(curTarget))
       }
@@ -617,5 +619,15 @@ class SBuildRunner {
     }
     lastModified
   }
+
+  import org.fusesource.jansi.Ansi._
+  import org.fusesource.jansi.Ansi.Color._
+
+  def fPercent(text: String) = ansi.fgBright(CYAN).a(text).fg(DEFAULT)
+  def fTarget(text: String) = ansi.fg(GREEN).a(text).fg(DEFAULT)
+  def fMainTarget(text: String) = ansi.fg(GREEN).bold.a(text).boldOff.fg(DEFAULT)
+  def fOk(text: String) = ansi.fgBright(GREEN).a(text).fg(DEFAULT)
+  def fError(text: String) = ansi.fgBright(RED).a(text).fg(DEFAULT)
+  def fMainError(text: String) = ansi.fgBright(RED).bold.a(text).boldOff.fg(DEFAULT)
 
 }
