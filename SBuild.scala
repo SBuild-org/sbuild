@@ -8,7 +8,7 @@ import de.tototec.sbuild.TargetRefs._
 @classpath(
   "mvn:org.apache.ant:ant:1.8.4"
 )
-class SBuild(implicit project: Project) {
+class SBuild(implicit _project: Project) {
 
   val version = SBuildConfig.sbuildVersion
   val osgiVersion = SBuildConfig.sbuildOsgiVersion
@@ -59,17 +59,18 @@ class SBuild(implicit project: Project) {
     }
   }
 
-  Target(classpathProperties) exec { ctx: TargetContext =>
+  Target(classpathProperties) dependsOn _project.projectFile exec { ctx: TargetContext =>
     val properties = s"""|# Classpath configuration for SBuild ${SBuildConfig.sbuildVersion}
       |sbuildClasspath = de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar
       |compileClasspath = scala-compiler-${SBuildConfig.scalaVersion}.jar:scala-reflect-${SBuildConfig.scalaVersion}.jar
       |projectClasspath = scala-library-${SBuildConfig.scalaVersion}.jar:de.tototec.sbuild.ant-${SBuildConfig.sbuildVersion}.jar:de.tototec.sbuild.addons-${SBuildConfig.sbuildVersion}.jar
+      |embeddedClasspath = de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar:${cmdOptionJar.files.head.getName}:${jansiJar.files.head.getName}
       |"""
     AntMkdir(dir = ctx.targetFile.get.getParentFile)
     AntEcho(file = ctx.targetFile.get, message = properties.stripMargin)
   }
 
-  Target(distDir + "/bin/sbuild") dependsOn project.projectFile exec { ctx: TargetContext =>
+  Target(distDir + "/bin/sbuild") dependsOn _project.projectFile exec { ctx: TargetContext =>
 
     val sbuildSh = """|#!/bin/sh
       |
@@ -111,7 +112,7 @@ class SBuild(implicit project: Project) {
     AntChmod(file = ctx.targetFile.get, perm = "+x")
   }
 
-  Target(distDir + "/bin/sbuild.bat") dependsOn project.projectFile exec { ctx: TargetContext =>
+  Target(distDir + "/bin/sbuild.bat") dependsOn _project.projectFile exec { ctx: TargetContext =>
 
     val sbuildBat = 
       """|
