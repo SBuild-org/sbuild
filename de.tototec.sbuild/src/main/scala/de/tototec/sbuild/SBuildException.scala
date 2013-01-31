@@ -6,7 +6,10 @@ import java.text.MessageFormat
 /**
  * Common superclass for specific SBuild exceptions.
  */
-class SBuildException(msg: String, cause: Throwable = null, localizedMsg: String = null) extends RuntimeException(msg, cause) with BuildScriptAware {
+class SBuildException(msg: String, cause: Throwable = null, localizedMsg: String = null)
+    extends RuntimeException(msg, cause)
+    with BuildScriptAware
+    with TargetAware {
   override def getLocalizedMessage: String = localizedMsg match {
     case null => msg
     case x => x
@@ -15,6 +18,10 @@ class SBuildException(msg: String, cause: Throwable = null, localizedMsg: String
 
 trait BuildScriptAware {
   var buildScript: Option[File] = None
+}
+
+trait TargetAware {
+  var targetName: Option[String] = None
 }
 
 trait LocalizableSupport[E] {

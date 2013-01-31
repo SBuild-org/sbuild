@@ -119,22 +119,32 @@ class SBuildRunner {
 
     def errorOutput(e: Throwable, msg: String = null) = {
       Console.err.println
+
       if (msg != null)
-        Console.err.println(fMainError(msg))
+        Console.err.println(fError(msg))
+
       if (e.isInstanceOf[BuildScriptAware] && e.asInstanceOf[BuildScriptAware].buildScript.isDefined)
-        Console.err.println(fMainError("Project: " + e.asInstanceOf[BuildScriptAware].buildScript.get))
-      Console.err.println(fMainError(e.getLocalizedMessage))
+        Console.err.println(fError("Project: ") + fErrorEmph(e.asInstanceOf[BuildScriptAware].buildScript.get.getPath).toString)
+
+      if (e.isInstanceOf[TargetAware] && e.asInstanceOf[TargetAware].targetName.isDefined)
+        Console.err.println(fError("Target:  ") + fErrorEmph(e.asInstanceOf[TargetAware].targetName.get).toString)
+
+      Console.err.println(fError("Details: " + e.getLocalizedMessage))
     }
 
     try {
       run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
     } catch {
       case e: ProjectConfigurationException =>
-        errorOutput(e, "SBuild detected an failure in the project configuration or the build scripts.")
+        errorOutput(e, "SBuild detected a failure in the project configuration or the build scripts.")
         if (verbose) throw e
         1
       case e: TargetNotFoundException =>
-        errorOutput(e, "SBuild failed because an invalid target was requested.")
+        errorOutput(e, "SBuild failed because an invalid target was requested. For a list of available targets use --list-targets or --list-targets-recursive. Use --help for a list of other commandline options.")
+        if (verbose) throw e
+        1
+      case e: ExecutionFailedException =>
+        errorOutput(e, "SBuild detected a failure while execution a target.")
         if (verbose) throw e
         1
       case e: Exception =>
@@ -227,7 +237,7 @@ class SBuildRunner {
     // Check targets requested from cmdline an throw a exception, if invalid targets were requested
     val (requested: Seq[Target], invalid: Seq[String]) = determineRequestedTargets(config.params)(project)
     if (!invalid.isEmpty) {
-      throw new TargetNotFoundException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", ") + ". For a list of available targets use --list-targets or --list-targets-recursive.");
+      throw new TargetNotFoundException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", ") + ".");
     }
     val targets = requested.toList
 
@@ -308,10 +318,10 @@ class SBuildRunner {
             errors ++= Seq(target -> e.getMessage)
         }
       }
-      if (!errors.isEmpty) Console.println(s"Found the following ${errors.size} problems:")
+      if (!errors.isEmpty) Console.println(s"Found the following ${fError(errors.size.toString)} problems:")
       errors.foreach {
         case (target, message) =>
-          Console.println(formatTarget(target)(project) + ": " + message)
+          Console.println(fError(formatTarget(target)(project) + ": " + message))
       }
       // When errors, then return with 1 else with 0
       return if (errors.isEmpty) 0 else 1
@@ -581,11 +591,15 @@ class SBuildRunner {
               case _ =>
             }
           } catch {
-            case e: Throwable => {
+            case e: TargetAware =>
+              ctx.end
+              e.targetName = Some(formatTarget(curTarget))
+              println(s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
+              throw e
+            case e: Throwable =>
               ctx.end
               println(s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
               throw e
-            }
           }
       }
     }
@@ -637,6 +651,6 @@ class SBuildRunner {
   def fMainTarget(text: String) = ansi.fg(GREEN).bold.a(text).boldOff.fg(DEFAULT)
   def fOk(text: String) = ansi.fgBright(GREEN).a(text).fg(DEFAULT)
   def fError(text: String) = ansi.fgBright(RED).a(text).fg(DEFAULT)
-  def fMainError(text: String) = ansi.fgBright(RED).bold.a(text).boldOff.fg(DEFAULT)
+  def fErrorEmph(text: String) = ansi.fgBright(RED).bold.a(text).boldOff.fg(DEFAULT)
 
 }

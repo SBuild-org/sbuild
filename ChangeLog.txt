@@ -20,6 +20,7 @@ SBuild 0.3.2.9000
 * Build script compiler now emits deprecation warnings.
 * SBuild now has slightly colored output based on jansi.fusesource.org, which
   can be disabled with --no-color commandline option.
+* Improved error reporting on the commandline.
 
 SBuild 0.3.2 - 2013-01-26
 
