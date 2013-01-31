@@ -13,6 +13,7 @@ import scala.xml.XML
 import de.tototec.sbuild.Path
 import de.tototec.sbuild.runner.SBuildRunner
 import de.tototec.sbuild.SBuildException
+import de.tototec.sbuild.Target
 
 object SBuildEmbedded {
   private[embedded] def debug(msg: => String) = Console.println(msg)
@@ -66,10 +67,9 @@ trait ExportedDependenciesResolver {
   def targetRefs: TargetRefs
   def depToFileMap: Map[String, Seq[File]]
 
-  def resolve(dependency: String): Either[String, File]
-  def resolve(dependency: File): Either[String, File]
+  def resolveToFile(dependency: String): Either[String, File]
 
-  def resolveAll: Seq[Either[String, File]]
+  def resolveAllToFile: Seq[Either[String, File]]
 
 }
 
@@ -101,57 +101,60 @@ class ExportedDependenciesResolverImpl(project: Project, exportName: String) ext
 
   override def depToFileMap: Map[String, Seq[File]] = dependencies.map { dep => (dep, TargetRef(dep).files) }.toMap
 
-  override def resolve(dependency: File): Either[String, File] = resolve(dependency.getPath)
+  override def resolveToFile(dependency: String): Either[String, File] = {
 
-  override def resolve(dependency: String): Either[String, File] = {
-    val resolveDep = Path(dependency)
-    if (fileDependencies.find(d => d == resolveDep).isEmpty)
-      return Left(s"""Cannot resolve file "${dependency}" as it is not an exported dependency.""")
+    if (dependencies.find(d => d == dependency).isEmpty)
+      return Left(s"""Cannot resolve dependency "${dependency}" as it is not an exported dependency.""")
 
-    val targetRef = TargetRef(dependency)
+    SBuildRunner.determineRequestedTarget(dependency) match {
 
-    project.findTarget(targetRef) match {
-      case Some(target) =>
-        // we have a target for this, so we need to resolve it, when required
-        try {
-          SBuildRunner.preorderedDependenciesTree(curTarget = target)
-          Right(resolveDep)
-        } catch {
-          case e: SBuildException =>
-            Left("Could not resolve dependency: " + target)
-        }
-      case None =>
+      // No Target definition -> Check if a file with same name exists
+      case Left(targetName) =>
+
+        val targetRef = TargetRef(dependency)
         targetRef.explicitProto match {
+
           case None | Some("file") =>
-            // this is a file, so we need simply to add it to the classpath
-            // but first, we check that it is absolute or if not, we make it absolute (based on their project)
-            Right(resolveDep)
+            val file = targetRef.files.head
+            if (file.exists)
+              Right(file)
+            else
+              Left(s"""Cannot resolve dependency "${dependency}". Don't know how to make file "${file}".""")
+
           case Some("phony") =>
-            // This is a phony target, we will ignore it for now
-            debug("Ignoring phony target: " + targetRef)
-            Left("Ignoring phony target: " + targetRef)
+            return Left(s"""Will not resolve dependency "${dependency}" as it is a phony dependency.""")
+
           case _ =>
-            // A scheme we might have a scheme handler for
+            return Left(s"""Could not found target for dependency "${dependency}".""")
+        }
+
+      // Found a target, now resolve it
+      case Right(target) =>
+
+        target.targetFile match {
+          
+          case None =>
+            return Left(s"""Will not resolve dependency "${dependency}" as it is a phony dependency.""")
+
+          case Some(file) =>
             try {
-              val target = project.createTarget(targetRef)
-              try {
-                SBuildRunner.preorderedDependenciesTree(curTarget = target)
-                Right(resolveDep)
-              } catch {
-                case e: SBuildException =>
-                  debug("Could not resolve dependency: " + target)
-                  Left("Could not resolve dependency: " + target)
-              }
+              SBuildRunner.preorderedDependenciesTree(curTarget = target)
+              if (file.exists)
+                Right(file)
+              else
+                Left(s"""Successfully resolved dependency "${dependency}" to file "${file}", but file (now) does not exists.""")
             } catch {
               case e: SBuildException =>
-                error("Could not resolve dependency: " + targetRef + ". Reason: " + e.getMessage)
-                Left("Could not resolve dependency: " + targetRef + ". Reason: " + e.getMessage)
+                debug("Could not resolve dependency: " + dependency)
+                Left("Could not resolve dependency: " + dependency)
             }
+
         }
+
     }
   }
 
-  override def resolveAll: Seq[Either[String, File]] = fileDependencies.map { d => resolve(d) }
+  override def resolveAllToFile: Seq[Either[String, File]] = dependencies.map { d => resolveToFile(d) }
 
 }
 

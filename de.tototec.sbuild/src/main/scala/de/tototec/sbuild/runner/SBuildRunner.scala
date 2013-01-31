@@ -345,19 +345,25 @@ class SBuildRunner {
     0
   }
 
+  def determineRequestedTarget(target: String)(implicit project: Project): Either[String, Target] =
+    project.findTarget(target, searchInAllProjects = false) match {
+      case Some(target) => Right(target)
+      case None => TargetRef(target).explicitProto match {
+        case None | Some("phony") | Some("file") => Left(target)
+        case _ =>
+          // A scheme handler might be able to resolve this thing
+          Right(project.createTarget(TargetRef(target)))
+      }
+    }
+
   def determineRequestedTargets(targets: Seq[String])(implicit project: Project): (Seq[Target], Seq[String]) = {
 
     // The compile will throw a warning here, so we use the erasure version and keep the intent as comment
     // val (requested: Seq[Target], invalid: Seq[String]) =
     val (requested, invalid) = targets.map { t =>
-      project.findTarget(t, searchInAllProjects = false) match {
-        case Some(target) => target
-        case None => TargetRef(t).explicitProto match {
-          case None | Some("phony") | Some("file") => t
-          case _ =>
-            // A scheme handler might be able to resolve this thing
-            project.createTarget(TargetRef(t))
-        }
+      determineRequestedTarget(t) match {
+        case Left(name) => name
+        case Right(target) => target
       }
     }.partition(_.isInstanceOf[Target])
 
