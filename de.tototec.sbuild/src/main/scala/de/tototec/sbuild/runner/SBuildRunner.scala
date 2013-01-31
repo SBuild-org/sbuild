@@ -15,15 +15,18 @@ import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdOption
 import de.tototec.sbuild._
 import org.fusesource.jansi.AnsiConsole
+import org.fusesource.jansi.Ansi
 
 object SBuildRunner extends SBuildRunner {
 
   def main(args: Array[String]) {
-
     AnsiConsole.systemInstall
-
-    val retval = run(args)
-    sys.exit(retval)
+    try {
+      val retval = run(args)
+      sys.exit(retval)
+    } finally {
+      AnsiConsole.systemUninstall
+    }
   }
 
 }
@@ -90,6 +93,9 @@ class SBuildRunner {
 
       @CmdOption(names = Array("--help", "-h"), isHelp = true, description = "Show this help screen.")
       var help = false
+
+      @CmdOption(names = Array("--no-color"), description = "Disable colored output.")
+      var noColor = false
     }
     val cp = new CmdlineParser(config, classpathConfig, cmdlineConfig)
     cp.setResourceBundle("de.tototec.sbuild.runner.Messages", getClass.getClassLoader())
@@ -97,6 +103,9 @@ class SBuildRunner {
     cp.setProgramName("sbuild")
 
     cp.parse(args: _*)
+
+    if (cmdlineConfig.noColor)
+      Ansi.setEnabled(false)
 
     if (cmdlineConfig.help) {
       cp.usage
@@ -109,7 +118,7 @@ class SBuildRunner {
     }
 
     def errorOutput(e: Throwable, msg: String = null) = {
-    	Console.err.println()
+      Console.err.println
       if (msg != null)
         Console.err.println(fMainError(msg))
       if (e.isInstanceOf[BuildScriptAware] && e.asInstanceOf[BuildScriptAware].buildScript.isDefined)
