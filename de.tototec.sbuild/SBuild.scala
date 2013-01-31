@@ -4,12 +4,8 @@ import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
 @version("0.3.2")
-@include(
-  "../SBuildConfig.scala"
-)
-@classpath(
-  "mvn:org.apache.ant:ant:1.8.4"
-) 
+@include("../SBuildConfig.scala")
+@classpath("mvn:org.apache.ant:ant:1.8.4") 
 class SBuild(implicit _project: Project) {
 
   val jar = s"target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar"

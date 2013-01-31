@@ -4,19 +4,15 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 
 @version("0.3.2")
-@include(
-  "../SBuildConfig.scala"
-)
-@classpath(
-  "mvn:org.apache.ant:ant:1.8.4"
-)
+@include("../SBuildConfig.scala")
+@classpath("mvn:org.apache.ant:ant:1.8.4")
 class SBuild(implicit _project: Project) {
 
   val addonsJar = s"target/de.tototec.sbuild.addons-${SBuildConfig.sbuildVersion}.jar"
 
   val compileCp =
     s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
-      s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" 
+      s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar"
   //      ("mvn: org.scalatest:scalatest_" + scalaVersion + ":1.6.1") ~
   //      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10.jar") ~
   //      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10-src.jar")
