@@ -21,12 +21,9 @@ object SBuildRunner extends SBuildRunner {
 
   def main(args: Array[String]) {
     AnsiConsole.systemInstall
-    try {
-      val retval = run(args)
-      sys.exit(retval)
-    } finally {
-      AnsiConsole.systemUninstall
-    }
+    val retval = run(args)
+    AnsiConsole.systemUninstall
+    sys.exit(retval)
   }
 
 }
@@ -35,7 +32,7 @@ class SBuildRunner {
 
   private[runner] var verbose = false
 
-  private var log: SBuildLogger = new SBuildConsoleLogger(LogLevel.Info)
+  private var log: SBuildLogger = new SBuildConsoleLogger(LogLevel.info)
 
   def createSBuildStub(projectFile: File, stubDir: File) {
     if (projectFile.exists) {
@@ -118,18 +115,18 @@ class SBuildRunner {
     }
 
     def errorOutput(e: Throwable, msg: String = null) = {
-      Console.err.println
+      log.log(LogLevel.Error, "")
 
       if (msg != null)
-        Console.err.println(fError(msg))
+        log.log(LogLevel.Error, fError(msg).toString)
 
       if (e.isInstanceOf[BuildScriptAware] && e.asInstanceOf[BuildScriptAware].buildScript.isDefined)
-        Console.err.println(fError("Project: ") + fErrorEmph(e.asInstanceOf[BuildScriptAware].buildScript.get.getPath).toString)
+        log.log(LogLevel.Error, fError("Project: ").toString + fErrorEmph(e.asInstanceOf[BuildScriptAware].buildScript.get.getPath).toString)
 
       if (e.isInstanceOf[TargetAware] && e.asInstanceOf[TargetAware].targetName.isDefined)
-        Console.err.println(fError("Target:  ") + fErrorEmph(e.asInstanceOf[TargetAware].targetName.get).toString)
+        log.log(LogLevel.Error, fError("Target:  ").toString + fErrorEmph(e.asInstanceOf[TargetAware].targetName.get).toString)
 
-      Console.err.println(fError("Details: " + e.getLocalizedMessage))
+      log.log(LogLevel.Error, fError("Details: " + e.getLocalizedMessage).toString)
     }
 
     try {
@@ -158,7 +155,7 @@ class SBuildRunner {
 
     SBuildRunner.verbose = config.verbose
     if (verbose) {
-      log = new SBuildConsoleLogger(LogLevel.Info, LogLevel.Debug)
+      log = new SBuildConsoleLogger(LogLevel.debug)
       Util.log = log
     }
 
@@ -221,7 +218,7 @@ class SBuildRunner {
         Seq(project) ++ additionalProjects
       }
       val out = projectsToList.sortWith(projectSorter _).map { p => formatTargetsOf(p) }
-      Console.println(out.mkString("\n\n"))
+      log.log(LogLevel.Info, out.mkString("\n\n"))
       // early exit
       return 0
     }
@@ -230,7 +227,7 @@ class SBuildRunner {
       val moduleNames = project.projectPool.projects.sortWith(projectSorter _).map {
         p => formatProject(p)(project)
       }
-      Console.println(moduleNames.mkString("\n"))
+      log.log(LogLevel.Info, moduleNames.mkString("\n"))
       return 0
     }
 
@@ -265,7 +262,7 @@ class SBuildRunner {
       }.mkString("\n")
     }
     if (config.showExecutionPlan) {
-      Console.println(execPlan)
+      log.log(LogLevel.Info, execPlan)
       // early exit
       return 0
     } else {
@@ -289,7 +286,7 @@ class SBuildRunner {
           lastShown += (depth -> target)
           prefix + List.fill(depth)("  ").mkString + "  " + formatTarget(target)(project)
       }.mkString("\n")
-      Console.println(output)
+      log.log(LogLevel.Info, output)
       // early exit
       return 0
     }
@@ -308,20 +305,20 @@ class SBuildRunner {
       // Console.println("About to check targets: "+targetsToCheck.mkString(", "))
       var errors: Seq[(Target, String)] = Seq()
       targetsToCheck.foreach { target =>
-        Console.print("Checking target: " + formatTarget(target)(project))
+        log.log(LogLevel.Info, "Checking target: " + formatTarget(target)(project))
         try {
           preorderedDependenciesTree(curTarget = target, skipExec = true)(project)
-          Console.println("  \t" + fOk("OK"))
+          log.log(LogLevel.Info, "  \t" + fOk("OK"))
         } catch {
           case e: SBuildException =>
-            Console.println("  \t" + fError("FAILED: " + e.getMessage))
+            log.log(LogLevel.Info, "  \t" + fError("FAILED: " + e.getMessage))
             errors ++= Seq(target -> e.getMessage)
         }
       }
-      if (!errors.isEmpty) Console.println(s"Found the following ${fError(errors.size.toString)} problems:")
+      if (!errors.isEmpty) log.log(LogLevel.Error, s"Found the following ${fError(errors.size.toString)} problems:")
       errors.foreach {
         case (target, message) =>
-          Console.println(fError(formatTarget(target)(project) + ": " + message))
+          log.log(LogLevel.Error, fError(formatTarget(target)(project) + ": " + message).toString)
       }
       // When errors, then return with 1 else with 0
       return if (errors.isEmpty) 0 else 1
@@ -438,6 +435,8 @@ class SBuildRunner {
                                  dependencyTrace: List[Target] = List(),
                                  depth: Int = 0,
                                  treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] = {
+
+    val log = curTarget.project.log
 
     treePrinter match {
       case Some(printFunc) => printFunc(depth, curTarget)
@@ -563,7 +562,7 @@ class SBuildRunner {
 
       if (executeCurTarget) {
         val ft = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
-        println(progress + " Executing target: " + ft(formatTarget(curTarget)))
+        log.log(LogLevel.Info, progress + " Executing target: " + ft(formatTarget(curTarget)))
       } else {
         log.log(LogLevel.Debug, progress + " Skipping target: " + formatTarget(curTarget))
       }
@@ -646,11 +645,11 @@ class SBuildRunner {
   import org.fusesource.jansi.Ansi._
   import org.fusesource.jansi.Ansi.Color._
 
-  def fPercent(text: String) = ansi.fgBright(CYAN).a(text).fg(DEFAULT)
-  def fTarget(text: String) = ansi.fg(GREEN).a(text).fg(DEFAULT)
-  def fMainTarget(text: String) = ansi.fg(GREEN).bold.a(text).boldOff.fg(DEFAULT)
-  def fOk(text: String) = ansi.fgBright(GREEN).a(text).fg(DEFAULT)
-  def fError(text: String) = ansi.fgBright(RED).a(text).fg(DEFAULT)
-  def fErrorEmph(text: String) = ansi.fgBright(RED).bold.a(text).boldOff.fg(DEFAULT)
+  def fPercent(text: => String) = ansi.fgBright(CYAN).a(text).fg(DEFAULT)
+  def fTarget(text: => String) = ansi.fg(GREEN).a(text).fg(DEFAULT)
+  def fMainTarget(text: => String) = ansi.fg(GREEN).bold.a(text).boldOff.fg(DEFAULT)
+  def fOk(text: => String) = ansi.fgBright(GREEN).a(text).fg(DEFAULT)
+  def fError(text: => String) = ansi.fgBright(RED).a(text).fg(DEFAULT)
+  def fErrorEmph(text: => String) = ansi.fgBright(RED).bold.a(text).boldOff.fg(DEFAULT)
 
 }
