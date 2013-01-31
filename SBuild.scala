@@ -101,7 +101,7 @@ class SBuild(implicit project: Project) {
       |fi
       |
       |""" +
-     s"""java -XX:MaxPermSize=128m -cp "$${SBUILD_HOME}/lib/scala-library-${SBuildConfig.scalaVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar:$${SBUILD_HOME}/lib/jansi-1.9.jar:$${SBUILD_HOME}/lib/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" """ +
+     s"""exec java -XX:MaxPermSize=128m -cp "$${SBUILD_HOME}/lib/scala-library-${SBuildConfig.scalaVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar:$${SBUILD_HOME}/lib/jansi-1.9.jar:$${SBUILD_HOME}/lib/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" """ +
      """de.tototec.sbuild.runner.SBuildRunner --sbuild-home "${SBUILD_HOME}" "$@"
       |
       |unset SBUILD_HOME
