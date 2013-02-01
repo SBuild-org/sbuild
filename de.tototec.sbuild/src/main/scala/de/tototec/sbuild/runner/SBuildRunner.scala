@@ -141,7 +141,7 @@ class SBuildRunner {
         if (verbose) throw e
         1
       case e: ExecutionFailedException =>
-        errorOutput(e, "SBuild detected a failure while execution a target.")
+        errorOutput(e, "SBuild detected a failure in a target execution.")
         if (verbose) throw e
         1
       case e: Exception =>
@@ -598,13 +598,17 @@ class SBuildRunner {
           } catch {
             case e: TargetAware =>
               ctx.end
-              e.targetName = Some(formatTarget(curTarget))
-              println(s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
+              if (e.targetName.isEmpty)
+                e.targetName = Some(formatTarget(curTarget))
+              log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}")
               throw e
             case e: Throwable =>
               ctx.end
-              println(s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
-              throw e
+              val ex = new ExecutionFailedException(s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getMessage}", e.getCause, s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getLocalizedMessage}")
+              ex.buildScript = Some(curTarget.project.projectFile)
+              ex.targetName = Some(formatTarget(curTarget))
+              log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
+              throw ex
           }
       }
     }
