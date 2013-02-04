@@ -110,7 +110,7 @@ class ProjectScript(_scriptFile: File,
 
     val addCp: Array[String] = readAdditionalClasspath(project) ++ additionalProjectClasspath
 
-    val includes: Array[File] = readIncludeFiles(project)
+    val includes: Map[String, Array[File]] = readIncludeFiles(project)
 
     if (!checkInfoFileUpToDate(includes)) {
       //      println("Compiling build script " + scriptFile + "...")
@@ -120,7 +120,7 @@ class ProjectScript(_scriptFile: File,
     useExistingCompiled(project, addCp)
   }
 
-  def checkInfoFileUpToDate(includes: Array[File]): Boolean = {
+  def checkInfoFileUpToDate(includes: Map[String, Array[File]]): Boolean = {
     infoFile.exists && {
       val info = xml.XML.loadFile(infoFile)
 
@@ -135,12 +135,16 @@ class ProjectScript(_scriptFile: File,
           ((lastInclude \ "path").text, (lastInclude \ "lastModified").text.toLong)
         }.toMap
 
-        includes.length == lastIncludes.size &&
-          includes.forall { include =>
-            lastIncludes.get(include.getPath) match {
-              case Some(time) => include.lastModified == time
-              case _ => false
-            }
+        includes.size == lastIncludes.size &&
+          includes.forall {
+            case (key, value) if value.size == 1 =>
+              lastIncludes.get(key) match {
+                case Some(time) => value.head.lastModified == time
+                case _ => false
+              }
+            case (key, value) =>
+              log.log(LogLevel.Error, s"""Include "${key}" does not resolve to exactly one file, but: ${value.toSeq}""")
+              false
           }
       } catch {
         case e =>
@@ -222,7 +226,7 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  def readIncludeFiles(project: Project): Array[File] = {
+  def readIncludeFiles(project: Project): Map[String, Array[File]] = {
     log.log(LogLevel.Debug, "About to find include files.")
     val cp = readAnnotationWithVarargAttribute(annoName = "include", valueName = "value")
     log.log(LogLevel.Debug, "Using include files: " + cp.mkString(", "))
@@ -241,8 +245,8 @@ class ProjectScript(_scriptFile: File,
     //    }.distinct
   }
 
-  def resolveViaProject(targets: Array[String], project: Project, purposeOfEntry: String): Array[File] =
-    targets.flatMap { cpEntry =>
+  def resolveViaProject(targets: Array[String], project: Project, purposeOfEntry: String): Map[String, Array[File]] =
+    targets.map { cpEntry =>
       val entryRef = TargetRef(cpEntry)(project)
       val files = try {
         entryRef.files.toArray
@@ -265,8 +269,8 @@ class ProjectScript(_scriptFile: File,
             throw ex
         }
       }
-      files
-    }
+      (cpEntry -> files)
+    }.toMap
 
   def readAdditionalClasspath(project: Project): Array[String] = {
     log.log(LogLevel.Debug, "About to find additional classpath entries.")
@@ -281,73 +285,7 @@ class ProjectScript(_scriptFile: File,
       new HttpSchemeHandlerBase(downloadDir)
     }
 
-    resolveViaProject(cp, project, "@classpath entry").map { _.getPath }
-
-    //    cp.map { entry =>
-    //      if (entry.startsWith("http:")) {
-    //        // we need to download it
-    //        log.log(LogLevel.Debug, "Classpath entry is a HTTP resource: " + entry)
-    //        val path = entry.substring("http:".length, entry.length)
-    //        val file = httpHandler.localFile(path)
-    //
-    //        if (!file.exists) {
-    //          downloadCache.map { cache =>
-    //            try {
-    //              val url = new URL(entry)
-    //              if (cache.hasEntry(url)) {
-    //                log.log(LogLevel.Debug, "Resolving classpath entry from download cache: " + url)
-    //                val cachedEntry = cache.getEntry(url)
-    //
-    //                Path.normalize(file).getParentFile.mkdirs
-    //                file.createNewFile
-    //
-    //                val fileOutputStream = new FileOutputStream(file)
-    //                try {
-    //                  fileOutputStream.getChannel.transferFrom(
-    //                    new FileInputStream(cachedEntry).getChannel, 0, Long.MaxValue)
-    //                } finally {
-    //                  if (fileOutputStream != null) fileOutputStream.close
-    //                }
-    //              }
-    //            } catch {
-    //              case e: Exception =>
-    //                log.log(LogLevel.Debug, "Could not use download cache for resource: " + entry + "\n" + e)
-    //                if (file.exists) file.delete
-    //            }
-    //          }
-    //        }
-    //
-    //        if (!file.exists) {
-    //          log.log(LogLevel.Debug, "Need to download: " + entry)
-    //          httpHandler.download(path)
-    //        }
-    //        if (!file.exists) {
-    //          println("Could not resolve classpath entry: " + entry)
-    //        } else {
-    //          log.log(LogLevel.Debug, "Resolved: " + entry + " => " + file)
-    //          try {
-    //            val url = new URL(entry)
-    //            downloadCache.map { cache =>
-    //              if (!cache.hasEntry(url)) {
-    //                cache.registerEntry(url, file)
-    //              }
-    //            }
-    //          } catch {
-    //            case e: Exception =>
-    //              log.log(LogLevel.Debug, "Could not use download cache for resource: " + entry + "\n" + e)
-    //          }
-    //        }
-    //
-    //        file.getPath
-    //        // end http:
-    //      } else {
-    //        val fileEntry = Path.normalize(new File(entry), projectDir)
-    //        if (!fileEntry.exists) {
-    //          println("Could not found classpath entry: " + entry)
-    //        }
-    //        fileEntry.getPath
-    //      }
-    //    }
+    resolveViaProject(cp, project, "@classpath entry").flatMap { case (key, value) => value }.map { _.getPath }.toArray
   }
 
   def useExistingCompiled(project: Project, classpath: Array[String]): Any = {
@@ -368,7 +306,7 @@ class ProjectScript(_scriptFile: File,
     Util.delete(targetDir)
   }
 
-  def newCompile(classpath: Array[String], includes: Array[File]) {
+  def newCompile(classpath: Array[String], includes: Map[String, Array[File]]) {
     cleanScala()
     targetDir.mkdirs
     log.log(LogLevel.Info, "Compiling build script: " + scriptFile + (if (includes.isEmpty) "" else " and " + includes.size + " included files") + "...")
@@ -384,11 +322,14 @@ class ProjectScript(_scriptFile: File,
                  <sbuildOsgiVersion>{ SBuildVersion.osgiVersion }</sbuildOsgiVersion>
                  <includes>
                    {
-                     includes.map { include =>
-                       <include>
-                         <path>{ include.getPath }</path>
-                         <lastModified>{ include.lastModified }</lastModified>
-                       </include>
+                     includes.map {
+                       case (key, value) if value.length == 1 =>
+                         <include>
+                           <path>{ key }</path>
+                           <lastModified>{ value.head.lastModified }</lastModified>
+                         </include>
+                       case (key, value) =>
+                         log.log(LogLevel.Error, s"""Include "${key}" does not resolve to exactly one file, but: ${value.toSeq}""")
                      }
                    }
                  </includes>
@@ -399,8 +340,9 @@ class ProjectScript(_scriptFile: File,
 
   }
 
-  def compile(classpath: String, includes: Array[File]) {
-    val params = Array("-classpath", classpath, "-deprecation", "-g:vars", "-d", targetDir.getPath, scriptFile.getPath) ++ (includes.map { file => file.getPath })
+  def compile(classpath: String, includes: Map[String, Array[File]]) {
+    val params = Array("-classpath", classpath, "-deprecation", "-g:vars", "-d", targetDir.getPath, scriptFile.getPath) ++
+      (includes.flatMap { case (name, files) => files }.map { _.getPath })
     log.log(LogLevel.Debug, "Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
     val compilerClassloader = new URLClassLoader(compileClasspath.map { f => new File(f).toURI.toURL }, getClass.getClassLoader)
 
