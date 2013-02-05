@@ -566,11 +566,11 @@ class SBuildRunner {
         case (c, m) => "[" + c + "/" + m + "]"
       }
 
-      if (executeCurTarget) {
+      {
         val ft = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
-        log.log(LogLevel.Info, progress + " Executing target: " + ft(formatTarget(curTarget)))
-      } else {
-        log.log(LogLevel.Debug, progress + " Skipping target: " + formatTarget(curTarget))
+        val prefix = if (executeCurTarget) " Executing target: " else " Skipping target: "
+        val level = if (executeCurTarget || dependencyTrace.isEmpty) LogLevel.Info else LogLevel.Debug
+        log.log(level, progress + prefix + ft(formatTarget(curTarget)))
       }
 
       state.currentNr += 1
@@ -655,11 +655,11 @@ class SBuildRunner {
   import org.fusesource.jansi.Ansi._
   import org.fusesource.jansi.Ansi.Color._
 
-  def fPercent(text: => String) = ansi.fgBright(CYAN).a(text).fg(DEFAULT)
-  def fTarget(text: => String) = ansi.fg(GREEN).a(text).fg(DEFAULT)
-  def fMainTarget(text: => String) = ansi.fg(GREEN).bold.a(text).boldOff.fg(DEFAULT)
-  def fOk(text: => String) = ansi.fgBright(GREEN).a(text).fg(DEFAULT)
-  def fError(text: => String) = ansi.fgBright(RED).a(text).fg(DEFAULT)
-  def fErrorEmph(text: => String) = ansi.fgBright(RED).bold.a(text).boldOff.fg(DEFAULT)
+  def fPercent(text: => String) = ansi.fgBright(CYAN).a(text).reset
+  def fTarget(text: => String) = ansi.fg(GREEN).a(text).reset
+  def fMainTarget(text: => String) = ansi.fg(GREEN).bold.a(text).reset
+  def fOk(text: => String) = ansi.fgBright(GREEN).a(text).reset
+  def fError(text: => String) = ansi.fgBright(RED).a(text).reset
+  def fErrorEmph(text: => String) = ansi.fgBright(RED).bold.a(text).reset
 
 }

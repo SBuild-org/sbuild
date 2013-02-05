@@ -155,6 +155,7 @@ class ProjectScript(_scriptFile: File,
       scriptFile.length == sourceSize &&
         scriptFile.lastModified == sourceLastModified &&
         targetClassFile.lastModified == targetClassLastModified &&
+        targetClassFile.lastModified >= scriptFile.lastModified &&
         sbuildVersion == SBuildVersion.version &&
         sbuildOsgiVersion == SBuildVersion.osgiVersion &&
         includesMatch
