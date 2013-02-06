@@ -568,7 +568,7 @@ class SBuildRunner {
 
       {
         val ft = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
-        val prefix = if (executeCurTarget) " Executing target: " else " Skipping target: "
+        val prefix = if (executeCurTarget) " Executing target: " else " Skipping target:  "
         val level = if (executeCurTarget || dependencyTrace.isEmpty) LogLevel.Info else LogLevel.Debug
         log.log(level, progress + prefix + ft(formatTarget(curTarget)))
       }
