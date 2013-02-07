@@ -19,13 +19,17 @@ import java.io.FileOutputStream
  */
 object IfNotUpToDate {
 
-  def apply(srcDir: File, stateDir: File)(task: => Any): Unit =
+  def apply(srcDir: File, stateDir: File)(task: => Any): Unit = {
+    if (WithinTargetExecution.get == null) {
+      throw InvalidApiUsageException.localized("'IfNotUpToDate(File, File)' can only be used inside an exec block of a target.")
+    }
     apply(Seq(srcDir), stateDir)(task)
+  }
 
   def apply(srcDirs: Seq[File], stateDir: File)(task: => Any): Unit = {
     WithinTargetExecution.get match {
       case null =>
-        throw InvalidApiUsageException.localized("IfNotUpToDate can only be used inside an exec block of a target.")
+        throw InvalidApiUsageException.localized("'IfNotUpToDate(Seq[File], File)' can only be used inside an exec block of a target.")
       case wte =>
         apply(srcDirs, stateDir, wte.targetContext)(task)
     }
