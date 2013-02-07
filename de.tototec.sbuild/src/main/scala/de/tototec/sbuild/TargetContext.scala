@@ -26,6 +26,8 @@ trait TargetContext {
    */
   def fileDependencies: Seq[File]
 
+  def prerequisitesLastModified: Long
+
   /**
    * The time in milliseconds this target took to execute.
    * In case this target is still running, the time since it started.
@@ -36,9 +38,17 @@ trait TargetContext {
   def targetLastModified_=(targetLastModified: Long)
 
   def project: Project
+
+  /**
+   * Attach additional files to this target context. The file must exists!
+   */
+  def attachFile_=(file: File)
+
 }
 
-class TargetContextImpl(target: Target) extends TargetContext {
+class TargetContextImpl(target: Target,
+                        override val prerequisitesLastModified: Long)
+    extends TargetContext {
 
   override def name = target.name
 
@@ -90,11 +100,27 @@ class TargetContextImpl(target: Target) extends TargetContext {
   private var _targetLastModified: Option[Long] = None
   override def targetLastModified: Option[Long] = _targetLastModified
   override def targetLastModified_=(targetLastModified: Long) = _targetLastModified =
+    // TODO: consider a 0L as argument could mean, file does not exists and this could mean, we are not up-to-date
+    // TODO: So, a lastModified of 0L should replaced by a lastModified as of NOW
     _targetLastModified match {
       case Some(previous) => Some(math.max(previous, targetLastModified))
-      case None if targetLastModified > 0 => Some(targetLastModified)
+      case None if targetLastModified > 0 =>
+        // record this lastModified
+        // and also consider lastModified of attached files
+        val lm = _attachedFiles.foldLeft(targetLastModified)((l, r) => math.max(l, r.lastModified))
+        Some(lm)
       case _ => None
     }
 
   override def project: Project = target.project
+
+  private[sbuild] var _attachedFiles: Seq[File] = Seq()
+
+  override def attachFile_=(file: File) {
+    _attachedFiles ++= Seq(file)
+    // If we have already a set lastModified, than update it now
+    if (targetLastModified.isDefined) {
+      targetLastModified = file.lastModified
+    }
+  }
 }

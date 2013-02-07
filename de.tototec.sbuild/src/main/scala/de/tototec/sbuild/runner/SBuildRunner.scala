@@ -502,7 +502,7 @@ class SBuildRunner {
         x.map { "\n" + prefix + formatTarget(_) }.mkString
     }
 
-    val ctx = new TargetContextImpl(curTarget)
+    var ctx: TargetContextImpl = null
 
     if (!skipExec) this.log.log(LogLevel.Debug, "===> " + formatTarget(curTarget) +
       " is current execution, with tree: " + trace + " <===")
@@ -511,6 +511,7 @@ class SBuildRunner {
 
     val executeCurTarget = if (skipExec) {
       // already known as up-to-date
+      ctx = new TargetContextImpl(curTarget, 0)
       false
     } else {
       // not skipped execution, determine if dependencies were up-to-date
@@ -519,6 +520,7 @@ class SBuildRunner {
       val directDepsExecuted = executedDependencies.filter(_.requestId == resolveDirectDepsRequestId)
 
       lazy val depsLastModified: Long = dependenciesLastModified(directDepsExecuted)
+      ctx = new TargetContextImpl(curTarget, depsLastModified)
       if (!directDepsExecuted.isEmpty)
         log.log(LogLevel.Debug, s"Dependencies have last modified value '${depsLastModified}': " + directDepsExecuted.map { d => formatTarget(d.target) }.mkString(","))
 
