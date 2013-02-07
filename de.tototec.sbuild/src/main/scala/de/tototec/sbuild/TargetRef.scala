@@ -56,16 +56,22 @@ class TargetRef(val ref: String)(implicit project: Project) {
 
   /**
    * Get the files, this TargetRef is referencing or producing, if any.
+   * Should only call from inside an execution block of a target.
    */
-  def files: Seq[File] = explicitProto match {
-    case Some("phony") => Seq()
-    case None | Some("file") => Seq(Path(nameWithoutProto)(safeTargetProject))
-    case Some(scheme) => safeTargetProject.schemeHandlers.get(scheme) match {
-      case Some(handler) => Seq(Path(TargetRef(handler.localPath(nameWithoutProto)).nameWithoutProto)(safeTargetProject))
-      case _ =>
-        val e = new ProjectConfigurationException(s"""No scheme handler registered for scheme "${scheme}".""")
-        e.buildScript = Some(project.projectFile)
-        throw e
+  def files: Seq[File] = {
+    if (WithinTargetExecution.get == null) {
+      throw InvalidApiUsageException.localized("'TargetRef.files' can only be used inside an exec block of a target.")
+    }
+    explicitProto match {
+      case Some("phony") => Seq()
+      case None | Some("file") => Seq(Path(nameWithoutProto)(safeTargetProject))
+      case Some(scheme) => safeTargetProject.schemeHandlers.get(scheme) match {
+        case Some(handler) => Seq(Path(TargetRef(handler.localPath(nameWithoutProto)).nameWithoutProto)(safeTargetProject))
+        case _ =>
+          val e = new ProjectConfigurationException(s"""No scheme handler registered for scheme "${scheme}".""")
+          e.buildScript = Some(project.projectFile)
+          throw e
+      }
     }
   }
 

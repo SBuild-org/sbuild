@@ -21,9 +21,14 @@ case class TargetRefs(val targetRefs: TargetRef*) {
 
   override def toString: String = targetRefs.map { _.name }.mkString(" ~ ")
 
-    /**
+  /**
    * Get the files, this TargetRefs is referencing or producing, if any.
    */
-  def files: Seq[File] = targetRefs.flatMap(tr => tr.files)
+  def files: Seq[File] = {
+    if (WithinTargetExecution.get == null) {
+      throw InvalidApiUsageException.localized("'TargetRefs.files' can only be used inside an exec block of a target.")
+    }
+    targetRefs.flatMap(tr => tr.files)
+  }
 }
 
