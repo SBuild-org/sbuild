@@ -42,6 +42,8 @@ trait LocalizableSupport[E] {
 
 }
 
+//////////////////////
+
 object InvalidCommandlineException extends LocalizableSupport[InvalidCommandlineException] {
   override def create(msg: String, cause: Throwable, localizedMsg: String): InvalidCommandlineException =
     new InvalidCommandlineException(msg, cause, localizedMsg)
@@ -54,6 +56,8 @@ class InvalidCommandlineException(msg: String, cause: Throwable = null, localize
     extends SBuildException(msg, cause, localizedMsg) {
 }
 
+//////////////////////
+
 object ExecutionFailedException extends LocalizableSupport[ExecutionFailedException] {
   override def create(msg: String, cause: Throwable, localizedMsg: String): ExecutionFailedException =
     new ExecutionFailedException(msg, cause, localizedMsg)
@@ -65,6 +69,8 @@ object ExecutionFailedException extends LocalizableSupport[ExecutionFailedExcept
 class ExecutionFailedException(msg: String, cause: Throwable = null, localizedMsg: String = null)
   extends SBuildException(msg, cause, localizedMsg)
 
+//////////////////////
+
 object ProjectConfigurationException extends LocalizableSupport[ProjectConfigurationException] {
   override def create(msg: String, cause: Throwable, localizedMsg: String): ProjectConfigurationException =
     new ProjectConfigurationException(msg, cause, localizedMsg)
@@ -74,6 +80,8 @@ object ProjectConfigurationException extends LocalizableSupport[ProjectConfigura
  */
 class ProjectConfigurationException(msg: String, cause: Throwable = null, localizedMsg: String = null)
   extends SBuildException(msg, cause, localizedMsg)
+
+//////////////////////
 
 object UnsupportedSchemeException extends LocalizableSupport[UnsupportedSchemeException] {
   override def create(msg: String, cause: Throwable, localizedMsg: String): UnsupportedSchemeException =
@@ -86,6 +94,8 @@ object UnsupportedSchemeException extends LocalizableSupport[UnsupportedSchemeEx
 class UnsupportedSchemeException(msg: String, cause: Throwable = null, localizedMsg: String = null)
   extends SBuildException(msg, cause, localizedMsg)
 
+//////////////////////
+
 object TargetNotFoundException extends LocalizableSupport[TargetNotFoundException] {
   override def create(msg: String, cause: Throwable, localizedMsg: String): TargetNotFoundException =
     new TargetNotFoundException(msg, cause, localizedMsg)
@@ -96,6 +106,8 @@ object TargetNotFoundException extends LocalizableSupport[TargetNotFoundExceptio
 class TargetNotFoundException(msg: String, cause: Throwable = null, localizedMsg: String = null)
   extends SBuildException(msg, cause, localizedMsg)
 
+//////////////////////
+
 object MissingConfigurationException extends LocalizableSupport[MissingConfigurationException] {
   override def create(msg: String, cause: Throwable, localizedMsg: String): MissingConfigurationException =
     new MissingConfigurationException(msg, cause, localizedMsg)
@@ -105,3 +117,16 @@ object MissingConfigurationException extends LocalizableSupport[MissingConfigura
  */
 class MissingConfigurationException(msg: String, cause: Throwable = null, localizedMsg: String = null)
   extends SBuildException(msg, cause, localizedMsg)
+
+//////////////////////
+
+object InvalidApiUsageException extends LocalizableSupport[InvalidApiUsageException] {
+  override def create(msg: String, cause: Throwable, localizedMsg: String): InvalidApiUsageException =
+    new InvalidApiUsageException(msg, cause, localizedMsg)
+}
+
+/**
+ * Invalid use of SBuild API.
+ */
+class InvalidApiUsageException(msg: String, cause: Throwable = null, localizedMsg: String = null)
+  extends ProjectConfigurationException(msg, cause, localizedMsg)

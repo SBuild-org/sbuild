@@ -19,10 +19,23 @@ import java.io.FileOutputStream
  */
 object IfNotUpToDate {
 
-  def apply(srcDir: File, stateDir: File, ctx: TargetContext)(task: => Any)(implicit project: Project): Unit =
+  def apply(srcDir: File, stateDir: File)(task: => Any): Unit =
+    apply(Seq(srcDir), stateDir)(task)
+
+  def apply(srcDirs: Seq[File], stateDir: File)(task: => Any): Unit = {
+    WithinTargetExecution.get match {
+      case null =>
+        throw InvalidApiUsageException.localized("IfNotUpToDate can only be used inside an exec block of a target.")
+      case wte =>
+        apply(srcDirs, stateDir, wte.targetContext)(task)
+    }
+  }
+
+  def apply(srcDir: File, stateDir: File, ctx: TargetContext)(task: => Any): Unit =
     apply(Seq(srcDir), stateDir, ctx)(task)
 
-  def apply(srcDirOrFiles: Seq[File], stateDir: File, ctx: TargetContext)(task: => Any)(implicit project: Project) {
+  def apply(srcDirOrFiles: Seq[File], stateDir: File, ctx: TargetContext)(task: => Any) {
+    implicit val project: Project = ctx.project
     val checker = PersistentUpToDateChecker(ctx.name.replaceFirst("^phony:", ""), srcDirOrFiles, stateDir, ctx.prerequisites)
     val (didSomething, lastModified) = checker.doWhenNotUpToDate(task)
     if (didSomething) project.log.log(LogLevel.Debug, "Conditional action executed in target " + ctx.name)

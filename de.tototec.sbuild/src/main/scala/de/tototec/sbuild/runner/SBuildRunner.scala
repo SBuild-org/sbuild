@@ -584,6 +584,9 @@ class SBuildRunner {
         case null =>
           log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(curTarget))
         case exec =>
+          WithinTargetExecution.set(new WithinTargetExecution {
+            override def targetContext: TargetContext = ctx
+          })
           try {
             log.log(LogLevel.Debug, "Executing target: " + formatTarget(curTarget))
             ctx.start
@@ -610,6 +613,8 @@ class SBuildRunner {
               ex.targetName = Some(formatTarget(curTarget))
               log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
               throw ex
+          } finally {
+            WithinTargetExecution.remove
           }
       }
     }
