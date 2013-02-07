@@ -69,7 +69,8 @@ trait Target {
 }
 
 object Target {
-  def apply(targetRef: TargetRef)(implicit project: Project): Target = project.findOrCreateTarget(targetRef)
+  def apply(targetRef: TargetRef)(implicit project: Project): Target =
+    project.findOrCreateTarget(targetRef)
 }
 
 case class ProjectTarget private[sbuild] (override val name: String,
@@ -101,11 +102,11 @@ case class ProjectTarget private[sbuild] (override val name: String,
     ProjectTarget.this
   }
 
-  override def exec(execution: => Any): Target = {
-    _exec = _ => execution
-    this
-  }
+  override def exec(execution: => Any): Target = exec((_: TargetContext) => execution)
   override def exec(execution: TargetContext => Any): Target = {
+    if(_exec != null) {
+      project.log.log(LogLevel.Warn, s"Warning: Reassignment of exec block for target ${name}")
+    }
     _exec = execution
     this
   }
