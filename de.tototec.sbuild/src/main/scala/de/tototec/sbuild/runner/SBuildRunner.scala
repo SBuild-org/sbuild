@@ -473,7 +473,7 @@ class SBuildRunner {
         ex.buildScript = e.buildScript
         throw ex
     }
-    log.log(LogLevel.Debug, "dependencies of: " + formatTarget(curTarget) + " => " + dependencies.map(formatTarget(_)).mkString(", "))
+    log.log(LogLevel.Debug, "dependencies of " + formatTarget(curTarget) + ": " + dependencies.map(formatTarget(_)).mkString(", "))
 
     // All direct dependencies share the same request id.
     // Later we can identify them and check, if they were up-to-date.
@@ -487,8 +487,6 @@ class SBuildRunner {
       dependencyTrace = curTarget :: dependencyTrace,
       depth = depth + 1,
       treePrinter = treePrinter)
-
-    log.log(LogLevel.Debug, "Executed dependency count: " + executedDependencies.size);
 
     //          verboseTrackDeps("Evaluating up-to-date state of: " + formatTarget(node))
 
@@ -509,6 +507,8 @@ class SBuildRunner {
     if (!skipExec) this.log.log(LogLevel.Debug, "===> " + formatTarget(curTarget) +
       " is current execution, with tree: " + trace + " <===")
 
+    log.log(LogLevel.Debug, "Executed dependency count: " + executedDependencies.size);
+
     val executeCurTarget = if (skipExec) {
       // already known as up-to-date
       false
@@ -519,7 +519,8 @@ class SBuildRunner {
       val directDepsExecuted = executedDependencies.filter(_.requestId == resolveDirectDepsRequestId)
 
       lazy val depsLastModified: Long = dependenciesLastModified(directDepsExecuted)
-      log.log(LogLevel.Debug, s"Evaluated last modified value '${depsLastModified}' for dependencies: " + directDepsExecuted.map { d => formatTarget(d.target) }.mkString(","))
+      if (!directDepsExecuted.isEmpty)
+        log.log(LogLevel.Debug, s"Dependencies have last modified value '${depsLastModified}': " + directDepsExecuted.map { d => formatTarget(d.target) }.mkString(","))
 
       val needsToRun: Boolean = curTarget.targetFile match {
         case Some(file) =>
@@ -629,11 +630,14 @@ class SBuildRunner {
     def updateLastModified(lm: Long) {
       lastModified = math.max(lastModified, lm)
     }
+
+    def now = System.currentTimeMillis
+
     dependencies.foreach { dep =>
       dep.target.targetFile match {
         case Some(file) if !file.exists =>
           log.log(LogLevel.Info, s"""The file "${file}" created by dependency "${formatTarget(dep.target)}" does no longer exists.""")
-          updateLastModified(Long.MaxValue)
+          updateLastModified(now)
         case Some(file) =>
           // file target and file exists, so we use it last modified
           updateLastModified(file.lastModified)
@@ -645,7 +649,7 @@ class SBuildRunner {
               updateLastModified(lm)
             case None =>
               // target context does not know something, so we fall back to a last modified of NOW
-              updateLastModified(Long.MaxValue)
+              updateLastModified(now)
           }
       }
     }
