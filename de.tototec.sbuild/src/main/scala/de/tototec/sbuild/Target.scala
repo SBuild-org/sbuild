@@ -82,7 +82,7 @@ case class ProjectTarget private[sbuild] (override val name: String,
   private[sbuild] var isImplicit = false
 
   private var _help: String = _
-  private var prereqs = handler match {
+  private var prereqs: Seq[TargetRef] = handler match {
     case Some(handler: SchemeHandlerWithDependencies) =>
       handler.dependsOn(TargetRef(name)(project).nameWithoutProto).targetRefs
     case _ => Seq[TargetRef]()

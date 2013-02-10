@@ -6,9 +6,7 @@ import java.io.FileOutputStream
 import java.io.FileWriter
 import java.net.URL
 import java.net.URLClassLoader
-
 import scala.io.BufferedSource
-
 import de.tototec.sbuild.HttpSchemeHandlerBase
 import de.tototec.sbuild.OSGiVersion
 import de.tototec.sbuild.Path
@@ -24,6 +22,8 @@ import de.tototec.sbuild.TargetRef
 import de.tototec.sbuild.TargetNotFoundException
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.WithinTargetExecution
+import de.tototec.sbuild.TargetContextImpl
 
 object ProjectScript {
   def cutSimpleComment(str: String): String = {
@@ -246,11 +246,24 @@ class ProjectScript(_scriptFile: File,
     //    }.distinct
   }
 
+  protected def filesOfEntry(entryRef: TargetRef)(implicit project: Project): Seq[File] =
+    entryRef.explicitProto match {
+      case Some("phony") => Seq()
+      case None | Some("file") => Seq(Path(entryRef.nameWithoutProto)(entryRef.safeTargetProject))
+      case Some(scheme) => entryRef.safeTargetProject.schemeHandlers.get(scheme) match {
+        case Some(handler) => Seq(Path(TargetRef(handler.localPath(entryRef.nameWithoutProto)).nameWithoutProto)(entryRef.safeTargetProject))
+        case _ =>
+          val e = new ProjectConfigurationException(s"""No scheme handler registered for scheme "${scheme}".""")
+          e.buildScript = Some(project.projectFile)
+          throw e
+      }
+    }
+
   def resolveViaProject(targets: Array[String], project: Project, purposeOfEntry: String): Map[String, Array[File]] =
     targets.map { cpEntry =>
       val entryRef = TargetRef(cpEntry)(project)
       val files = try {
-        entryRef.files.toArray
+        filesOfEntry(entryRef)(project).toArray
       } catch {
         case e: Exception =>
           val ex = new ProjectConfigurationException(s"""Could not resolve ${purposeOfEntry} "${cpEntry}". ${e.getMessage}""", e)
@@ -277,15 +290,6 @@ class ProjectScript(_scriptFile: File,
     log.log(LogLevel.Debug, "About to find additional classpath entries.")
     val cp = readAnnotationWithVarargAttribute(annoName = "classpath", valueName = "value")
     log.log(LogLevel.Debug, "Using additional classpath entries: " + cp.mkString(", "))
-
-    lazy val httpHandler = {
-      var downloadDir: File = new File(targetBaseDir, "http")
-      if (!downloadDir.isAbsolute) {
-        downloadDir = downloadDir.getAbsoluteFile
-      }
-      new HttpSchemeHandlerBase(downloadDir)
-    }
-
     resolveViaProject(cp, project, "@classpath entry").flatMap { case (key, value) => value }.map { _.getPath }.toArray
   }
 

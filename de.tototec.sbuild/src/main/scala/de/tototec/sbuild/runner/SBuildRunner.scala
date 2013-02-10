@@ -132,6 +132,10 @@ class SBuildRunner {
     try {
       run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
     } catch {
+      case e: InvalidApiUsageException =>
+        errorOutput(e, "SBuild detected a invalid usage of SBuild API. Please consult the API Refence Documentation at http://sbuild.tototec.de .")
+        if (verbose) throw e
+        1
       case e: ProjectConfigurationException =>
         errorOutput(e, "SBuild detected a failure in the project configuration or the build scripts.")
         if (verbose) throw e
@@ -345,8 +349,8 @@ class SBuildRunner {
     0
   }
 
-  def determineRequestedTarget(target: String)(implicit project: Project): Either[String, Target] =
-    project.findTarget(target, searchInAllProjects = false) match {
+  def determineRequestedTarget(target: String, searchInAllProjects: Boolean = false)(implicit project: Project): Either[String, Target] =
+    project.findTarget(target, searchInAllProjects = searchInAllProjects) match {
       case Some(target) => Right(target)
       case None => TargetRef(target).explicitProto match {
         case None | Some("phony") | Some("file") => Left(target)
@@ -371,12 +375,13 @@ class SBuildRunner {
   }
 
   class ExecutedTarget(
-    /** The executed target. */
-    val target: Target,
-    /** An Id specific for this execution request. */
-    val requestId: Option[String],
-    val ran: Boolean,
-    val targetContext: TargetContext)
+      /** The executed target. */
+      val target: Target,
+      /** An Id specific for this execution request. */
+      val requestId: Option[String],
+      val targetContext: TargetContext) {
+    require(target == targetContext.target)
+  }
 
   class ExecProgress(var maxCount: Int, var currentNr: Int = 1)
 
@@ -502,17 +507,14 @@ class SBuildRunner {
         x.map { "\n" + prefix + formatTarget(_) }.mkString
     }
 
-    var ctx: TargetContextImpl = null
-
     if (!skipExec) this.log.log(LogLevel.Debug, "===> " + formatTarget(curTarget) +
       " is current execution, with tree: " + trace + " <===")
 
     log.log(LogLevel.Debug, "Executed dependency count: " + executedDependencies.size);
 
-    val executeCurTarget = if (skipExec) {
+    val ctx: TargetContext = if (skipExec) {
       // already known as up-to-date
-      ctx = new TargetContextImpl(curTarget, 0)
-      false
+      new TargetContextImpl(curTarget, 0, Seq())
     } else {
       // not skipped execution, determine if dependencies were up-to-date
 
@@ -520,7 +522,7 @@ class SBuildRunner {
       val directDepsExecuted = executedDependencies.filter(_.requestId == resolveDirectDepsRequestId)
 
       lazy val depsLastModified: Long = dependenciesLastModified(directDepsExecuted)
-      ctx = new TargetContextImpl(curTarget, depsLastModified)
+      val ctx = new TargetContextImpl(curTarget, depsLastModified, directDepsExecuted.map(_.targetContext))
       if (!directDepsExecuted.isEmpty)
         log.log(LogLevel.Debug, s"Dependencies have last modified value '${depsLastModified}': " + directDepsExecuted.map { d => formatTarget(d.target) }.mkString(","))
 
@@ -539,93 +541,75 @@ class SBuildRunner {
           true
       }
 
-      needsToRun
-      //      
-      //      // not up-to-date but we check the context
-      //      // Evaluate up-to-date state based on the list of already executed tasks
-      //      // only use direct dependencies
-      //      //                log.log(LogLevel.Debug, "Existing request ID -> count: " + executed.groupBy { et: ExecutedTarget => et.requestId }.map { case (k, vl) => (k, vl.size) })
-      //      // group direct dependencies by target and then return a map with the up-to-date state for each target
-      //      val targetWhichWereUpToDateStates: Map[Target, Boolean] =
-      //        directDepsExecuted.toList.groupBy(e => e.target).map {
-      //          case (t: Target, execs: List[ExecutedTarget]) =>
-      //            val wasSkipped = execs.forall(_.wasUpToDate)
-      //            log.log(LogLevel.Debug, "  Direct dependency " + formatTarget(t) + (if (wasSkipped) " was skipped " else " was not skipped"))
-      //            (t -> wasSkipped)
-      //        }
-      //
-      //      Target.isUpToDate(curTarget, targetWhichWereUpToDateStates, searchInAllProjects = true)
-    }
-    if (!skipExec && !executeCurTarget) {
-      log.log(LogLevel.Debug, "Target '" + formatTarget(curTarget) + "' does not need to run.")
-    }
+      if (!needsToRun)
+        log.log(LogLevel.Debug, "Target '" + formatTarget(curTarget) + "' does not need to run.")
 
-    // Print State
-    execProgress map { state =>
-      val progress = (state.currentNr, state.maxCount) match {
-        case (c, m) if (c > 0 && m > 0) =>
-          val p = (c - 1) * 100 / m
-          fPercent("[" + math.min(100, math.max(0, p)) + "%]")
-        case (c, m) => "[" + c + "/" + m + "]"
-      }
+      // needsToRun
 
-      {
+      // Print State
+      execProgress map { state =>
+        val progress = (state.currentNr, state.maxCount) match {
+          case (c, m) if (c > 0 && m > 0) =>
+            val p = (c - 1) * 100 / m
+            fPercent("[" + math.min(100, math.max(0, p)) + "%]")
+          case (c, m) => "[" + c + "/" + m + "]"
+        }
+
         val ft = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
-        val prefix = if (executeCurTarget) " Executing target: " else " Skipping target:  "
-        val level = if (executeCurTarget || dependencyTrace.isEmpty) LogLevel.Info else LogLevel.Debug
+        val prefix = if (needsToRun) " Executing target: " else " Skipping target:  "
+        val level = if (needsToRun || dependencyTrace.isEmpty) LogLevel.Info else LogLevel.Debug
         log.log(level, progress + prefix + ft(formatTarget(curTarget)))
+
+        state.currentNr += 1
       }
 
-      state.currentNr += 1
-    }
-
-    var ran: Boolean = false
-
-    if (executeCurTarget) {
-      curTarget.action match {
-        case null =>
-          log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(curTarget))
-        case exec =>
-          WithinTargetExecution.set(new WithinTargetExecution {
-            override def targetContext: TargetContext = ctx
-          })
-          try {
-            log.log(LogLevel.Debug, "Executing target: " + formatTarget(curTarget))
-            ctx.start
-            ran = true
-            exec.apply(ctx)
-            ctx.end
-            log.log(LogLevel.Debug, s"Executed target '${formatTarget(curTarget)}' in ${ctx.execDurationMSec} msec")
-            ctx.targetLastModified match {
-              case Some(lm) =>
-                log.log(LogLevel.Debug, s"The context of target '${formatTarget(curTarget)}' reports a last modified value of '${lm}'. Request-ID: ${requestId}")
-              case _ =>
+      if (needsToRun) {
+        curTarget.action match {
+          case null =>
+            log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(curTarget))
+          case exec =>
+            WithinTargetExecution.set(new WithinTargetExecution {
+              override def targetContext: TargetContext = ctx
+              override def directDepsTargetContexts: Seq[TargetContext] = ctx.directDepsTargetContexts
+            })
+            try {
+              log.log(LogLevel.Debug, "Executing target: " + formatTarget(curTarget))
+              ctx.start
+              exec.apply(ctx)
+              ctx.end
+              log.log(LogLevel.Debug, s"Executed target '${formatTarget(curTarget)}' in ${ctx.execDurationMSec} msec")
+              ctx.targetLastModified match {
+                case Some(lm) =>
+                  log.log(LogLevel.Debug, s"The context of target '${formatTarget(curTarget)}' reports a last modified value of '${lm}'. Request-ID: ${requestId}")
+                case _ =>
+              }
+            } catch {
+              case e: TargetAware =>
+                ctx.end
+                if (e.targetName.isEmpty)
+                  e.targetName = Some(formatTarget(curTarget))
+                log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}")
+                throw e
+              case e: Throwable =>
+                ctx.end
+                val ex = new ExecutionFailedException(s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getMessage}", e.getCause, s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getLocalizedMessage}")
+                ex.buildScript = Some(curTarget.project.projectFile)
+                ex.targetName = Some(formatTarget(curTarget))
+                log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
+                throw ex
+            } finally {
+              WithinTargetExecution.remove
             }
-          } catch {
-            case e: TargetAware =>
-              ctx.end
-              if (e.targetName.isEmpty)
-                e.targetName = Some(formatTarget(curTarget))
-              log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}")
-              throw e
-            case e: Throwable =>
-              ctx.end
-              val ex = new ExecutionFailedException(s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getMessage}", e.getCause, s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getLocalizedMessage}")
-              ex.buildScript = Some(curTarget.project.projectFile)
-              ex.targetName = Some(formatTarget(curTarget))
-              log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
-              throw ex
-          } finally {
-            WithinTargetExecution.remove
-          }
+        }
       }
+
+      ctx
     }
 
     executedDependencies ++ Array(
       new ExecutedTarget(
         target = curTarget,
         requestId = requestId,
-        ran = ran,
         targetContext = ctx
       )
     )

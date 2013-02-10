@@ -9,7 +9,9 @@ class ScanSchemeHandler(implicit project: Project)
 
   override def resolve(path: String, targetContext: TargetContext) =
     scan(path).foreach {
-      f => targetContext.targetLastModified = f.lastModified
+      f =>
+        targetContext.attachFile_=(f)
+        targetContext.targetLastModified = f.lastModified
     }
 
   override def dependsOn(path: String): TargetRefs =

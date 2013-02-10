@@ -25,10 +25,13 @@ case class TargetRefs(val targetRefs: TargetRef*) {
    * Get the files, this TargetRefs is referencing or producing, if any.
    */
   def files: Seq[File] = {
-    if (WithinTargetExecution.get == null) {
-      throw InvalidApiUsageException.localized("'TargetRefs.files' can only be used inside an exec block of a target.")
+    WithinTargetExecution.get match {
+      case null =>
+        val ex = InvalidApiUsageException.localized("'TargetRefs.files' can only be used inside an exec block of a target.")
+        throw ex
+      case _ =>
+        targetRefs.flatMap(tr => tr.files)
     }
-    targetRefs.flatMap(tr => tr.files)
   }
 }
 

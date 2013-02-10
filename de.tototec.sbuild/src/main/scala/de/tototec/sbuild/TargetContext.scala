@@ -12,8 +12,10 @@ trait TargetContext {
   /** The name of the currently executed target */
   def name: String
 
+  protected[sbuild] def target: Target
+
   /**
-   * The file this targets produces, or <code>None</code> if this target is phony.
+   * The target file (main file) this targets produces, or <code>None</code> if this target is phony.
    */
   def targetFile: Option[File]
 
@@ -39,15 +41,19 @@ trait TargetContext {
 
   def project: Project
 
+  def attachedFiles: Seq[File]
   /**
    * Attach additional files to this target context. The file must exists!
    */
   def attachFile_=(file: File)
 
+  def targetFiles: Seq[File] = targetFile.toSeq ++ attachedFiles
 }
 
-class TargetContextImpl(target: Target,
-                        override val prerequisitesLastModified: Long)
+class TargetContextImpl(
+  override val target: Target,
+  override val prerequisitesLastModified: Long,
+  private[sbuild] val directDepsTargetContexts: Seq[TargetContext])
     extends TargetContext {
 
   override def name = target.name
@@ -87,15 +93,17 @@ class TargetContextImpl(target: Target,
    */
   override def prerequisites: Seq[TargetRef] = target.dependants
 
-  override def fileDependencies: Seq[File] = target.dependants map { t =>
-    target.project.findTarget(t, true) match {
-      case None => throw new ProjectConfigurationException("Missing dependency: " + t.name)
-      case Some(found) => found.targetFile match {
-        case None => null
-        case Some(f) => f
-      }
-    }
-  } filter { f => f != null }
+  //  override def fileDependencies: Seq[File] = target.dependants map { t =>
+  //    target.project.findTarget(t, true) match {
+  //      case None => throw new ProjectConfigurationException("Missing dependency: " + t.name)
+  //      case Some(found) => found.targetFile match {
+  //        case None => null
+  //        case Some(f) => f
+  //      }
+  //    }
+  //  } filter { f => f != null }
+  //  
+  override def fileDependencies: Seq[File] = directDepsTargetContexts.flatMap(_.targetFiles)
 
   private var _targetLastModified: Option[Long] = None
   override def targetLastModified: Option[Long] = _targetLastModified
@@ -116,6 +124,7 @@ class TargetContextImpl(target: Target,
 
   private[sbuild] var _attachedFiles: Seq[File] = Seq()
 
+  override def attachedFiles: Seq[File] = _attachedFiles
   override def attachFile_=(file: File) {
     _attachedFiles ++= Seq(file)
     // If we have already a set lastModified, than update it now
