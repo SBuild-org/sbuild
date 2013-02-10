@@ -59,7 +59,7 @@ class SBuild(implicit _project: Project) {
     }
   }
 
-  Target(classpathProperties) dependsOn _project.projectFile exec { ctx: TargetContext =>
+  Target(classpathProperties) dependsOn _project.projectFile ~ cmdOptionJar ~ jansiJar exec { ctx: TargetContext =>
     val properties = s"""|# Classpath configuration for SBuild ${SBuildConfig.sbuildVersion}
       |sbuildClasspath = de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar
       |compileClasspath = scala-compiler-${SBuildConfig.scalaVersion}.jar:scala-reflect-${SBuildConfig.scalaVersion}.jar
