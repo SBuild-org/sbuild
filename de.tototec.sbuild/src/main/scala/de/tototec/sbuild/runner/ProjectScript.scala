@@ -56,21 +56,18 @@ class ProjectScript(_scriptFile: File,
                     compileClasspath: Array[String],
                     additionalProjectClasspath: Array[String],
                     noFsc: Boolean,
-                    downloadCache: Option[DownloadCache],
                     log: SBuildLogger) {
 
   import ProjectScript._
 
   def this(scriptFile: File,
            classpathConfig: ClasspathConfig,
-           downloadCache: Option[DownloadCache],
            log: SBuildLogger) {
     this(scriptFile,
       classpathConfig.sbuildClasspath,
       classpathConfig.compileClasspath,
       classpathConfig.projectClasspath,
       classpathConfig.noFsc,
-      downloadCache,
       log)
   }
 

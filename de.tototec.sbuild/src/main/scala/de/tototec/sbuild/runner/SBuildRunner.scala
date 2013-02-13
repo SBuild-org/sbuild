@@ -170,7 +170,7 @@ class SBuildRunner {
       return 0
     }
 
-    val projectReader: ProjectReader = new SimpleProjectReader(config, classpathConfig, log)
+    val projectReader: ProjectReader = new SimpleProjectReader(classpathConfig, log, clean = config.clean)
 
     val project = new Project(projectFile, projectReader, None, log)
     config.defines foreach {
@@ -544,8 +544,6 @@ class SBuildRunner {
       if (!needsToRun)
         log.log(LogLevel.Debug, "Target '" + formatTarget(curTarget) + "' does not need to run.")
 
-      // needsToRun
-
       // Print State
       execProgress map { state =>
         val progress = (state.currentNr, state.maxCount) match {
@@ -566,6 +564,13 @@ class SBuildRunner {
       if (needsToRun) {
         curTarget.action match {
           case null =>
+            // Additional sanity check
+            if (!curTarget.phony) {
+              val ex = new ProjectConfigurationException(s"""Target "${curTarget.name}" has no defined execution. Don't know how to create or update file "${curTarget.file}".""")
+              ex.buildScript = Some(curTarget.project.projectFile)
+              ex.targetName = Some(curTarget.name)
+              throw ex
+            }
             log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(curTarget))
           case exec =>
             WithinTargetExecution.set(new WithinTargetExecution {

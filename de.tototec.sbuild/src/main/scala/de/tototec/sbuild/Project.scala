@@ -44,10 +44,6 @@ class Project(_projectFile: File,
   }
 
   private[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean = true): Project = {
-    // various checks
-    if (projectReader.isEmpty) {
-      throw new SBuildException("Does not know how to read the sub project")
-    }
 
     val newProjectDirOrFile = Path(dirOrFile)(this)
     if (!newProjectDirOrFile.exists) {
@@ -77,17 +73,26 @@ class Project(_projectFile: File,
     val module = projectAlreadyIncluded match {
       case Some(existing) => existing
       case _ =>
-        val newProject = new Project(newProjectFile, projectReader.getOrElse(null), Some(projectPool), log)
-        // copy project properties 
-        if (copyProperties) properties.foreach {
-          case (key, value) => newProject.addProperty(key, value)
+        projectReader match {
+          case None =>
+            val ex = new SBuildException("Does not know how to read the sub project")
+            ex.buildScript = Some(projectFile)
+            throw ex
+
+          case Some(reader) =>
+            val newProject = new Project(newProjectFile, reader, Some(projectPool), log)
+
+            // copy project properties 
+            if (copyProperties) properties.foreach {
+              case (key, value) => newProject.addProperty(key, value)
+            }
+
+            reader.readProject(newProject, newProjectFile)
+
+            projectPool.addProject(newProject)
+
+            newProject
         }
-
-        projectReader.get.readProject(newProject, newProjectFile)
-
-        projectPool.addProject(newProject)
-
-        newProject
     }
 
     _modules = modules ::: List(module)

@@ -7,12 +7,15 @@ import de.tototec.sbuild.ProjectReader
 import de.tototec.sbuild.SBuildLogger
 import de.tototec.sbuild.SBuildNoneLogger
 
-class SimpleProjectReader(config: Config, classpathConfig: ClasspathConfig, log: SBuildLogger = SBuildNoneLogger) extends ProjectReader {
-  val downloadCache: DownloadCache = new SimpleDownloadCache()
+class SimpleProjectReader(
+  classpathConfig: ClasspathConfig,
+  log: SBuildLogger = SBuildNoneLogger,
+  clean: Boolean = false)
+    extends ProjectReader {
   
   override def readProject(projectToRead: Project, projectFile: File): Any = {
-    val script = new ProjectScript(projectFile, classpathConfig, Some(downloadCache), log)
-    if (config.clean) {
+    val script = new ProjectScript(projectFile, classpathConfig, log)
+    if (clean) {
       script.clean
     }
     //  Compile Script and load compiled class

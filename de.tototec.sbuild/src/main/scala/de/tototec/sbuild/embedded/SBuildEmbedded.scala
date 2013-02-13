@@ -18,7 +18,6 @@ import de.tototec.sbuild.Target
 object SBuildEmbedded {
   private[embedded] def debug(msg: => String) = Console.println(msg)
   private[embedded] def error(msg: => String) = Console.println(msg)
-
 }
 
 class SBuildEmbedded(projectFile: File, sbuildHomeDir: File) {
@@ -27,19 +26,17 @@ class SBuildEmbedded(projectFile: File, sbuildHomeDir: File) {
 
   lazy val project: Project = {
 
-    val config = new Config()
-    config.verbose = true
-    config.buildfile = projectFile.getName
-
     val classpathConfig = new ClasspathConfig()
     classpathConfig.sbuildHomeDir = sbuildHomeDir
     classpathConfig.noFsc = true
 
     debug("About to read project: " + projectFile)
-    val projectReader: ProjectReader = new SimpleProjectReader(config, classpathConfig)
+    val projectReader: ProjectReader = new SimpleProjectReader(classpathConfig)
 
+    val props: Map[String, String] = Map()
+    
     implicit val sbuildProject = new Project(projectFile, projectReader)
-    config.defines.asScala foreach {
+    props foreach {
       case (key, value) => sbuildProject.addProperty(key, value)
     }
 
