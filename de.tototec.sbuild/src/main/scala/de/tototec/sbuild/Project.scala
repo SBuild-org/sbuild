@@ -105,14 +105,15 @@ class Project(_projectFile: File,
    */
   private[sbuild] var targets: Map[File, Target] = Map()
 
-  def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target = findTarget(targetRef) match {
-    case Some(t: ProjectTarget) if t.isImplicit && !isImplicit =>
-      // we change it to explicit
-      t.isImplicit = false
-      t
-    case Some(t) => t
-    case None => createTarget(targetRef, isImplicit = isImplicit)
-  }
+  def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target =
+    findTarget(targetRef, searchInAllProjects = false) match {
+      case Some(t: ProjectTarget) if t.isImplicit && !isImplicit =>
+        // we change it to explicit
+        t.isImplicit = false
+        t
+      case Some(t) => t
+      case None => createTarget(targetRef, isImplicit = isImplicit)
+    }
 
   def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target = {
     if (explicitForeignProject(targetRef).isDefined) {
@@ -142,11 +143,12 @@ class Project(_projectFile: File,
       case Some(pFile) =>
         projectPool.propjectMap.get(pFile) match {
           case None => throw new TargetNotFoundException("Could not found target: " + targetRef + ". Unknown project: " + pFile)
-          case Some(p) => p.findTarget(targetRef, false)
+          case Some(p) => p.findTarget(targetRef, searchInAllProjects = false)
         }
       case None =>
         uniqueTargetFile(targetRef) match {
           case UniqueTargetFile(file, phony, _) => targets.get(file) match {
+
             // If nothing was found and the target in question is a file target and searchInAllProjects was requested, then search in other projects
             case None if searchInAllProjects && !phony =>
               // search in other projects
@@ -187,6 +189,7 @@ class Project(_projectFile: File,
               }
 
             case x => x
+
           }
         }
     }
@@ -254,7 +257,7 @@ class Project(_projectFile: File,
   }
 
   def prerequisites(target: Target, searchInAllProjects: Boolean = false): List[Target] = target.dependants.map { dep =>
-    findTarget(dep, searchInAllProjects) match {
+    findTarget(dep, searchInAllProjects = searchInAllProjects) match {
       case Some(target) => target
       case None =>
         // TODO: if none target was found, look in other project if they provide the target

@@ -92,7 +92,7 @@ ${e.getMessage}""", e)
 
   def zipFile(config: Config): File = {
     val targetRef = TargetRef(config.archive)(project)
-    val target = project.findTarget(targetRef, true) match {
+    val target = project.findTarget(targetRef, searchInAllProjects = true) match {
       case Some(t) => t
       case None => project.findOrCreateTarget(targetRef, true)
     }
