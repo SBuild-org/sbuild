@@ -1,0 +1,30 @@
+body {
+	counter-reset: Level02;
+}
+
+h2:before {
+	content: counter(Level02) " ";
+	counter-increment: Level02;
+}
+
+h2 {
+	counter-reset: Level03;
+}
+
+h3:before {
+	content: counter(Level02) "." counter(Level03) " ";
+	counter-increment: Level03;
+}
+
+h3 {
+	counter-reset: Level04;
+}
+
+h4:before {
+	content: counter(Level02) "." counter(Level03) "." counter(Level04) " ";
+	counter-increment: Level04;
+}
+
+code {
+	color: navy;
+}

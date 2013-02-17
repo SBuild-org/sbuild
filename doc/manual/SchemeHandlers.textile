@@ -1,0 +1,22 @@
+h2. Scheme Handlers
+
+Targets describe real resources in the local file system. Up-to-date detection will be based on time stamps. Target names are interpreted as file names relative to the project directory (the directory containing the build file). Phony targets are targets, that are not related to a file system resource, e.g. "clean" or "compile". Those targets are prefixed with "phony:". Because phony targets are not related to file system resources, the up-to-date detection for phony targets is less clever. Dependency chains which contain phony targets will therefore always run. (But there are some concepts to avoid unneeded work, see TargetContext.)
+
+Targets have a name that represents an unique resource. Target names support prefixes which are called schemes. Besides the @file@ scheme, which is the default when non was given and selects a resource in the local file system, and the @phony@ scheme, SBuild supports any number of additional schemes by registering scheme handlers. A registered scheme handler has to translate the target name into a name with the @file@ or @phony@ scheme. If such a resource is missing and SBuild needs it to fulfill the dependencies of a target, the scheme handler is asked to resolve the resource. One example is the [[MvnSchemeHandler]] that might be resolve the @mvn@ scheme and resolve missing Maven dependencies by downloading them to the local repository.
+
+h3. Built-in Scheme Handlers
+
+* [[HttpSchemeHandler]]
+* [[MvnSchemeHandler]]
+* [[ZipSchemeHandler]]
+
+h3. Default Scheme Handlers
+
+Some scheme handlers are registered by default in each SBuild project. Default scheme handlers can also be used in the project annotations        [[ClasspathAnnotation|@classpath]] and [[IncludeAnnotation|@include]]. Those are:
+
+* [[HttpSchemeHandler]]
+* [[MvnSchemeHandler]]
+* [[ZipSchemeHandler]]
+
+Each default schemehandler is created with its default configuration. 
+
