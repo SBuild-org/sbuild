@@ -37,7 +37,7 @@ class SBuildEmbedded(sbuildHomeDir: File) {
     new SimpleProjectReader(classpathConfig)
   }
 
-  // Method to check, if a project is up-to-date
+  // TODO: Method to check, if a project is up-to-date
 
   def loadProject(projectFile: File, props: Properties): Project = {
 
@@ -60,9 +60,15 @@ class SBuildEmbedded(sbuildHomeDir: File) {
     sbuildProject
   }
 
+  def loadResolver(projectFile: File, props: Properties): EmbeddedResolver =
+    new ProjectEmbeddedResolver(loadProject(projectFile, props))
+
 }
 
 trait EmbeddedResolver {
+
+  def exportedDependencies(exportName: String): Seq[String]
+
   /**
    * Resolve the given dependency.
    */
@@ -71,10 +77,17 @@ trait EmbeddedResolver {
 
 class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
 
+  override def exportedDependencies(exportName: String): Seq[String] = {
+    val depsXmlString = project.properties.getOrElse(exportName, "<deps></deps>")
+    SBuildEmbedded.debug("Determine Eclipse classpath by evaluating '" + exportName + "' to: " + depsXmlString)
+    val depsXml = XML.loadString(depsXmlString)
+    (depsXml \ "dep") map { _.text }
+  }
+
   /**
    * Resolve the given dependency. Dependency to files, which do not have a target definition, but which exists, are considered as resolved.
    */
-  def resolve(dep: String, progressMonitor: ProgressMonitor): Try[Seq[File]] = Try(doResolve(dep, progressMonitor))
+  override def resolve(dep: String, progressMonitor: ProgressMonitor): Try[Seq[File]] = Try(doResolve(dep, progressMonitor))
 
   protected def doResolve(dep: String, progressMonitor: ProgressMonitor): Seq[File] = {
     implicit val p = project
@@ -98,12 +111,11 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
         val requestId = Some(UUID.randomUUID().toString())
         val executedTargets = SBuildRunner.preorderedDependenciesTree(curTarget = target, requestId = requestId)(project)
 
-        val files = executedTargets.find(_.requestId == requestId).toSeq.flatMap { et =>
-          et.targetContext.fileDependencies
-        }
-
-        files
-
+        executedTargets.
+          find(_.requestId == requestId).toSeq.
+          flatMap { ran =>
+            ran.targetContext.targetFiles
+          }
     }
   }
 
