@@ -400,38 +400,24 @@ class SBuildRunner {
    * If <code>skipExec</code> is <code>false</code>, for each target the up-to-date state will be evaluated,
    * and if the target is no up-to-date, the associated action will be executed.
    */
-  def preorderedDependenciesForest(request: List[Target],
+  def preorderedDependenciesForest(request: Seq[Target],
                                    execProgress: Option[ExecProgress] = None,
                                    skipExec: Boolean = false,
                                    requestId: Option[String] = None,
                                    dependencyTrace: List[Target] = List(),
                                    depth: Int = 0,
-                                   treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] = {
-    request match {
-      case Nil => Array()
-      case firstTarget :: otherTargets =>
-
-        // walk the current target (deep first)
-        val alreadyRun = preorderedDependenciesTree(
-          curTarget = firstTarget,
-          execProgress = execProgress,
-          skipExec = skipExec,
-          requestId = requestId,
-          dependencyTrace = dependencyTrace,
-          depth = depth,
-          treePrinter = treePrinter
-        )
-
-        // and then walk other requested
-        alreadyRun ++ preorderedDependenciesForest(otherTargets,
-          execProgress = execProgress,
-          skipExec = skipExec,
-          dependencyTrace = dependencyTrace,
-          requestId = requestId,
-          depth = depth,
-          treePrinter = treePrinter)
+                                   treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] =
+    request.toArray.flatMap { req =>
+      preorderedDependenciesTree(
+        curTarget = req,
+        execProgress = execProgress,
+        skipExec = skipExec,
+        requestId = requestId,
+        dependencyTrace = dependencyTrace,
+        depth = depth,
+        treePrinter = treePrinter
+      )
     }
-  }
 
   /**
    * Visit each target of tree <code>node</code> deep-first.
@@ -466,9 +452,7 @@ class SBuildRunner {
 
     // build prerequisites map
 
-    //  val skipOrUpToDate = skipExec || Project.isTargetUpToDate(node, searchInAllProjects = true)
     // Execute prerequisites
-    // log.log(LogLevel.Debug, "determine dependencies of: " + node.name)
     val dependencies: List[Target] = try {
       curTarget.project.prerequisites(target = curTarget, searchInAllProjects = true)
     } catch {
@@ -478,22 +462,20 @@ class SBuildRunner {
         ex.buildScript = e.buildScript
         throw ex
     }
-    log.log(LogLevel.Debug, "dependencies of " + formatTarget(curTarget) + ": " + dependencies.map(formatTarget(_)).mkString(", "))
+    log.log(LogLevel.Debug, "Dependencies of " + formatTarget(curTarget) + ": " +
+      (if (dependencies.isEmpty) "<none>" else dependencies.map(formatTarget(_)).mkString(" ~ ")))
 
     // All direct dependencies share the same request id.
     // Later we can identify them and check, if they were up-to-date.
     val resolveDirectDepsRequestId = Some(UUID.randomUUID.toString)
 
-    val executedDependencies: Array[ExecutedTarget] = preorderedDependenciesForest(
-      request = dependencies,
-      execProgress = execProgress,
-      skipExec = skipExec,
-      requestId = resolveDirectDepsRequestId,
-      dependencyTrace = curTarget :: dependencyTrace,
-      depth = depth + 1,
-      treePrinter = treePrinter)
+    val subDepTrace = curTarget :: dependencyTrace
 
-    //          verboseTrackDeps("Evaluating up-to-date state of: " + formatTarget(node))
+    val executedDependencies: Array[ExecutedTarget] = dependencies.flatMap { dep =>
+      preorderedDependenciesTree(dep,
+        execProgress = execProgress, skipExec = skipExec, requestId = resolveDirectDepsRequestId,
+        dependencyTrace = subDepTrace, depth = depth + 1, treePrinter = treePrinter)
+    }.toArray
 
     // print dep-tree
     lazy val trace = dependencyTrace match {
@@ -507,16 +489,17 @@ class SBuildRunner {
         x.map { "\n" + prefix + formatTarget(_) }.mkString
     }
 
-    if (!skipExec) this.log.log(LogLevel.Debug, "===> " + formatTarget(curTarget) +
-      " is current execution, with tree: " + trace + " <===")
-
-    log.log(LogLevel.Debug, "Executed dependency count: " + executedDependencies.size);
-
     val ctx: TargetContext = if (skipExec) {
       // already known as up-to-date
       new TargetContextImpl(curTarget, 0, Seq())
+
     } else {
       // not skipped execution, determine if dependencies were up-to-date
+
+      log.log(LogLevel.Debug, "===> Current execution: " + formatTarget(curTarget) +
+        " -> requested by: " + trace + " <===")
+
+      log.log(LogLevel.Debug, "Executed dependency count: " + executedDependencies.size);
 
       log.log(LogLevel.Debug, "Request-ID used for dependencies: " + resolveDirectDepsRequestId)
       val directDepsExecuted = executedDependencies.filter(_.requestId == resolveDirectDepsRequestId)
@@ -545,7 +528,7 @@ class SBuildRunner {
         log.log(LogLevel.Debug, "Target '" + formatTarget(curTarget) + "' does not need to run.")
 
       // Print State
-      execProgress map { state =>
+      execProgress.map { state =>
         val progress = (state.currentNr, state.maxCount) match {
           case (c, m) if (c > 0 && m > 0) =>
             val p = (c - 1) * 100 / m
