@@ -14,29 +14,37 @@ import de.tototec.sbuild.Path
 import de.tototec.sbuild.runner.SBuildRunner
 import de.tototec.sbuild.SBuildException
 import de.tototec.sbuild.Target
+import java.util.Properties
+import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.TargetNotFoundException
+import java.util.UUID
+import scala.util.Try
+import scala.util.Failure
 
 object SBuildEmbedded {
   private[embedded] def debug(msg: => String) = Console.println(msg)
   private[embedded] def error(msg: => String) = Console.println(msg)
 }
 
-class SBuildEmbedded(projectFile: File, sbuildHomeDir: File) {
+class SBuildEmbedded(sbuildHomeDir: File) {
 
   import SBuildEmbedded._
 
-  lazy val project: Project = {
-
+  private[this] lazy val projectReader: ProjectReader = {
     val classpathConfig = new ClasspathConfig()
     classpathConfig.sbuildHomeDir = sbuildHomeDir
     classpathConfig.noFsc = true
+    new SimpleProjectReader(classpathConfig)
+  }
+
+  // Method to check, if a project is up-to-date
+
+  def loadProject(projectFile: File, props: Properties): Project = {
 
     debug("About to read project: " + projectFile)
-    val projectReader: ProjectReader = new SimpleProjectReader(classpathConfig)
 
-    val props: Map[String, String] = Map()
-    
     implicit val sbuildProject = new Project(projectFile, projectReader)
-    props foreach {
+    props.asScala foreach {
       case (key, value) => sbuildProject.addProperty(key, value)
     }
 
@@ -52,106 +60,52 @@ class SBuildEmbedded(projectFile: File, sbuildHomeDir: File) {
     sbuildProject
   }
 
-  def exportedDependencies(exportName: String): ExportedDependenciesResolver =
-    new ExportedDependenciesResolverImpl(project, exportName)
-
 }
 
-trait ExportedDependenciesResolver {
-
-  def dependencies: Seq[String]
-  def fileDependencies: Seq[File]
-  def targetRefs: TargetRefs
-  def depToFileMap: Map[String, Seq[File]]
-
-  def resolveToFile(dependency: String): Either[String, File]
-
-  def resolveAllToFile: Seq[Either[String, File]]
-
+trait EmbeddedResolver {
+  /**
+   * Resolve the given dependency.
+   */
+  def resolve(dep: String, progressMonitor: ProgressMonitor): Try[Seq[File]]
 }
 
-class ExportedDependenciesResolverImpl(project: Project, exportName: String) extends ExportedDependenciesResolver {
+class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
 
-  import SBuildEmbedded._
+  /**
+   * Resolve the given dependency. Dependency to files, which do not have a target definition, but which exists, are considered as resolved.
+   */
+  def resolve(dep: String, progressMonitor: ProgressMonitor): Try[Seq[File]] = Try(doResolve(dep, progressMonitor))
 
-  implicit val _project = project
+  protected def doResolve(dep: String, progressMonitor: ProgressMonitor): Seq[File] = {
+    implicit val p = project
 
-  override val dependencies: Seq[String] = {
-    val depsXmlString = project.properties.getOrElse(exportName, "<deps></deps>")
-    debug("Determine Eclipse classpath by evaluating '" + exportName + "' to: " + depsXmlString)
-    val depsXml = XML.loadString(depsXmlString)
+    SBuildRunner.determineRequestedTarget(dep, true) match {
 
-    val deps: Seq[String] = (depsXml \ "dep") map {
-      depXml => depXml.text
-    }
-
-    deps
-  }
-
-  override val fileDependencies: Seq[File] = {
-    TargetRefs.fromSeq(dependencies.map(d => TargetRef(d))).files
-  }
-
-  override val targetRefs: TargetRefs = {
-    TargetRefs.fromSeq(dependencies.map(d => TargetRef(d)))
-  }
-
-  override def depToFileMap: Map[String, Seq[File]] = dependencies.map { dep => (dep, TargetRef(dep).files) }.toMap
-
-  override def resolveToFile(dependency: String): Either[String, File] = {
-
-    if (dependencies.find(d => d == dependency).isEmpty)
-      return Left(s"""Cannot resolve dependency "${dependency}" as it is not an exported dependency.""")
-
-    SBuildRunner.determineRequestedTarget(dependency) match {
-
-      // No Target definition -> Check if a file with same name exists
-      case Left(targetName) =>
-
-        val targetRef = TargetRef(dependency)
+      case Left(_) =>
+        // not found
+        // if an existing file, then proceed.
+        val targetRef = TargetRef.fromString(dep)
         targetRef.explicitProto match {
-
-          case None | Some("file") =>
-            val file = targetRef.files.head
-            if (file.exists)
-              Right(file)
-            else
-              Left(s"""Cannot resolve dependency "${dependency}". Don't know how to make file "${file}".""")
-
-          case Some("phony") =>
-            return Left(s"""Will not resolve dependency "${dependency}" as it is a phony dependency.""")
-
+          case None | Some("file") if targetRef.explicitProject == None && Path(targetRef.nameWithoutProto).exists =>
+            return Seq(Path(targetRef.nameWithoutProto))
           case _ =>
-            return Left(s"""Could not found target for dependency "${dependency}".""")
+            throw new TargetNotFoundException(s"""Could not found target with name "${dep}" in project ${project.projectFile}.""")
         }
 
-      // Found a target, now resolve it
       case Right(target) =>
 
-        target.targetFile match {
-          
-          case None =>
-            return Left(s"""Will not resolve dependency "${dependency}" as it is a phony dependency.""")
+        // TODO: progress
+        val requestId = Some(UUID.randomUUID().toString())
+        val executedTargets = SBuildRunner.preorderedDependenciesTree(curTarget = target, requestId = requestId)(project)
 
-          case Some(file) =>
-            try {
-              SBuildRunner.preorderedDependenciesTree(curTarget = target)
-              if (file.exists)
-                Right(file)
-              else
-                Left(s"""Successfully resolved dependency "${dependency}" to file "${file}", but file (now) does not exists.""")
-            } catch {
-              case e: SBuildException =>
-                debug("Could not resolve dependency: " + dependency)
-                Left("Could not resolve dependency: " + dependency)
-            }
-
+        val files = executedTargets.find(_.requestId == requestId).toSeq.flatMap { et =>
+          et.targetContext.fileDependencies
         }
+
+        files
 
     }
   }
-
-  override def resolveAllToFile: Seq[Either[String, File]] = dependencies.map { d => resolveToFile(d) }
 
 }
 
