@@ -69,6 +69,9 @@ trait Target {
 }
 
 object Target {
+  /**
+   * Create a new target with target name.
+   */
   def apply(targetRef: TargetRef)(implicit project: Project): Target =
     project.findOrCreateTarget(targetRef)
 }
@@ -104,7 +107,7 @@ case class ProjectTarget private[sbuild] (override val name: String,
 
   override def exec(execution: => Any): Target = exec((_: TargetContext) => execution)
   override def exec(execution: TargetContext => Any): Target = {
-    if(_exec != null) {
+    if (_exec != null) {
       project.log.log(LogLevel.Warn, s"Warning: Reassignment of exec block for target ${name}")
     }
     _exec = execution
@@ -117,13 +120,13 @@ case class ProjectTarget private[sbuild] (override val name: String,
   }
   override def help: String = _help
 
-  override def toString() = {
-    def hasExec = _exec match {
-      case null => "non"
-      case _ => "defined"
-    }
-    "Target(" + TargetRef(name)(project).nameWithoutProto + "=>" + file + (if (phony) "[phony]" else "") + ", dependsOn=" + prereqs.map(t => t.name).mkString(",") + ", exec=" + hasExec + ")"
-  }
+  override def toString() =
+    getClass.getSimpleName +
+      "(" + name + "=>" + file + (if (phony) "[phony]" else "") +
+      ", dependsOn=" + prereqs.map(t => t.name).mkString(" ~ ") +
+      ", exec=" + (if (_exec == null) "non" else "defined") +
+      ",isImplicit=" + isImplicit +
+      ")"
 
   lazy val targetFile: Option[File] = phony match {
     case false => Some(file)
