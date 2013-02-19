@@ -21,6 +21,20 @@ SBuild 0.3.2.9000
 * SBuild now has slightly colored output based on jansi.fusesource.org, which
   can be disabled with --no-color commandline option.
 * Improved error reporting on the commandline.
+* Added TargetContext.attachFile to attach additional files to a target. Those
+  files are now also included via TargetRef.files.
+* TargetRef.files can now only be used inside a Target execution, and only on
+  dependencies that are declared in dependsOn of that executing target.
+* Added TargetContext.prerequisitesLastModified to retrieve the effective
+  lastModified value of all declared dependencies.
+* New ScanSchemeHandler, to scan a directory, based on a pattern and attach
+  all found files to the TargetContext. That way, one can depend on a set of
+  files, considering their up-to-dateness.
+* New (experimental) embedded API, dedicated to SBuild embedding, e.g. in 
+  SBuild Eclipse Plugin
+* Fixed return value handling in shell wrapper, resulting in sbuild command
+  line application always returning 0.
+* Updated German translations.
 
 SBuild 0.3.2 - 2013-01-26
 
