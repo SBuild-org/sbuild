@@ -33,7 +33,12 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
         if (!file.exists) {
           try {
             Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)))
-            file.setLastModified(System.currentTimeMillis)
+            try {
+              file.setLastModified(System.currentTimeMillis)
+            } catch {
+              case e: Exception =>
+                project.log.log(LogLevel.Warn, s"""Could not change lastModified time of extracted file "${file.getPath}".""", e)
+            }
           } catch {
             case e: FileNotFoundException =>
               val ex = new ExecutionFailedException(s"""Could not resolve "${targetContext.name}" to "${file}".
