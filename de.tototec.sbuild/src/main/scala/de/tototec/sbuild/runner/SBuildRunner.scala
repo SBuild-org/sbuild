@@ -78,6 +78,39 @@ class SBuildRunner {
     }
   }
 
+  def checkTargets(projects: Seq[Project])(implicit baseProject: Project): Seq[(Target, String)] = {
+    val targetsToCheck = projects.flatMap { p =>
+      p.targets.values.filterNot(_.isImplicit)
+    }
+    // Console.println("About to check targets: "+targetsToCheck.mkString(", "))
+    var errors: Seq[(Target, String)] = Seq()
+    targetsToCheck.foreach { target =>
+      log.log(LogLevel.Info, "Checking target: " + formatTarget(target)(baseProject))
+      try {
+        preorderedDependenciesTree(curTarget = target, skipExec = true)(baseProject)
+        log.log(LogLevel.Info, "  \t" + fOk("OK"))
+      } catch {
+        case e: SBuildException =>
+          log.log(LogLevel.Info, "  \t" + fError("FAILED: " + e.getMessage))
+          errors ++= Seq(target -> e.getMessage)
+      }
+    }
+    errors
+  }
+
+  def checkCacheableTargets(project: Project, printWarning: Boolean)(implicit baseProject: Project): Option[String] = {
+    val targets = project.targets.values.filterNot(_.isImplicit)
+    val cacheable = targets.filter(_.isCacheable)
+    val evict = targets.filter(_.isEvictCache)
+
+    if (evict.isEmpty && !cacheable.isEmpty) {
+      val msg = s"""Project ${formatProject(project)}" contains ${cacheable.size} cacheable target, but does not declare any target with "evictCache"."""
+      if (printWarning)
+        project.log.log(LogLevel.Warn, msg)
+      Some(msg)
+    } else None
+  }
+
   def run(args: Array[String]): Int = {
     val bootstrapStart = System.currentTimeMillis
 
@@ -156,6 +189,13 @@ class SBuildRunner {
     }
   }
 
+  def projectSorter(baseProject: Project)(l: Project, r: Project): Boolean = (l, r) match {
+    // ensure main project file is on top
+    case (l, r) if l.eq(baseProject) => true
+    case (l, r) if r.eq(baseProject) => false
+    case (l, r) => l.projectFile.compareTo(r.projectFile) < 0
+  }
+
   def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis): Int = {
 
     SBuildRunner.verbose = config.verbose
@@ -208,13 +248,6 @@ class SBuildRunner {
       }.mkString("\n")
     }
 
-    def projectSorter(l: Project, r: Project): Boolean = (l, r) match {
-      // ensure main project file is on top
-      case (l, r) if l.eq(project) => true
-      case (l, r) if r.eq(project) => false
-      case (l, r) => l.projectFile.compareTo(r.projectFile) < 0
-    }
-
     // Format listing of target and return
     if (config.listTargets || config.listTargetsRecursive) {
       val projectsToList = if (config.listTargetsRecursive) {
@@ -222,14 +255,14 @@ class SBuildRunner {
       } else {
         Seq(project) ++ additionalProjects
       }
-      val out = projectsToList.sortWith(projectSorter _).map { p => formatTargetsOf(p) }
+      val out = projectsToList.sortWith(projectSorter(project) _).map { p => formatTargetsOf(p) }
       log.log(LogLevel.Info, out.mkString("\n\n"))
       // early exit
       return 0
     }
 
     if (config.listModules) {
-      val moduleNames = project.projectPool.projects.sortWith(projectSorter _).map {
+      val moduleNames = project.projectPool.projects.sortWith(projectSorter(project) _).map {
         p => formatProject(p)(project)
       }
       log.log(LogLevel.Info, moduleNames.mkString("\n"))
@@ -304,27 +337,18 @@ class SBuildRunner {
         Seq(project) ++ additionalProjects
       }
 
-      val targetsToCheck = projectsToCheck.sortWith(projectSorter _).flatMap { p =>
-        p.targets.values.filterNot(_.isImplicit)
-      }
-      // Console.println("About to check targets: "+targetsToCheck.mkString(", "))
-      var errors: Seq[(Target, String)] = Seq()
-      targetsToCheck.foreach { target =>
-        log.log(LogLevel.Info, "Checking target: " + formatTarget(target)(project))
-        try {
-          preorderedDependenciesTree(curTarget = target, skipExec = true)(project)
-          log.log(LogLevel.Info, "  \t" + fOk("OK"))
-        } catch {
-          case e: SBuildException =>
-            log.log(LogLevel.Info, "  \t" + fError("FAILED: " + e.getMessage))
-            errors ++= Seq(target -> e.getMessage)
-        }
-      }
+      val projects = projectsToCheck.sortWith(projectSorter(project) _)
+      val errors = checkTargets(projects)(project)
+
       if (!errors.isEmpty) log.log(LogLevel.Error, s"Found the following ${fError(errors.size.toString)} problems:")
       errors.foreach {
         case (target, message) =>
           log.log(LogLevel.Error, fError(formatTarget(target)(project) + ": " + message).toString)
       }
+
+      // also check for possible caching problems
+      projects.foreach { p => checkCacheableTargets(p, printWarning = true)(project) }
+
       // When errors, then return with 1 else with 0
       return if (errors.isEmpty) 0 else 1
     }
