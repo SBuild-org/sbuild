@@ -8,14 +8,15 @@ import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import java.util.Date
 import java.util.UUID
-
 import scala.collection.JavaConversions._
-
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdOption
 import de.tototec.sbuild._
 import org.fusesource.jansi.AnsiConsole
 import org.fusesource.jansi.Ansi
+import java.io.FileWriter
+import scala.io.Source
+import scala.util.Try
 
 object SBuildRunner extends SBuildRunner {
 
@@ -512,39 +513,86 @@ class SBuildRunner {
       val needsToRun: Boolean = curTarget.targetFile match {
         case Some(file) =>
           // file target
-          !file.exists || file.lastModified < depsLastModified
+          if (!file.exists) {
+            curTarget.project.log.log(LogLevel.Debug, s"""Target file "${file}" does not exists.""")
+            true
+          } else if (file.lastModified < depsLastModified) {
+            curTarget.project.log.log(LogLevel.Debug, s"""Target file "${file}" is older (${file.lastModified}) then dependencies (${depsLastModified}).""")
+            true
+          } else
+            false
 
         case None if curTarget.action == null =>
           // phony target but just a collector of dependencies
           ctx.targetLastModified = depsLastModified
           false
 
+        // THIS IS THE WRONG PLACE - WE NEED TO EXTRACT ALSO THE ATTACHTED FILE & CO
+        //        case None if curTarget.isCacheable =>
+        //          // We will create a persistent up-to-date checker on behalf of the target.
+        //          val checker = persistenceUpToDateChecker(ctx)
+        //          if (checker.checkUpToDate(checker.createStateMap)) {
+        //            // Checher reports up-to-dateness, so take the lastModified and return "needs-not-to-run"
+        //            val stateLastModified = checker.stateFile.lastModified
+        //            ctx.targetLastModified = stateLastModified
+        //            log.log(LogLevel.Debug, s"Cacheable phony target reports an up-to-date cached lastModified: ${stateLastModified}")
+        //            false
+        //          } else {
+        //            // Checker says no, so it needs to run
+        //            log.log(LogLevel.Debug, s"Cacheable phony target ")
+        //            true
+        //          }
+
         case None =>
+          // ensure, that the persistent state gets erased, whenever a non-cacheble phony target runs
+          if (curTarget.isEvictCache) {
+            curTarget.project.log.log(LogLevel.Debug, s"""Target "${curTarget.name}" will evict the target state cache now.""")
+            dropAllCacheState(curTarget.project)
+          }
           // phony target, have to run it always. Any laziness is up to it implementation
+          curTarget.project.log.log(LogLevel.Debug, s"""Target "${curTarget.name}" is phony and needs to run (if not cached).""")
           true
       }
 
       if (!needsToRun)
         log.log(LogLevel.Debug, "Target '" + formatTarget(curTarget) + "' does not need to run.")
 
-      // Print State
-      execProgress.map { state =>
-        val progress = (state.currentNr, state.maxCount) match {
-          case (c, m) if (c > 0 && m > 0) =>
-            val p = (c - 1) * 100 / m
-            fPercent("[" + math.min(100, math.max(0, p)) + "%]")
-          case (c, m) => "[" + c + "/" + m + "]"
-        }
+      //      // Print State
+      //      execProgress.map { state =>
+      //        val progress = (state.currentNr, state.maxCount) match {
+      //          case (c, m) if (c > 0 && m > 0) =>
+      //            val p = (c - 1) * 100 / m
+      //            fPercent("[" + math.min(100, math.max(0, p)) + "%]")
+      //          case (c, m) => "[" + c + "/" + m + "]"
+      //        }
+      //
+      //        val ft = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
+      //        val prefix = if (needsToRun) " Executing target: " else " Skipping target:  "
+      //        val level = if (needsToRun || dependencyTrace.isEmpty) LogLevel.Info else LogLevel.Debug
+      //        log.log(level, progress + prefix + ft(formatTarget(curTarget)))
+      //
+      //        state.currentNr += 1
+      //      }
 
-        val ft = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
-        val prefix = if (needsToRun) " Executing target: " else " Skipping target:  "
-        val level = if (needsToRun || dependencyTrace.isEmpty) LogLevel.Info else LogLevel.Debug
-        log.log(level, progress + prefix + ft(formatTarget(curTarget)))
-
-        state.currentNr += 1
+      val progressPrefix = execProgress match {
+        case Some(state) =>
+          val progress = (state.currentNr, state.maxCount) match {
+            case (c, m) if (c > 0 && m > 0) =>
+              val p = (c - 1) * 100 / m
+              fPercent("[" + math.min(100, math.max(0, p)) + "%] ")
+            case (c, m) => "[" + c + "/" + m + "] "
+          }
+          state.currentNr += 1
+          progress
+        case _ => ""
       }
+      val colorTarget = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
 
-      if (needsToRun) {
+      if (!needsToRun) {
+        val level = if (dependencyTrace.isEmpty) LogLevel.Info else LogLevel.Debug
+        log.log(level, progressPrefix + "Skipping target:  " + colorTarget(formatTarget(curTarget)))
+
+      } else {
         curTarget.action match {
           case null =>
             // Additional sanity check
@@ -554,6 +602,7 @@ class SBuildRunner {
               ex.targetName = Some(curTarget.name)
               throw ex
             }
+            log.log(LogLevel.Debug, progressPrefix + "Skipping target:  " + colorTarget(formatTarget(curTarget)))
             log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(curTarget))
           case exec =>
             WithinTargetExecution.set(new WithinTargetExecution {
@@ -561,16 +610,46 @@ class SBuildRunner {
               override def directDepsTargetContexts: Seq[TargetContext] = ctx.directDepsTargetContexts
             })
             try {
-              log.log(LogLevel.Debug, "Executing target: " + formatTarget(curTarget))
-              ctx.start
-              exec.apply(ctx)
-              ctx.end
-              log.log(LogLevel.Debug, s"Executed target '${formatTarget(curTarget)}' in ${ctx.execDurationMSec} msec")
+
+              // if state is Some(_), it is already check to be up-to-date
+              val cachedState: Option[CachedState] =
+                if (curTarget.isCacheable) loadOrDropCachedState(ctx)
+                else None
+
+              cachedState match {
+                case Some(cache) =>
+                  log.log(LogLevel.Debug, progressPrefix + "Skipping cached target: " + colorTarget(formatTarget(curTarget)))
+                  ctx.start
+                  ctx.targetLastModified = cachedState.get.targetLastModified
+                  cache.attachedFiles.foreach { file =>
+                    ctx.attachFile(file)
+                  }
+                  ctx.end
+
+                case None =>
+                  val level = if (curTarget.isTransparentExec) LogLevel.Debug else LogLevel.Info
+                  log.log(level, progressPrefix + "Executing target: " + colorTarget(formatTarget(curTarget)))
+                  ctx.start
+                  exec.apply(ctx)
+                  ctx.end
+                  log.log(LogLevel.Debug, s"Executed target '${formatTarget(curTarget)}' in ${ctx.execDurationMSec} msec")
+
+                  // update persistent cache
+                  if (curTarget.isCacheable) writeCachedState(ctx)
+              }
+
               ctx.targetLastModified match {
                 case Some(lm) =>
                   log.log(LogLevel.Debug, s"The context of target '${formatTarget(curTarget)}' reports a last modified value of '${lm}'. Request-ID: ${requestId}")
                 case _ =>
               }
+
+              ctx.attachedFiles match {
+                case Seq() =>
+                case files =>
+                  log.log(LogLevel.Debug, s"The context of target '${formatTarget(curTarget)}' has ${files.size} attached files")
+              }
+
             } catch {
               case e: TargetAware =>
                 ctx.end
@@ -604,6 +683,134 @@ class SBuildRunner {
 
   }
 
+  private case class CachedState(targetLastModified: Long, attachedFiles: Seq[File])
+
+  private def loadOrDropCachedState(ctx: TargetContext): Option[CachedState] = {
+    // TODO: check same prerequisites, check same fileDependencies, check same lastModified of fileDependencies, check same lastModified
+    // TODO: if all is same, return cached values
+
+    ctx.project.log.log(LogLevel.Debug, "Checking execution state of target: " + ctx.name)
+
+    var cachedPrerequisitesLastModified: Option[Long] = None
+    var cachedFileDependencies: Set[File] = Set()
+    var cachedPrerequisites: Seq[String] = Seq()
+    var cachedTargetLastModified: Option[Long] = None
+    var cachedAttachedFiles: Seq[File] = Seq()
+
+    val stateDir = Path(".sbuild/scala/" + ctx.target.project.projectFile.getName + "/cache")(ctx.project)
+    val stateFile = new File(stateDir, ctx.name.replaceFirst("^phony:", ""))
+    if (!stateFile.exists) {
+      ctx.project.log.log(LogLevel.Debug, s"""No execution state file for target "${ctx.name}" exists.""")
+      return None
+    }
+
+    var mode = ""
+
+    val source = Source.fromFile(stateFile)
+    def closeAndDrop(reason: => String) {
+      ctx.project.log.log(LogLevel.Debug, s"""Execution state file for target "${ctx.name}" exists, but is not up-to-date. Reason: ${reason}""")
+      source.close
+      stateFile.delete
+    }
+
+    source.getLines.foreach(line =>
+      if (line.startsWith("[")) {
+        mode = line
+      } else {
+        mode match {
+          case "[prerequisitesLastModified]" =>
+            cachedPrerequisitesLastModified = Try(line.toLong).toOption
+
+          case "[prerequisites]" =>
+            cachedPrerequisites ++= Seq(line)
+
+          case "[fileDependencies]" =>
+            cachedFileDependencies ++= Set(new File(line))
+
+          case "[attachedFiles]" =>
+            cachedAttachedFiles ++= Seq(new File(line))
+
+          case "[targetLastModified]" =>
+            cachedTargetLastModified = Try(line.toLong).toOption
+
+          case unknownMode =>
+            log.log(LogLevel.Warn, s"""Unexpected file format detected in file "${stateFile}". Dropping cached state of target "${ctx.name}".""")
+            closeAndDrop("Unknown mode: " + unknownMode)
+            return None
+        }
+      }
+    )
+
+    source.close
+
+    if (cachedTargetLastModified.isEmpty) {
+      closeAndDrop("Cached targetLastModified not defined.")
+      return None
+    }
+
+    if (ctx.prerequisitesLastModified > cachedPrerequisitesLastModified.get) {
+      closeAndDrop("prerequisitesLastModified do not match.")
+      return None
+    }
+
+    if (ctx.prerequisites.size != cachedPrerequisites.size ||
+      ctx.prerequisites.map { _.ref } != cachedPrerequisites) {
+      closeAndDrop("prerequisites changed.")
+      return None
+    }
+
+    val ctxFileDeps = ctx.fileDependencies.toSet
+    if (ctxFileDeps.size != cachedFileDependencies.size ||
+      ctxFileDeps != cachedFileDependencies) {
+      closeAndDrop("fileDependencies changed.")
+      return None
+    }
+
+    // TODO: also check existence of fileDependencies
+
+    Some(CachedState(targetLastModified = cachedTargetLastModified.get, attachedFiles = cachedAttachedFiles))
+  }
+
+  private def writeCachedState(ctx: TargetContextImpl) {
+    // TODO: robustness
+    val stateDir = Path(".sbuild/scala/" + ctx.target.project.projectFile.getName + "/cache")(ctx.project)
+    stateDir.mkdirs
+    val stateFile = new File(stateDir, ctx.name.replaceFirst("^phony:", ""))
+    val writer = new FileWriter(stateFile)
+
+    writer.write("[prerequisitesLastModified]\n")
+    writer.write(ctx.prerequisitesLastModified + "\n")
+
+    writer.write("[prerequisites]\n")
+    ctx.prerequisites.foreach { dep => writer.write(dep.ref + "\n") }
+
+    writer.write("[fileDependencies]\n")
+    ctx.fileDependencies.foreach { dep => writer.write(dep.getPath + "\n") }
+
+    writer.write("[targetLastModified]\n")
+    val targetLM = ctx.targetLastModified match {
+      case Some(lm) => lm
+      case _ =>
+        ctx.endTime match {
+          case Some(x) => x.getTime
+          case None => System.currentTimeMillis
+        }
+    }
+    writer.write(targetLM + "\n")
+
+    writer.write("[attachedFiles]\n")
+    ctx.attachedFiles.foreach { file => writer.write(file.getPath + "\n") }
+
+    writer.close
+    ctx.project.log.log(LogLevel.Debug, s"""Wrote execution cache state file for target "${ctx.name}" to ${stateFile}.""")
+
+  }
+
+  private def dropAllCacheState(project: Project) {
+    val stateDir = Path(".sbuild/scala/" + project.projectFile.getName + "/cache")(project)
+    Util.delete(stateDir)
+  }
+
   def dependenciesLastModified(dependencies: Array[ExecutedTarget])(implicit project: Project): Long = {
     var lastModified: Long = 0
     def updateLastModified(lm: Long) {
@@ -618,7 +825,7 @@ class SBuildRunner {
           log.log(LogLevel.Info, s"""The file "${file}" created by dependency "${formatTarget(dep.target)}" does no longer exists.""")
           updateLastModified(now)
         case Some(file) =>
-          // file target and file exists, so we use it last modified
+          // file target and file exists, so we use its last modified
           updateLastModified(file.lastModified)
         case None =>
           // phony target, so we ask its target context 

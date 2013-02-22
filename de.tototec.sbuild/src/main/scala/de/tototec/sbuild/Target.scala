@@ -30,7 +30,7 @@ trait Target {
   def phony: Boolean
 
   /**
-   * A prerequisites (dependencies) to this target. Sbuild will ensure,
+   * A prerequisites (dependencies) to this target. SBuild will ensure,
    * that these dependency are up-to-date before this target will be executed.
    */
   def dependsOn(goals: => TargetRefs): Target
@@ -54,18 +54,23 @@ trait Target {
    * Get the assigned help message.
    */
   def help: String
-  //  /**
-  //   * Default: use the file to which the target name resolves.
-  //   * If pattern is specified, we produce files matching the given pattern.
-  //   * If given "" as pattern, the goal is "phony", which means, the output cannot be checked by sbuild to actuality.
-  //   */
-  //  def produces(pattern: String): Target
-  //  def needsToExec(needsToExec: => Boolean): Target
 
   private[sbuild] def project: Project
 
   private[sbuild] def isImplicit: Boolean
 
+  def isCacheable: Boolean
+  /**
+   * EXPERIMENTAL! Do not use in your Build scripts!
+   */
+  def cacheable: Target
+  def setCacheable(cacheable: Boolean): Target
+
+  def isEvictCache: Boolean
+  def evictCache: Target
+  def setEvictCache(evictCache: Boolean): Target
+
+  private[sbuild] def isTransparentExec: Boolean
 }
 
 object Target {
@@ -91,6 +96,12 @@ case class ProjectTarget private[sbuild] (override val name: String,
     case _ => Seq[TargetRef]()
   }
 
+  private var _transparentExec: Boolean = handler match {
+    case Some(_: TransparentSchemeHandler) => true
+    case _ => false
+  }
+  private[sbuild] def isTransparentExec: Boolean = _transparentExec
+
   private var _exec: TargetContext => Any = handler match {
     case None => null
     case Some(handler) =>
@@ -110,6 +121,8 @@ case class ProjectTarget private[sbuild] (override val name: String,
     if (_exec != null) {
       project.log.log(LogLevel.Warn, s"Warning: Reassignment of exec block for target ${name}")
     }
+    // always non-transparent, but in case we override a transparent scheme handler here
+    _transparentExec = false
     _exec = execution
     this
   }
@@ -123,9 +136,10 @@ case class ProjectTarget private[sbuild] (override val name: String,
   override def toString() =
     getClass.getSimpleName +
       "(" + name + "=>" + file + (if (phony) "[phony]" else "") +
-      ", dependsOn=" + prereqs.map(t => t.name).mkString(" ~ ") +
-      ", exec=" + (if (_exec == null) "non" else "defined") +
+      ",dependsOn=" + prereqs.map(t => t.name).mkString(" ~ ") +
+      ",exec=" + (if (_exec == null) "non" else "defined") +
       ",isImplicit=" + isImplicit +
+      ",isCacheable=" + isCacheable +
       ")"
 
   lazy val targetFile: Option[File] = phony match {
@@ -133,4 +147,26 @@ case class ProjectTarget private[sbuild] (override val name: String,
     case true => None
   }
 
+  private[this] var _cacheable: Boolean = false
+  override def isCacheable: Boolean = _cacheable
+  override def setCacheable(cacheable: Boolean): Target = {
+    _cacheable = cacheable
+    this
+  }
+  override def cacheable(): Target = {
+    _cacheable = true
+    this
+  }
+
+  private[this] var _evictCache: Boolean = false
+  def isEvictCache: Boolean = _evictCache
+  def evictCache: Target = {
+    _evictCache = true
+    this
+  }
+  def setEvictCache(evictCache: Boolean): Target = {
+    _evictCache = evictCache
+    this
+  }
+  
 }
