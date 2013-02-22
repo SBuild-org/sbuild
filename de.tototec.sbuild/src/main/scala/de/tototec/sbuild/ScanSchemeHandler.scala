@@ -3,21 +3,23 @@ package de.tototec.sbuild
 import java.io.File
 
 class ScanSchemeHandler(implicit project: Project)
-    extends SchemeHandlerWithDependencies {
+    extends SchemeHandler //    extends SchemeHandlerWithDependencies
+    with TransparentSchemeHandler
+    {
 
   override def localPath(path: String): String = s"phony:scan-${path}"
 
-  override def resolve(path: String, targetContext: TargetContext) =
+  override def resolve(path: String, targetContext: TargetContext): Unit =
     scan(path).foreach {
       f =>
-        targetContext.attachFile_=(f)
+        targetContext.attachFile(f)
         targetContext.targetLastModified = f.lastModified
     }
 
-  override def dependsOn(path: String): TargetRefs =
-    if (path.contains(";asDependencies"))
-      scan(path).map(f => TargetRef(f)).toSeq
-    else TargetRefs()
+  //  override def dependsOn(path: String): TargetRefs =
+  //    if (path.contains(";asDependencies"))
+  //      scan(path).map(f => TargetRef(f)).toSeq
+  //    else TargetRefs()
 
   def scan(path: String): Array[File] = {
     // TODO: parse path pattern, for now, only a simple regex

@@ -45,7 +45,7 @@ trait TargetContext {
   /**
    * Attach additional files to this target context. The file must exists!
    */
-  def attachFile_=(file: File)
+  def attachFile(file: File)
 
   def targetFiles: Seq[File] = targetFile.toSeq ++ attachedFiles
 }
@@ -70,10 +70,11 @@ class TargetContextImpl(
   private var startTime: Date = _
 
   def end = endTime match {
-    case null => endTime = new Date()
+    case null => _endTime = new Date()
     case _ =>
   }
-  private var endTime: Date = _
+  private var _endTime: Date = _
+  private[sbuild] def endTime: Option[Date] = Option(_endTime)
 
   /**
    * The time in milliseconds this target took to execute.
@@ -83,8 +84,8 @@ class TargetContextImpl(
     case null => 0
     case _ =>
       (endTime match {
-        case null => new Date()
-        case x => x
+        case None => new Date()
+        case Some(x) => x
       }).getTime - startTime.getTime
   }
 
@@ -125,7 +126,7 @@ class TargetContextImpl(
   private[sbuild] var _attachedFiles: Seq[File] = Seq()
 
   override def attachedFiles: Seq[File] = _attachedFiles
-  override def attachFile_=(file: File) {
+  override def attachFile(file: File) {
     _attachedFiles ++= Seq(file)
     // If we have already a set lastModified, than update it now
     if (targetLastModified.isDefined) {

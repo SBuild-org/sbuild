@@ -1,14 +1,20 @@
 package de.tototec.sbuild
 
 /**
- * Translates some kind of path into a local path suitable as a virtual target name.
+ * Translates a target name into another (local) target name with a built-in target scheme.
  * If SBuild decides, that the virtual target needs to be executed (is not up-to-date),
- * (@link #resolve(String)} will be called.
+ * [[de.tototec.sbuild.SchemeHandler#resolve(String)]] will be called.
  *
  */
 trait SchemeHandler {
-  // should return something starting with "file:" or "phony:"
+  /**
+   * The resulting target name (path) this target resolves to.
+   * If must either start with "file:" or "phony:" (the built-in target schemes).
+   */
   def localPath(path: String): String
+  /**
+   * Actually resolve the dependency/target.
+   */
   def resolve(path: String, targetContext: TargetContext)
 }
 
@@ -21,5 +27,17 @@ object SchemeHandler {
 }
 
 trait SchemeHandlerWithDependencies extends SchemeHandler {
+  /**
+   * Return the dependencies required to be resolved when resolving the given path.
+   * Please note, that the return value of this method needs to be stable for the same path,
+   * as it is evaluated at configuration time, not at resolving time.
+   */
   def dependsOn(path: String): TargetRefs
 }
+
+/**
+ * A internal marker interface.
+ * Currently used to denote scheme handler, that should work more silently, e.g. the default "scan:" handler.
+ *
+ */
+trait TransparentSchemeHandler extends SchemeHandler
