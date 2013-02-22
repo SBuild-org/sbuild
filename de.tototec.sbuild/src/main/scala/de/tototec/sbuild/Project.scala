@@ -303,6 +303,7 @@ class Project(_projectFile: File,
     SchemeHandler("http", new HttpSchemeHandler())
     SchemeHandler("mvn", new MvnSchemeHandler())
     SchemeHandler("zip", new ZipSchemeHandler())
+    SchemeHandler("scan", new ScanSchemeHandler())
   }
 
   private var _properties: Map[String, String] = Map()
