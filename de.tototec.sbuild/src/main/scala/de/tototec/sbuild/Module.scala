@@ -12,13 +12,17 @@ object Module {
     dirOrFiles.map { dirOrFile => Module(dirOrFile) }
 }
 
+class Module private[sbuild] (dirOrFile: String, project: Project) {
+  def name = dirOrFile
+  def targetRef(targetRefName: String): TargetRef = TargetRef(dirOrFile + "::" + targetRefName)(project)
+  def targetRefs(targetRefNames: String*): TargetRefs = targetRefNames.map(t => targetRef(t))
+}
+
 object Modules {
   def apply(dirOrFiles: String*)(implicit _project: Project): Seq[Module] =
     dirOrFiles.map { dirOrFile => Module(dirOrFile) }
 }
 
-
-class Module private[sbuild] (dirOrFile: String, project: Project) {
-  def targetRef(targetRefName: String): TargetRef = TargetRef(dirOrFile + "::" + targetRefName)(project)
-  def targetRefs(targetRefNames: String*): TargetRefs = targetRefNames.map(t => targetRef(t))
-}
+//class Modules(modules: Seq[Module]) {
+//  def targetRefs(targetRefName: String): TargetRefs = TargetRefs(modules.map(_ targetRef targetRefName))
+//}
