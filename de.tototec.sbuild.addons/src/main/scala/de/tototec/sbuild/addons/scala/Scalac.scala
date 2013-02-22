@@ -26,7 +26,9 @@ object Scalac {
     target: String = null,
     debugInfo: String = null,
     fork: Boolean = false,
-    additionalScalacArgs: Array[String] = null)(implicit project: Project) =
+    additionalScalacArgs: Array[String] = null,
+    // since 0.3.2.9002
+    sources: Seq[File] = null)(implicit project: Project) =
     new Scalac(
       compilerClasspath = compilerClasspath,
       classpath = classpath,
@@ -40,7 +42,8 @@ object Scalac {
       target = target,
       debugInfo = debugInfo,
       fork = fork,
-      additionalScalacArgs = additionalScalacArgs
+      additionalScalacArgs = additionalScalacArgs,
+      sources = sources
     ).execute
 
 }
@@ -58,7 +61,9 @@ class Scalac(
   var target: String = null,
   var debugInfo: String = null,
   var fork: Boolean = false,
-  var additionalScalacArgs: Array[String] = null)(implicit project: Project) {
+  var additionalScalacArgs: Array[String] = null,
+  // since 0.3.2.9002
+  var sources: Seq[File] = null)(implicit project: Project) {
 
   val scalacClassName = "scala.tools.nsc.Main"
 
@@ -89,14 +94,16 @@ class Scalac(
     var allSrcDirs = Seq[File]()
     if (srcDir != null) allSrcDirs ++= Seq(srcDir)
     if (srcDirs != null) allSrcDirs ++= srcDirs
-    require(!allSrcDirs.isEmpty, "No source path(s) set.")
+    require(!allSrcDirs.isEmpty || !sources.isEmpty, "No source path(s) and no sources set.")
 
-    val sourceFiles: Seq[File] = allSrcDirs.flatMap { dir =>
-      project.log.log(LogLevel.Debug, "Search files in dir: " + dir)
-      val files = Util.recursiveListFiles(dir, """.*\.(java|scala)$""".r)
-      project.log.log(LogLevel.Debug, "Found files: " + files.mkString(", "))
-      files
-    }
+    val sourceFiles: Seq[File] =
+      (if (sources == null) Seq() else sources) ++
+        allSrcDirs.flatMap { dir =>
+          project.log.log(LogLevel.Debug, "Search files in dir: " + dir)
+          val files = Util.recursiveListFiles(dir, """.*\.(java|scala)$""".r)
+          project.log.log(LogLevel.Debug, "Found files: " + files.mkString(", "))
+          files
+        }
 
     if (!sourceFiles.isEmpty) {
       val absSourceFiles = sourceFiles.map(f => f.getAbsolutePath)
@@ -105,7 +112,7 @@ class Scalac(
     }
 
     project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} source files to ${destDir}")
-    
+
     if (fork) {
       compileExternal(args)
     } else {
