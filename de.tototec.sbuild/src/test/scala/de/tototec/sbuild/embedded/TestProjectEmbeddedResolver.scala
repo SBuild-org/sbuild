@@ -69,11 +69,11 @@ class TestProjectEmbeddedResolver extends FreeSpec {
     }
   }
 
-  //  "An project with one phony target" - {
-
-  "should resolve that same target" in {
-
+  "A project with one phony target" - {
+    "should resolve that same target" in pending
   }
-
-  //  }
+  
+  "A project with one file target" - {
+    "should resolve one file if it exists" in pending
+  }
 }
