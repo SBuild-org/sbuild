@@ -35,6 +35,8 @@ SBuild 0.3.2.9000
 * Fixed return value handling in shell wrapper, resulting in sbuild command
   line application always returning 0.
 * Updated German translations.
+* Improved tolerance for truncated last modified time stamps of files.
+* Also print the target self description when executing, if any.
 
 SBuild 0.3.2 - 2013-01-26
 
