@@ -12,6 +12,13 @@ trait SchemeHandler {
    * If must either start with "file:" or "phony:" (the built-in target schemes).
    */
   def localPath(path: String): String
+}
+
+/**
+ * A SchemeHandler, that also resolves the representing target. 
+ * The localPath of such schemes should point into a built-in target scheme, either "file" or "phony".
+ */
+trait SchemeResolver extends SchemeHandler {
   /**
    * Actually resolve the dependency/target.
    */
@@ -40,4 +47,4 @@ trait SchemeHandlerWithDependencies extends SchemeHandler {
  * Currently used to denote scheme handler, that should work more silently, e.g. the default "scan:" handler.
  *
  */
-trait TransparentSchemeHandler extends SchemeHandler
+trait TransparentSchemeResolver extends SchemeResolver

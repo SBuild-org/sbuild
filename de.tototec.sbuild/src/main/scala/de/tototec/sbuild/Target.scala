@@ -97,15 +97,15 @@ case class ProjectTarget private[sbuild] (override val name: String,
   }
 
   private var _transparentExec: Boolean = handler match {
-    case Some(_: TransparentSchemeHandler) => true
+    case Some(_: TransparentSchemeResolver) => true
     case _ => false
   }
   private[sbuild] def isTransparentExec: Boolean = _transparentExec
 
   private var _exec: TargetContext => Any = handler match {
-    case None => null
-    case Some(handler) =>
+    case Some(handler: SchemeResolver) =>
       ctx: TargetContext => handler.resolve(TargetRef(name)(project).nameWithoutProto, ctx)
+    case _ => null
   }
 
   private[sbuild] override def action = _exec

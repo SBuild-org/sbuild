@@ -230,8 +230,8 @@ class Project(_projectFile: File,
         }
         throw e
       case Some(proto) => schemeHandlers.get(proto) match {
-        case Some(handler) =>
-          val handlerOutput = handler.localPath(targetRef.nameWithoutProto)
+        case Some(resolver: SchemeResolver) =>
+          val handlerOutput = resolver.localPath(targetRef.nameWithoutProto)
           val outputRef = new TargetRef(handlerOutput)(this)
           val phony = outputRef.explicitProto match {
             case Some("phony") => true
@@ -244,7 +244,10 @@ class Project(_projectFile: File,
               }
               throw e
           }
-          UniqueTargetFile(Path(outputRef.nameWithoutProto)(this), phony, Some(handler))
+          UniqueTargetFile(Path(outputRef.nameWithoutProto)(this), phony, Some(resolver))
+        case Some(handler) => 
+          // this is a handler but not a resolver
+          uniqueTargetFile(TargetRef(handler.localPath(targetRef.nameWithoutProto))(this))
         case None =>
           val e = new UnsupportedSchemeException("No scheme handler registered, that supports scheme: " + proto)
           e.buildScript = foreignProject match {

@@ -3,8 +3,8 @@ package de.tototec.sbuild
 import java.io.File
 
 class ScanSchemeHandler(implicit project: Project)
-    extends SchemeHandler //    extends SchemeHandlerWithDependencies
-    with TransparentSchemeHandler {
+    extends SchemeResolver //    extends SchemeHandlerWithDependencies
+    with TransparentSchemeResolver {
 
   override def localPath(path: String): String = s"phony:scan-${path}"
 

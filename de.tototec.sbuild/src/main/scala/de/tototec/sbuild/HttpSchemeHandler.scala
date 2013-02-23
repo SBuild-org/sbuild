@@ -17,7 +17,8 @@ class HttpSchemeHandler(downloadDir: File = null,
     case null => Path(".sbuild/http")
     case x => x
   },
-  forceDownload) with SchemeHandler {
+  forceDownload)
+    with SchemeResolver {
 
   override def resolve(path: String, targetContext: TargetContext) = {
     val lastModified = download(path, project.log)
@@ -26,13 +27,13 @@ class HttpSchemeHandler(downloadDir: File = null,
 
 }
 
-class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = false) {
+class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = false) extends SchemeHandler {
 
   var online: Boolean = true
 
   def url(path: String): URL = new URL("http:" + path)
 
-  def localPath(path: String): String = "file:" + localFile(path).getPath
+  override def localPath(path: String): String = "file:" + localFile(path).getPath
 
   def localFile(path: String): File = {
     url(path)
@@ -50,7 +51,7 @@ class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = 
         target.lastModified
       } else {
         val url = this.url(path)
-//        println("Downloading " + url + "...")
+        //        println("Downloading " + url + "...")
         Util.download(url.toString, target.getPath, log) match {
           case Some(e) => throw e
           case _ => target.lastModified

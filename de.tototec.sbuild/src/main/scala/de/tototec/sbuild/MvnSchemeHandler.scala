@@ -15,8 +15,8 @@ import java.io.FileNotFoundException
  *
  */
 class MvnSchemeHandler(
-  val downloadPath: File = new File(System.getProperty("user.home", ".") + "/.m2/repository"),
-  repos: Seq[String] = Seq("http://repo1.maven.org/maven2/"))(implicit project: Project) extends SchemeHandler {
+    val downloadPath: File = new File(System.getProperty("user.home", ".") + "/.m2/repository"),
+    repos: Seq[String] = Seq("http://repo1.maven.org/maven2/"))(implicit project: Project) extends SchemeResolver {
 
   protected var provisionedResources: Map[String, String] = Map()
 
