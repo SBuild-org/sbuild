@@ -540,12 +540,18 @@ class SBuildRunner {
           if (!file.exists) {
             curTarget.project.log.log(LogLevel.Debug, s"""Target file "${file}" does not exists.""")
             true
-          } else if (file.lastModified < depsLastModified) {
-            curTarget.project.log.log(LogLevel.Debug, s"""Target file "${file}" is older (${file.lastModified}) then dependencies (${depsLastModified}).""")
-            true
-          } else
-            false
+          } else {
+            val fileLastModified = file.lastModified
+            if (fileLastModified < depsLastModified) {
+              curTarget.project.log.log(LogLevel.Debug, s"""Target file "${file}" is older (${fileLastModified}) then dependencies (${depsLastModified}).""")
+              val diff = depsLastModified - fileLastModified
+              if (diff < 1000 && fileLastModified % 1000 == 0 && System.getProperty("os.name").toLowerCase.contains("linux")) {
+                curTarget.project.log.log(LogLevel.Debug, s"""Assuming up-to-dateness. Target file "${file}" is only ${diff} msec older, which might be caused by files system limitations or Oracle Java limitations (e.g. for ext4).""")
+                false
+              } else true
 
+            } else false
+          }
         case None if curTarget.action == null =>
           // phony target but just a collector of dependencies
           ctx.targetLastModified = depsLastModified
@@ -653,6 +659,8 @@ class SBuildRunner {
                 case None =>
                   val level = if (curTarget.isTransparentExec) LogLevel.Debug else LogLevel.Info
                   log.log(level, progressPrefix + "Executing target: " + colorTarget(formatTarget(curTarget)))
+                  if(curTarget.help != null && curTarget.help.trim != "") 
+                    log.log(level, progressPrefix + curTarget.help)
                   ctx.start
                   exec.apply(ctx)
                   ctx.end
