@@ -71,7 +71,9 @@ class MvnSchemeHandler(
       repos.takeWhile(repo => {
         val url = repo + "/" + constructMvnPath(path)
         result = Util.download(url, target.getPath, project.log)
-        result.isDefined || !target.exists
+        val failed = result.isDefined || !target.exists
+        if(failed) project.log.log(LogLevel.Info, "Download failed.")
+        failed
       })
       result match {
         case Some(e) => throw e
