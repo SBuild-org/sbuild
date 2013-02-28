@@ -67,4 +67,14 @@ class Config {
     description = "Check targets of this project and all its modules for cycles and missing scheme handlers.")
   var checkRecusive = false
 
+  @CmdOption(names = Array("--just-clean"),
+    description = "Remove all generated output and caches without reading any buildfile. This will essentially remove the \".sbuild\" directory in the current directory.")
+  var justClean: Boolean = false
+
+  @CmdOption(names = Array("--just-clean-recursive"),
+    description = "Remove all generated output and caches without reading any buildfile. This will essentially remove the \".sbuild\" directory in the current directory and all sub-directories, no matter, if sub-directories contain SBuild projects or not.")
+  var justCleanRecursive: Boolean = false
+
+  
+  
 }

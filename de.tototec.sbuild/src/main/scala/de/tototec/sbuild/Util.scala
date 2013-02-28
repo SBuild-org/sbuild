@@ -21,19 +21,21 @@ object Util {
 
   var log: SBuildLogger = SBuildNoneLogger
 
-  def delete(files: File*) {
+  def delete(files: File*): Boolean = {
+    var success = true;
     files.map(_ match {
       case f if f.isDirectory => {
-        delete(f.listFiles: _*)
+        success = delete(f.listFiles: _*) && success
         log.log(LogLevel.Debug, "Deleting dir: " + f)
-        f.delete
+        success = f.delete && success
       }
       case f if f.exists => {
         log.log(LogLevel.Debug, "Deleting file: " + f)
-        f.delete
+        success = f.delete && success
       }
       case _ =>
     })
+    success
   }
 
   def download(url: String, target: String, log: SBuildLogger = log): Option[Throwable] = {

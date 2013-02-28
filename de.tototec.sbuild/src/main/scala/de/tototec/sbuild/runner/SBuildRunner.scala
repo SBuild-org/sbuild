@@ -148,6 +148,27 @@ class SBuildRunner {
       return 0
     }
 
+    if (config.justClean || config.justCleanRecursive) {
+      def cleanStateDir(dir: File, recursive: Boolean): Boolean = {
+        var success = true
+        val stateDir = new File(dir, ".sbuild")
+        if (stateDir.exists && stateDir.isDirectory) {
+          log.log(LogLevel.Info, "Deleting " + stateDir.getPath())
+          success = Util.delete(stateDir) && success
+        }
+        if (recursive) {
+          dir.listFiles.map { file =>
+            if (file.isDirectory) {
+              success = cleanStateDir(file, recursive) && success
+            }
+          }
+        }
+        success
+      }
+      val baseDir = new File(".").getAbsoluteFile
+      if (cleanStateDir(baseDir, config.justCleanRecursive)) return 0 else return 1
+    }
+
     def errorOutput(e: Throwable, msg: String = null) = {
       log.log(LogLevel.Error, "")
 
@@ -659,7 +680,7 @@ class SBuildRunner {
                 case None =>
                   val level = if (curTarget.isTransparentExec) LogLevel.Debug else LogLevel.Info
                   log.log(level, progressPrefix + "Executing target: " + colorTarget(formatTarget(curTarget)))
-                  if(curTarget.help != null && curTarget.help.trim != "") 
+                  if (curTarget.help != null && curTarget.help.trim != "")
                     log.log(level, progressPrefix + curTarget.help)
                   ctx.start
                   exec.apply(ctx)
