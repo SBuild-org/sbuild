@@ -41,7 +41,7 @@ SBuild 0.3.2.9000
 * Also print the target self description when executing, if any.
 * Added support for additional commandline options via environment variable 
   SBUILD_OPTS.
-* Added new command line options --just-clean and --just-clean-rekursive to
+* Added new command line options --just-clean and --just-clean-recursive to
   delete all .sbuild state directories (recursive) without checking and reading
   any SBuild build file.
 * Cache Scala compiler instance when reading projects, to improve compilation
