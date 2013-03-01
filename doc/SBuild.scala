@@ -16,7 +16,7 @@ class SBuild(implicit _project: Project) {
     AntDelete(dir = Path("target"))
   }
 
-  Target("phony:all") dependsOn "convert-wiki-to-html" ~ "convert-manual-to-html"
+  Target("phony:all") dependsOn "convert-wiki-to-html" ~ "convert-manual-to-html" ~ "convert-manual-to-docbook"
 
   // TODO: depend on wiki files
   Target("phony:convert-wiki-to-html") exec {
