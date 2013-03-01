@@ -24,6 +24,7 @@ import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.WithinTargetExecution
 import de.tototec.sbuild.TargetContextImpl
+import java.lang.reflect.Method
 
 object ProjectScript {
   def cutSimpleComment(str: String): String = {
@@ -49,6 +50,10 @@ object ProjectScript {
     }
     str
   }
+
+  def dropCaches {scalaCompilerAndClassloader = None}
+  private var scalaCompilerAndClassloader: Option[(Any, Method, Method)] = None
+
 }
 
 class ProjectScript(_scriptFile: File,
@@ -345,11 +350,14 @@ class ProjectScript(_scriptFile: File,
   def compile(classpath: String, includes: Map[String, Array[File]]) {
     val params = Array("-classpath", classpath, "-deprecation", "-g:vars", "-d", targetDir.getPath, scriptFile.getPath) ++
       (includes.flatMap { case (name, files) => files }.map { _.getPath })
-    log.log(LogLevel.Debug, "Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
-    val compilerClassloader = new URLClassLoader(compileClasspath.map { f => new File(f).toURI.toURL }, getClass.getClassLoader)
+
+    lazy val lazyCompilerClassloader = {
+      log.log(LogLevel.Debug, "Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
+      new URLClassLoader(compileClasspath.map { f => new File(f).toURI.toURL }, getClass.getClassLoader)
+    }
 
     def compileWithFsc {
-      val compileClient = compilerClassloader.loadClass("scala.tools.nsc.StandardCompileClient").newInstance
+      val compileClient = lazyCompilerClassloader.loadClass("scala.tools.nsc.StandardCompileClient").newInstance
       //      import scala.tools.nsc.StandardCompileClient
       //      val compileClient = new StandardCompileClient
       val compileMethod = compileClient.asInstanceOf[Object].getClass.getMethod("process", Array(classOf[Array[String]]): _*)
@@ -359,11 +367,22 @@ class ProjectScript(_scriptFile: File,
     }
 
     def compileWithoutFsc {
-      val compiler = compilerClassloader.loadClass("scala.tools.nsc.Main")
-      val compilerMethod = compiler.getMethod("process", Array(classOf[Array[String]]): _*)
+      val (compiler, compilerMethod, reporterMethod) = ProjectScript.scalaCompilerAndClassloader match {
+        case Some((c, cm, rm)) =>
+          log.log(LogLevel.Debug, "Reusing cached compiler instance.")
+          (c, cm, rm)
+        case None =>
+          val compiler = lazyCompilerClassloader.loadClass("scala.tools.nsc.Main")
+          val compilerMethod = compiler.getMethod("process", Array(classOf[Array[String]]): _*)
+          val reporterMethod = compiler.getMethod("reporter")
+          val cache = (compiler, compilerMethod, reporterMethod)
+          log.log(LogLevel.Debug, "Caching compiler for later use.")
+          ProjectScript.scalaCompilerAndClassloader = Some(cache)
+          cache
+      }
+
       log.log(LogLevel.Debug, "Executing Scala Compile with args: " + params.mkString(" "))
       compilerMethod.invoke(null, params)
-      val reporterMethod = compiler.getMethod("reporter")
       val reporter = reporterMethod.invoke(null)
       val hasErrorsMethod = reporter.asInstanceOf[Object].getClass.getMethod("hasErrors")
       val hasErrors = hasErrorsMethod.invoke(reporter).asInstanceOf[Boolean]

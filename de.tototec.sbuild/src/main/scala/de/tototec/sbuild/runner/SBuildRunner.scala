@@ -255,6 +255,9 @@ class SBuildRunner {
       }
     }
 
+    // Now, that we loaded all projects, we can release some resources. 
+    ProjectScript.dropCaches
+    
     log.log(LogLevel.Debug, "Targets: \n" + project.targets.values.mkString("\n"))
 
     /**
@@ -708,14 +711,14 @@ class SBuildRunner {
                 ctx.end
                 if (e.targetName.isEmpty)
                   e.targetName = Some(formatTarget(curTarget))
-                log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}")
+                log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}", e)
                 throw e
               case e: Throwable =>
                 ctx.end
                 val ex = new ExecutionFailedException(s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getMessage}", e.getCause, s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getLocalizedMessage}")
                 ex.buildScript = Some(curTarget.project.projectFile)
                 ex.targetName = Some(formatTarget(curTarget))
-                log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
+                log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}", e)
                 throw ex
             } finally {
               WithinTargetExecution.remove
