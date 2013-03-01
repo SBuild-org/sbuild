@@ -142,8 +142,17 @@ class Project(_projectFile: File,
     explicitForeignProject(targetRef) match {
       case Some(pFile) =>
         projectPool.propjectMap.get(pFile) match {
-          case None => throw new TargetNotFoundException("Could not found target: " + targetRef + ". Unknown project: " + pFile)
-          case Some(p) => p.findTarget(targetRef, searchInAllProjects = false)
+          case None =>
+            val ex = new TargetNotFoundException("Could not find target: " + targetRef + ". Unknown project: " + pFile)
+            ex.buildScript = Some(projectFile)
+            throw ex
+          case Some(p) => p.findTarget(targetRef, searchInAllProjects = false) match {
+            case None =>
+              val ex = new TargetNotFoundException("Could not find target: " + targetRef + " in project: " + pFile)
+              ex.buildScript = Some(projectFile)
+              throw ex
+            case x => x
+          }
         }
       case None =>
         uniqueTargetFile(targetRef) match {
@@ -245,7 +254,7 @@ class Project(_projectFile: File,
               throw e
           }
           UniqueTargetFile(Path(outputRef.nameWithoutProto)(this), phony, Some(resolver))
-        case Some(handler) => 
+        case Some(handler) =>
           // this is a handler but not a resolver
           uniqueTargetFile(TargetRef(handler.localPath(targetRef.nameWithoutProto))(this))
         case None =>

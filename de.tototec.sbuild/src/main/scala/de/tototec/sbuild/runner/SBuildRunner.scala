@@ -510,7 +510,11 @@ class SBuildRunner {
         val ex = new UnsupportedSchemeException("Unsupported Scheme in dependencies of target: " +
           formatTarget(curTarget) + ". " + e.getMessage)
         ex.buildScript = e.buildScript
+        ex.targetName = Some(formatTarget(curTarget))
         throw ex
+      case e: TargetAware if e.targetName == None =>
+        e.targetName = Some(formatTarget(curTarget))
+        throw e
     }
     log.log(LogLevel.Debug, "Dependencies of " + formatTarget(curTarget) + ": " +
       (if (dependencies.isEmpty) "<none>" else dependencies.map(formatTarget(_)).mkString(" ~ ")))
