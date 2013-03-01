@@ -157,7 +157,8 @@ class SBuildRunner {
           success = Util.delete(stateDir) && success
         }
         if (recursive) {
-          dir.listFiles.map { file =>
+          val files = dir.listFiles
+          if(files != null) files.map { file =>
             if (file.isDirectory) {
               success = cleanStateDir(file, recursive) && success
             }
@@ -165,7 +166,7 @@ class SBuildRunner {
         }
         success
       }
-      val baseDir = new File(".").getAbsoluteFile
+      val baseDir = new File(new File(".").getAbsoluteFile.toURI.normalize)
       if (cleanStateDir(baseDir, config.justCleanRecursive)) return 0 else return 1
     }
 
