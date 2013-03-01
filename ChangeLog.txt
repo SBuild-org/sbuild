@@ -10,7 +10,9 @@ SBuild 0.3.2.9000
   download more efficiently and does not leave temp file on download failures.
   This improves all scheme handlers as well.
 * Added new commandline options --check and --check-recursive to check all 
-  defined targets for cycles and potentially missing scheme handlers.
+  defined targets for cycles and potentially missing scheme handlers. This
+  will also detect projects with cacheable targets, that do not define an
+  evictCache target.
 * Added new class Module which can be used to easily create target references
   to targets in that module with Module.targetRef(String) and
   Module.targetRefs(String*).
@@ -37,6 +39,13 @@ SBuild 0.3.2.9000
 * Updated German translations.
 * Improved tolerance for truncated last modified time stamps of files.
 * Also print the target self description when executing, if any.
+* Added support for additional commandline options via environment variable 
+  SBUILD_OPTS.
+* Added new command line options --just-clean and --just-clean-rekursive to
+  delete all .sbuild state directories (recursive) without checking and reading
+  any SBuild build file.
+* Cache Scala compiler instance when reading projects, to improve compilation
+  speed for build files.
 
 SBuild 0.3.2 - 2013-01-26
 
