@@ -44,12 +44,12 @@ class BndJar(
     setBaseMethod.invoke(builder, project.projectDirectory)
 
     val addClasspathMethod = builderClass.getMethod("addClasspath", classOf[File])
-    classpath.foreach { file =>
+    if(classpath != null) classpath.foreach { file =>
       addClasspathMethod.invoke(builder, file)
     }
 
     val setPropertyMethod = builderClass.getMethod("setProperty", classOf[String], classOf[String])
-    props.foreach {
+    if(props != null) props.foreach {
       case (key, value) => setPropertyMethod.invoke(builder, key, value)
     }
 
