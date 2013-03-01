@@ -158,7 +158,7 @@ class SBuildRunner {
         }
         if (recursive) {
           val files = dir.listFiles
-          if(files != null) files.map { file =>
+          if (files != null) files.map { file =>
             if (file.isDirectory) {
               success = cleanStateDir(file, recursive) && success
             }
@@ -258,7 +258,7 @@ class SBuildRunner {
 
     // Now, that we loaded all projects, we can release some resources. 
     ProjectScript.dropCaches
-    
+
     log.log(LogLevel.Debug, "Targets: \n" + project.targets.values.mkString("\n"))
 
     /**
@@ -302,9 +302,9 @@ class SBuildRunner {
     val targets = requested.toList
 
     // The dependencyTree will be populated by the treePrinter, in case it was requested on commandline
-    var dependencyTree = Seq[(Int, Target)]()
-    val treePrinter = config.showDependencyTree match {
-      case true => Some((depth: Int, node: Target) => { dependencyTree ++= Seq((depth, node)) })
+    var dependencyTree = List[(Int, Target)]()
+    val treePrinter: Option[(Int, Target) => Unit] = config.showDependencyTree match {
+      case true => Some((depth: Int, node: Target) => { dependencyTree = (depth -> node) :: dependencyTree })
       case _ => None
     }
 
@@ -338,7 +338,8 @@ class SBuildRunner {
       val showGoUp = true
       var lastDepth = 0
       var lastShown = Map[Int, Target]()
-      val output = "Dependency tree: \n" + dependencyTree.map {
+      log.log(LogLevel.Info, "Dependency tree:")
+      val lines = dependencyTree.reverse.map {
         case (depth, target) =>
 
           var prefix = if (lastDepth > depth && depth > 0) {
@@ -347,9 +348,11 @@ class SBuildRunner {
 
           lastDepth = depth
           lastShown += (depth -> target)
-          prefix + List.fill(depth)("  ").mkString + "  " + formatTarget(target)(project)
-      }.mkString("\n")
-      log.log(LogLevel.Info, output)
+          val line = prefix + List.fill(depth)("  ").mkString + "  " + formatTarget(target)(project)
+
+          line
+      }
+      log.log(LogLevel.Info, lines.mkString("\n"))
       // early exit
       return 0
     }
@@ -385,12 +388,12 @@ class SBuildRunner {
     val bootstrapTime = executionStart - bootstrapStart
 
     if (!targets.isEmpty && !config.noProgress) {
-      log.log(LogLevel.Info, "Executing...")
+      log.log(LogLevel.Info, fPercent("[0%]") + " Executing...")
     }
 
     preorderedDependenciesForest(targets, execProgress = execProgress)(project)
     if (!targets.isEmpty && !config.noProgress) {
-      println(fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
+      log.log(LogLevel.Info, fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
         " msec, Execution time: " + (System.currentTimeMillis - executionStart) + " msec")
     }
 
