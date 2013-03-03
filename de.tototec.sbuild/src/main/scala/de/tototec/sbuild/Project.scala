@@ -25,7 +25,7 @@ class Project(_projectFile: File,
   private var _modules: List[Project] = List()
   def modules: List[Project] = _modules
 
-  private[sbuild] def findModule(dirOrFile: String): Option[Project] = {
+  private[sbuild] def findModule(dirOrFile: String): Option[Project] =
     Path(dirOrFile)(this) match {
       case x if !x.exists => None
       case newProjectDirOrFile =>
@@ -41,7 +41,6 @@ class Project(_projectFile: File,
             }
         }
     }
-  }
 
   private[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean = true): Project = {
 
@@ -138,7 +137,7 @@ class Project(_projectFile: File,
    *        the current project and the TargetRef did not contain a project
    *        referrer, search in all other projects.
    */
-  def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false): Option[Target] = {
+  def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false): Option[Target] =
     explicitForeignProject(targetRef) match {
       case Some(pFile) =>
         projectPool.propjectMap.get(pFile) match {
@@ -202,7 +201,6 @@ class Project(_projectFile: File,
           }
         }
     }
-  }
 
   case class UniqueTargetFile(file: File, phony: Boolean, handler: Option[SchemeHandler])
 
@@ -268,33 +266,34 @@ class Project(_projectFile: File,
     }
   }
 
-  def prerequisites(target: Target, searchInAllProjects: Boolean = false): List[Target] = target.dependants.map { dep =>
-    findTarget(dep, searchInAllProjects = searchInAllProjects) match {
-      case Some(target) => target
-      case None =>
-        // TODO: if none target was found, look in other project if they provide the target
-        dep.explicitProto match {
-          case Some("phony") =>
-            throw new TargetNotFoundException("Non-existing prerequisite '" + dep.name + "' found for target: " + target)
-          case None | Some("file") =>
-            // try to find a file
-            createTarget(dep, isImplicit = true) exec {
-              val file = Path(dep.name)(this)
-              if (!file.exists || !file.isDirectory) {
-                val e = new ProjectConfigurationException("Don't know how to build prerequisite: " + dep)
-                e.buildScript = explicitForeignProject(dep) match {
-                  case None => Some(projectFile)
-                  case x => x
+  def prerequisites(target: Target, searchInAllProjects: Boolean = false): Seq[Target] =
+    target.dependants.map { dep =>
+      findTarget(dep, searchInAllProjects = searchInAllProjects) match {
+        case Some(target) => target
+        case None =>
+          // TODO: if none target was found, look in other project if they provide the target
+          dep.explicitProto match {
+            case Some("phony") =>
+              throw new TargetNotFoundException("Non-existing prerequisite '" + dep.name + "' found for target: " + target)
+            case None | Some("file") =>
+              // try to find a file
+              createTarget(dep, isImplicit = true) exec {
+                val file = Path(dep.name)(this)
+                if (!file.exists || !file.isDirectory) {
+                  val e = new ProjectConfigurationException("Don't know how to build prerequisite: " + dep)
+                  e.buildScript = explicitForeignProject(dep) match {
+                    case None => Some(projectFile)
+                    case x => x
+                  }
+                  throw e
                 }
-                throw e
               }
-            }
-          case _ =>
-            // A scheme handler might be able to resolve this thing
-            createTarget(dep, isImplicit = true)
-        }
+            case _ =>
+              // A scheme handler might be able to resolve this thing
+              createTarget(dep, isImplicit = true)
+          }
+      }
     }
-  }.toList
 
   //  def prerequisitesMap: Map[Target, List[Target]] = targets.values.map(goal => (goal, prerequisites(goal))).toMap
 

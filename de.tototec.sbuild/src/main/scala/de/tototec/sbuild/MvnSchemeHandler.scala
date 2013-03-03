@@ -72,7 +72,7 @@ class MvnSchemeHandler(
         val url = repo + "/" + constructMvnPath(path)
         result = Util.download(url, target.getPath, project.log)
         val failed = result.isDefined || !target.exists
-        if(failed) project.log.log(LogLevel.Info, "Download failed.")
+        if (failed) project.log.log(LogLevel.Info, "Download failed.")
         failed
       })
       result match {
