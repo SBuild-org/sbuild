@@ -67,7 +67,26 @@ class Scalac(
 
   val scalacClassName = "scala.tools.nsc.Main"
 
+  override def toString: String = getClass.getSimpleName +
+    "(compilerClasspath=" + compilerClasspath +
+    ",classpath=" + classpath +
+    ",sources=" + sources +
+    ",srcDir=" + srcDir +
+    ",srdDirs=" + srcDirs +
+    ",destDir=" + destDir +
+    ",encoding=" + encoding +
+    ",unchecked=" + unchecked +
+    ",deprecation=" + deprecation +
+    ",verbose=" + verbose +
+    ",target=" + target +
+    ",debugInfo=" + debugInfo +
+    ",fork=" + fork +
+    ",additionalScalacArgs=" + additionalScalacArgs +
+    ")"
+
   def execute {
+    project.log.log(LogLevel.Debug, "About to execute " + this)
+
     require(compilerClasspath != null && !compilerClasspath.isEmpty, "No compiler classpath set.")
 
     var args = Array[String]()
@@ -112,6 +131,8 @@ class Scalac(
     }
 
     project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} source files to ${destDir}")
+
+    if (destDir != null && !sourceFiles.isEmpty) destDir.mkdirs
 
     if (fork) {
       compileExternal(args)
