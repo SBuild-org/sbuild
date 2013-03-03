@@ -94,7 +94,7 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
 
     SBuildRunner.determineRequestedTarget(dep, true) match {
 
-      case Left(_) =>
+      case None =>
         // not found
         // if an existing file, then proceed.
         val targetRef = TargetRef.fromString(dep)
@@ -105,7 +105,7 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
             throw new TargetNotFoundException(s"""Could not found target with name "${dep}" in project ${project.projectFile}.""")
         }
 
-      case Right(target) =>
+      case Some(target) =>
 
         // TODO: progress
         val requestId = Some(UUID.randomUUID().toString())

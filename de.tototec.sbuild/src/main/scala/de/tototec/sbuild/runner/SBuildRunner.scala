@@ -35,6 +35,12 @@ class SBuildRunner {
 
   private var log: SBuildLogger = new SBuildConsoleLogger(LogLevel.info)
 
+  /**
+   * Create a new build file.
+   * If a file with the same name exists in the stubDir, then this one will be copied, else a build file with one target will be created.
+   * If the file already exists, it will throw an [[de.tototec.sbuild.SBuildException]].
+   *
+   */
   def createSBuildStub(projectFile: File, stubDir: File) {
     if (projectFile.exists) {
       throw new SBuildException("File '" + projectFile.getName + "' already exists. ")
@@ -78,7 +84,21 @@ class SBuildRunner {
     }
   }
 
+  /**
+   * Check all targets of the given projects for problems.
+   *
+   * Checked problems are:
+   * - invalid target names
+   * - missing dependencies
+   * - cycles in dependencies
+   * - missing scheme handlers
+   *
+   * @return A sequence of pairs of problematic target and a error message.
+   */
   def checkTargets(projects: Seq[Project])(implicit baseProject: Project): Seq[(Target, String)] = {
+
+    val cache = new Cache()
+
     val targetsToCheck = projects.flatMap { p =>
       p.targets.values.filterNot(_.isImplicit)
     }
@@ -87,7 +107,8 @@ class SBuildRunner {
     targetsToCheck.foreach { target =>
       log.log(LogLevel.Info, "Checking target: " + formatTarget(target)(baseProject))
       try {
-        preorderedDependenciesTree(curTarget = target, skipExec = true)(baseProject)
+        cache.fillTreeRecursive(target, Nil)
+        //        preorderedDependenciesTree(curTarget = target, skipExec = true)(baseProject)
         log.log(LogLevel.Info, "  \t" + fOk("OK"))
       } catch {
         case e: SBuildException =>
@@ -98,6 +119,10 @@ class SBuildRunner {
     errors
   }
 
+  /**
+   * Check a project for target definition with cacheable or evictCache property.
+   * If cacheable targets are found but not at least one evictCache target, return a error message.
+   */
   def checkCacheableTargets(project: Project, printWarning: Boolean)(implicit baseProject: Project): Option[String] = {
     val targets = project.targets.values.filterNot(_.isImplicit)
     val cacheable = targets.filter(_.isCacheable)
@@ -211,6 +236,9 @@ class SBuildRunner {
     }
   }
 
+  /**
+   * Sort projects by their fully qualified build file name. The base project is always sorted to top position.
+   */
   def projectSorter(baseProject: Project)(l: Project, r: Project): Boolean = (l, r) match {
     // ensure main project file is on top
     case (l, r) if l.eq(baseProject) => true
@@ -262,10 +290,10 @@ class SBuildRunner {
     log.log(LogLevel.Debug, "Targets: \n" + project.targets.values.mkString("\n"))
 
     /**
-     * Format a target relative to the base project <code>p</code>.
+     * Format a target relative to the base project.
      */
-    def formatTargetsOf(p: Project): String = {
-      p.targets.values.toSeq.filter(!_.isImplicit).sortBy(_.name).map { t =>
+    def formatTargetsOf(baseProject: Project): String = {
+      baseProject.targets.values.toSeq.filter(!_.isImplicit).sortBy(_.name).map { t =>
         formatTarget(t)(project) + " \t" + (t.help match {
           case null => ""
           case s: String => s
@@ -346,7 +374,6 @@ class SBuildRunner {
       val showGoUp = true
       var lastDepth = 0
       var lastShown = Map[Int, Target]()
-      log.log(LogLevel.Info, "Dependency tree:")
       val lines = dependencyTree.reverse.map {
         case (depth, target) =>
 
@@ -360,7 +387,7 @@ class SBuildRunner {
 
           line
       }
-      log.log(LogLevel.Info, lines.mkString("\n"))
+      log.log(LogLevel.Info, "Dependency tree:\n" + lines.mkString("\n"))
       // early exit
       return 0
     }
@@ -410,14 +437,17 @@ class SBuildRunner {
     0
   }
 
-  def determineRequestedTarget(target: String, searchInAllProjects: Boolean = false)(implicit project: Project): Either[String, Target] =
+  /**
+   * Determine the requested target for the given input string.
+   */
+  def determineRequestedTarget(target: String, searchInAllProjects: Boolean = false)(implicit project: Project): Option[Target] =
     project.findTarget(target, searchInAllProjects = searchInAllProjects) match {
-      case Some(target) => Right(target)
+      case Some(target) => Some(target)
       case None => TargetRef(target).explicitProto match {
-        case None | Some("phony") | Some("file") => Left(target)
+        case None | Some("phony") | Some("file") => None
         case _ =>
           // A scheme handler might be able to resolve this thing
-          Right(project.createTarget(TargetRef(target)))
+          Some(project.createTarget(TargetRef(target)))
       }
     }
 
@@ -427,8 +457,8 @@ class SBuildRunner {
     // val (requested: Seq[Target], invalid: Seq[String]) =
     val (requested, invalid) = targets.map { t =>
       determineRequestedTarget(t) match {
-        case Left(name) => name
-        case Right(target) => target
+        case None => t
+        case Some(target) => target
       }
     }.partition(_.isInstanceOf[Target])
 
@@ -482,12 +512,37 @@ class SBuildRunner {
       )
     }
 
+  /**
+   * This cache automatically resolves and caches dependencies of targets.
+   *
+   * It is assumed, that the involved projects are completely initialized and no new target will appear after this cache is active.
+   */
   class Cache {
     private var depTrees: Map[Target, Seq[Target]] = Map()
 
     def cached: Map[Target, Seq[Target]] = depTrees
 
-    def targetDeps(target: Target)(implicit project: Project): Seq[Target] = {
+    /**
+     * Return the direct dependencies of the given target.
+     *
+     * If this Cache already contains a cached result, that one will be returned.
+     * Else, the dependencies will be computed through [[de.tototec.sbuild.Project#prerequisites]].
+     *
+     * If the parameter `callStack` is not `Nil`, the call stack including the given target will be checked for cycles.
+     * If a cycle is detected, a [[de.tototec.sbuild.ProjectConfigurationException]] will be thrown.
+     *
+     * @throws ProjectConfigurationException If cycles are detected.
+     * @throws UnsupportedSchemeException If an unsupported scheme was used in any of the targets.
+     */
+    def targetDeps(target: Target, dependencyTrace: List[Target] = Nil)(implicit project: Project): Seq[Target] = {
+      // check for cycles
+      dependencyTrace.find(dep => dep == target).map { cycle =>
+        val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + formatTarget(cycle) +
+          ". The dependency chain: " + (target :: dependencyTrace).reverse.map(d => formatTarget(d)).mkString(" -> "))
+        ex.buildScript = Some(cycle.project.projectFile)
+        throw ex
+      }
+
       depTrees.get(target) match {
         case Some(deps) => deps
         case None =>
@@ -509,36 +564,32 @@ class SBuildRunner {
       }
     }
 
+    /**
+     * Fills this cache by evaluating the given target and all its transitive dependencies.
+     *
+     * Internally, the method [[de.tototec.sbuild.runner.SBuildRunner.Cache#targetDeps]] is used.
+     *
+     * @throws ProjectConfigurationException If cycles are detected.
+     * @throws UnsupportedSchemeException If an unsupported scheme was used in any of the targets.
+     */
     def fillTreeRecursive(target: Target, parents: List[Target] = Nil)(implicit project: Project) {
-      targetDeps(target) match {
-        case Seq() => // finished
-        case deps =>
-          // check for cycles
-          parents.find(dep => dep == target) match {
-            case Some(cycle) =>
-              val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + formatTarget(cycle) +
-                ". The dependency chain: " + (target :: parents).reverse.map(d => formatTarget(d)).mkString(" -> "))
-              ex.buildScript = Some(cycle.project.projectFile)
-              throw ex
-            case _ =>
-              deps.foreach { dep => fillTreeRecursive(dep, target :: parents) }
-          }
-      }
+      targetDeps(target, parents).foreach { dep => fillTreeRecursive(dep, target :: parents) }
     }
 
   }
 
   /**
-   * Visit each target of tree <code>node</code> deep-first.
-   * If parameter <code>skipExec</code> is <code>true</code>, the associated actions will not executed.
-   * If <code>skipExec</code> is <code>false</code>, for each target the up-to-date state will be evaluated,
+   * Visit each target of tree `node` deep-first.
+   *
+   * If parameter `skipExec` is `true`, the associated actions will not executed.
+   * If `skipExec` is `false`, for each target the up-to-date state will be evaluated,
    * and if the target is no up-to-date, the associated action will be executed.
    */
   def preorderedDependenciesTree(curTarget: Target,
                                  execProgress: Option[ExecProgress] = None,
                                  skipExec: Boolean = false,
                                  requestId: Option[String] = None,
-                                 dependencyTrace: List[Target] = List(),
+                                 dependencyTrace: List[Target] = Nil,
                                  depth: Int = 0,
                                  treePrinter: Option[(Int, Target) => Unit] = None,
                                  cache: Cache = new Cache())(implicit project: Project): Array[ExecutedTarget] = {
@@ -550,33 +601,7 @@ class SBuildRunner {
       case _ =>
     }
 
-    // check for cycles
-    dependencyTrace.find(dep => dep == curTarget) match {
-      case Some(cycle) =>
-        val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + formatTarget(cycle) +
-          ". The dependency chain: " + (curTarget :: dependencyTrace).reverse.map(d => formatTarget(d)).mkString(" -> "))
-        ex.buildScript = Some(cycle.project.projectFile)
-        throw ex
-      case _ =>
-    }
-
-    // build prerequisites map
-
-    // Execute prerequisites
-    //    val dependencies: List[Target] = try {
-    //      curTarget.project.prerequisites(target = curTarget, searchInAllProjects = true)
-    //    } catch {
-    //      case e: UnsupportedSchemeException =>
-    //        val ex = new UnsupportedSchemeException("Unsupported Scheme in dependencies of target: " +
-    //          formatTarget(curTarget) + ". " + e.getMessage)
-    //        ex.buildScript = e.buildScript
-    //        ex.targetName = Some(formatTarget(curTarget))
-    //        throw ex
-    //      case e: TargetAware if e.targetName == None =>
-    //        e.targetName = Some(formatTarget(curTarget))
-    //        throw e
-    //    }
-    val dependencies: Seq[Target] = cache.targetDeps(curTarget)
+    val dependencies: Seq[Target] = cache.targetDeps(curTarget, dependencyTrace)
 
     log.log(LogLevel.Debug, "Dependencies of " + formatTarget(curTarget) + ": " +
       (if (dependencies.isEmpty) "<none>" else dependencies.map(formatTarget(_)).mkString(" ~ ")))
@@ -585,12 +610,16 @@ class SBuildRunner {
     // Later we can identify them and check, if they were up-to-date.
     val resolveDirectDepsRequestId = Some(UUID.randomUUID.toString)
 
-    val subDepTrace = curTarget :: dependencyTrace
-
     val executedDependencies: Array[ExecutedTarget] = dependencies.flatMap { dep =>
-      preorderedDependenciesTree(dep,
-        execProgress = execProgress, skipExec = skipExec, requestId = resolveDirectDepsRequestId,
-        dependencyTrace = subDepTrace, depth = depth + 1, treePrinter = treePrinter, cache)
+      preorderedDependenciesTree(
+        curTarget = dep,
+        execProgress = execProgress,
+        skipExec = skipExec,
+        requestId = resolveDirectDepsRequestId,
+        dependencyTrace = curTarget :: dependencyTrace,
+        depth = depth + 1,
+        treePrinter = treePrinter,
+        cache = cache)
     }.toArray
 
     // print dep-tree
