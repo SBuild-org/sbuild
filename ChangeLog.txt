@@ -46,6 +46,7 @@ SBuild 0.3.2.9000
   any SBuild build file.
 * Cache Scala compiler instance when reading projects, to improve compilation
   speed for build files.
+* Speedup of dependency tree traversal.
 
 SBuild 0.3.2 - 2013-01-26
 
