@@ -102,8 +102,15 @@ class SBuild(implicit _project: Project) {
       |  # echo Using sbuild at $SBUILD_HOME
       |fi
       |
+      |#Determine Java runtime
+      |if [ -n "$JAVA_HOME" ] ; then
+      |  JRE=${JAVA_HOME}/bin/java
+      |else
+      |  JRE="java"
+      |fi
+      |
       |""" +
-     s"""exec java -XX:MaxPermSize=128m -cp "$${SBUILD_HOME}/lib/scala-library-${SBuildConfig.scalaVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar:$${SBUILD_HOME}/lib/jansi-1.9.jar:$${SBUILD_HOME}/lib/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" """ +
+     s"""exec $${JRE} -XX:MaxPermSize=128m -cp "$${SBUILD_HOME}/lib/scala-library-${SBuildConfig.scalaVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar:$${SBUILD_HOME}/lib/jansi-1.9.jar:$${SBUILD_HOME}/lib/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" """ +
      """de.tototec.sbuild.runner.SBuildRunner --sbuild-home "${SBUILD_HOME}" ${SBUILD_OPTS} "$@"
       |
       |unset SBUILD_HOME
