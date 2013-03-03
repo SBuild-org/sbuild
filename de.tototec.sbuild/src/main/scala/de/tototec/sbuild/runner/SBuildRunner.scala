@@ -308,12 +308,20 @@ class SBuildRunner {
       case _ => None
     }
 
+    val cache = new Cache()
+
     // The execution plan (chain) will be evaluated on first need
     lazy val chain: Array[ExecutedTarget] = {
       if (!targets.isEmpty && !config.noProgress) {
         log.log(LogLevel.Info, "Calculating dependency tree...")
       }
-      preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter)(project)
+      val f = preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter, cache = cache)(project)
+      log.log(LogLevel.Debug, "Target Dependency Cache: " + cache.cached.map {
+        case (t, d) => "\n  " + formatTarget(t)(project) + " -> " + d.map {
+          dep => formatTarget(dep)(project)
+        }.mkString(", ")
+      })
+      f
     }
 
     // Execution plan
@@ -391,7 +399,7 @@ class SBuildRunner {
       log.log(LogLevel.Info, fPercent("[0%]") + " Executing...")
     }
 
-    preorderedDependenciesForest(targets, execProgress = execProgress)(project)
+    preorderedDependenciesForest(targets, execProgress = execProgress, cache = cache)(project)
     if (!targets.isEmpty && !config.noProgress) {
       log.log(LogLevel.Info, fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
         " msec, Execution time: " + (System.currentTimeMillis - executionStart) + " msec")
@@ -459,7 +467,8 @@ class SBuildRunner {
                                    requestId: Option[String] = None,
                                    dependencyTrace: List[Target] = List(),
                                    depth: Int = 0,
-                                   treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] =
+                                   treePrinter: Option[(Int, Target) => Unit] = None,
+                                   cache: Cache = new Cache())(implicit project: Project): Array[ExecutedTarget] =
     request.toArray.flatMap { req =>
       preorderedDependenciesTree(
         curTarget = req,
@@ -468,9 +477,56 @@ class SBuildRunner {
         requestId = requestId,
         dependencyTrace = dependencyTrace,
         depth = depth,
-        treePrinter = treePrinter
+        treePrinter = treePrinter,
+        cache = cache
       )
     }
+
+  class Cache {
+    private var depTrees: Map[Target, Seq[Target]] = Map()
+
+    def cached: Map[Target, Seq[Target]] = depTrees
+
+    def targetDeps(target: Target)(implicit project: Project): Seq[Target] = {
+      depTrees.get(target) match {
+        case Some(deps) => deps
+        case None =>
+          try {
+            val deps = target.project.prerequisites(target = target, searchInAllProjects = true)
+            depTrees += (target -> deps)
+            deps
+          } catch {
+            case e: UnsupportedSchemeException =>
+              val ex = new UnsupportedSchemeException("Unsupported Scheme in dependencies of target: " +
+                formatTarget(target) + ". " + e.getMessage)
+              ex.buildScript = e.buildScript
+              ex.targetName = Some(formatTarget(target))
+              throw ex
+            case e: TargetAware if e.targetName == None =>
+              e.targetName = Some(formatTarget(target))
+              throw e
+          }
+      }
+    }
+
+    def fillTreeRecursive(target: Target, parents: List[Target] = Nil)(implicit project: Project) {
+      targetDeps(target) match {
+        case Seq() => // finished
+        case deps =>
+          // check for cycles
+          parents.find(dep => dep == target) match {
+            case Some(cycle) =>
+              val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + formatTarget(cycle) +
+                ". The dependency chain: " + (target :: parents).reverse.map(d => formatTarget(d)).mkString(" -> "))
+              ex.buildScript = Some(cycle.project.projectFile)
+              throw ex
+            case _ =>
+              deps.foreach { dep => fillTreeRecursive(dep, target :: parents) }
+          }
+      }
+    }
+
+  }
 
   /**
    * Visit each target of tree <code>node</code> deep-first.
@@ -484,7 +540,8 @@ class SBuildRunner {
                                  requestId: Option[String] = None,
                                  dependencyTrace: List[Target] = List(),
                                  depth: Int = 0,
-                                 treePrinter: Option[(Int, Target) => Unit] = None)(implicit project: Project): Array[ExecutedTarget] = {
+                                 treePrinter: Option[(Int, Target) => Unit] = None,
+                                 cache: Cache = new Cache())(implicit project: Project): Array[ExecutedTarget] = {
 
     val log = curTarget.project.log
 
@@ -506,19 +563,21 @@ class SBuildRunner {
     // build prerequisites map
 
     // Execute prerequisites
-    val dependencies: List[Target] = try {
-      curTarget.project.prerequisites(target = curTarget, searchInAllProjects = true)
-    } catch {
-      case e: UnsupportedSchemeException =>
-        val ex = new UnsupportedSchemeException("Unsupported Scheme in dependencies of target: " +
-          formatTarget(curTarget) + ". " + e.getMessage)
-        ex.buildScript = e.buildScript
-        ex.targetName = Some(formatTarget(curTarget))
-        throw ex
-      case e: TargetAware if e.targetName == None =>
-        e.targetName = Some(formatTarget(curTarget))
-        throw e
-    }
+    //    val dependencies: List[Target] = try {
+    //      curTarget.project.prerequisites(target = curTarget, searchInAllProjects = true)
+    //    } catch {
+    //      case e: UnsupportedSchemeException =>
+    //        val ex = new UnsupportedSchemeException("Unsupported Scheme in dependencies of target: " +
+    //          formatTarget(curTarget) + ". " + e.getMessage)
+    //        ex.buildScript = e.buildScript
+    //        ex.targetName = Some(formatTarget(curTarget))
+    //        throw ex
+    //      case e: TargetAware if e.targetName == None =>
+    //        e.targetName = Some(formatTarget(curTarget))
+    //        throw e
+    //    }
+    val dependencies: Seq[Target] = cache.targetDeps(curTarget)
+
     log.log(LogLevel.Debug, "Dependencies of " + formatTarget(curTarget) + ": " +
       (if (dependencies.isEmpty) "<none>" else dependencies.map(formatTarget(_)).mkString(" ~ ")))
 
@@ -531,7 +590,7 @@ class SBuildRunner {
     val executedDependencies: Array[ExecutedTarget] = dependencies.flatMap { dep =>
       preorderedDependenciesTree(dep,
         execProgress = execProgress, skipExec = skipExec, requestId = resolveDirectDepsRequestId,
-        dependencyTrace = subDepTrace, depth = depth + 1, treePrinter = treePrinter)
+        dependencyTrace = subDepTrace, depth = depth + 1, treePrinter = treePrinter, cache)
     }.toArray
 
     // print dep-tree
