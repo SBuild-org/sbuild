@@ -337,11 +337,37 @@ class SBuildRunner {
     val targets = requested
 
     // The dependencyTree will be populated by the treePrinter, in case it was requested on commandline
-    var dependencyTree = List[(Int, Target)]()
-    val treePrinter: Option[(Int, Target) => Unit] = config.showDependencyTree match {
-      case true => Some((depth: Int, node: Target) => { dependencyTree = (depth -> node) :: dependencyTree })
-      case _ => None
+
+    class DependencyTree {
+      private var dependencyTree = List[(Int, Target)]()
+
+      def addNode(depth: Int, node: Target): Unit = dependencyTree = (depth -> node) :: dependencyTree
+
+      def format(showGoUp: Boolean = true): String = {
+        var lastDepth = 0
+        var lastShown = Map[Int, Target]()
+        val lines = dependencyTree.reverse.map {
+          case (depth, target) =>
+
+            var prefix = if (lastDepth > depth && depth > 0) {
+              List.fill(depth - 1)("  ").mkString + "  (" + formatTarget(lastShown(depth - 1))(project) + ")\n"
+            } else ""
+
+            lastDepth = depth
+            lastShown += (depth -> target)
+            val line = prefix + List.fill(depth)("  ").mkString + "  " + formatTarget(target)(project)
+
+            line
+        }
+        lines.mkString("\n")
+      }
     }
+
+    val depTree = if (config.showDependencyTree) {
+      Some(new DependencyTree())
+    } else None
+
+    val treePrinter: Option[(Int, Target) => Unit] = depTree.map { t => t.addNode _ }
 
     val cache = new Cache()
 
@@ -359,44 +385,40 @@ class SBuildRunner {
       chain
     }
 
-    // Execution plan
-    def execPlan = {
-      var line = 0
-      "Execution plan: \n" + chain.map { execT =>
-        line += 1
-        "  " + line + ". " + formatTarget(execT.target)(project)
-      }.mkString("\n")
+    depTree.foreach { t =>
+      // trigger chain
+      chain
+      // print output
+      log.log(LogLevel.Info, "Dependency tree:\n" + t.format())
+      // early exit
+      return 0
     }
+
+    // Execution plan
+    def execPlan(chain: Seq[ExecutedTarget]) = {
+      var line = 0
+      var plan: List[String] = "Execution plan:" :: Nil
+
+      def preorderDepthFirst(nodes: Seq[ExecutedTarget]): Unit = nodes.foreach { node =>
+        node.dependencies match {
+          case Seq() =>
+            line += 1
+            plan = ("  " + line + ". " + formatTarget(node.target)(project)) :: plan
+          case deps =>
+            preorderDepthFirst(deps)
+        }
+      }
+
+      preorderDepthFirst(chain)
+      plan.reverse.mkString("\n")
+    }
+
     if (config.showExecutionPlan) {
-      log.log(LogLevel.Info, execPlan)
+      log.log(LogLevel.Info, execPlan(chain))
       // early exit
       return 0
     } else {
-      log.log(LogLevel.Debug, execPlan)
-    }
-
-    if (config.showDependencyTree) {
-      // trigger lazy evaluated chain
-      chain
-      val showGoUp = true
-      var lastDepth = 0
-      var lastShown = Map[Int, Target]()
-      val lines = dependencyTree.reverse.map {
-        case (depth, target) =>
-
-          var prefix = if (lastDepth > depth && depth > 0) {
-            List.fill(depth - 1)("  ").mkString + "  (" + formatTarget(lastShown(depth - 1))(project) + ")\n"
-          } else ""
-
-          lastDepth = depth
-          lastShown += (depth -> target)
-          val line = prefix + List.fill(depth)("  ").mkString + "  " + formatTarget(target)(project)
-
-          line
-      }
-      log.log(LogLevel.Info, "Dependency tree:\n" + lines.mkString("\n"))
-      // early exit
-      return 0
+      log.log(LogLevel.Debug, execPlan(chain))
     }
 
     if (config.check || config.checkRecusive) {
