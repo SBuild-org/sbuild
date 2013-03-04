@@ -48,6 +48,7 @@ trait TargetContext {
   def attachFile(file: File)
 
   def targetFiles: Seq[File] = targetFile.toSeq ++ attachedFiles
+
 }
 
 class TargetContextImpl(
@@ -133,4 +134,5 @@ class TargetContextImpl(
       targetLastModified = file.lastModified
     }
   }
+
 }

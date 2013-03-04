@@ -501,6 +501,7 @@ class SBuildRunner {
       val dependencies: Seq[ExecutedTarget]) {
     def target = targetContext.target
     val treeSize: Int = dependencies.foldLeft(1) { (a, b) => a + b.treeSize }
+    def linearized: Seq[ExecutedTarget] = dependencies.flatMap { et => et.linearized } ++ Seq(this)
   }
 
   class ExecProgress(var maxCount: Int, var currentNr: Int = 1)
