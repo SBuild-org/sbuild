@@ -67,7 +67,7 @@ class Scalac(
 
   val scalacClassName = "scala.tools.nsc.Main"
 
-  override def toString: String = getClass.getSimpleName +
+  override def toString(): String = getClass.getSimpleName +
     "(compilerClasspath=" + compilerClasspath +
     ",classpath=" + classpath +
     ",sources=" + sources +
@@ -134,25 +134,22 @@ class Scalac(
 
     if (destDir != null && !sourceFiles.isEmpty) destDir.mkdirs
 
-    if (fork) {
-      compileExternal(args)
-    } else {
-      compileInternal(args)
-    }
+    val result =
+      if (fork) compileExternal(args)
+      else compileInternal(args)
 
-  }
-
-  def compileExternal(args: Array[String]) {
-    val command = Array("java", "-cp", ForkSupport.pathAsArg(compilerClasspath), scalacClassName) ++ args
-    val result = ForkSupport.runAndWait(command)
     if (result != 0) {
-      val e = new ExecutionFailedException("Compile Errors. See compiler output.")
-      e.buildScript = Some(project.projectFile)
-      throw e
+      val ex = new ExecutionFailedException("Compile Errors. See compiler output.")
+      ex.buildScript = Some(project.projectFile)
+      throw ex
     }
+
   }
 
-  def compileInternal(args: Array[String]) {
+  def compileExternal(args: Array[String]) =
+    ForkSupport.runJavaAndWait(compilerClasspath, Array(scalacClassName) ++ args)
+
+  def compileInternal(args: Array[String]): Int = {
 
     val compilerClassLoader = new URLClassLoader(compilerClasspath.map { f => f.toURI().toURL() }.toArray, classOf[Scalac].getClassLoader)
     project.log.log(LogLevel.Debug, "Using addional compiler classpath: " + compilerClassLoader.getURLs().mkString(", "))
@@ -175,12 +172,7 @@ class Scalac(
     val reporter = reporterMethod.invoke(null)
     val hasErrorsMethod = reporter.asInstanceOf[Object].getClass.getMethod("hasErrors")
     val hasErrors = hasErrorsMethod.invoke(reporter).asInstanceOf[Boolean]
-    if (hasErrors) {
-      val e = new ExecutionFailedException("Compile Errors. See compiler output.")
-      e.buildScript = Some(project.projectFile)
-      throw e
-
-    }
+    if (hasErrors) 1 else 0
   }
 
 }
