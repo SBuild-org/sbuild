@@ -7,8 +7,7 @@ import java.io.FileOutputStream
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import java.util.Date
-import java.util.UUID
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdOption
 import de.tototec.sbuild._
@@ -29,6 +28,9 @@ object SBuildRunner extends SBuildRunner {
 
 }
 
+/**
+ * SBuild command line application. '''API is not stable!'''
+ */
 class SBuildRunner {
 
   private[runner] var verbose = false
@@ -108,7 +110,6 @@ class SBuildRunner {
       log.log(LogLevel.Info, "Checking target: " + formatTarget(target)(baseProject))
       try {
         cache.fillTreeRecursive(target, Nil)
-        //        preorderedDependenciesTree(curTarget = target, skipExec = true)(baseProject)
         log.log(LogLevel.Info, "  \t" + fOk("OK"))
       } catch {
         case e: SBuildException =>
@@ -136,6 +137,11 @@ class SBuildRunner {
     } else None
   }
 
+  /**
+   * Run the SBuild (command line) application with the given arguments.
+   *
+   * @return The exit value, `0` means no errors.
+   */
   def run(args: Array[String]): Int = {
     val bootstrapStart = System.currentTimeMillis
 
@@ -237,7 +243,8 @@ class SBuildRunner {
   }
 
   /**
-   * Sort projects by their fully qualified build file name. The base project is always sorted to top position.
+   * Sort projects by their fully qualified build file name.
+   * The base project is always sorted to top position.
    */
   def projectSorter(baseProject: Project)(l: Project, r: Project): Boolean = (l, r) match {
     // ensure main project file is on top
@@ -264,7 +271,7 @@ class SBuildRunner {
     val projectReader: ProjectReader = new SimpleProjectReader(classpathConfig, log, clean = config.clean)
 
     val project = new Project(projectFile, projectReader, None, log)
-    config.defines foreach {
+    config.defines.asScala foreach {
       case (key, value) => project.addProperty(key, value)
     }
 
@@ -275,7 +282,7 @@ class SBuildRunner {
         case None =>
           // Create and add new module and copy configs
           val module = project.findOrCreateModule(new File(buildfile).getAbsolutePath, copyProperties = false)
-          config.defines foreach {
+          config.defines.asScala foreach {
             case (key, value) => module.addProperty(key, value)
           }
           module
@@ -323,11 +330,11 @@ class SBuildRunner {
     }
 
     // Check targets requested from cmdline an throw a exception, if invalid targets were requested
-    val (requested: Seq[Target], invalid: Seq[String]) = determineRequestedTargets(config.params)(project)
+    val (requested: Seq[Target], invalid: Seq[String]) = determineRequestedTargets(config.params.asScala)(project)
     if (!invalid.isEmpty) {
       throw new TargetNotFoundException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", ") + ".");
     }
-    val targets = requested.toList
+    val targets = requested
 
     // The dependencyTree will be populated by the treePrinter, in case it was requested on commandline
     var dependencyTree = List[(Int, Target)]()
@@ -339,17 +346,17 @@ class SBuildRunner {
     val cache = new Cache()
 
     // The execution plan (chain) will be evaluated on first need
-    lazy val chain: Array[ExecutedTarget] = {
+    lazy val chain: Seq[ExecutedTarget] = {
       if (!targets.isEmpty && !config.noProgress) {
         log.log(LogLevel.Info, "Calculating dependency tree...")
       }
-      val f = preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter, cache = cache)(project)
+      val chain = preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter, cache = cache)(project)
       log.log(LogLevel.Debug, "Target Dependency Cache: " + cache.cached.map {
         case (t, d) => "\n  " + formatTarget(t)(project) + " -> " + d.map {
           dep => formatTarget(dep)(project)
         }.mkString(", ")
       })
-      f
+      chain
     }
 
     // Execution plan
@@ -417,7 +424,9 @@ class SBuildRunner {
     }
 
     // force evaluation of lazy val chain, if required, and switch afterwards from bootstrap to execution time benchmarking.
-    val execProgress = if (config.noProgress) None else Some(new ExecProgress(maxCount = chain.size))
+    val execProgress =
+      if (config.noProgress) None
+      else Some(new ExecProgress(maxCount = chain.foldLeft(0) { (a, b) => a + b.treeSize }))
 
     val executionStart = System.currentTimeMillis
     val bootstrapTime = executionStart - bootstrapStart
@@ -466,12 +475,10 @@ class SBuildRunner {
   }
 
   class ExecutedTarget(
-      /** The executed target. */
-      val target: Target,
-      /** An Id specific for this execution request. */
-      val requestId: Option[String],
-      val targetContext: TargetContext) {
-    require(target == targetContext.target)
+      val targetContext: TargetContext,
+      val dependencies: Seq[ExecutedTarget]) {
+    def target = targetContext.target
+    val treeSize: Int = dependencies.foldLeft(1) { (a, b) => a + b.treeSize }
   }
 
   class ExecProgress(var maxCount: Int, var currentNr: Int = 1)
@@ -494,17 +501,15 @@ class SBuildRunner {
   def preorderedDependenciesForest(request: Seq[Target],
                                    execProgress: Option[ExecProgress] = None,
                                    skipExec: Boolean = false,
-                                   requestId: Option[String] = None,
                                    dependencyTrace: List[Target] = List(),
                                    depth: Int = 0,
                                    treePrinter: Option[(Int, Target) => Unit] = None,
-                                   cache: Cache = new Cache())(implicit project: Project): Array[ExecutedTarget] =
-    request.toArray.flatMap { req =>
+                                   cache: Cache = new Cache())(implicit project: Project): Seq[ExecutedTarget] =
+    request.map { req =>
       preorderedDependenciesTree(
         curTarget = req,
         execProgress = execProgress,
         skipExec = skipExec,
-        requestId = requestId,
         dependencyTrace = dependencyTrace,
         depth = depth,
         treePrinter = treePrinter,
@@ -588,11 +593,10 @@ class SBuildRunner {
   def preorderedDependenciesTree(curTarget: Target,
                                  execProgress: Option[ExecProgress] = None,
                                  skipExec: Boolean = false,
-                                 requestId: Option[String] = None,
                                  dependencyTrace: List[Target] = Nil,
                                  depth: Int = 0,
                                  treePrinter: Option[(Int, Target) => Unit] = None,
-                                 cache: Cache = new Cache())(implicit project: Project): Array[ExecutedTarget] = {
+                                 cache: Cache = new Cache())(implicit project: Project): ExecutedTarget = {
 
     val log = curTarget.project.log
 
@@ -606,21 +610,16 @@ class SBuildRunner {
     log.log(LogLevel.Debug, "Dependencies of " + formatTarget(curTarget) + ": " +
       (if (dependencies.isEmpty) "<none>" else dependencies.map(formatTarget(_)).mkString(" ~ ")))
 
-    // All direct dependencies share the same request id.
-    // Later we can identify them and check, if they were up-to-date.
-    val resolveDirectDepsRequestId = Some(UUID.randomUUID.toString)
-
-    val executedDependencies: Array[ExecutedTarget] = dependencies.flatMap { dep =>
+    val executedDependencies: Seq[ExecutedTarget] = dependencies.map { dep =>
       preorderedDependenciesTree(
         curTarget = dep,
         execProgress = execProgress,
         skipExec = skipExec,
-        requestId = resolveDirectDepsRequestId,
         dependencyTrace = curTarget :: dependencyTrace,
         depth = depth + 1,
         treePrinter = treePrinter,
         cache = cache)
-    }.toArray
+    }
 
     // print dep-tree
     lazy val trace = dependencyTrace match {
@@ -646,13 +645,10 @@ class SBuildRunner {
 
       log.log(LogLevel.Debug, "Executed dependency count: " + executedDependencies.size);
 
-      log.log(LogLevel.Debug, "Request-ID used for dependencies: " + resolveDirectDepsRequestId)
-      val directDepsExecuted = executedDependencies.filter(_.requestId == resolveDirectDepsRequestId)
-
-      lazy val depsLastModified: Long = dependenciesLastModified(directDepsExecuted)
-      val ctx = new TargetContextImpl(curTarget, depsLastModified, directDepsExecuted.map(_.targetContext))
-      if (!directDepsExecuted.isEmpty)
-        log.log(LogLevel.Debug, s"Dependencies have last modified value '${depsLastModified}': " + directDepsExecuted.map { d => formatTarget(d.target) }.mkString(","))
+      lazy val depsLastModified: Long = dependenciesLastModified(executedDependencies)
+      val ctx = new TargetContextImpl(curTarget, depsLastModified, executedDependencies.map(_.targetContext))
+      if (!executedDependencies.isEmpty)
+        log.log(LogLevel.Debug, s"Dependencies have last modified value '${depsLastModified}': " + executedDependencies.map { d => formatTarget(d.target) }.mkString(","))
 
       val needsToRun: Boolean = curTarget.targetFile match {
         case Some(file) =>
@@ -677,22 +673,6 @@ class SBuildRunner {
           ctx.targetLastModified = depsLastModified
           false
 
-        // THIS IS THE WRONG PLACE - WE NEED TO EXTRACT ALSO THE ATTACHTED FILE & CO
-        //        case None if curTarget.isCacheable =>
-        //          // We will create a persistent up-to-date checker on behalf of the target.
-        //          val checker = persistenceUpToDateChecker(ctx)
-        //          if (checker.checkUpToDate(checker.createStateMap)) {
-        //            // Checher reports up-to-dateness, so take the lastModified and return "needs-not-to-run"
-        //            val stateLastModified = checker.stateFile.lastModified
-        //            ctx.targetLastModified = stateLastModified
-        //            log.log(LogLevel.Debug, s"Cacheable phony target reports an up-to-date cached lastModified: ${stateLastModified}")
-        //            false
-        //          } else {
-        //            // Checker says no, so it needs to run
-        //            log.log(LogLevel.Debug, s"Cacheable phony target ")
-        //            true
-        //          }
-
         case None =>
           // ensure, that the persistent state gets erased, whenever a non-cacheble phony target runs
           if (curTarget.isEvictCache) {
@@ -706,23 +686,6 @@ class SBuildRunner {
 
       if (!needsToRun)
         log.log(LogLevel.Debug, "Target '" + formatTarget(curTarget) + "' does not need to run.")
-
-      //      // Print State
-      //      execProgress.map { state =>
-      //        val progress = (state.currentNr, state.maxCount) match {
-      //          case (c, m) if (c > 0 && m > 0) =>
-      //            val p = (c - 1) * 100 / m
-      //            fPercent("[" + math.min(100, math.max(0, p)) + "%]")
-      //          case (c, m) => "[" + c + "/" + m + "]"
-      //        }
-      //
-      //        val ft = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
-      //        val prefix = if (needsToRun) " Executing target: " else " Skipping target:  "
-      //        val level = if (needsToRun || dependencyTrace.isEmpty) LogLevel.Info else LogLevel.Debug
-      //        log.log(level, progress + prefix + ft(formatTarget(curTarget)))
-      //
-      //        state.currentNr += 1
-      //      }
 
       val progressPrefix = execProgress match {
         case Some(state) =>
@@ -792,7 +755,7 @@ class SBuildRunner {
 
               ctx.targetLastModified match {
                 case Some(lm) =>
-                  log.log(LogLevel.Debug, s"The context of target '${formatTarget(curTarget)}' reports a last modified value of '${lm}'. Request-ID: ${requestId}")
+                  log.log(LogLevel.Debug, s"The context of target '${formatTarget(curTarget)}' reports a last modified value of '${lm}'.")
                 case _ =>
               }
 
@@ -825,13 +788,7 @@ class SBuildRunner {
       ctx
     }
 
-    executedDependencies ++ Array(
-      new ExecutedTarget(
-        target = curTarget,
-        requestId = requestId,
-        targetContext = ctx
-      )
-    )
+    new ExecutedTarget(targetContext = ctx, dependencies = executedDependencies)
 
   }
 
@@ -963,7 +920,7 @@ class SBuildRunner {
     Util.delete(stateDir)
   }
 
-  def dependenciesLastModified(dependencies: Array[ExecutedTarget])(implicit project: Project): Long = {
+  def dependenciesLastModified(dependencies: Seq[ExecutedTarget])(implicit project: Project): Long = {
     var lastModified: Long = 0
     def updateLastModified(lm: Long) {
       lastModified = math.max(lastModified, lm)

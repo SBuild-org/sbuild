@@ -17,7 +17,6 @@ import de.tototec.sbuild.Target
 import java.util.Properties
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.TargetNotFoundException
-import java.util.UUID
 import scala.util.Try
 import scala.util.Failure
 
@@ -108,14 +107,8 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
       case Some(target) =>
 
         // TODO: progress
-        val requestId = Some(UUID.randomUUID().toString())
-        val executedTargets = SBuildRunner.preorderedDependenciesTree(curTarget = target, requestId = requestId)(project)
-
-        executedTargets.
-          find(_.requestId == requestId).toSeq.
-          flatMap { ran =>
-            ran.targetContext.targetFiles
-          }
+        val executedTarget = SBuildRunner.preorderedDependenciesTree(curTarget = target)(project)
+        executedTarget.targetContext.targetFiles
     }
   }
 
