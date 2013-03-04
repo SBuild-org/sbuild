@@ -9,6 +9,20 @@ import de.tototec.sbuild.LogLevel
 
 object ForkSupport {
 
+  def runJavaAndWait(classpath: Seq[File], arguments: Array[String], interactive: Boolean = false)(implicit project: Project): Int = {
+
+    val java = "java"
+
+    val cpArgs = classpath match {
+      case null | Seq() => Array[String]()
+      case cp => Array("-cp", pathAsArg(classpath))
+    }
+
+    runAndWait(
+      command = Array(java) ++ cpArgs ++ arguments,
+      interactive = interactive)
+  }
+
   def runAndWait(command: Array[String], interactive: Boolean = false)(implicit project: Project): Int = {
     val pb = new ProcessBuilder(command: _*)
     project.log.log(LogLevel.Debug, "Run command: " + command.mkString(" "))
@@ -18,7 +32,6 @@ object ForkSupport {
     ForkSupport.copyInThread(p.getErrorStream, Console.err)
     ForkSupport.copyInThread(p.getInputStream, Console.out)
 
-    
     val in = System.in
     val out = p.getOutputStream
 
@@ -43,16 +56,16 @@ object ForkSupport {
       }
     }
     outThread.start()
-    
-    var result:Int = -1
+
+    var result: Int = -1
     try {
-    	result = p.waitFor
+      result = p.waitFor
     } finally {
-    	outThread.interrupt
-    	p.getErrorStream.close
-    	p.getInputStream.close
+      outThread.interrupt
+      p.getErrorStream.close
+      p.getInputStream.close
     }
-    
+
     result
   }
 
