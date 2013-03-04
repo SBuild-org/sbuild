@@ -807,14 +807,14 @@ class SBuildRunner {
                 ctx.end
                 if (e.targetName.isEmpty)
                   e.targetName = Some(formatTarget(curTarget))
-                log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}", e)
+                log.log(LogLevel.Debug, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}", e)
                 throw e
               case e: Throwable =>
                 ctx.end
                 val ex = new ExecutionFailedException(s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getMessage}", e.getCause, s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getLocalizedMessage}")
                 ex.buildScript = Some(curTarget.project.projectFile)
                 ex.targetName = Some(formatTarget(curTarget))
-                log.log(LogLevel.Error, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}", e)
+                log.log(LogLevel.Debug, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}", e)
                 throw ex
             } finally {
               WithinTargetExecution.remove
