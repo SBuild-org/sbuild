@@ -26,7 +26,7 @@ object Scalac {
     target: String = null,
     debugInfo: String = null,
     fork: Boolean = false,
-    additionalScalacArgs: Array[String] = null,
+    additionalScalacArgs: Seq[String] = null,
     // since 0.3.2.9002
     sources: Seq[File] = null)(implicit project: Project) =
     new Scalac(
@@ -61,7 +61,7 @@ class Scalac(
   var target: String = null,
   var debugInfo: String = null,
   var fork: Boolean = false,
-  var additionalScalacArgs: Array[String] = null,
+  var additionalScalacArgs: Seq[String] = null,
   // since 0.3.2.9002
   var sources: Seq[File] = null)(implicit project: Project) {
 

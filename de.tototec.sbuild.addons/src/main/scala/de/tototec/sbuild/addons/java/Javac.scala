@@ -24,7 +24,7 @@ object Javac {
             target: String = null,
             debugInfo: String = null,
             fork: Boolean = false,
-            additionalJavacArgs: Array[String] = null)(implicit project: Project) =
+            additionalJavacArgs: Seq[String] = null)(implicit project: Project) =
     new Javac(
       compilerClasspath = compilerClasspath,
       classpath = classpath,
@@ -58,7 +58,7 @@ class Javac(
   var target: String = null,
   var debugInfo: String = null,
   var fork: Boolean = false,
-  var additionalJavacArgs: Array[String] = null)(implicit project: Project) {
+  var additionalJavacArgs: Seq[String] = null)(implicit project: Project) {
 
   val javacClassName = "com.sun.tools.javac.Main"
 

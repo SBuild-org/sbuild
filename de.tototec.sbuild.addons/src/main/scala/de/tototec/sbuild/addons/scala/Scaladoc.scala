@@ -12,6 +12,12 @@ import de.tototec.sbuild.ProjectConfigurationException
 
 object Scaladoc {
 
+  /**
+   * Run the scaladoc generator.
+   *
+   * @param scaladocClasspath  Classpath used to load the scaladoc generator.
+   * @param sources Sources, to generate the scaladoc for.
+   */
   def apply(
     scaladocClasspath: Seq[File] = null,
     sources: Seq[File] = null,
@@ -58,6 +64,13 @@ object Scaladoc {
 
 }
 
+/**
+ * Generate Scaladoc.
+ *
+ * @param scaladocClasspath  Classpath used to load the scaladoc generator.
+ * @param sources Sources, to generate the scaladoc for.
+ *
+ */
 class Scaladoc(
   var scaladocClasspath: Seq[File] = null,
   var sources: Seq[File] = null,
