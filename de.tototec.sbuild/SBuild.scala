@@ -4,7 +4,11 @@ import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
 @version("0.3.2")
-@include("../SBuildConfig.scala")
+@include(
+  "../SBuildConfig.scala",
+  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/scala/Scaladoc.scala",
+  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/support/ForkSupport.scala"
+)
 @classpath("mvn:org.apache.ant:ant:1.8.4") 
 class SBuild(implicit _project: Project) {
 
@@ -166,6 +170,16 @@ object SBuildVersion {
       target = "jvm-1.6",
       fork = true
     ).execute
+  }
+
+  Target("phony:scaladoc") dependsOn SBuildConfig.compilerPath ~ compileCp ~ "checkScalaSources" ~ versionScalaFile exec {
+    addons.scala.Scaladoc(
+      scaladocClasspath = SBuildConfig.compilerPath.files,
+      classpath = compileCp.files,
+      srcDirs = Seq(Path("src/main/scala"), Path("target/generated-scala")) ,
+      destDir = Path("target/scaladoc"),
+      deprecation = true, unchecked = true, implicits = true
+    )
   }
 
 }
