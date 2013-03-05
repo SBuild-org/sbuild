@@ -2,6 +2,16 @@ package de.tototec.sbuild
 
 import java.io.File
 
+/**
+ * Scans a directory for files, recursiv. 
+ * 
+ * An optional regular expression can be used, to filter found files by name.
+ * 
+ * Syntax:
+ * {{{
+ * "scan:src;regex=.*\.java" 
+ * }}}
+ */
 class ScanSchemeHandler(implicit project: Project)
     extends SchemeResolver 
     with TransparentSchemeResolver {
