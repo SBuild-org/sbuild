@@ -103,15 +103,9 @@ class ScalaTest(
     if (junitTests != null && !junitTests.isEmpty) args ++= Array("-j", whiteSpaceSeparated(junitTests))
 
     project.log.log(LogLevel.Info, "Running ScalaTest...")
-    
-    if (fork) {
-      val command = Array("java", "-cp", ForkSupport.pathAsArg(classpath), scalaTestClassName) ++ args
-      val result = ForkSupport.runAndWait(command)
-      if (result != 0) {
-        val e = new ExecutionFailedException("ScalaTest Errors.")
-        e.buildScript = Some(project.projectFile)
-        throw e
-      }
+
+    val retVal = if (fork) {
+      ForkSupport.runJavaAndWait(classpath, Array(scalaTestClassName) ++ args)
 
     } else {
 
@@ -151,12 +145,18 @@ class ScalaTest(
 
       val runMethod = runnerClass.asInstanceOf[Class[_]].getMethod("run", classOf[Array[String]])
       runMethod.invoke(null, args) match {
-        case x if x.isInstanceOf[Boolean] && x == true => // success
-        case _ =>
-          throw new ExecutionFailedException("Some ScalaTest tests failed.")
+        case x if x.isInstanceOf[Boolean] && x == true => 0 // success
+        case _ => 1
       }
 
     }
+
+    if (retVal != 0) {
+      val e = new ExecutionFailedException("ScalaTest errors.")
+      e.buildScript = Some(project.projectFile)
+      throw e
+    }
+
   }
 
 }

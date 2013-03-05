@@ -40,9 +40,9 @@ class ScalaRepl(
     }
 
     val replClassName = "scala.tools.nsc.MainGenericRunner"
-    var args: Array[String] = Array("java", "-cp", ForkSupport.pathAsArg(javaCp), replClassName, "-cp", ForkSupport.pathAsArg(loadCp))
+    var args: Array[String] = Array(replClassName, "-cp", ForkSupport.pathAsArg(loadCp))
 
-    ForkSupport.runAndWait(command = args, interactive = true)
+    ForkSupport.runJavaAndWait(classpath = javaCp, arguments = args, interactive = true)
 
   }
 
