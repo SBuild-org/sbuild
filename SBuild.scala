@@ -37,6 +37,8 @@ class SBuild(implicit _project: Project) {
   )
   modules.foreach { Module(_) }
 
+  val javaOptions = "-XX:MaxPermSize=196m"
+
   Target("phony:clean") dependsOn modules.map(m => TargetRef(m + "::clean")) exec {
     AntDelete(dir = Path("target"))
   } help "Clean all"
@@ -44,6 +46,8 @@ class SBuild(implicit _project: Project) {
   Target("phony:all") dependsOn modules.map(m => TargetRef(m + "::all")) ~ distZip help "Build all"
 
   Target("phony:test") dependsOn ("de.tototec.sbuild::test") help "Run all tests"
+
+  Target("phony:scaladoc") dependsOn "de.tototec.sbuild::scaladoc" ~ "de.tototec.sbuild.ant::scaladoc" ~ "de.tototec.sbuild.addons::scaladoc"
 
   Target(distZip) dependsOn "createDistDir" exec { ctx: TargetContext =>
     AntZip(destFile = ctx.targetFile.get, baseDir = Path("target"), includes = distName + "/**")
@@ -110,7 +114,7 @@ class SBuild(implicit _project: Project) {
       |fi
       |
       |""" +
-     s"""exec $${JRE} -XX:MaxPermSize=128m -cp "$${SBUILD_HOME}/lib/scala-library-${SBuildConfig.scalaVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar:$${SBUILD_HOME}/lib/jansi-1.9.jar:$${SBUILD_HOME}/lib/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" """ +
+     s"""exec $${JRE} ${javaOptions} -cp "$${SBUILD_HOME}/lib/scala-library-${SBuildConfig.scalaVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar:$${SBUILD_HOME}/lib/jansi-1.9.jar:$${SBUILD_HOME}/lib/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" """ +
      """de.tototec.sbuild.runner.SBuildRunner --sbuild-home "${SBUILD_HOME}" ${SBUILD_OPTS} "$@"
       |
       |unset SBUILD_HOME
@@ -200,7 +204,7 @@ class SBuild(implicit _project: Project) {
          |if NOT "%JAVA_HOME%"=="" SET SBUILD_JAVA_EXE=%JAVA_HOME%\bin\java.exe
          |
          |""" + 
-      """%SBUILD_JAVA_EXE% -cp "%SBUILD_HOME%\lib\scala-library-""" + SBuildConfig.scalaVersion + """.jar;%SBUILD_HOME%\lib\jansi-1.9.jar;%SBUILD_HOME%\lib\de.tototec.cmdoption-""" + SBuildConfig.cmdOptionVersion + """.jar;%SBUILD_HOME%\lib\de.tototec.sbuild-""" + SBuildConfig.sbuildVersion + """.jar" """ +
+      """%SBUILD_JAVA_EXE% """ + javaOptions + """ -cp "%SBUILD_HOME%\lib\scala-library-""" + SBuildConfig.scalaVersion + """.jar;%SBUILD_HOME%\lib\jansi-1.9.jar;%SBUILD_HOME%\lib\de.tototec.cmdoption-""" + SBuildConfig.cmdOptionVersion + """.jar;%SBUILD_HOME%\lib\de.tototec.sbuild-""" + SBuildConfig.sbuildVersion + """.jar" """ +
       """de.tototec.sbuild.runner.SBuildRunner --sbuild-home "%SBUILD_HOME%" %SBUILD_CMD_LINE_ARGS%
          |      
          |goto end
