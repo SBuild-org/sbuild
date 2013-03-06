@@ -758,7 +758,7 @@ class SBuildRunner {
                   ctx.start
                   ctx.targetLastModified = cachedState.get.targetLastModified
                   cache.attachedFiles.foreach { file =>
-                    ctx.attachFile(file)
+                    ctx.attachFileWithoutLastModifiedCheck(file)
                   }
                   ctx.end
 

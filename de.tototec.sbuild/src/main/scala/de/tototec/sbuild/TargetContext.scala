@@ -2,6 +2,7 @@ package de.tototec.sbuild
 
 import java.io.File
 import java.util.Date
+import java.io.FileNotFoundException
 
 /**
  * While a target is executed, this trait can be used to get relevant information
@@ -128,11 +129,16 @@ class TargetContextImpl(
 
   override def attachedFiles: Seq[File] = _attachedFiles
   override def attachFile(file: File) {
-    _attachedFiles ++= Seq(file)
+    attachFileWithoutLastModifiedCheck(file)
     // If we have already a set lastModified, than update it now
     if (targetLastModified.isDefined) {
       targetLastModified = file.lastModified
     }
+  }
+  private[sbuild] def attachFileWithoutLastModifiedCheck(file: File) {
+    if (!file.exists)
+      throw new FileNotFoundException(s"""Attached file "${file.getPath}" does not exists.""")
+    _attachedFiles ++= Seq(file)
   }
 
 }
