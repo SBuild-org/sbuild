@@ -11,8 +11,20 @@ import java.io.InputStream
 import java.io.OutputStream
 import de.tototec.sbuild.addons.support.ForkSupport
 
+/**
+ * Scala Compiler Addon.
+ *
+ * Use [[Scalac$#apply]] to configure and execute it in one go.
+ *
+ */
 object Scalac {
 
+  /**
+   * Configure and execute the Scalac addon.
+   *
+   * For parameter documentation see the [[Scalac]] constructor.
+   *
+   */
   def apply(
     compilerClasspath: Seq[File] = null,
     classpath: Seq[File] = null,
@@ -48,6 +60,41 @@ object Scalac {
 
 }
 
+/**
+ * The Scala Compiler addon.
+ *
+ * The compiler can be configured via constructor parameter or `var`s. To compile use [[Scalac#execute]].
+ *
+ * To easily configure and execute the compiler in one go, see [[Scalac$#apply]].
+ *
+ * @constructor
+ * Create a new Scalac Compiler addon instance. All parameters can be omitted and set later.
+ *
+ * The source files can be given via multiple parameters, '''sources''', '''srcDir''' and '''srcDirs''', and will be joined.
+ *
+ * The Scala compiler is able to read Java source files in order to resolve dependencies.
+ * It will not create class files for read Java files, though.
+ * All Java files given or found on the source directories will be read.
+ *
+ *
+ * @param compilerClasspath The classpath which contains the compiler and its dependencies. (E.g. scala-compiler.jar, scala-reflect.jar, ...)
+ * @param classpath The classpath used to load dependencies of the sources. It must also contain the scala library.
+ * @param srcDir A directory containing Scala and Java source files.
+ * @param srcDirs Multiple directories containing Scala and Java source files.
+ * @param sources Source files to be compiled. ''Since 0.4.0''
+ * @param destDir The directory, where the compiled class files will be stored. If the directory does not exists, it will be created.
+ * @param encoding The encoding of the source files.
+ * @param unchecked Enable detailed unchecked (erasure) warnings.
+ * @param deprecation Emit warning and location for usages of deprecated APIs.
+ * @param verbose Output messages about what the compiler is doing.
+ * @param target Target platform for object files.
+ * Scalac 2.9.x supports the following values: jvm-1.5 (default), msil.
+ * Scalac 2.10.x supports the following values: jvm-1.5, jvm-1.6 (default), jvm-1.7.
+ * @param debugInfo The level of generated debugging info. Supported values: none, source, line, vars (default), notailcalls
+ * @param fork Run the compile in a separate process (if `true`). If not set or set to `false`, the Scala version of SBuild and the used Scala compiler must be binary compatible.
+ * @param additionalScalacArgs Additional arguments directly passed to the Scala compiler. Refer to the scalac manual or inspect `scalac -help` output.
+ *
+ */
 class Scalac(
   var compilerClasspath: Seq[File] = null,
   var classpath: Seq[File] = null,
@@ -84,6 +131,9 @@ class Scalac(
     ",additionalScalacArgs=" + additionalScalacArgs +
     ")"
 
+  /**
+   * Execute the Scala compiler.
+   */
   def execute {
     project.log.log(LogLevel.Debug, "About to execute " + this)
 
@@ -146,10 +196,10 @@ class Scalac(
 
   }
 
-  def compileExternal(args: Array[String]) =
+  protected def compileExternal(args: Array[String]) =
     ForkSupport.runJavaAndWait(compilerClasspath, Array(scalacClassName) ++ args)
 
-  def compileInternal(args: Array[String]): Int = {
+  protected def compileInternal(args: Array[String]): Int = {
 
     val compilerClassLoader = new URLClassLoader(compilerClasspath.map { f => f.toURI().toURL() }.toArray, classOf[Scalac].getClassLoader)
     project.log.log(LogLevel.Debug, "Using addional compiler classpath: " + compilerClassLoader.getURLs().mkString(", "))

@@ -10,7 +10,21 @@ import de.tototec.sbuild.Path
 import de.tototec.sbuild.addons.support.ForkSupport
 import java.lang.reflect.Method
 
+/**
+ * Java Compiler Addon.
+ *
+ * Use [[de.tototec.sbuild.addons.java.Javac$#apply]] to configure and execute it in one go.
+ *
+ */
 object Javac {
+
+  /**
+   * Creates, configure and execute the Javac Addon.
+   *
+   * For parameter documentation see the [[Javac]] constructor.
+   *
+   * @since 0.4.0
+   */
   def apply(compilerClasspath: Seq[File] = null,
             classpath: Seq[File] = null,
             sources: Seq[File] = null,
@@ -43,6 +57,37 @@ object Javac {
     ).execute
 
 }
+
+/**
+ * Java Compiler addon.
+ *
+ * The compiler can be configured via constructor parameter or `var`s. To actually start the compilation use [[Javac#execute]].
+ *
+ * To easily configure and execute the compiler in one go, see [[Javac$#apply]].
+ *
+ * @since 0.4.0
+ *
+ * @constructor
+ * Creates a new Javac Compiler addon instance. All parameters can be omitted and set later.
+ *
+ * The source files can be given via multiple parameters, '''sources''', '''srcDir''' and '''srcDirs''', and will be joined.
+ *
+ * @param compilerClasspath The classpath which contains the compiler and its dependencies. If not given, the environment variable `JAVA_HOME` will be checked, and if it points to a installed JDK, this one will be used.
+ * @param classpath The classpath used to load dependencies of the sources.
+ * @param srcDir A directory containing Java source files.
+ * @param srcDirs Multiple directories containing Java source files.
+ * @param sources Source files to be compiled.
+ * @param destDir The directory, where the compiled class files will be stored. If the directory does not exists, it will be created.
+ * @param encoding The encoding of the source files.
+ * @param deprecation Output source locations where deprecated APIs are used.
+ * @param verbose Output messages about what the compiler is doing.
+ * @param source Provide source compatibility with specified release.
+ * @param target Generate class files for the specified VM version.
+ * @param debugInfo If specified generate debugging info. Supported values: none, lines, vars, source, all.
+ * @param fork Run the compile in a separate process (if `true`).
+ * @param additionalJavacArgs Additional arguments directly passed to the Java compiler. Refer to the javac manual or inspect `javac -help` output.
+ *
+ */
 
 class Javac(
   var compilerClasspath: Seq[File] = null,
@@ -79,6 +124,9 @@ class Javac(
     ",additionalJavacArgs=" + additionalJavacArgs +
     ")"
 
+  /**
+   * Execute the Java compiler.
+   */
   def execute {
     project.log.log(LogLevel.Debug, "About to execute " + this)
 
@@ -148,10 +196,10 @@ class Javac(
 
   }
 
-  def compileExternal(args: Array[String]): Int =
+  protected def compileExternal(args: Array[String]): Int =
     ForkSupport.runJavaAndWait(compilerClasspath, Array(javacClassName) ++ args)
 
-  def compileInternal(args: Array[String]): Int = {
+  protected def compileInternal(args: Array[String]): Int = {
 
     val compilerClassLoader = compilerClasspath match {
       case Seq() =>

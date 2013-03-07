@@ -5,8 +5,20 @@ import java.net.URLClassLoader
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.LogLevel
 
+/**
+ * Create OSGi Bundles based on instructions processed by the Bundle Tool (bnd).
+ *
+ * Use [[BndJar$#apply]] to configure and execute it on one go.
+ *
+ */
 object BndJar {
 
+  /**
+   * Creates, configure and execute the BndJar addon.
+   *
+   * For parameter documentation see the [[BndJar]] constructor.
+   *
+   */
   def apply(bndClasspath: Seq[File] = null,
             classpath: Seq[File] = null,
             props: Map[String, String] = null,
@@ -20,6 +32,20 @@ object BndJar {
 
 }
 
+/**
+ * Create OSGi Bundles based on instructions processed by the Bundle Tools (bnd).
+ * 
+ * To easily configure and execute the BndJar addon in one go, see [[BndJar$#apply]].
+ * 
+ * @constructor
+ * Creates a new BndJar instance. All parameters can be omitted and set later.
+ * 
+ * @param bndClasspath The Classpath which contains the bnd tools and its dependencies. (E.g. bndlib.jar)
+ * @param classpath The classpath where bnd will search classes. Depending on the instructions, those classes will be included in the resulting bundle JAR or used to infer a reasonable version constraint for the import statements.  
+ * @param props Proerties containing the bnd instructions. For a complete reference of bnd instructions, refer the bnd project page at [[http://www.aqute.biz/Bnd/Bnd]].
+ * @param destFile The resulting JAR file.
+ * 
+ */
 class BndJar(
   var bndClasspath: Seq[File] = null,
   var classpath: Seq[File] = null,

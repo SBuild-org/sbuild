@@ -7,8 +7,20 @@ import de.tototec.sbuild.Project
 import de.tototec.sbuild.Path
 import de.tototec.sbuild.LogLevel
 
+/**
+ * Provided various support functions for forking of processes.
+ */
 object ForkSupport {
 
+  /**
+   * Run the system default JVM with the given classpath and arguments.
+   *
+   * @param classpath The classpath used by the JVM.
+   * @param arguments The arguments to the JVM. The first parameter should be the Java class containing a `main` method.
+   * @param interactive If `true`, the input stream is routed to the newly started process, to read user input.
+   *
+   *  @return The return value of the Java process. Typically 0 indicated success whereas any other value is treated as error.
+   */
   def runJavaAndWait(classpath: Seq[File], arguments: Array[String], interactive: Boolean = false)(implicit project: Project): Int = {
 
     val java = "java"
@@ -23,6 +35,14 @@ object ForkSupport {
       interactive = interactive)
   }
 
+  /**
+   * Run a command.
+   * 
+   * @param command The command and its arguments.
+   * @param interactive If `true`, the input stream is routed to the newly started process, to read user input.
+   *
+   *  @return The return value of the Java process. Typically 0 indicated success whereas any other value is treated as error.
+   */
   def runAndWait(command: Array[String], interactive: Boolean = false)(implicit project: Project): Int = {
     val pb = new ProcessBuilder(command: _*)
     project.log.log(LogLevel.Debug, "Run command: " + command.mkString(" "))
@@ -69,6 +89,9 @@ object ForkSupport {
     result
   }
 
+  /**
+   * Starts a new thread which copies an InputStream into an Output stream. Does not close the streams.
+   */
   def copyInThread(in: InputStream, out: OutputStream) {
     new Thread("StreamCopyThread") {
       override def run {
@@ -78,6 +101,9 @@ object ForkSupport {
     }.start
   }
 
+  /**
+   * Copies an InputStream into an OutputStream. Does not close the streams.
+   */
   def copy(in: InputStream, out: OutputStream) {
     val buf = new Array[Byte](1024)
     var len = 0
@@ -89,8 +115,14 @@ object ForkSupport {
     }
   }
 
+  /**
+   * Converts a Seq of files into a string containing the absolute file pathes concatenated with the platform specific path separator (":" on Unix, ";" on Windows).
+   */
   def pathAsArg(pathes: Seq[File]): String = pathes.map(p => p.getAbsolutePath).mkString(File.pathSeparator)
 
+  /**
+   * Concatetes the input string into a single white space separated string. Any whitespace in the input strings will be masked with a backslash ("\").
+   */
   def whiteSpaceSeparated(seq: Seq[String]): String = seq.map(_.replaceAll(" ", "\\ ")).mkString(" ")
 
 }

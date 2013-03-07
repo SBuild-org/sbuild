@@ -4,5 +4,5 @@
 	<classpathentry kind="con" path="org.scala-ide.sdt.launching.SCALA_CONTAINER"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="con" path="de.tototec.sbuild.SBUILD_DEPENDENCIES"/>
-	<classpathentry kind="output" path="target/classes"/>
+	<classpathentry kind="output" path="target/eclipse-classes"/>
 </classpath>

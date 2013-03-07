@@ -15,6 +15,8 @@ object Scaladoc {
   /**
    * Run the scaladoc generator.
    *
+   * @since 0.4.0
+   * 
    * @param scaladocClasspath  Classpath used to load the scaladoc generator.
    * @param sources Sources, to generate the scaladoc for.
    */
@@ -66,6 +68,8 @@ object Scaladoc {
 
 /**
  * Generate Scaladoc.
+ * 
+ * @since 0.4.0
  *
  * @param scaladocClasspath  Classpath used to load the scaladoc generator.
  * @param sources Sources, to generate the scaladoc for.

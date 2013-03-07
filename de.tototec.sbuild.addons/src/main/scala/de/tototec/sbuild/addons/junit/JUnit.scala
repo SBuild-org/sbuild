@@ -8,7 +8,15 @@ import de.tototec.sbuild.Project
 import de.tototec.sbuild.LogLevel
 import scala.collection.JavaConversions._
 
+/**
+ * JUnit Addon, to run JUnit-based unit tests with SBuild.
+ * 
+ */
 object JUnit {
+  /**
+   * Creates, configures and execute a JUnit test runner.
+   * For parameter documentation refer to [[JUnit]].
+   */
   def apply(
     classpath: Seq[File] = null,
     classes: Seq[String] = null,
@@ -19,6 +27,23 @@ object JUnit {
   ).execute
 }
 
+/**
+ * JUnit Addon, to run JUnit-based unit tests with SBuild.
+ *
+ * @constructor
+ * Creates a new JUnit addon instance.
+ *
+ * All constructor parameters can be omitted an set afterwards.
+ * To execute all configured unit test, call [[JUnit#execute]].
+ *
+ * To easily create, configure and execute the JUnit test runner in one go, see [[JUnit$#apply]].
+ *
+ * @param classpath The classpath which contains the JUnit runner and the classes containing the test cases.
+ * @param classes The fully qualified classes containing the JUnit test cases.
+ * @param failOnError Control, whether failed tests should be handled as errors or not.
+ *   When not, failed tests will be printed, but the build will continue.   
+ *
+ */
 class JUnit(
   var classpath: Seq[File] = null,
   var classes: Seq[String] = null,
