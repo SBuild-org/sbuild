@@ -1,22 +1,22 @@
 package de.tototec.sbuild
 
 /**
- * Translates a target name into another (local) target name with a built-in target scheme.
- * If SBuild decides, that the virtual target needs to be executed (is not up-to-date),
- * [[de.tototec.sbuild.SchemeHandler#resolve(String)]] will be called.
- *
+ * Translates a target name into another target name
  */
 trait SchemeHandler {
   /**
    * The resulting target name (path) this target resolves to.
-   * If must either start with "file:" or "phony:" (the built-in target schemes).
    */
   def localPath(path: String): String
 }
 
 /**
- * A SchemeHandler, that also resolves the representing target. 
- * The localPath of such schemes should point into a built-in target scheme, either "file" or "phony".
+ * A SchemeHandler, that also resolves the representing target.
+ *  with a built-in target scheme.
+ * The localPath of such schemes should translate into a built-in target scheme, either "file" or "phony".
+ * If SBuild decides, that the virtual target needs to be executed (is not up-to-date),
+ * [[de.tototec.sbuild.SchemeResolver#resolve(String)]] will be called. 
+ * 
  */
 trait SchemeResolver extends SchemeHandler {
   /**
