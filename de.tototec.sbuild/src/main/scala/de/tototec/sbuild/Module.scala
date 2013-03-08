@@ -14,8 +14,10 @@ object Module {
 
 class Module private[sbuild] (dirOrFile: String, project: Project) {
   def name = dirOrFile
-  def targetRef(targetRefName: String): TargetRef = TargetRef(dirOrFile + "::" + targetRefName)(project)
-  def targetRefs(targetRefNames: String*): TargetRefs = targetRefNames.map(t => targetRef(t))
+  def apply(targetName: String): TargetRef = targetRef(targetName)
+  def targetRef(targetName: String): TargetRef = TargetRef(dirOrFile + "::" + targetName)(project)
+  def targetRefs(targetNames: String*): TargetRefs = targetNames.map(t => targetRef(t))
+  // def listTargets: Seq[TargetRef] = project.targets.values.toSeq.map { t => TargetRef(t) }
 }
 
 object Modules {
