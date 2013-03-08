@@ -129,7 +129,7 @@ object Scalac {
  *   If the directory does not exists, it will be created.
  * @param encoding The encoding of the source files.
  * @param unchecked If `true`, the compiler enables detailed unchecked (erasure) warnings.
- * @param deprecation If ' true` , the compiler emit warning and location for usages of deprecated APIs.
+ * @param deprecation If `true` , the compiler emit warning and location for usages of deprecated APIs.
  * @param verbose If `true`, the compiler outputs messages about what it is doing.
  * @param target Target platform for object files.
  *   The supported values depend on the used version of the Scalac compiler. 
