@@ -167,8 +167,7 @@ object SBuildVersion {
       deprecation = true,
       unchecked = true,
       debugInfo = "vars",
-      target = "jvm-1.6",
-      fork = true
+      target = "jvm-1.6"
     ).execute
   }
 
