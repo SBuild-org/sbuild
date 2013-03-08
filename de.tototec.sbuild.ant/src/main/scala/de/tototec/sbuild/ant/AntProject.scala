@@ -6,7 +6,16 @@ import org.apache.tools.ant.BuildEvent
 import de.tototec.sbuild.Path
 import java.io.File
 
+/**
+ * Companion object for [[AntProject]],
+ * SBuild implementation to be used in conjunction with Ant specific API like Ant tasks.
+ *
+ * You can use [[AntProject$.apply]] at any point in your SBuild project, to get the Ant project.
+ */
 object AntProject {
+  /**
+   * Get or create an Ant project implementation, that is associated to the SBuild project given with the implicit parameter `project`.
+   */
   def apply()(implicit project: Project): AntProject = project.antProject match {
     case Some(p: AntProject) => p
     case _ =>
@@ -16,6 +25,16 @@ object AntProject {
   }
 }
 
+/**
+ * SBuild specific implementation of Ant's project ([[org.apache.tools.ant.Project]]).
+ *
+ * To use Ant task in SBuild, one needs to provide an instance of an Ant project.
+ * The preferred way to get an SBuild aware Ant project is [[AntProject$.apply]].
+ *
+ * The underlying Ant project will be configured to the same project directory and will log in the INFO log level.
+ * You can change the log level through the system property "`ant.loglevel`".
+ *
+ */
 class AntProject(project: Project) extends org.apache.tools.ant.Project {
 
   addBuildListener(new BuildListener() {

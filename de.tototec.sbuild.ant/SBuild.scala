@@ -47,7 +47,6 @@ class SBuild(implicit _project: Project) {
 
       new addons.scala.Scalac(
         deprecation = true, unchecked = true, debugInfo = "vars", target = "jvm-1.6",
-        fork = true,
         compilerClasspath = ctx.fileDependencies.filter(f => compilerFilter.pattern.matcher(f.getName).matches),
         srcDir = Path(input),
         destDir = Path(output),
