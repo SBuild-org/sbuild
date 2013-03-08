@@ -6,7 +6,7 @@ import de.tototec.sbuild.Project
 import de.tototec.sbuild.LogLevel
 
 /**
- * Create OSGi Bundles based on instructions processed by the Bundle Tool (bnd).
+ * Companion object for [[BndJar]], which creates OSGi bundles.
  *
  * Use [[BndJar$#apply]] to configure and execute it on one go.
  *
@@ -33,18 +33,47 @@ object BndJar {
 }
 
 /**
- * Create OSGi Bundles based on instructions processed by the Bundle Tools (bnd).
- * 
+ * Create OSGi Bundles based on instructions processed by the [[http://www.aqute.biz/Bnd/Bnd Bundle Tools (bnd)]].
+ *
  * To easily configure and execute the BndJar addon in one go, see [[BndJar$#apply]].
- * 
+ *
+ * '''Example:'''
+ * {{{
+ * class SBuild(implicit _project: Project) {
+ *   // Your compile dependencies
+ *   val compileCp = ...
+ *
+ *   // The bndlib jar
+ *   val bndCp = "mvn:biz.aQute:bndlib:1.50.0"
+ *
+ *   // your bundle jar
+ *   val jar = "target/org.example.bundle-1.0.0.jar"
+ *
+ *   Target(jar) dependsOn "compile" ~ compileCp ~ bndCp ~ "scan:target/classes" exec { ctx: TargetContext =>
+ *     addons.bnd.BndJar(
+ *       bndClasspath = bndCp.files,
+ *       classpath = compileCp.files ++ Seq(Path("target/classes")),
+ *       destFile = ctx.targetFile.get,
+ *       props = Map(
+ *         "Bundle-SymbolicName" -> "org.example.bundle",
+ *         "Bundle-Version" -> "1.0.0",
+ *         "Import-Package" -> "*",
+ *         "Export-Package" -> """org.example.bundle;version="${Bundle-Version}"""",
+ *         "Include-Resource" -> "src/main/resources")
+ *     )
+ *   }
+ * }
+ * }}}
+ *
  * @constructor
  * Creates a new BndJar instance. All parameters can be omitted and set later.
- * 
- * @param bndClasspath The Classpath which contains the bnd tools and its dependencies. (E.g. bndlib.jar)
- * @param classpath The classpath where bnd will search classes. Depending on the instructions, those classes will be included in the resulting bundle JAR or used to infer a reasonable version constraint for the import statements.  
+ *
+ * @param bndClasspath The Classpath which contains the `bndlib` and its dependencies. (E.g. bndlib.jar)
+ * If not specified, bndlib will be loaded from SBuilds classpath, in which case, you have to add it e.g. with {{{ @classpath("mvn:biz.aQute:bndlib:1.50.0") }}}
+ * @param classpath The classpath where bnd will search classes. Depending on the instructions, those classes will be included in the resulting bundle JAR or used to infer a reasonable version constraint for the import statements.
  * @param props Proerties containing the bnd instructions. For a complete reference of bnd instructions, refer the bnd project page at [[http://www.aqute.biz/Bnd/Bnd]].
  * @param destFile The resulting JAR file.
- * 
+ *
  */
 class BndJar(
   var bndClasspath: Seq[File] = null,

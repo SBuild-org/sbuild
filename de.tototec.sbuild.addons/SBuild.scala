@@ -65,7 +65,7 @@ class SBuild(implicit _project: Project) {
       destDir = Path("target/scaladoc"),
       deprecation = true, unchecked = true, implicits = true,
       docVersion = SBuildConfig.sbuildVersion,
-      docTitle = s"SBuild Addons ${SBuildConfig.sbuildVersion}"
+      docTitle = s"SBuild Addons"
     )
   }
 
