@@ -129,16 +129,18 @@ class TargetContextImpl(
 
   override def attachedFiles: Seq[File] = _attachedFiles
   override def attachFile(file: File) {
-    attachFileWithoutLastModifiedCheck(file)
+    attachFileWithoutLastModifiedCheck(Seq(file))
     // If we have already a set lastModified, than update it now
     if (targetLastModified.isDefined) {
       targetLastModified = file.lastModified
     }
   }
-  private[sbuild] def attachFileWithoutLastModifiedCheck(file: File) {
-    if (!file.exists)
-      throw new FileNotFoundException(s"""Attached file "${file.getPath}" does not exists.""")
-    _attachedFiles ++= Seq(file)
+  private[sbuild] def attachFileWithoutLastModifiedCheck(files: Seq[File]) {
+    files.foreach { file =>
+      if (!file.exists)
+        throw new FileNotFoundException(s"""Attached file "${file.getPath}" does not exists.""")
+    }
+    _attachedFiles ++= files
   }
 
 }

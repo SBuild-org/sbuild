@@ -694,6 +694,11 @@ class SBuildRunner {
         case None if curTarget.action == null =>
           // phony target but just a collector of dependencies
           ctx.targetLastModified = depsLastModified
+          val files = ctx.fileDependencies
+          if (!files.isEmpty) {
+            log.log(LogLevel.Debug, s"Attaching ${files.size} files of dependencies to empty phony target.")
+            ctx.attachFileWithoutLastModifiedCheck(files)
+          }
           false
 
         case None =>
@@ -757,9 +762,7 @@ class SBuildRunner {
                   log.log(LogLevel.Debug, progressPrefix + "Skipping cached target: " + colorTarget(formatTarget(curTarget)))
                   ctx.start
                   ctx.targetLastModified = cachedState.get.targetLastModified
-                  cache.attachedFiles.foreach { file =>
-                    ctx.attachFileWithoutLastModifiedCheck(file)
-                  }
+                  ctx.attachFileWithoutLastModifiedCheck(cache.attachedFiles)
                   ctx.end
 
                 case None =>
