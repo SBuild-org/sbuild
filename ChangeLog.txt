@@ -49,6 +49,7 @@ SBuild 0.3.2.9000
 * Dramatic speedup of dependency tree traversal.
 * New Javac addon.
 * Support for newer bndlib in BndJar addon.
+* Added method Module.apply to construct TargetRef.
 
 SBuild 0.3.2 - 2013-01-26
 
