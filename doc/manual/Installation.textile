@@ -38,7 +38,8 @@ Add the path of the "bin" directory to the @PATH@ variable: @PATH=%SBUILD_HOME%\
 h5. Special Notes for Cygwin Users
 
 If running sbuild under cygwin, you may see the following error message:
-<pre>
+
+bc. 
 $ sbuild all
 java.lang.NoClassDefFoundError: de/tototec/sbuild/runner/SBuildRunner
 Caused by: java.lang.ClassNotFoundException: de.tototec.sbuild.runner.SBuildRunner
@@ -50,7 +51,6 @@ Caused by: java.lang.ClassNotFoundException: de.tototec.sbuild.runner.SBuildRunn
         at java.lang.ClassLoader.loadClass(Unknown Source)
 Could not find the main class: de.tototec.sbuild.runner.SBuildRunner.  Program will exit.
 Exception in thread "main"
-</pre>
 
 This is because cygwin does not execute the @sbuild.bat@ file but the @sbuild@ shell script. You may either call @sbuild.bat@ directly, or delete the @PATH/bin/sbuild@ file.
 

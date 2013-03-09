@@ -22,6 +22,10 @@ class SBuild(implicit _project: Project) {
   //      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10-src.jar")
   //      "mvn:biz.aQute:bndlib:1.50.0"
 
+  val compileSp = 
+    s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion};classifier=sources" ~
+      "../de.tototec.sbuild/src/main/scala"
+
   ExportDependencies("eclipse.classpath", compileCp)
 
   Target("phony:all") dependsOn "clean" ~ addonsJar
@@ -65,7 +69,7 @@ class SBuild(implicit _project: Project) {
       destDir = Path("target/scaladoc"),
       deprecation = true, unchecked = true, implicits = true,
       docVersion = SBuildConfig.sbuildVersion,
-      docTitle = s"SBuild Addons"
+      docTitle = s"SBuild Addons Reference"
     )
   }
 

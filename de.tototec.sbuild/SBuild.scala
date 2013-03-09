@@ -20,6 +20,10 @@ class SBuild(implicit _project: Project) {
       "http://repo.fusesource.com/nexus/content/groups/public/org/fusesource/jansi/jansi/1.9/jansi-1.9.jar" ~
       SBuildConfig.cmdOptionSource
 
+  val compileSp = 
+    s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion};classifier=sources" ~
+    s"http://cmdoption.tototec.de/cmdoption/attachments/download/14/de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}-sources.jar"
+
   val testCp = compileCp ~
       s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:1.9.1" ~
       s"mvn:org.scala-lang:scala-actors:${SBuildConfig.scalaVersion}"
@@ -177,7 +181,9 @@ object SBuildVersion {
       classpath = compileCp.files,
       srcDirs = Seq(Path("src/main/scala"), Path("target/generated-scala")) ,
       destDir = Path("target/scaladoc"),
-      deprecation = true, unchecked = true, implicits = true
+      deprecation = true, unchecked = true, implicits = true,
+      docVersion = SBuildConfig.sbuildVersion,
+      docTitle = s"SBuild API Reference"
     )
   }
 

@@ -21,9 +21,16 @@ class SBuild(implicit _project: Project) {
     s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" ~
       s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
       s"mvn:org.scala-lang:scala-compiler:${SBuildConfig.scalaVersion}" ~
-      "mvn:org.apache.ant:ant:1.8.3" ~
+      "mvn:org.apache.ant:ant:1.8.4" ~
       "mvn:org.liquibase:liquibase-core:2.0.3" ~
       bnd_1_50_0
+
+  val compileSp = 
+    s"../de.tototec.sbuild/src/main/scala" ~
+    s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion};classifier=sources" ~
+      s"mvn:org.scala-lang:scala-compiler:${SBuildConfig.scalaVersion};classifier=sources" ~
+      "mvn:org.apache.ant:ant:1.8.4;classifier=sources" ~
+      "mvn:org.liquibase:liquibase-core:2.0.3;classifier=sources"
 
   ExportDependencies("eclipse.classpath", compileCp)
 
@@ -92,7 +99,7 @@ class SBuild(implicit _project: Project) {
       destDir = Path("target/scaladoc"),
       deprecation = true, unchecked = true, implicits = true,
       docVersion = SBuildConfig.sbuildVersion,
-      docTitle = "SBuild Addons"
+      docTitle = "SBuild Ant Support and Wrappers Reference"
     )
   }
 
