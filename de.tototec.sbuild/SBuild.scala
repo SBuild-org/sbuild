@@ -3,12 +3,8 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
-@version("0.3.2")
-@include(
-  "../SBuildConfig.scala",
-  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/scala/Scaladoc.scala",
-  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/support/ForkSupport.scala"
-)
+@version("0.4.0")
+@include("../SBuildConfig.scala")
 @classpath("mvn:org.apache.ant:ant:1.8.4") 
 class SBuild(implicit _project: Project) {
 
@@ -20,10 +16,6 @@ class SBuild(implicit _project: Project) {
       "http://repo.fusesource.com/nexus/content/groups/public/org/fusesource/jansi/jansi/1.9/jansi-1.9.jar" ~
       SBuildConfig.cmdOptionSource
 
-  val compileSp = 
-    s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion};classifier=sources" ~
-    s"http://cmdoption.tototec.de/cmdoption/attachments/download/14/de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}-sources.jar"
-
   val testCp = compileCp ~
       s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:1.9.1" ~
       s"mvn:org.scala-lang:scala-actors:${SBuildConfig.scalaVersion}"
@@ -34,7 +26,7 @@ class SBuild(implicit _project: Project) {
 
   val versionScalaFile = "target/generated-scala/scala/de/tototec/sbuild/SBuildVersion.scala"
 
-  Target("phony:clean") exec {
+  Target("phony:clean").evictCache exec {
     AntDelete(dir = Path("target"))
   }
 
@@ -66,59 +58,39 @@ object SBuildVersion {
     }
   }
 
-  Target("phony:compile") dependsOn SBuildConfig.compilerPath ~ compileCp ~ versionScalaFile exec { ctx: TargetContext =>
+  Target("phony:compile").cacheable dependsOn SBuildConfig.compilerPath ~ compileCp ~ versionScalaFile ~
+      "scan:src/main/scala" ~ "scan:src/main/java" exec {
+
     val output = "target/classes"
-    AntMkdir(dir = Path(output))
-    IfNotUpToDate(Seq(Path("src/main/scala"), Path("src/main/java"), Path("target/generated-scala")), Path("target"), ctx) {
-      // compile scala files (compiler will also see java files)
 
-      val compilerFilter = """.*scala-((library)|(compiler)|(reflect)).*""".r
+    // compile scala files
+    addons.scala.Scalac(
+      compilerClasspath = SBuildConfig.compilerPath.files,
+      classpath = compileCp.files,
+      sources = "scan:src/main/scala".files ++ "scan:src/main/java".files ++ versionScalaFile.files,
+      destDir = Path(output),
+      unchecked = true, deprecation = true, debugInfo = "vars"
+    )
 
-      compileScala(
-        compilerClasspath = ctx.fileDependencies.filter(f => compilerFilter.pattern.matcher(f.getName).matches),
-        srcDirs = Seq("src/main/scala", "src/main/java", "target/generated-scala"),
-        destDir = output,
-        classpath = ctx.fileDependencies
-      )
-
-      // compile java files
-      AntJavac(
-        srcDir = AntPath("src/main/java"),
-        destDir = Path(output),
-        classpath = AntPath(locations = ctx.fileDependencies),
-        fork = true,
-        source = "1.6",
-        target = "1.6",
-        encoding = "UTF-8",
-        debug = true,
-        includeAntRuntime = false)
-
-    }
-
-    // re-enable when used SBuild version used Scala 2.10
-    // validateGeneratedVersions(ctx.fileDependencies)
+    // compile java files
+    addons.java.Javac(
+      sources = "scan:src/main/java".files,
+      destDir = Path(output),
+      classpath = compileCp.files,
+      source = "1.6",
+      target = "1.6",
+      debugInfo = "all"
+    )
   }
 
-  Target("phony:checkResources") exec { ctx: TargetContext =>
-    IfNotUpToDate(Path("src/main/resources"), Path("target"), ctx) {}
-  }
-
-  Target("phony:checkMainSources") exec { ctx: TargetContext =>
-    IfNotUpToDate(Seq(Path("src/main"), Path("target/generated-scala")), Path("target"), ctx) {}
-  }
-
-  Target("phony:checkScalaSources") exec { ctx: TargetContext =>
-    IfNotUpToDate(Seq(Path("src/main/scala"), Path("target/generated-scala")), Path("target"), ctx) {}
-  }
-
-  Target(jar) dependsOn "compile" ~ "checkResources" exec { ctx: TargetContext =>
+  Target(jar) dependsOn "compile" ~ "scan:src/main/resources" ~ "LICENSE.txt" exec { ctx: TargetContext =>
     new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes")) {
       if (Path("src/main/resources").exists) add(AntFileSet(dir = Path("src/main/resources")))
       add(AntFileSet(file = Path("LICENSE.txt")))
     }.execute
   }
 
-  Target(sourcesZip) dependsOn versionScalaFile ~ "checkMainSources" exec { ctx: TargetContext =>
+  Target(sourcesZip) dependsOn versionScalaFile ~ "scan:src/main" ~ "scan:target/generated-scala" ~ "scan:LICENSE.txt" exec { ctx: TargetContext =>
     AntZip(destFile = ctx.targetFile.get, fileSets = Seq(
       AntFileSet(dir = Path("src/main/scala")),
       AntFileSet(dir = Path("src/main/java")),
@@ -128,58 +100,29 @@ object SBuildVersion {
     ))
   }
 
-//   Target("phony:scaladoc") dependsOn compileCp ~ "checkScalaSources" exec { ctx: TargetContext =>
-//     AntMkdir(dir = Path("target/scaladoc"))
-//     scala_tools_ant.AntScaladoc(
-//       deprecation = "on",
-//       unchecked = "on",
-//       classpath = AntPath(locations = ctx.fileDependencies),
-//       srcDir = AntPath(path = "src/main/scala"),
-//       destDir = Path("target/scaladoc"))
-//   }
-
-  Target("phony:testCompile") dependsOn SBuildConfig.compilerPath ~ testCp ~ jar exec { ctx: TargetContext =>
-    IfNotUpToDate(Path("src/test/scala"), Path("target"), ctx) {
-      AntMkdir(dir = Path("target/test-classes"))
-      compileScala(
-        compilerClasspath = ctx.fileDependencies.filter(f => f.getName.contains("scala")),
-        srcDirs = Seq("src/test/scala"),
-        destDir = "target/test-classes",
-        classpath = ctx.fileDependencies
-      )
-    }
+  Target("phony:testCompile").cacheable dependsOn SBuildConfig.compilerPath ~ testCp ~ jar ~ "scan:src/test/scala" exec {
+    addons.scala.Scalac(
+      compilerClasspath = SBuildConfig.compilerPath.files,
+      classpath = testCp.files ++ jar.files,
+      sources = "scan:src/test/scala".files,
+      destDir = Path("target/test-classes"),
+      deprecation = true, unchecked = true, debugInfo = "vars"
+    )
   }
 
-  Target("phony:test") dependsOn testCp ~ jar ~ "testCompile" exec { ctx: TargetContext =>
-    de.tototec.sbuild.addons.scalatest.ScalaTest(
-      classpath = ctx.fileDependencies,
+  Target("phony:test") dependsOn testCp ~ jar ~ "testCompile" exec {
+    addons.scalatest.ScalaTest(
+      classpath = testCp.files ++ jar.files,
       runPath = Seq("target/test-classes"),
       reporter = "oF",
       fork = true)
   }
 
-  def compileScala(compilerClasspath: Seq[java.io.File],
-                   classpath: Seq[java.io.File],
-                   destDir: String = "target/classes",
-                   srcDirs: Seq[String] = Seq("src/main/scala")) {
-
-    new addons.scala.Scalac(
-      compilerClasspath = compilerClasspath,
-      srcDirs = srcDirs.map(d => Path(d)),
-      destDir = Path(destDir),
-      classpath = classpath,
-      deprecation = true,
-      unchecked = true,
-      debugInfo = "vars",
-      target = "jvm-1.6"
-    ).execute
-  }
-
-  Target("phony:scaladoc") dependsOn SBuildConfig.compilerPath ~ compileCp ~ "checkScalaSources" ~ versionScalaFile exec {
+  Target("phony:scaladoc") dependsOn SBuildConfig.compilerPath ~ compileCp ~ "scan:src/main/scala" ~ versionScalaFile exec {
     addons.scala.Scaladoc(
       scaladocClasspath = SBuildConfig.compilerPath.files,
       classpath = compileCp.files,
-      srcDirs = Seq(Path("src/main/scala"), Path("target/generated-scala")) ,
+      sources = "scan:src/main/scala".files ++ versionScalaFile.files,
       destDir = Path("target/scaladoc"),
       deprecation = true, unchecked = true, implicits = true,
       docVersion = SBuildConfig.sbuildVersion,

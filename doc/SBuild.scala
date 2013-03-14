@@ -63,7 +63,7 @@ class SBuild(implicit _project: Project) {
   }
 
   // TODO: depend on wiki files
-  Target("convert-manual-to-docbook") exec {
+  Target("phony:convert-manual-to-docbook") exec {
     AntCopy(fileSet = AntFileSet(dir = Path("manual")), toDir = Path("target/manual"))
 
     // Preprocess wiki files converting internal links to external ones.
@@ -81,7 +81,7 @@ class SBuild(implicit _project: Project) {
 
   }
 
-  Target("convert-docbook-to-html") dependsOn "convert-manual-to-docbook" exec {
+  Target("phony:convert-docbook-to-html") dependsOn "convert-manual-to-docbook" exec {
     new org.apache.tools.ant.taskdefs.XSLTProcess() {
       setProject(AntProject())
       setIn(Path("target/manual/ReferenceManual.xml"))

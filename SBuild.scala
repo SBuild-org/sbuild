@@ -3,7 +3,7 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
-@version("0.3.2")
+@version("0.4.0")
 @include("SBuildConfig.scala")
 @classpath(
   "mvn:org.apache.ant:ant:1.8.4"
@@ -29,36 +29,38 @@ class SBuild(implicit _project: Project) {
 
   val classpathProperties = distDir + "/lib/classpath.properties"
 
-  val modules = Seq(
+  val modules = Modules(
     "de.tototec.sbuild", 
     "de.tototec.sbuild.ant", 
     "de.tototec.sbuild.addons",
     "doc"
   )
-  modules.foreach { Module(_) }
 
   val javaOptions = "-XX:MaxPermSize=196m"
 
-  Target("phony:clean") dependsOn modules.map(m => TargetRef(m + "::clean")) exec {
+  Target("phony:clean") dependsOn modules.map(m => m("clean")) exec {
     AntDelete(dir = Path("target"))
   } help "Clean all"
 
-  Target("phony:all") dependsOn modules.map(m => TargetRef(m + "::all")) ~ distZip help "Build all"
+  Target("phony:all") dependsOn modules.map(m => m("all")) ~ distZip help "Build all"
 
   Target("phony:test") dependsOn ("de.tototec.sbuild::test") help "Run all tests"
 
-  Target("phony:scaladoc") dependsOn "de.tototec.sbuild::scaladoc" ~ "de.tototec.sbuild.ant::scaladoc" ~ "de.tototec.sbuild.addons::scaladoc"
+  Target("phony:scaladoc") dependsOn 
+    "de.tototec.sbuild::scaladoc" ~ "de.tototec.sbuild.ant::scaladoc" ~ "de.tototec.sbuild.addons::scaladoc"
 
   Target(distZip) dependsOn "createDistDir" exec { ctx: TargetContext =>
     AntZip(destFile = ctx.targetFile.get, baseDir = Path("target"), includes = distName + "/**")
   }
 
-  Target("phony:createDistDir") dependsOn "copyJars" ~ classpathProperties ~ s"${distDir}/bin/sbuild" ~ s"${distDir}/bin/sbuild.bat" ~ "LICENSE.txt" exec {
+  Target("phony:createDistDir") dependsOn "copyJars" ~ classpathProperties ~ 
+      s"${distDir}/bin/sbuild" ~ s"${distDir}/bin/sbuild.bat" ~ "LICENSE.txt" exec {
     AntCopy(file = Path("LICENSE.txt"), toDir = Path(distDir + "/doc"))
     AntCopy(file = Path("ChangeLog.txt"), toDir = Path(distDir + "/doc"))
   }
 
-  Target("phony:copyJars") dependsOn cmdOptionJar ~  SBuildConfig.compilerPath ~ binJar ~ antJar ~ addonsJar ~ jansiJar exec { ctx: TargetContext =>
+  Target("phony:copyJars") dependsOn cmdOptionJar ~ SBuildConfig.compilerPath ~ 
+      binJar ~ antJar ~ addonsJar ~ jansiJar exec { ctx: TargetContext =>
     ctx.fileDependencies foreach { file => 
       AntCopy(file = file, toDir = Path(distDir + "/lib"))
     }
