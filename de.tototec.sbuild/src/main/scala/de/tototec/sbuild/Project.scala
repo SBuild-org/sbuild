@@ -115,20 +115,35 @@ class Project(_projectFile: File,
     }
 
   def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target = {
-    if (explicitForeignProject(targetRef).isDefined) {
-      throw new ProjectConfigurationException("Cannot create Target which explicitly references a different project in its name: " + targetRef)
-    }
+    explicitForeignProject(targetRef) match {
+      case Some(pFile) if targetRef.explicitNonStandardProto.isDefined =>
+        // This must be a scheme handler, and as we have both scheme and project defined, we WANT the target
+        // See https://sbuild.tototec.de/sbuild/issues/112
 
-    val UniqueTargetFile(file, phony, handler) = uniqueTargetFile(targetRef)
-    val proto = targetRef.explicitProto match {
-      case Some(x) => x
-      case None => "file"
-    }
+        projectPool.propjectMap.get(pFile) match {
+          case None =>
+            val ex = new TargetNotFoundException("Could not find target: " + targetRef + ". Unknown project: " + pFile)
+            ex.buildScript = Some(projectFile)
+            throw ex
+          case Some(p) =>
+            p.createTarget(targetRef, isImplicit = true)
+        }
+      case Some(_) =>
+        val ex = new ProjectConfigurationException("Cannot create Target which explicitly references a different project in its name: " + targetRef)
+        ex.buildScript = Some(targetRef.safeTargetProject.projectFile)
+        throw ex
+      case None =>
+        val UniqueTargetFile(file, phony, handler) = uniqueTargetFile(targetRef)
+        val proto = targetRef.explicitProto match {
+          case Some(x) => x
+          case None => "file"
+        }
 
-    val target = new ProjectTarget(targetRef.name, file, phony, handler, this)
-    target.isImplicit = isImplicit
-    targets += (file -> target)
-    target
+        val target = new ProjectTarget(targetRef.name, file, phony, handler, this)
+        target.isImplicit = isImplicit
+        targets += (file -> target)
+        target
+    }
   }
 
   /**
@@ -146,6 +161,8 @@ class Project(_projectFile: File,
             ex.buildScript = Some(projectFile)
             throw ex
           case Some(p) => p.findTarget(targetRef, searchInAllProjects = false) match {
+            case None if targetRef.explicitNonStandardProto.isDefined =>
+              None
             case None =>
               val ex = new TargetNotFoundException("Could not find target: " + targetRef + " in project: " + pFile)
               ex.buildScript = Some(projectFile)

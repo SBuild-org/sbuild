@@ -27,6 +27,11 @@ class TargetRef(val ref: String)(implicit project: Project) {
     case Array(name) => None
   }
 
+  def explicitNonStandardProto: Option[String] = explicitProto match {
+    case Some(p) if p != "file" && p != "phony" => Some(p)
+    case _ => None
+  }
+
   val nameWithoutProto = name.split(":", 2) match {
     case Array(_, name) => name
     case _ => name
