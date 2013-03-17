@@ -9,7 +9,7 @@ object SBuildConfig {
   def cmdOptionVersion = "0.2.1"
   def cmdOptionSource = s"http://cmdoption.tototec.de/cmdoption/attachments/download/13/de.tototec.cmdoption-${cmdOptionVersion}.jar"
 
-  def scalaVersion = "2.10.0"
+  def scalaVersion = "2.10.1"
   def scalaBinVersion = "2.10"
 
   def compilerPath(implicit project: Project) =
