@@ -149,7 +149,7 @@ class ProjectScript(_scriptFile: File,
               false
           }
       } catch {
-        case e =>
+        case e: Exception =>
           log.log(LogLevel.Debug, "Could not evaluate up-to-date state of included files.", e)
           false
       }
