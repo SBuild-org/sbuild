@@ -682,6 +682,9 @@ class SBuildRunner {
           } else {
             val fileLastModified = file.lastModified
             if (fileLastModified < depsLastModified) {
+              // On Linux, Oracle JVM always reports only seconds file time stamp,
+              // even if file system supports more fine grained time stamps (e.g. ext4 supports nanoseconds)
+              // So, it can happen, that files we just wrote seems to be older than targets, which reported "NOW" as their lastModified.
               curTarget.project.log.log(LogLevel.Debug, s"""Target file "${file}" is older (${fileLastModified}) then dependencies (${depsLastModified}).""")
               val diff = depsLastModified - fileLastModified
               if (diff < 1000 && fileLastModified % 1000 == 0 && System.getProperty("os.name").toLowerCase.contains("linux")) {
