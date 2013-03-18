@@ -19,7 +19,7 @@ import java.lang.reflect.Method
 object Javac {
 
   /**
-   * Creates, configure and execute the Javac Addon.
+   * Creates, configures and executes the Javac Addon.
    *
    * For parameter documentation see the [[Javac]] constructor.
    *
@@ -61,14 +61,16 @@ object Javac {
 /**
  * Java Compiler addon.
  *
- * The compiler can be configured via constructor parameter or `var`s. To actually start the compilation use [[Javac#execute]].
+ * The compiler can be configured via constructor parameter or `var`s. 
+ * To actually start the compilation use [[Javac#execute]].
  *
  * To easily configure and execute the compiler in one go, see [[Javac$#apply]].
  *
  * @since 0.4.0
  *
  * @constructor
- * Creates a new Javac Compiler addon instance. All parameters can be omitted and set later.
+ * Creates a new Javac Compiler addon instance.
+ * All parameters can be omitted and set later.
  *
  * The source files can be given via multiple parameters, '''sources''', '''srcDir''' and '''srcDirs''', and will be joined.
  *

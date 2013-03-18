@@ -4,7 +4,9 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 
 @version("0.4.0")
-@include("../SBuildConfig.scala")
+@include("../SBuildConfig.scala",
+  "src/main/scala/de/tototec/sbuild/addons/java/Javadoc.scala"
+)
 @classpath("mvn:org.apache.ant:ant:1.8.4")
 class SBuild(implicit _project: Project) {
 
@@ -56,6 +58,33 @@ class SBuild(implicit _project: Project) {
       deprecation = true, unchecked = true, implicits = true,
       docVersion = SBuildConfig.sbuildVersion,
       docTitle = s"SBuild Addons Reference"
+    )
+  }
+
+  val genJavaDoc = s"mvn:com.typesafe.genjavadoc:genjavadoc-plugin_${SBuildConfig.scalaVersion}:0.4"
+
+  Target("phony:genjavadoc").cacheable dependsOn
+    SBuildConfig.compilerPath ~ genJavaDoc ~ compileCp ~ "scan:src/main/scala" exec {
+    addons.scala.Scalac(
+      compilerClasspath = SBuildConfig.compilerPath.files,
+      classpath = compileCp.files,
+      sources = "scan:src/main/scala".files,
+      destDir = Path("target/genjavadoc-classes"),
+      unchecked = true, deprecation = true, debugInfo = "vars",
+      additionalScalacArgs = Seq(
+        s"""-Xplugin:${genJavaDoc.files.head.getPath}""",
+        s"""-P:genjavadoc:out=${Path("target/genjavadoc")}"""
+      )
+    )
+  }
+
+  Target("phony:javadoc").cacheable dependsOn "genjavadoc" ~
+    SBuildConfig.compilerPath ~ compileCp ~ "scan:target/genjavadoc" exec {
+    addons.java.Javadoc(
+      classpath = compileCp.files,
+      sources = "scan:target/genjavadoc".files,
+      destDir = Path("target/javadoc"),
+      fork = true
     )
   }
 
