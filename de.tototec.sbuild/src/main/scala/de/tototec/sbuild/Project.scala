@@ -148,7 +148,7 @@ class Project(_projectFile: File,
 
   /**
    * @param targetRef The target name to find.
-   * @param searchInAllProjects If <code>true</code and no target was found in
+   * @param searchInAllProjects If <code>true</code> and no target was found in
    *        the current project and the TargetRef did not contain a project
    *        referrer, search in all other projects.
    */
