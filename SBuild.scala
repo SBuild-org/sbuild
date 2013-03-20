@@ -128,7 +128,7 @@ class SBuild(implicit _project: Project) {
 
   Target(distDir + "/bin/sbuild.bat") dependsOn _project.projectFile exec { ctx: TargetContext =>
 
-    val sbuildBat = 
+    val sbuildBat =
       """|
          |@echo off
          |
@@ -151,7 +151,7 @@ class SBuild(implicit _project: Project) {
          |echo location of the SBuild installation
          |echo.
          |goto error
-         |      
+         |
          |:valSHome
          |
          |:stripSHome
@@ -169,7 +169,7 @@ class SBuild(implicit _project: Project) {
          |echo location of the SBuild installation
          |echo.
          |goto error
-         |      
+         |
          |:init
          |@REM Decide how to startup depending on the version of windows
          |@REM -- Windows NT with Novell Login
@@ -205,10 +205,9 @@ class SBuild(implicit _project: Project) {
          |SET SBUILD_JAVA_EXE=java.exe
          |if NOT "%JAVA_HOME%"=="" SET SBUILD_JAVA_EXE=%JAVA_HOME%\bin\java.exe
          |
-         |""" + 
-      """%SBUILD_JAVA_EXE% """ + javaOptions + """ -cp "%SBUILD_HOME%\lib\scala-library-""" + SBuildConfig.scalaVersion + """.jar;%SBUILD_HOME%\lib\jansi-1.9.jar;%SBUILD_HOME%\lib\de.tototec.cmdoption-""" + SBuildConfig.cmdOptionVersion + """.jar;%SBUILD_HOME%\lib\de.tototec.sbuild-""" + SBuildConfig.sbuildVersion + """.jar" """ +
-      """de.tototec.sbuild.runner.SBuildRunner --sbuild-home "%SBUILD_HOME%" %SBUILD_CMD_LINE_ARGS%
-         |      
+         |""" +
+      s""""%SBUILD_JAVA_EXE%" ${javaOptions} -cp "%SBUILD_HOME%\\lib\\scala-library-${SBuildConfig.scalaVersion}.jar;%SBUILD_HOME%\\lib\\jansi-1.9.jar;%SBUILD_HOME%\\lib\\de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar;%SBUILD_HOME%\\lib\\de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" de.tototec.sbuild.runner.SBuildRunner --sbuild-home "%SBUILD_HOME%" %SBUILD_CMD_LINE_ARGS%
+         |""" + """
          |goto end
          |
          |:error
