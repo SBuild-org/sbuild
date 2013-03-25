@@ -6,7 +6,16 @@ import de.tototec.sbuild.ant.AntProject
 import java.io.File
 import org.apache.tools.ant.types.FileSet
 
+/**
+ * Wrapper for the [[http://ant.apache.org/manual/Tasks/copy.html Ant Copy task]].
+ */
 object AntCopy {
+
+  /**
+   * Creates, configures and executes an Ant Copy task.
+   *
+   * For parameter documentation see the constructor of [[AntCopy]].
+   */
   def apply(
     file: File = null,
     toFile: File = null,
@@ -48,9 +57,41 @@ object AntCopy {
     ).execute
 }
 
+/**
+ * Wrapper for the [[http://ant.apache.org/manual/Tasks/copy.html Ant Copy task]].
+ *
+ * Copy a file or a directory or a set of files and directories.
+ *
+ *
+ */
 class AntCopy()(implicit _project: Project) extends Copy {
   setProject(AntProject())
 
+  /**
+   * Creates and configures a copy task.
+   *
+   * @param file The file to copy.
+   * @param toFile The target file to copy to.
+   * @param toDir The target directory to copy to.
+   * @param preserveLastModified Give the copied files the same last modified time as the original source file.
+   * @param filtering Indicates whether token filtering uses the global build-file filters (of Ant) should take place during the copy.
+   * @param overwrite Overwrite existing files even if the destination files are newer.
+   * @param force Overwrite read-only destination files.
+   * @param flatten Ignore the directory structure of the source files, and copy all files into the directory specified by the `toDir` parameter.
+   * @param verbose Log the files that are being copied.
+   * @param includeEmptyDirs Copy any empty directories included in the FileSet(s).
+   * @param quiet
+   *   If `true` and `failOnError` is `false`, then do not log a warning message when the file to copy does not exist
+   *   or one of the nested file sets points to a directory that does not exist
+   *   or an error occurs while copying.
+   * @param enableMultipleMappings If `true` the task will process to all the mappings for a given source path.
+   * @param encoding The encoding to assume when filter-copying the files.
+   * @param outputEncoding the encoding to use when writing the files.
+   * @param granularity The number of milliseconds leeway to give before deciding a file is out of date.
+   * @param fileSet A [[org.apache.tools.ant.types.FileSet]] used to select groups of files to copy.
+   * @param fileSets [[org.apache.tools.ant.types.FileSet]]'s used to select groups of files to copy.
+   *
+   */
   def this(
     file: File = null,
     toFile: File = null,
@@ -93,7 +134,9 @@ class AntCopy()(implicit _project: Project) extends Copy {
     if (fileSet != null) addFileset(fileSet)
   }
 
+  /** Set the target directory to copy to. */
   def setToDir(toDir: File) = setTodir(toDir)
+  /** Set the target file to copy to. */
   def setToFile(toFile: File) = setTofile(toFile)
 
 } 
