@@ -20,7 +20,8 @@ class SBuild(implicit _project: Project) {
   val addonsJar = s"de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-${SBuildConfig.sbuildVersion}.jar"
   val cmdOptionJar = SBuildConfig.cmdOptionSource
 
-  val jansiJar = "http://repo.fusesource.com/nexus/content/groups/public/org/fusesource/jansi/jansi/1.10/jansi-1.10.jar"
+  val jansiVersion = "1.10"
+  val jansiJar = s"http://repo.fusesource.com/nexus/content/groups/public/org/fusesource/jansi/jansi/${jansiVersion}/jansi-${jansiVersion}.jar"
 
   val distName = s"sbuild-${SBuildConfig.sbuildVersion}"
   val distDir = "target/" + distName
@@ -116,7 +117,7 @@ class SBuild(implicit _project: Project) {
       |fi
       |
       |""" +
-     s"""exec $${JRE} ${javaOptions} -cp "$${SBUILD_HOME}/lib/scala-library-${SBuildConfig.scalaVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar:$${SBUILD_HOME}/lib/jansi-1.9.jar:$${SBUILD_HOME}/lib/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" """ +
+     s"""exec $${JRE} ${javaOptions} -cp "$${SBUILD_HOME}/lib/scala-library-${SBuildConfig.scalaVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar:$${SBUILD_HOME}/lib/jansi-${jansiVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" """ +
      """de.tototec.sbuild.runner.SBuildRunner --sbuild-home "${SBUILD_HOME}" ${SBUILD_OPTS} "$@"
       |
       |unset SBUILD_HOME
@@ -206,7 +207,7 @@ class SBuild(implicit _project: Project) {
          |if NOT "%JAVA_HOME%"=="" SET SBUILD_JAVA_EXE=%JAVA_HOME%\bin\java.exe
          |
          |""" +
-      s""""%SBUILD_JAVA_EXE%" ${javaOptions} -cp "%SBUILD_HOME%\\lib\\scala-library-${SBuildConfig.scalaVersion}.jar;%SBUILD_HOME%\\lib\\jansi-1.9.jar;%SBUILD_HOME%\\lib\\de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar;%SBUILD_HOME%\\lib\\de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" de.tototec.sbuild.runner.SBuildRunner --sbuild-home "%SBUILD_HOME%" %SBUILD_CMD_LINE_ARGS%
+      s""""%SBUILD_JAVA_EXE%" ${javaOptions} -cp "%SBUILD_HOME%\\lib\\scala-library-${SBuildConfig.scalaVersion}.jar;%SBUILD_HOME%\\lib\\jansi-${jansiVersion}.jar;%SBUILD_HOME%\\lib\\de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar;%SBUILD_HOME%\\lib\\de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" de.tototec.sbuild.runner.SBuildRunner --sbuild-home "%SBUILD_HOME%" %SBUILD_CMD_LINE_ARGS%
          |""" + """
          |goto end
          |
