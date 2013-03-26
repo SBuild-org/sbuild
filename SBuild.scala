@@ -20,7 +20,7 @@ class SBuild(implicit _project: Project) {
   val addonsJar = s"de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-${SBuildConfig.sbuildVersion}.jar"
   val cmdOptionJar = SBuildConfig.cmdOptionSource
 
-  val jansiJar = "http://repo.fusesource.com/nexus/content/groups/public/org/fusesource/jansi/jansi/1.9/jansi-1.9.jar"
+  val jansiJar = "http://repo.fusesource.com/nexus/content/groups/public/org/fusesource/jansi/jansi/1.10/jansi-1.10.jar"
 
   val distName = s"sbuild-${SBuildConfig.sbuildVersion}"
   val distDir = "target/" + distName
