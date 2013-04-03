@@ -44,7 +44,7 @@ class ScanSchemeHandler(implicit project: Project)
         throw ex 
     }
 
-    Util.recursiveListFiles(dir, regex)
+    Util.recursiveListFiles(dir, regex, log = project.log)
   }
 
 }

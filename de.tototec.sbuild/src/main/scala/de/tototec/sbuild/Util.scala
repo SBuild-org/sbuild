@@ -136,19 +136,23 @@ object Util {
 
   }
 
-  def recursiveListFiles(dir: String, regex: Regex = ".*".r): Array[String] = {
-    recursiveListFiles(new File(dir), regex).map(_.getPath)
+  def recursiveListFilesAbsolute(dir: String, regex: Regex = ".*".r, log: SBuildLogger = SBuildNoneLogger): Array[String] = {
+    recursiveListFiles(new File(dir), regex, log).map(_.getAbsolutePath)
   }
 
-  def recursiveListFilesAbsolute(dir: String, regex: Regex = ".*".r): Array[String] = {
-    recursiveListFiles(new File(dir), regex).map(_.getAbsolutePath)
-  }
+  //  def recursiveListFiles(dir: String, regex: Regex = ".*".r): Array[String] = {
+  //    recursiveListFiles(new File(dir), regex).map(_.getPath)
+  //  }
 
-  def recursiveListFiles(dir: File, regex: Regex): Array[File] = {
+  def recursiveListFiles(dir: File, regex: Regex = ".*".r, log: SBuildLogger = SBuildNoneLogger): Array[File] = {
     dir.listFiles match {
       case allFiles: Array[File] =>
-        allFiles.filter(f => f.isFile && regex.findFirstIn(f.getName).isDefined) ++
-          allFiles.filter(_.isDirectory).flatMap(recursiveListFiles(_, regex))
+        allFiles.filter { f =>
+          val include = f.isFile && regex.findFirstIn(f.getName).isDefined
+          log.log(LogLevel.Debug, (if (include) "including " else "excluding ") + f)
+          include
+        } ++
+          allFiles.filter(_.isDirectory).flatMap { d => recursiveListFiles(d, regex, log) }
       case null => Array()
     }
   }
