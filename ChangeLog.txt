@@ -1,3 +1,9 @@
+SBuild trunk
+
+* Updated dependencies: Scala 2.10.1, Jansi 1.10.
+* Added support to reference scheme handlers of other projects/modules.
+* Added parameters useArgsFile, jvmArgs and sourcePath to Scalac addon.
+
 SBuild 0.4.0 - 2013-03-09
 
 * Fixed --dependencyTree not showing up on when not used with --verbose.

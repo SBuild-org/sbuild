@@ -14,6 +14,10 @@ import java.io.OutputStream
 import de.tototec.sbuild.addons.support.ForkSupport
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.LogLevel
+import java.io.PrintWriter
+import java.io.FileOutputStream
+import java.io.PrintStream
+import java.io.BufferedOutputStream
 
 /**
  * Companion object for [[Scalac]], the Scala Compiler Addon.
@@ -44,7 +48,11 @@ object Scalac {
     fork: Boolean = false,
     additionalScalacArgs: Seq[String] = null,
     // since 0.3.2.9002
-    sources: Seq[File] = null)(implicit project: Project) =
+    sources: Seq[File] = null,
+    // since 0.4.0.9000
+    useArgsFile: java.lang.Boolean = null,
+    jvmArgs: Seq[String] = null,
+    sourcePath: File = null)(implicit project: Project) =
     new Scalac(
       compilerClasspath = compilerClasspath,
       classpath = classpath,
@@ -59,7 +67,10 @@ object Scalac {
       debugInfo = debugInfo,
       fork = fork,
       additionalScalacArgs = additionalScalacArgs,
-      sources = sources
+      sources = sources,
+      useArgsFile = useArgsFile,
+      jvmArgs = jvmArgs,
+      sourcePath = sourcePath
     ).execute
 
   def compilerClasspath(scalaVersion: String)(implicit project: Project): TargetRefs = scalaVersion match {
@@ -168,6 +179,9 @@ object Scalac {
  *   If `true`, also the `compilerClasspath` parameter must be specified.
  * @param additionalScalacArgs Additional arguments directly passed to the Scala compiler.
  *   Refer to the scalac manual or inspect `scalac -help` output.
+ * @param useArgsFile If `true` use a temporary file to set the compiler arguments.
+ * @param jvmArgs Additional arguments given directly to the forked JVM. Will be ignored, if parameter `fork` is not `true`.
+ * @param sourcePath Path were the compiler looks for source files.
  *
  */
 class Scalac(
@@ -185,7 +199,11 @@ class Scalac(
   var fork: Boolean = false,
   var additionalScalacArgs: Seq[String] = null,
   // since 0.3.2.9002
-  var sources: Seq[File] = null)(implicit project: Project) {
+  var sources: Seq[File] = null,
+  // since 0.4.0.9000
+  var useArgsFile: java.lang.Boolean = null,
+  var jvmArgs: Seq[String] = null,
+  var sourcePath: File = null)(implicit project: Project) {
 
   val scalacClassName = "scala.tools.nsc.Main"
 
@@ -204,6 +222,9 @@ class Scalac(
     ",debugInfo=" + debugInfo +
     ",fork=" + fork +
     ",additionalScalacArgs=" + additionalScalacArgs +
+    ",useArgsFile=" + useArgsFile +
+    ",jvmArgs=" + jvmArgs +
+    ",sourcePath=" + sourcePath +
     ")"
 
   /**
@@ -214,23 +235,24 @@ class Scalac(
 
     require(compilerClasspath != null && !compilerClasspath.isEmpty, "No compiler classpath set.")
 
-    var args = Array[String]()
+    var args = Seq[String]()
 
     if (classpath != null) {
       val cPath = ForkSupport.pathAsArg(classpath)
       project.log.log(LogLevel.Debug, "Using classpath: " + cPath)
-      args ++= Array("-classpath", cPath)
+      args ++= Seq("-classpath", cPath)
     }
 
-    if (destDir != null) args ++= Array("-d", destDir.getAbsolutePath)
+    if (sourcePath != null) args ++= Seq("-sourcepath", sourcePath.getAbsolutePath)
+    if (destDir != null) args ++= Seq("-d", destDir.getAbsolutePath)
 
-    if (encoding != null) args ++= Array("-encoding", encoding)
-    if (unchecked != null && unchecked.booleanValue) args ++= Array("-unchecked")
-    if (deprecation != null && deprecation.booleanValue) args ++= Array("-deprecation")
-    if (verbose != null && verbose.booleanValue) args ++= Array("-verbose")
-    if (target != null) args ++= Array("-target:" + target)
+    if (encoding != null) args ++= Seq("-encoding", encoding)
+    if (unchecked != null && unchecked.booleanValue) args ++= Seq("-unchecked")
+    if (deprecation != null && deprecation.booleanValue) args ++= Seq("-deprecation")
+    if (verbose != null && verbose.booleanValue) args ++= Seq("-verbose")
+    if (target != null) args ++= Seq("-target:" + target)
     if (debugInfo != null) {
-      args ++= Array("-g:" + debugInfo)
+      args ++= Seq("-g:" + debugInfo)
     }
 
     if (additionalScalacArgs != null && !additionalScalacArgs.isEmpty) args ++= additionalScalacArgs
@@ -252,16 +274,31 @@ class Scalac(
     if (!sourceFiles.isEmpty) {
       val absSourceFiles = sourceFiles.map(f => f.getAbsolutePath)
       project.log.log(LogLevel.Debug, "Found source files: " + absSourceFiles.mkString(", "))
-      args ++= absSourceFiles
+      // sorting is not required, but will produce more reliable builds,
+      // e.g. for scalac compiler order of source files IS relevant.
+      args ++= absSourceFiles.sorted
     }
 
     project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} source files to ${destDir}")
 
     if (destDir != null && !sourceFiles.isEmpty) destDir.mkdirs
 
+    val (finalArgs, argsFile) = if (useArgsFile != null && useArgsFile.booleanValue()) {
+      val argsFile = File.createTempFile("scalac", ".tmp")
+      val writer = new PrintStream(new BufferedOutputStream(new FileOutputStream(argsFile)))
+      args.foreach(line => writer.println(line))
+      writer.close
+      argsFile.deleteOnExit()
+      (Seq("@" + argsFile.getPath()), Some(argsFile))
+    } else {
+      (args, None)
+    }
+
     val result =
-      if (fork) compileExternal(args)
-      else compileInternal(args)
+      if (fork) compileExternal(finalArgs)
+      else compileInternal(finalArgs.toArray[String])
+
+    argsFile.map { Util.delete(_) }
 
     if (result != 0) {
       val ex = new ExecutionFailedException("Compile Errors. See compiler output.")
@@ -271,15 +308,18 @@ class Scalac(
 
   }
 
-  protected def compileExternal(args: Array[String]) =
-    ForkSupport.runJavaAndWait(compilerClasspath, Array(scalacClassName) ++ args)
+  protected def compileExternal(args: Seq[String]) = {
+    val forkArgs =
+      (if (jvmArgs != null) jvmArgs.toArray else Array()) ++
+        Array(scalacClassName) ++ args.toArray[String]
+    ForkSupport.runJavaAndWait(compilerClasspath, forkArgs)
+  }
 
   protected def compileInternal(args: Array[String]): Int = {
 
     val compilerClassLoader = new URLClassLoader(compilerClasspath.map { f => f.toURI().toURL() }.toArray, classOf[Scalac].getClassLoader)
     project.log.log(LogLevel.Debug, "Using addional compiler classpath: " + compilerClassLoader.getURLs().mkString(", "))
 
-    //    val arrayClass = compilerClassLoader.loadClass("[Ljava.lang.String;")
     val arrayInstance = java.lang.reflect.Array.newInstance(classOf[String], args.size)
     0.to(args.size - 1).foreach { i =>
       java.lang.reflect.Array.set(arrayInstance, i, args(i))
