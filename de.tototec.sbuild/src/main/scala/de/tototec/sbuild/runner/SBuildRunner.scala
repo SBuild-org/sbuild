@@ -16,6 +16,7 @@ import org.fusesource.jansi.Ansi
 import java.io.FileWriter
 import scala.io.Source
 import scala.util.Try
+import java.security.MessageDigest
 
 object SBuildRunner extends SBuildRunner {
 
@@ -127,7 +128,7 @@ class SBuildRunner {
   def checkCacheableTargets(project: Project, printWarning: Boolean)(implicit baseProject: Project): Option[String] = {
     val targets = project.targets.values.filterNot(_.isImplicit)
     val cacheable = targets.filter(_.isCacheable)
-    val evict = targets.filter(_.isEvictCache)
+    val evict = targets.filter(_.evictsCache.isDefined)
 
     if (evict.isEmpty && !cacheable.isEmpty) {
       val msg = s"""Project ${formatProject(project)}" contains ${cacheable.size} cacheable target, but does not declare any target with "evictCache"."""
@@ -706,9 +707,10 @@ class SBuildRunner {
 
         case None =>
           // ensure, that the persistent state gets erased, whenever a non-cacheble phony target runs
-          if (curTarget.isEvictCache) {
-            curTarget.project.log.log(LogLevel.Debug, s"""Target "${curTarget.name}" will evict the target state cache now.""")
-            dropAllCacheState(curTarget.project)
+          curTarget.evictsCache.map { cacheName =>
+            curTarget.project.log.log(LogLevel.Debug,
+              s"""Target "${curTarget.name}" will evict the target state cache with name "${cacheName}" now.""")
+            dropCacheState(curTarget.project, cacheName)
           }
           // phony target, have to run it always. Any laziness is up to it implementation
           curTarget.project.log.log(LogLevel.Debug, s"""Target "${curTarget.name}" is phony and needs to run (if not cached).""")
@@ -824,7 +826,10 @@ class SBuildRunner {
   private case class CachedState(targetLastModified: Long, attachedFiles: Seq[File])
 
   private def loadOrDropCachedState(ctx: TargetContext): Option[CachedState] = {
-    // TODO: check same prerequisites, check same fileDependencies, check same lastModified of fileDependencies, check same lastModified
+    // TODO: check same prerequisites, 
+    // check same fileDependencies, 
+    // check same lastModified of fileDependencies, 
+    // check same lastModified
     // TODO: if all is same, return cached values
 
     ctx.project.log.log(LogLevel.Debug, "Checking execution state of target: " + ctx.name)
@@ -835,8 +840,9 @@ class SBuildRunner {
     var cachedTargetLastModified: Option[Long] = None
     var cachedAttachedFiles: Seq[File] = Seq()
 
-    val stateDir = Path(".sbuild/scala/" + ctx.target.project.projectFile.getName + "/cache")(ctx.project)
-    val stateFile = new File(stateDir, ctx.name.replaceFirst("^phony:", ""))
+    //    val stateDir = Path(".sbuild/scala/" + ctx.target.project.projectFile.getName + "/cache")(ctx.project)
+    //    val stateFile = new File(stateDir, ctx.name.replaceFirst("^phony:", ""))
+    val stateFile = cacheStateFile(ctx.project, ctx.name)
     if (!stateFile.exists) {
       ctx.project.log.log(LogLevel.Debug, s"""No execution state file for target "${ctx.name}" exists.""")
       return None
@@ -866,7 +872,12 @@ class SBuildRunner {
             cachedFileDependencies ++= Set(new File(line))
 
           case "[attachedFiles]" =>
-            cachedAttachedFiles ++= Seq(new File(line))
+            val file = new File(line)
+            if (!file.exists) {
+              closeAndDrop(s"""Attached file "${line}" no longer exists.""")
+              return None
+            }
+            cachedAttachedFiles ++= Seq(file)
 
           case "[targetLastModified]" =>
             cachedTargetLastModified = Try(line.toLong).toOption
@@ -911,9 +922,16 @@ class SBuildRunner {
 
   private def writeCachedState(ctx: TargetContextImpl) {
     // TODO: robustness
-    val stateDir = Path(".sbuild/scala/" + ctx.target.project.projectFile.getName + "/cache")(ctx.project)
-    stateDir.mkdirs
-    val stateFile = new File(stateDir, ctx.name.replaceFirst("^phony:", ""))
+    //    val stateDir = Path(".sbuild/scala/" + ctx.target.project.projectFile.getName + "/cache")(ctx.project)
+    //    stateDir.mkdirs
+    //    val stateFile = new File(stateDir, ctx.name.replaceFirst("^phony:", ""))
+
+    val stateFile = cacheStateFile(ctx.project, ctx.name)
+    stateFile.getParentFile() match {
+      case pf: File => pf.mkdirs()
+      case _ => // strage
+    }
+
     val writer = new FileWriter(stateFile)
 
     writer.write("[prerequisitesLastModified]\n")
@@ -942,6 +960,23 @@ class SBuildRunner {
     writer.close
     ctx.project.log.log(LogLevel.Debug, s"""Wrote execution cache state file for target "${ctx.name}" to ${stateFile}.""")
 
+  }
+
+  private def cacheStateFile(project: Project, cacheName: String): File = {
+    val stateDir = Path(".sbuild/scala/" + project.projectFile.getName + "/cache")(project)
+    val md = MessageDigest.getInstance("MD5")
+    val digestBytes = md.digest(cacheName.replaceFirst("^phony:", "").getBytes())
+    val md5 = digestBytes.foldLeft("") { (string, byte) => string + Integer.toString((byte & 0xff) + 0x100, 16).substring(1) }
+    new File(stateDir, md5)
+  }
+
+  private def dropCacheState(project: Project, cacheName: String) {
+    cacheName match {
+      case "*" => dropAllCacheState(project)
+      case cache =>
+        val stateDir = Path(".sbuild/scala/" + project.projectFile.getName + "/cache")(project)
+        Util.delete(stateDir)
+    }
   }
 
   private def dropAllCacheState(project: Project) {

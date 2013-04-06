@@ -66,9 +66,12 @@ trait Target {
   def cacheable: Target
   def setCacheable(cacheable: Boolean): Target
 
-  def isEvictCache: Boolean
+  // deprecated
+  // def isEvictCache: Boolean
+  def evictsCache: Option[String]
   def evictCache: Target
-  def setEvictCache(evictCache: Boolean): Target
+  def evictCache(cacheName: String): Target
+  // def setEvictCache(evictCache: Boolean): Target
 
   private[sbuild] def isTransparentExec: Boolean
 }
@@ -105,7 +108,7 @@ case class ProjectTarget private[sbuild] (override val name: String,
   private var _exec: TargetContext => Any = handler match {
     case Some(handler: SchemeResolver) =>
       ctx: TargetContext => handler.resolve(TargetRef(name)(project).nameWithoutProto, ctx)
-    case _ => null
+      case _ => null
   }
 
   private[sbuild] override def action = _exec
@@ -158,15 +161,23 @@ case class ProjectTarget private[sbuild] (override val name: String,
     this
   }
 
-  private[this] var _evictCache: Boolean = false
-  def isEvictCache: Boolean = _evictCache
-  def evictCache: Target = {
-    _evictCache = true
+  private[this] var _evictCache: Option[String] = None
+  //  def isEvictCache: Boolean = _evictCache.isDefined
+  override def evictsCache: Option[String] = _evictCache
+  override def evictCache: Target = {
+    _evictCache = Some("")
+    this
+  }
+  override def evictCache(cacheName: String): Target = {
+    _evictCache = Some(cacheName)
     this
   }
   def setEvictCache(evictCache: Boolean): Target = {
-    _evictCache = evictCache
+    _evictCache = evictCache match {
+      case true => Some("")
+      case false => None
+    }
     this
   }
-  
+
 }
