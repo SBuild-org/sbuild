@@ -251,4 +251,16 @@ object Util {
     }
   }
 
+  implicit class NullSafe[T](possibleNull: T) {
+
+    def notNull(action: T => Unit) =
+      if (possibleNull != null) {
+        action(possibleNull)
+      }
+
+    def orElse(orElse: => T): T =
+      if (possibleNull != null) possibleNull
+      else orElse
+  }
+
 }
