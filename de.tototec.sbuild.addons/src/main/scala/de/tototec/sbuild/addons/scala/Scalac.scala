@@ -73,6 +73,16 @@ object Scalac {
       sourcePath = sourcePath
     ).execute
 
+  @deprecated("Binary compatibility placeholder. Please use another apply method.", "0.4.0.9000")
+  def apply(compilerClasspath: Seq[File], classpath: Seq[File], srcDir: File, srcDirs: Seq[File], destDir: File,
+    encoding: String, unchecked: java.lang.Boolean, deprecation: java.lang.Boolean, verbose: java.lang.Boolean,
+    target: String, debugInfo: String, fork: Boolean, additionalScalacArgs: Seq[String],
+    sources: Seq[File])(implicit project: Project): Unit =
+    apply(compilerClasspath = compilerClasspath, classpath = classpath,
+      srcDir = srcDir, srcDirs = srcDirs, destDir = destDir, encoding = encoding, unchecked = unchecked,
+      deprecation = deprecation, verbose = verbose, target = target, debugInfo = debugInfo, fork = fork,
+      additionalScalacArgs = additionalScalacArgs, sources = sources, useArgsFile = null)
+
   def compilerClasspath(scalaVersion: String)(implicit project: Project): TargetRefs = scalaVersion match {
     case scala_2_9_like if scala_2_9_like.startsWith("2.9.") || scala_2_9_like.startsWith("2.8.") || scala_2_9_like.startsWith("2.7.") =>
       s"mvn:org.scala-lang:scala-library:${scalaVersion}" ~
@@ -204,6 +214,16 @@ class Scalac(
   var useArgsFile: java.lang.Boolean = null,
   var jvmArgs: Seq[String] = null,
   var sourcePath: File = null)(implicit project: Project) {
+
+  @deprecated("Binary compatibility placeholder. Please use the primary constructor.", "0.4.0.9000")
+  def this(compilerClasspath: Seq[File], classpath: Seq[File], srcDir: File, srcDirs: Seq[File], destDir: File,
+    encoding: String, unchecked: java.lang.Boolean, deprecation: java.lang.Boolean, verbose: java.lang.Boolean,
+    target: String, debugInfo: String, fork: Boolean, additionalScalacArgs: Seq[String],
+    sources: Seq[File])(implicit project: Project) =
+    this(compilerClasspath = compilerClasspath, classpath = classpath, srcDir = srcDir, srcDirs = srcDirs,
+      destDir = destDir, encoding = encoding, unchecked = unchecked, deprecation = deprecation, verbose = verbose,
+      target = target, debugInfo = debugInfo, fork = fork, additionalScalacArgs = additionalScalacArgs, sources = sources,
+      useArgsFile = null)
 
   val scalacClassName = "scala.tools.nsc.Main"
 
