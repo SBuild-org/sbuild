@@ -3,8 +3,8 @@ package de.tototec.sbuild
 import java.io.File
 
 trait ProjectBase {
-  protected[sbuild] def projectFile: File
-  protected[sbuild] val projectDirectory: File
+  def projectDirectory: File
+  def projectFile: File
   protected[sbuild] val log: SBuildLogger
   protected[sbuild] def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false): Option[Target]
   protected[sbuild] def prerequisites(target: Target, searchInAllProjects: Boolean = false): Seq[Target]

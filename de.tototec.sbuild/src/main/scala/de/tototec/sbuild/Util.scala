@@ -258,6 +258,8 @@ object Util {
         action(possibleNull)
       }
 
+    def whenNull = orElse _
+    
     def orElse(orElse: => T): T =
       if (possibleNull != null) possibleNull
       else orElse
