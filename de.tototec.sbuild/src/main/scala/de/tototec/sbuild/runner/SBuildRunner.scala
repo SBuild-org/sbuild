@@ -37,8 +37,8 @@ class SBuildRunner {
   private[runner] var verbose = false
 
   private var log: SBuildLogger = new SBuildConsoleLogger(LogLevel.info)
-  
-  private val targetCache = new TargetCache()
+
+  private val persistentTargetCache = new PersistentTargetCache()
 
   /**
    * Create a new build file.
@@ -273,7 +273,7 @@ class SBuildRunner {
 
     val projectReader: ProjectReader = new SimpleProjectReader(classpathConfig, log, clean = config.clean)
 
-    val project = new Project(projectFile, projectReader, None, log)
+    val project = new BuildFileProject(projectFile, projectReader, None, log)
     config.defines.asScala foreach {
       case (key, value) => project.addProperty(key, value)
     }
@@ -530,7 +530,8 @@ class SBuildRunner {
                                    dependencyTrace: List[Target] = List(),
                                    depth: Int = 0,
                                    treePrinter: Option[(Int, Target) => Unit] = None,
-                                   cache: Cache = new Cache())(implicit project: Project): Seq[ExecutedTarget] =
+                                   cache: Cache = new Cache(),
+                                   beforeTargetExecute: Option[Target => Unit] = None)(implicit project: Project): Seq[ExecutedTarget] =
     request.map { req =>
       preorderedDependenciesTree(
         curTarget = req,
@@ -539,7 +540,8 @@ class SBuildRunner {
         dependencyTrace = dependencyTrace,
         depth = depth,
         treePrinter = treePrinter,
-        cache = cache
+        cache = cache,
+        beforeTargetExecute = beforeTargetExecute
       )
     }
 
@@ -622,7 +624,8 @@ class SBuildRunner {
                                  dependencyTrace: List[Target] = Nil,
                                  depth: Int = 0,
                                  treePrinter: Option[(Int, Target) => Unit] = None,
-                                 cache: Cache = new Cache())(implicit project: Project): ExecutedTarget = {
+                                 cache: Cache = new Cache(),
+                                 beforeTargetExecute: Option[Target => Unit] = None)(implicit project: Project): ExecutedTarget = {
 
     val log = curTarget.project.log
 
@@ -712,7 +715,7 @@ class SBuildRunner {
           curTarget.evictsCache.map { cacheName =>
             curTarget.project.log.log(LogLevel.Debug,
               s"""Target "${curTarget.name}" will evict the target state cache with name "${cacheName}" now.""")
-            targetCache.dropCacheState(curTarget.project, cacheName)
+            persistentTargetCache.dropCacheState(curTarget.project, cacheName)
           }
           // phony target, have to run it always. Any laziness is up to it implementation
           curTarget.project.log.log(LogLevel.Debug, s"""Target "${curTarget.name}" is phony and needs to run (if not cached).""")
@@ -760,8 +763,8 @@ class SBuildRunner {
             try {
 
               // if state is Some(_), it is already check to be up-to-date
-              val cachedState: Option[targetCache.CachedState] =
-                if (curTarget.isCacheable) targetCache.loadOrDropCachedState(ctx)
+              val cachedState: Option[persistentTargetCache.CachedState] =
+                if (curTarget.isCacheable) persistentTargetCache.loadOrDropCachedState(ctx)
                 else None
 
               cachedState match {
@@ -773,6 +776,7 @@ class SBuildRunner {
                   ctx.end
 
                 case None =>
+                  beforeTargetExecute.map { action => action(curTarget) }
                   val level = if (curTarget.isTransparentExec) LogLevel.Debug else LogLevel.Info
                   log.log(level, progressPrefix + "Executing target: " + colorTarget(formatTarget(curTarget)))
                   if (curTarget.help != null && curTarget.help.trim != "")
@@ -783,7 +787,7 @@ class SBuildRunner {
                   log.log(LogLevel.Debug, s"Executed target '${formatTarget(curTarget)}' in ${ctx.execDurationMSec} msec")
 
                   // update persistent cache
-                  if (curTarget.isCacheable) targetCache.writeCachedState(ctx)
+                  if (curTarget.isCacheable) persistentTargetCache.writeCachedState(ctx)
               }
 
               ctx.targetLastModified match {

@@ -12,7 +12,7 @@ import de.tototec.sbuild.Path
 import de.tototec.sbuild.Util
 import java.security.MessageDigest
 
-class TargetCache {
+class PersistentTargetCache {
 
   case class CachedState(targetLastModified: Long, attachedFiles: Seq[File])
 

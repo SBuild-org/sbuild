@@ -2,18 +2,49 @@ package de.tototec.sbuild
 
 import java.io.File
 
-class Project(_projectFile: File,
-              _projectReader: ProjectReader = null,
-              _projectPool: Option[ProjectPool] = None,
-              val log: SBuildLogger = SBuildNoneLogger) {
+trait ProjectBase {
+  protected[sbuild] def projectFile: File
+  protected[sbuild] val projectDirectory: File
+  protected[sbuild] val log: SBuildLogger
+  protected[sbuild] def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false): Option[Target]
+  protected[sbuild] def prerequisites(target: Target, searchInAllProjects: Boolean = false): Seq[Target]
+  protected[sbuild] def findModule(dirOrFile: String): Option[Project]
+  protected[sbuild] def properties: Map[String, String]
+  protected[sbuild] def schemeHandlers: Map[String, SchemeHandler]
+  protected[sbuild] def targets: Map[File, Target]
+}
+
+trait MutableProject extends ProjectBase {
+  def uniqueTargetFile(targetRef: TargetRef): UniqueTargetFile
+  protected[sbuild] def addProperty(key: String, value: String)
+  protected[sbuild] def registerSchemeHandler(scheme: String, handler: SchemeHandler)
+  protected[sbuild] def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
+  protected[sbuild] def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
+  protected[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean = true): Project
+  protected[sbuild] def registerPlugin(plugin: Plugin)
+  protected[sbuild] def applyPlugins
+}
+
+trait ProjectAntSupport {
+  protected[sbuild] var antProject: Option[Any]
+}
+
+trait Project extends MutableProject with ProjectAntSupport
+
+case class UniqueTargetFile(file: File, phony: Boolean, handler: Option[SchemeHandler])
+
+class BuildFileProject(_projectFile: File,
+                       _projectReader: ProjectReader = null,
+                       _projectPool: Option[ProjectPool] = None,
+                       override val log: SBuildLogger = SBuildNoneLogger) extends Project {
 
   private val projectReader: Option[ProjectReader] = Option(_projectReader)
 
-  val projectFile: File = Path.normalize(_projectFile)
+  override val projectFile: File = Path.normalize(_projectFile)
   if (!projectFile.exists)
     throw new ProjectConfigurationException("Project file '" + projectFile + "' does not exists")
 
-  val projectDirectory: File = projectFile.getParentFile
+  override val projectDirectory: File = projectFile.getParentFile
   require(projectDirectory.exists, "Project directory '" + projectDirectory + "' does not exists")
   require(projectDirectory.isDirectory, "Project directory '" + projectDirectory + "' is not an directory")
 
@@ -25,7 +56,7 @@ class Project(_projectFile: File,
   private var _modules: List[Project] = List()
   def modules: List[Project] = _modules
 
-  private[sbuild] def findModule(dirOrFile: String): Option[Project] =
+  override protected[sbuild] def findModule(dirOrFile: String): Option[Project] =
     Path(dirOrFile)(this) match {
       case x if !x.exists => None
       case newProjectDirOrFile =>
@@ -42,7 +73,7 @@ class Project(_projectFile: File,
         }
     }
 
-  private[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean = true): Project = {
+  override protected[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean = true): Project = {
 
     val newProjectDirOrFile = Path(dirOrFile)(this)
     if (!newProjectDirOrFile.exists) {
@@ -79,7 +110,7 @@ class Project(_projectFile: File,
             throw ex
 
           case Some(reader) =>
-            val newProject = new Project(newProjectFile, reader, Some(projectPool), log)
+            val newProject = new BuildFileProject(newProjectFile, reader, Some(projectPool), log)
 
             // copy project properties 
             if (copyProperties) properties.foreach {
@@ -102,9 +133,11 @@ class Project(_projectFile: File,
   /**
    * Map(file -> Target) of targets.
    */
-  private[sbuild] var targets: Map[File, Target] = Map()
+  private var _targets: Map[File, Target] = Map()
+  override protected[sbuild] def targets: Map[File, Target] = _targets
+  private def targets_=(targets: Map[File, Target]): Unit = _targets = targets
 
-  def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target =
+  override def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target =
     findTarget(targetRef, searchInAllProjects = false) match {
       case Some(t: ProjectTarget) if t.isImplicit && !isImplicit =>
         // we change it to explicit
@@ -114,7 +147,7 @@ class Project(_projectFile: File,
       case None => createTarget(targetRef, isImplicit = isImplicit)
     }
 
-  def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target = {
+  override def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target = {
     explicitForeignProject(targetRef) match {
       case Some(pFile) if targetRef.explicitNonStandardProto.isDefined =>
         // This must be a scheme handler, and as we have both scheme and project defined, we WANT the target
@@ -152,7 +185,7 @@ class Project(_projectFile: File,
    *        the current project and the TargetRef did not contain a project
    *        referrer, search in all other projects.
    */
-  def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false): Option[Target] =
+  override def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false): Option[Target] =
     explicitForeignProject(targetRef) match {
       case Some(pFile) =>
         projectPool.propjectMap.get(pFile) match {
@@ -219,8 +252,6 @@ class Project(_projectFile: File,
         }
     }
 
-  case class UniqueTargetFile(file: File, phony: Boolean, handler: Option[SchemeHandler])
-
   def explicitForeignProject(targetRef: TargetRef): Option[File] = {
     val ownerProject: File = targetRef.explicitProject match {
       case Some(p) => if (p.isDirectory) {
@@ -236,7 +267,7 @@ class Project(_projectFile: File,
     }
   }
 
-  def uniqueTargetFile(targetRef: TargetRef): UniqueTargetFile = {
+  override def uniqueTargetFile(targetRef: TargetRef): UniqueTargetFile = {
     val foreignProject = explicitForeignProject(targetRef)
 
     // file of phony is: projectfile + "/" + targetRef.name
@@ -283,7 +314,7 @@ class Project(_projectFile: File,
     }
   }
 
-  def prerequisites(target: Target, searchInAllProjects: Boolean = false): Seq[Target] =
+  override def prerequisites(target: Target, searchInAllProjects: Boolean = false): Seq[Target] =
     target.dependants.map { dep =>
       findTarget(dep, searchInAllProjects = searchInAllProjects) match {
         case Some(target) => target
@@ -315,10 +346,10 @@ class Project(_projectFile: File,
   //  def prerequisitesMap: Map[Target, List[Target]] = targets.values.map(goal => (goal, prerequisites(goal))).toMap
 
   private[this] var _schemeHandlers: Map[String, SchemeHandler] = Map()
-  private[sbuild] def schemeHandlers: Map[String, SchemeHandler] = _schemeHandlers
+  override protected[sbuild] def schemeHandlers: Map[String, SchemeHandler] = _schemeHandlers
   private[this] def schemeHandlers_=(schemeHandlers: Map[String, SchemeHandler]) = _schemeHandlers = schemeHandlers
 
-  def registerSchemeHandler(scheme: String, handler: SchemeHandler) {
+  override def registerSchemeHandler(scheme: String, handler: SchemeHandler) {
     schemeHandlers.get(scheme).map {
       _ => log.log(LogLevel.Info, s"""Replacing scheme handler "${scheme}" for project "${projectFile}".""")
     }
@@ -335,27 +366,43 @@ class Project(_projectFile: File,
   }
 
   private var _properties: Map[String, String] = Map()
-  private[sbuild] def properties: Map[String, String] = _properties
-  def addProperty(key: String, value: String) = if (_properties.contains(key)) {
+  override protected[sbuild] def properties: Map[String, String] = _properties
+  override def addProperty(key: String, value: String) = if (_properties.contains(key)) {
     log.log(LogLevel.Debug, "Ignoring redefinition of property: " + key)
   } else {
     log.log(LogLevel.Debug, "Defining property: " + key + " with value: " + value)
     _properties += (key -> value)
   }
 
-  private[sbuild] var antProject: Option[Any] = None
+  override protected[sbuild] var antProject: Option[Any] = None
 
   override def toString: String =
     getClass.getSimpleName + "(" + projectFile + ",targets=" + targets.map { case (f, p) => p.name }.mkString(",") + ")"
+
+  private[this] var _pluginsToInitLater: Seq[Plugin] = Seq()
+
+  override protected[sbuild] def registerPlugin(plugin: Plugin) {
+    _pluginsToInitLater ++= Seq(plugin)
+  }
+  override protected[sbuild] def applyPlugins {
+    while (!_pluginsToInitLater.isEmpty) {
+      val plugin = _pluginsToInitLater.head
+      log.log(LogLevel.Debug, s"""About to initialize plugin "${plugin.getClass()}": ${plugin.toString()}""")
+      plugin.init
+      log.log(LogLevel.Debug, s"""Initialized plugin "${plugin.getClass()}": ${plugin.toString()}""")
+      _pluginsToInitLater = _pluginsToInitLater.tail
+    }
+  }
+
 }
 
-class ProjectPool(project: Project) {
-  private var _projects: Map[File, Project] = Map((project.projectFile -> project))
+class ProjectPool(project: BuildFileProject) {
+  private var _projects: Map[File, BuildFileProject] = Map((project.projectFile -> project))
 
-  def addProject(project: Project) {
+  def addProject(project: BuildFileProject) {
     _projects += (project.projectFile -> project)
   }
 
-  def projects: Seq[Project] = _projects.values.toSeq
-  def propjectMap: Map[File, Project] = _projects
+  def projects: Seq[BuildFileProject] = _projects.values.toSeq
+  def propjectMap: Map[File, BuildFileProject] = _projects
 }

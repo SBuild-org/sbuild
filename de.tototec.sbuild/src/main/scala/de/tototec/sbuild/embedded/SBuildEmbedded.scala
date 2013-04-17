@@ -2,6 +2,7 @@ package de.tototec.sbuild.embedded
 
 import java.io.File
 import de.tototec.sbuild.Project
+import de.tototec.sbuild.BuildFileProject
 import de.tototec.sbuild.TargetRef
 import de.tototec.sbuild.TargetRefs
 import de.tototec.sbuild.runner.Config
@@ -42,7 +43,7 @@ class SBuildEmbedded(sbuildHomeDir: File) {
 
     debug("About to read project: " + projectFile)
 
-    implicit val sbuildProject = new Project(projectFile, projectReader)
+    implicit val sbuildProject = new BuildFileProject(projectFile, projectReader)
     props.asScala foreach {
       case (key, value) => sbuildProject.addProperty(key, value)
     }
@@ -59,6 +60,13 @@ class SBuildEmbedded(sbuildHomeDir: File) {
     sbuildProject
   }
 
+  /**
+   * Return the lastModified time stamp of the project and its dependencies.
+   */
+  def lastModified(projectFile: File): Long = {
+    0L
+  } 
+  
   def loadResolver(projectFile: File, props: Properties): EmbeddedResolver =
     new ProjectEmbeddedResolver(loadProject(projectFile, props))
 

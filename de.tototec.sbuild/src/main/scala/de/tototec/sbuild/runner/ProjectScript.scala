@@ -303,6 +303,7 @@ class ProjectScript(_scriptFile: File,
     val ctr = clazz.getConstructor(classOf[Project])
     val scriptInstance = ctr.newInstance(project)
     // We assume, that everything is done in constructor, so we are done here
+    project.applyPlugins
     scriptInstance
   }
 

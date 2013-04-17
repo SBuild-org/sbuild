@@ -2,6 +2,7 @@ package de.tototec.sbuild.test
 
 import java.io.File
 import de.tototec.sbuild.Project
+import de.tototec.sbuild.BuildFileProject
 
 object TestSupport {
 
@@ -12,7 +13,7 @@ object TestSupport {
   }
 
   def createMainProject: Project = {
-    new Project(createProjectFile)
+    new BuildFileProject(createProjectFile)
   }
 
 }

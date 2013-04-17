@@ -10,7 +10,7 @@ class ZipSchemeHandlerTest extends FunSuite {
   projDir.mkdirs
   val dummyProjectFile = new File(projDir, "SBuild.scala")
   dummyProjectFile.createNewFile()
-  implicit val dummyProject = new Project(dummyProjectFile, null)
+  implicit val dummyProject: Project = new BuildFileProject(dummyProjectFile, null)
 
   val httpPath = Path(".sbuild/http")
   val zipPath = Path(".sbuild/unzip")
