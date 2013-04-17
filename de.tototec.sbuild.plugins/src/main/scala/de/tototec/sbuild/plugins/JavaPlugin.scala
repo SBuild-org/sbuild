@@ -39,12 +39,14 @@ class JavaPlugin()(implicit _project: Project) extends Plugin {
   var javacCustomizer: Javac => Unit = null
   var testJavacCustomizer: Javac => Unit = null
 
+  
+  
   // Test Compile
 
   override def init {
     // ensure these deps are defined and the targets exists
-    compileCp = compileCp orElse Target("phony:compileCp")
-    testCp = testCp orElse Target("phony:testCp")
+    compileCp = compileCp whenNull Target("phony:compileCp")
+    testCp = testCp whenNull Target("phony:testCp")
 
     // TODO: refactor targets out for later use
     initCompileJava
@@ -75,7 +77,7 @@ class JavaPlugin()(implicit _project: Project) extends Plugin {
   }
 
   protected def initCleanJava {
-    val cleanJavaClasses = Target("phony:cleanJavaClasses") evictCache "compileMainJava" exec {
+    val cleanJavaClasses = Target("phony:cleanJavaClasses") evictCache "compileJava" exec {
       Util.delete(Path(classesDir))
     }
     Target("phony:clean") dependsOn cleanJavaClasses
@@ -85,7 +87,7 @@ class JavaPlugin()(implicit _project: Project) extends Plugin {
     val sources: TargetRefs = testSourceDirs.map { dir => TargetRef("scan:" + dir) }
 
     val t = Target("phony:compileTestJava").cacheable dependsOn 
-      testDependsOn ~ testCp ~ sources ~ additionalTestSources exec {
+      testDependsOn ~ testCp ~ "compile" ~ sources ~ additionalTestSources exec {
       val sourceFiles = sources.files ++ additionalTestSources.files
       if (!sourceFiles.isEmpty) {
         val javac = new Javac(
@@ -104,7 +106,7 @@ class JavaPlugin()(implicit _project: Project) extends Plugin {
       }
     }
 
-    Target("phony:compile") dependsOn t
+    Target("phony:testCompile") dependsOn t
   }
 
   protected def initCleanTestJava {
