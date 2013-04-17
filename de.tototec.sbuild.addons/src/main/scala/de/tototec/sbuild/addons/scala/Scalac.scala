@@ -189,9 +189,9 @@ object Scalac {
  *   If `true`, also the `compilerClasspath` parameter must be specified.
  * @param additionalScalacArgs Additional arguments directly passed to the Scala compiler.
  *   Refer to the scalac manual or inspect `scalac -help` output.
- * @param useArgsFile If `true` use a temporary file to set the compiler arguments.
- * @param jvmArgs Additional arguments given directly to the forked JVM. Will be ignored, if parameter `fork` is not `true`.
- * @param sourcePath Path were the compiler looks for source files.
+ * @param useArgsFile If `true` use a temporary file to set the compiler arguments. ''Since 0.4.0.9000.''
+ * @param jvmArgs Additional arguments given directly to the forked JVM. Will be ignored, if parameter `fork` is not `true`. ''Since 0.4.0.9000.''
+ * @param sourcePath Path were the compiler looks for source files. ''Since 0.4.0.9000.''
  *
  */
 class Scalac(
@@ -225,7 +225,7 @@ class Scalac(
       target = target, debugInfo = debugInfo, fork = fork, additionalScalacArgs = additionalScalacArgs, sources = sources,
       useArgsFile = null)
 
-  val scalacClassName = "scala.tools.nsc.Main"
+  private val scalacClassName = "scala.tools.nsc.Main"
 
   override def toString(): String = getClass.getSimpleName +
     "(compilerClasspath=" + compilerClasspath +

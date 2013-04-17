@@ -49,7 +49,7 @@ class SBuild(implicit _project: Project) {
     )
   }
 
-  Target("phony:scaladoc") dependsOn SBuildConfig.compilerPath ~ compileCp ~ "scan:src/main/scala" exec {
+  Target("phony:scaladoc").cacheable dependsOn SBuildConfig.compilerPath ~ compileCp ~ "scan:src/main/scala" exec {
     addons.scala.Scaladoc(
       scaladocClasspath = SBuildConfig.compilerPath.files,
       classpath = compileCp.files,
