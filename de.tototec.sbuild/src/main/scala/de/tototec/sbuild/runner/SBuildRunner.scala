@@ -29,6 +29,14 @@ object SBuildRunner extends SBuildRunner {
 
 }
 
+class ExecutedTarget(
+    val targetContext: TargetContext,
+    val dependencies: Seq[ExecutedTarget]) {
+  def target = targetContext.target
+  val treeSize: Int = dependencies.foldLeft(1) { (a, b) => a + b.treeSize }
+  def linearized: Seq[ExecutedTarget] = dependencies.flatMap { et => et.linearized } ++ Seq(this)
+}
+
 /**
  * SBuild command line application. '''API is not stable!'''
  */
@@ -102,7 +110,7 @@ class SBuildRunner {
    */
   def checkTargets(projects: Seq[Project])(implicit baseProject: Project): Seq[(Target, String)] = {
 
-    val cache = new Cache()
+    val cache = new DependencyCache()
 
     val targetsToCheck = projects.flatMap { p =>
       p.targets.values.filterNot(_.isImplicit)
@@ -372,15 +380,15 @@ class SBuildRunner {
 
     val treePrinter: Option[(Int, Target) => Unit] = depTree.map { t => t.addNode _ }
 
-    val cache = new Cache()
+    val dependencyCache = new DependencyCache()
 
     // The execution plan (chain) will be evaluated on first need
     lazy val chain: Seq[ExecutedTarget] = {
       if (!targets.isEmpty && !config.noProgress) {
         log.log(LogLevel.Info, "Calculating dependency tree...")
       }
-      val chain = preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter, cache = cache)(project)
-      log.log(LogLevel.Debug, "Target Dependency Cache: " + cache.cached.map {
+      val chain = preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter, dependencyCache = dependencyCache)(project)
+      log.log(LogLevel.Debug, "Target Dependency Cache: " + dependencyCache.cached.map {
         case (t, d) => "\n  " + formatTarget(t)(project) + " -> " + d.map {
           dep => formatTarget(dep)(project)
         }.mkString(", ")
@@ -460,7 +468,8 @@ class SBuildRunner {
       log.log(LogLevel.Info, fPercent("[0%]") + " Executing...")
     }
 
-    preorderedDependenciesForest(targets, execProgress = execProgress, cache = cache)(project)
+    preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
+      transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache))(project)
     if (!targets.isEmpty && !config.noProgress) {
       log.log(LogLevel.Info, fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
         " msec, Execution time: " + (System.currentTimeMillis - executionStart) + " msec")
@@ -499,14 +508,6 @@ class SBuildRunner {
     (requested.asInstanceOf[Seq[Target]], invalid.asInstanceOf[Seq[String]])
   }
 
-  class ExecutedTarget(
-      val targetContext: TargetContext,
-      val dependencies: Seq[ExecutedTarget]) {
-    def target = targetContext.target
-    val treeSize: Int = dependencies.foldLeft(1) { (a, b) => a + b.treeSize }
-    def linearized: Seq[ExecutedTarget] = dependencies.flatMap { et => et.linearized } ++ Seq(this)
-  }
-
   class ExecProgress(var maxCount: Int, var currentNr: Int = 1)
 
   def formatProject(project: Project)(implicit baseProject: Project) =
@@ -530,8 +531,8 @@ class SBuildRunner {
                                    dependencyTrace: List[Target] = List(),
                                    depth: Int = 0,
                                    treePrinter: Option[(Int, Target) => Unit] = None,
-                                   cache: Cache = new Cache(),
-                                   beforeTargetExecute: Option[Target => Unit] = None)(implicit project: Project): Seq[ExecutedTarget] =
+                                   dependencyCache: DependencyCache = new DependencyCache(),
+                                   transientTargetCache: Option[TransientTargetCache] = None)(implicit project: Project): Seq[ExecutedTarget] =
     request.map { req =>
       preorderedDependenciesTree(
         curTarget = req,
@@ -540,8 +541,8 @@ class SBuildRunner {
         dependencyTrace = dependencyTrace,
         depth = depth,
         treePrinter = treePrinter,
-        cache = cache,
-        beforeTargetExecute = beforeTargetExecute
+        dependencyCache = dependencyCache,
+        transientTargetCache = transientTargetCache
       )
     }
 
@@ -550,7 +551,7 @@ class SBuildRunner {
    *
    * It is assumed, that the involved projects are completely initialized and no new target will appear after this cache is active.
    */
-  class Cache {
+  class DependencyCache {
     private var depTrees: Map[Target, Seq[Target]] = Map()
 
     def cached: Map[Target, Seq[Target]] = depTrees
@@ -624,8 +625,8 @@ class SBuildRunner {
                                  dependencyTrace: List[Target] = Nil,
                                  depth: Int = 0,
                                  treePrinter: Option[(Int, Target) => Unit] = None,
-                                 cache: Cache = new Cache(),
-                                 beforeTargetExecute: Option[Target => Unit] = None)(implicit project: Project): ExecutedTarget = {
+                                 dependencyCache: DependencyCache = new DependencyCache(),
+                                 transientTargetCache: Option[TransientTargetCache] = None)(implicit project: Project): ExecutedTarget = {
 
     val log = curTarget.project.log
 
@@ -634,7 +635,12 @@ class SBuildRunner {
       case _ =>
     }
 
-    val dependencies: Seq[Target] = cache.targetDeps(curTarget, dependencyTrace)
+    transientTargetCache.flatMap(_.get(curTarget)).map { cachedExecutedContext =>
+      execProgress.map(_.currentNr += cachedExecutedContext.treeSize)
+      return cachedExecutedContext;
+    }
+
+    val dependencies: Seq[Target] = dependencyCache.targetDeps(curTarget, dependencyTrace)
 
     log.log(LogLevel.Debug, "Dependencies of " + formatTarget(curTarget) + ": " +
       (if (dependencies.isEmpty) "<none>" else dependencies.map(formatTarget(_)).mkString(" ~ ")))
@@ -647,7 +653,8 @@ class SBuildRunner {
         dependencyTrace = curTarget :: dependencyTrace,
         depth = depth + 1,
         treePrinter = treePrinter,
-        cache = cache)
+        dependencyCache = dependencyCache,
+        transientTargetCache = transientTargetCache)
     }
 
     // print dep-tree
@@ -662,9 +669,12 @@ class SBuildRunner {
         x.map { "\n" + prefix + formatTarget(_) }.mkString
     }
 
-    val ctx: TargetContext = if (skipExec) {
+    case class ExecBag(ctx: TargetContext, wasUpToDate: Boolean)
+
+    val execBag: ExecBag = if (skipExec) {
       // already known as up-to-date
-      new TargetContextImpl(curTarget, 0, Seq())
+
+      ExecBag(new TargetContextImpl(curTarget, 0, Seq()), true)
 
     } else {
       // not skipped execution, determine if dependencies were up-to-date
@@ -733,17 +743,16 @@ class SBuildRunner {
               fPercent("[" + math.min(100, math.max(0, p)) + "%] ")
             case (c, m) => "[" + c + "/" + m + "] "
           }
-          state.currentNr += 1
           progress
         case _ => ""
       }
       val colorTarget = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
 
-      if (!needsToRun) {
+      val wasUpToDate: Boolean = if (!needsToRun) {
         val level = if (dependencyTrace.isEmpty) LogLevel.Info else LogLevel.Debug
         log.log(level, progressPrefix + "Skipping target:  " + colorTarget(formatTarget(curTarget)))
-
-      } else {
+        true
+      } else { // needsToRun
         curTarget.action match {
           case null =>
             // Additional sanity check
@@ -755,6 +764,7 @@ class SBuildRunner {
             }
             log.log(LogLevel.Debug, progressPrefix + "Skipping target:  " + colorTarget(formatTarget(curTarget)))
             log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(curTarget))
+            true
           case exec =>
             WithinTargetExecution.set(new WithinTargetExecution {
               override def targetContext: TargetContext = ctx
@@ -767,16 +777,17 @@ class SBuildRunner {
                 if (curTarget.isCacheable) persistentTargetCache.loadOrDropCachedState(ctx)
                 else None
 
-              cachedState match {
+              val wasUpToDate: Boolean = cachedState match {
                 case Some(cache) =>
                   log.log(LogLevel.Debug, progressPrefix + "Skipping cached target: " + colorTarget(formatTarget(curTarget)))
                   ctx.start
                   ctx.targetLastModified = cachedState.get.targetLastModified
                   ctx.attachFileWithoutLastModifiedCheck(cache.attachedFiles)
                   ctx.end
+                  true
 
                 case None =>
-                  beforeTargetExecute.map { action => action(curTarget) }
+                  if (!curTarget.isSideeffectFree) transientTargetCache.map(_.evict)
                   val level = if (curTarget.isTransparentExec) LogLevel.Debug else LogLevel.Info
                   log.log(level, progressPrefix + "Executing target: " + colorTarget(formatTarget(curTarget)))
                   if (curTarget.help != null && curTarget.help.trim != "")
@@ -788,6 +799,8 @@ class SBuildRunner {
 
                   // update persistent cache
                   if (curTarget.isCacheable) persistentTargetCache.writeCachedState(ctx)
+
+                  false
               }
 
               ctx.targetLastModified match {
@@ -801,6 +814,8 @@ class SBuildRunner {
                 case files =>
                   log.log(LogLevel.Debug, s"The context of target '${formatTarget(curTarget)}' has ${files.size} attached files")
               }
+
+              wasUpToDate
 
             } catch {
               case e: TargetAware =>
@@ -822,10 +837,14 @@ class SBuildRunner {
         }
       }
 
-      ctx
+      ExecBag(ctx, wasUpToDate)
     }
 
-    new ExecutedTarget(targetContext = ctx, dependencies = executedDependencies)
+    execProgress.map(_.currentNr += 1)
+    val executedTarget = new ExecutedTarget(targetContext = execBag.ctx, dependencies = executedDependencies)
+    if (execBag.wasUpToDate && transientTargetCache.isDefined)
+      transientTargetCache.get.cache(curTarget, executedTarget)
+    executedTarget
 
   }
 

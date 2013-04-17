@@ -74,6 +74,8 @@ trait Target {
   // def setEvictCache(evictCache: Boolean): Target
 
   private[sbuild] def isTransparentExec: Boolean
+  
+  private[sbuild] def isSideeffectFree: Boolean
 }
 
 object Target {
@@ -99,12 +101,18 @@ case class ProjectTarget private[sbuild] (override val name: String,
     case _ => Seq[TargetRef]()
   }
 
-  private var _transparentExec: Boolean = handler match {
+  private[this] var _transparentExec: Boolean = handler match {
     case Some(_: TransparentSchemeResolver) => true
     case _ => false
   }
-  private[sbuild] def isTransparentExec: Boolean = _transparentExec
-
+  override private[sbuild] def isTransparentExec: Boolean = _transparentExec
+  
+  private[this] var _sideeffectFree: Boolean = handler match {
+    case Some(_: SideeffectFreeSchemeResolver) => true
+    case _ => false
+  }
+  override private[sbuild] def isSideeffectFree: Boolean = _sideeffectFree
+  
   private var _exec: TargetContext => Any = handler match {
     case Some(handler: SchemeResolver) =>
       ctx: TargetContext => handler.resolve(TargetRef(name)(project).nameWithoutProto, ctx)
@@ -126,6 +134,8 @@ case class ProjectTarget private[sbuild] (override val name: String,
     }
     // always non-transparent, but in case we override a transparent scheme handler here
     _transparentExec = false
+    // always assume side effects
+    _sideeffectFree = false
     _exec = execution
     this
   }

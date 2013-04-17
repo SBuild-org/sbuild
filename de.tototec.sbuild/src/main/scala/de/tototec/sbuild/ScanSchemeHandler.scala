@@ -3,18 +3,19 @@ package de.tototec.sbuild
 import java.io.File
 
 /**
- * Scans a directory for files, recursiv. 
- * 
+ * Scans a directory for files, recursiv.
+ *
  * An optional regular expression can be used, to filter found files by name.
- * 
+ *
  * Syntax:
  * {{{
- * "scan:src;regex=.*\.java" 
+ * "scan:src;regex=.*\.java"
  * }}}
  */
 class ScanSchemeHandler(implicit project: Project)
-    extends SchemeResolver 
-    with TransparentSchemeResolver {
+    extends SchemeResolver
+    with TransparentSchemeResolver
+    with SideeffectFreeSchemeResolver {
 
   override def localPath(path: String): String = s"phony:scan-${path}"
 
@@ -41,7 +42,7 @@ class ScanSchemeHandler(implicit project: Project)
       case _ =>
         val ex = new ProjectConfigurationException("Unsupported syntax used in target/depenency: " + targetContext.name)
         ex.buildScript = Some(targetContext.project.projectFile)
-        throw ex 
+        throw ex
     }
 
     Util.recursiveListFiles(dir, regex, log = project.log)
