@@ -1,7 +1,7 @@
 package de.tototec.sbuild
 
 trait SBuildLogger {
-  def log(LogLevel: LogLevel, msg: => String, cause: Throwable = null)
+  def log(logLevel: LogLevel, msg: => String, cause: Throwable = null)
 }
 
 trait LogLevel
@@ -18,7 +18,7 @@ object LogLevel {
 }
 
 object SBuildNoneLogger extends SBuildLogger {
-  override def log(LogLevel: LogLevel, msg: => String, cause: Throwable = null) {}
+  override def log(logLevel: LogLevel, msg: => String, cause: Throwable = null) {}
 }
 
 class SBuildConsoleLogger(enabledLogLevels: Set[LogLevel]) extends SBuildLogger {

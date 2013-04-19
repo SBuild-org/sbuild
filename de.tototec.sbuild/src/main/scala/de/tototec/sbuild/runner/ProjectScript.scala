@@ -25,8 +25,12 @@ import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.WithinTargetExecution
 import de.tototec.sbuild.TargetContextImpl
 import java.lang.reflect.Method
+import de.tototec.sbuild.BuildFileProject
 
 object ProjectScript {
+
+  val InfoFileName = "sbuild.info.xml"
+
   def cutSimpleComment(str: String): String = {
     var index = str.indexOf("//")
     while (index >= 0) {
@@ -51,7 +55,7 @@ object ProjectScript {
     str
   }
 
-  def dropCaches {scalaCompilerAndClassloader = None}
+  def dropCaches { scalaCompilerAndClassloader = None }
   private var scalaCompilerAndClassloader: Option[(Any, Method, Method)] = None
 
 }
@@ -92,11 +96,11 @@ class ProjectScript(_scriptFile: File,
   lazy val targetBaseDir: File = new File(scriptFile.getParentFile, buildTargetDir)
   lazy val targetDir: File = new File(scriptFile.getParentFile, buildFileTargetDir)
   lazy val targetClassFile = new File(targetDir, scriptBaseName + ".class")
-  lazy val infoFile = new File(targetDir, "sbuild.info.xml")
+  lazy val infoFile = new File(targetDir, ProjectScript.InfoFileName)
 
-  def checkFile() = if (!scriptFile.exists) {
-    throw new RuntimeException("Could not find build file: " + scriptFile.getName + "\nSearched in: "
-      + scriptFile.getAbsoluteFile.getParent)
+  def checkFile = if (!scriptFile.exists) {
+    throw new RuntimeException(s"Could not find build file: ${scriptFile.getName}\n" +
+      s"Searched in: ${scriptFile.getAbsoluteFile.getParent}")
   }
 
   def compileAndExecute(project: Project): Any = {
@@ -112,7 +116,7 @@ class ProjectScript(_scriptFile: File,
 
     val addCp: Array[String] = readAdditionalClasspath(project) ++ additionalProjectClasspath
 
-    val includes: Map[String, Array[File]] = readIncludeFiles(project)
+    val includes: Map[String, Seq[File]] = readIncludeFiles(project)
 
     if (!checkInfoFileUpToDate(includes)) {
       //      println("Compiling build script " + scriptFile + "...")
@@ -122,7 +126,7 @@ class ProjectScript(_scriptFile: File,
     useExistingCompiled(project, addCp)
   }
 
-  def checkInfoFileUpToDate(includes: Map[String, Array[File]]): Boolean = {
+  def checkInfoFileUpToDate(includes: Map[String, Seq[File]]): Boolean = {
     infoFile.exists && {
       val info = xml.XML.loadFile(infoFile)
 
@@ -229,64 +233,60 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  def readIncludeFiles(project: Project): Map[String, Array[File]] = {
+  def readIncludeFiles(project: Project): Map[String, Seq[File]] = {
     log.log(LogLevel.Debug, "About to find include files.")
     val cp = readAnnotationWithVarargAttribute(annoName = "include", valueName = "value")
     log.log(LogLevel.Debug, "Using include files: " + cp.mkString(", "))
 
     // TODO: specific error message, when fetch or download fails
     resolveViaProject(cp, project, "@include entry")
-
-    //    cp.map { entry =>
-    //      val fileEntry = Path.normalize(new File(entry), projectDir)
-    //      if (!fileEntry.exists) {
-    //        val ex = new ProjectConfigurationException("Could not found include file: " + entry)
-    //        ex.buildScript = Some(scriptFile)
-    //        throw ex
-    //      }
-    //      fileEntry
-    //    }.distinct
   }
 
-  protected def filesOfEntry(entryRef: TargetRef)(implicit project: Project): Seq[File] =
-    entryRef.explicitProto match {
-      case Some("phony") => Seq()
-      case None | Some("file") => Seq(Path(entryRef.nameWithoutProto)(entryRef.safeTargetProject))
-      case Some(scheme) => entryRef.safeTargetProject.schemeHandlers.get(scheme) match {
-        case Some(handler) => Seq(Path(TargetRef(handler.localPath(entryRef.nameWithoutProto)).nameWithoutProto)(entryRef.safeTargetProject))
-        case _ =>
-          val e = new ProjectConfigurationException(s"""No scheme handler registered for scheme "${scheme}".""")
-          e.buildScript = Some(project.projectFile)
-          throw e
-      }
-    }
+  def resolveViaProject(targets: Seq[String], project: Project, purposeOfEntry: String): Map[String, Seq[File]] =
+    targets.map(t => (t -> resolveViaProject(t, project, purposeOfEntry))).toMap
 
-  def resolveViaProject(targets: Array[String], project: Project, purposeOfEntry: String): Map[String, Array[File]] =
-    targets.map { cpEntry =>
-      val entryRef = TargetRef(cpEntry)(project)
-      val files = try {
-        filesOfEntry(entryRef)(project).toArray
-      } catch {
-        case e: Exception =>
-          val ex = new ProjectConfigurationException(s"""Could not resolve ${purposeOfEntry} "${cpEntry}". ${e.getMessage}""", e)
-          ex.buildScript = Some(scriptFile)
-          throw ex
-      }
+  def resolveViaProject(target: String, project: Project, purposeOfEntry: String): Seq[File] = {
 
-      files.find(file => !file.exists).map { file =>
-        // need to resolve cpEntry via project
-        val target = project.findOrCreateTarget(targetRef = entryRef, isImplicit = true)
-        try {
-          SBuildRunner.preorderedDependenciesTree(target)(project)
-        } catch {
-          case e: Exception =>
-            val ex = new ProjectConfigurationException(s"""Could not resolve ${purposeOfEntry} "${cpEntry}". ${e.getMessage}""", e)
-            ex.buildScript = Some(scriptFile)
-            throw ex
+    class RequirementsResolver extends BuildFileProject(
+      _projectFile = project.projectFile,
+      log = new SBuildLogger {
+        override def log(logLevel: LogLevel, msg: => String, cause: Throwable = null) {
+          val level = logLevel match {
+            case LogLevel.Info => LogLevel.Debug
+            case x => x
+          }
+          project.log.log(level, "RequirementsResolver: " + msg, cause)
         }
       }
-      (cpEntry -> files)
-    }.toMap
+    )
+    implicit val p: Project = new RequirementsResolver
+
+    // TODO: the used project has to manipulate the log, e.g. move all info to debug.
+
+    SBuildRunner.determineRequestedTarget(target, true) match {
+
+      case None =>
+        // not found
+        // if an existing file, then proceed.
+        val targetRef = TargetRef.fromString(target)
+        targetRef.explicitProto match {
+          case None | Some("file") if targetRef.explicitProject == None && Path(targetRef.nameWithoutProto).exists =>
+            return Seq(Path(targetRef.nameWithoutProto))
+          case _ =>
+            throw new TargetNotFoundException(s"""Could not found ${purposeOfEntry} "${target}" in project ${scriptFile}.""")
+        }
+
+      case Some(target) =>
+
+        // TODO: progress
+        val executedTarget =
+          SBuildRunner.preorderedDependenciesTree(
+            curTarget = target,
+            transientTargetCache = Some(new InMemoryTransientTargetCache())
+          )
+        executedTarget.targetContext.targetFiles
+    }
+  }
 
   def readAdditionalClasspath(project: Project): Array[String] = {
     log.log(LogLevel.Debug, "About to find additional classpath entries.")
@@ -314,7 +314,7 @@ class ProjectScript(_scriptFile: File,
     Util.delete(targetDir)
   }
 
-  def newCompile(classpath: Array[String], includes: Map[String, Array[File]]) {
+  def newCompile(classpath: Array[String], includes: Map[String, Seq[File]]) {
     cleanScala()
     targetDir.mkdirs
     log.log(LogLevel.Info, "Compiling build script: " + scriptFile + (if (includes.isEmpty) "" else " and " + includes.size + " included files") + "...")
@@ -348,7 +348,7 @@ class ProjectScript(_scriptFile: File,
 
   }
 
-  def compile(classpath: String, includes: Map[String, Array[File]]) {
+  def compile(classpath: String, includes: Map[String, Seq[File]]) {
     val params = Array("-classpath", classpath, "-deprecation", "-g:vars", "-d", targetDir.getPath, scriptFile.getPath) ++
       (includes.flatMap { case (name, files) => files }.map { _.getPath })
 
