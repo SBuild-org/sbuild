@@ -7,7 +7,20 @@ import de.tototec.sbuild.ExecutionFailedException
 import de.tototec.sbuild.LogLevel
 import de.tototec.sbuild.addons.support.ForkSupport
 
+/**
+ * Companion object for [[ScalaTest]], the ScalaTest Compiler Addon.
+ *
+ * Use [[ScalaTest$#apply]] to configure and execute it in one go.
+ *
+ */
 object ScalaTest {
+
+  /**
+   * Configure and execute the ScalaTest addon.
+   *
+   * For parameter documentation see the [[ScalaTest]] constructor.
+   *
+   */
   def apply(
     classpath: Seq[File] = null,
     runPath: Seq[String] = null,
@@ -43,10 +56,45 @@ object ScalaTest {
     ).execute
 }
 
+/**
+ * ScalaTest Addon to run unit tests with [[http://www.scalatest.org/ ScalaTest]].
+ *
+ * The ScalaTest runner can be configured via constructor parameter or `var`s. To run use [[ScalaTest#execute]].
+ *
+ * To easily configure and execute the test runner in one go, see [[ScalaTest$#apply]].
+ *
+ * @since 0.1.1
+ *
+ * @constructor
+ * Create a new ScalaTest Runner addon instance. All parameters can be omitted and set later.
+ *
+ *
+ * @param classpath The classpath used to run the ScalaTest itself.
+ *   Also the test classes may be made available on the classpath,
+ *   in which case no `runpath` needs to be specified.
+ * @param runPath A list of filenames, directory paths,
+ *   and/or URLs that Runner uses to load classes for the running test.
+ *   If runpath is specified, Runner creates a custom class loader to load classes available on the runpath.
+ *   The graphical user interface reloads the test classes anew for each run by creating
+ *   and using a new instance of the custom class loader for each run.
+ *   The classes that comprise the test may also be made available on the classpath,
+ *   in which case no runpath need be specified.
+ * @param reporter
+ * @param configMap
+ * @param includes
+ * @param excludes
+ * @param parallel ''Since 0.1.5.9000.''
+ * @param threadCount ''Since 0.1.5.9000.''
+ * @param suites ''Since 0.1.5.9000.''
+ * @param packages ''Since 0.1.5.9000.''
+ * @param packagesRecursive ''Since 0.1.5.9000.''
+ * @param testNgTests ''Since 0.1.5.9000.''
+ * @param junitTests ''Since 0.1.5.9000.''
+ * @param fork ''Since 0.2.0.9000.''
+ *
+ */
 class ScalaTest(
-  /** The classpath used to run the ScalaTest itself. Also the test classes may be made available on the classpath, in which case no runpath need be specified.  */
   var classpath: Seq[File] = null,
-  /** A list of filenames, directory paths, and/or URLs that Runner uses to load classes for the running test. If runpath is specified, Runner creates a custom class loader to load classes available on the runpath. The graphical user interface reloads the test classes anew for each run by creating and using a new instance of the custom class loader for each run. The classes that comprise the test may also be made available on the classpath, in which case no runpath need be specified. */
   var runPath: Seq[String] = null,
   var reporter: String = null,
   var configMap: Map[String, String] = null,
@@ -65,6 +113,7 @@ class ScalaTest(
 
   val scalaTestClassName = "org.scalatest.tools.Runner"
 
+  /** Execute this ScalaTest runner. */
   def execute {
 
     def whiteSpaceSeparated(seq: Seq[String]): String = seq.map(_.replaceAll(" ", "\\ ")).mkString(" ")
