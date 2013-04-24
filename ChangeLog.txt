@@ -6,6 +6,7 @@ SBuild trunk
 * Fix FileNotFoundException in execution of cacheable targets with path
   separators in it's name.
 * Allow to evict caches per cacheable target.
+* Huge speed up in up-to-date detection algorithm.
 
 SBuild 0.4.0 - 2013-03-09
 
