@@ -33,5 +33,18 @@ case class TargetRefs(val targetRefs: TargetRef*) {
         targetRefs.flatMap(tr => tr.files)
     }
   }
+
+  def filesRelativeTo(baseDir: File): Seq[String] = {
+    WithinTargetExecution.get match {
+      case null =>
+        val ex = InvalidApiUsageException.localized("'TargetRefs.filesRelativeTo' can only be used inside an exec block of a target.")
+        throw ex
+      case _ =>
+        targetRefs.flatMap(tr => tr.filesRelativeTo(baseDir))
+    }
+  }
+
+
+  
 }
 

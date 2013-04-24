@@ -2,6 +2,7 @@ package de.tototec.sbuild
 
 import java.io.File
 import de.tototec.sbuild.runner.SBuildRunner
+import java.net.URI
 
 object TargetRef {
 
@@ -102,6 +103,14 @@ class TargetRef(val ref: String)(implicit project: Project) {
                 foundDepCtx.targetFiles
             }
         }
+    }
+  }
+
+  def filesRelativeTo(baseDir: File): Seq[String] = {
+    val baseUri = baseDir.toURI()
+    files.map { f =>
+      val absFile = if (f.isAbsolute) f else new File(project.projectDirectory, f.getPath)
+      baseUri.relativize(absFile.toURI).getPath
     }
   }
 
