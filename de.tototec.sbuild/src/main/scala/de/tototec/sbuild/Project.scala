@@ -268,7 +268,7 @@ class BuildFileProject(_projectFile: File,
   }
 
   override def uniqueTargetFile(targetRef: TargetRef): UniqueTargetFile = {
-    val foreignProject = explicitForeignProject(targetRef)
+    def foreignProject = explicitForeignProject(targetRef)
 
     // file of phony is: projectfile + "/" + targetRef.name
     // as projectfile is a file, 
@@ -285,6 +285,7 @@ class BuildFileProject(_projectFile: File,
         }
         throw e
       case Some(proto) => schemeHandlers.get(proto) match {
+        // here, we definitely have an project local target ref 
         case Some(resolver: SchemeResolver) =>
           val handlerOutput = resolver.localPath(targetRef.nameWithoutProto)
           val outputRef = new TargetRef(handlerOutput)(this)
@@ -293,22 +294,35 @@ class BuildFileProject(_projectFile: File,
             case Some("file") => false
             case _ =>
               val e = new UnsupportedSchemeException("The defined scheme \"" + outputRef.explicitProto + "\" did not resolve to phony or file protocol.")
-              e.buildScript = foreignProject match {
-                case None => Some(projectFile)
-                case x => x
-              }
+              e.buildScript = Some(projectFile)
               throw e
           }
           UniqueTargetFile(Path(outputRef.nameWithoutProto)(this), phony, Some(resolver))
-        case Some(handler) =>
+        case Some(handler: SchemeHandler) =>
           // this is a handler but not a resolver
-          uniqueTargetFile(TargetRef(handler.localPath(targetRef.nameWithoutProto))(this))
+          val expandedTargetRef = TargetRef(handler.localPath(targetRef.nameWithoutProto))(this)
+          log.log(LogLevel.Debug, s"""About to expand scheme handler "${proto}" from "${targetRef}" to "${expandedTargetRef}"""")
+          val uTF = uniqueTargetFile(expandedTargetRef)
+          // if we are here, we had success to resolve the handler
+          uTF.handler match {
+            case Some(resolver: SchemeResolver) =>
+              // if the handler encapsulated an resolver, we have to wrap it here
+              class WrappedSchemeResolver(handler: SchemeHandler, resolver: SchemeResolver) extends SchemeResolver {
+                override def localPath(path: String) = handler.localPath(path)
+                override def resolve(path: String, targetContext: TargetContext) = {
+                  val unwrappedPath = handler.localPath(path).split(":", 2)(1)
+                   log.log(LogLevel.Debug, s"""About to resolve "${path}" by calling undelying scheme handler's resolve with path "${unwrappedPath}""")
+                  resolver.resolve(unwrappedPath, targetContext)
+                }
+              }
+              UniqueTargetFile(uTF.file, uTF.phony, Some(new WrappedSchemeResolver(handler, resolver)))
+            case _ =>
+              // if the handler does not encapsulate a resolve, simple pass the inner UniqueTargetFile through
+              uTF
+          }
         case None =>
           val e = new UnsupportedSchemeException("No scheme handler registered, that supports scheme: " + proto)
-          e.buildScript = foreignProject match {
-            case None => Some(projectFile)
-            case x => x
-          }
+          e.buildScript = Some(projectFile)
           throw e
       }
     }
@@ -363,6 +377,12 @@ class BuildFileProject(_projectFile: File,
     SchemeHandler("mvn", new MvnSchemeHandler())
     SchemeHandler("zip", new ZipSchemeHandler())
     SchemeHandler("scan", new ScanSchemeHandler())
+    SchemeHandler("source", new MapperSchemeHandler(
+      pathTranslators = Seq("mvn" -> { path => path + ";classifier=sources" })
+    ))
+    SchemeHandler("javadoc", new MapperSchemeHandler(
+      pathTranslators = Seq("mvn" -> { path => path + ";classifier=javadoc" })
+    ))
   }
 
   private var _properties: Map[String, String] = Map()
