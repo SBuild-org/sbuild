@@ -7,6 +7,11 @@ SBuild trunk
   separators in it's name.
 * Allow to evict caches per cacheable target.
 * Huge speed up in up-to-date detection algorithm.
+* New MapperSchemeHandler to translate schemes and/or pathes, to be used in
+  "source" and "javadoc" scheme.
+* New experimental default schemes "source" and "javadoc", that will try to
+  provided sources and javadoc for any given dependency, e.g. 
+  "source:mvn:a.b.1" will be translated to "mvn:a.b.1;classifier=sources"
 
 SBuild 0.4.0 - 2013-03-09
 
