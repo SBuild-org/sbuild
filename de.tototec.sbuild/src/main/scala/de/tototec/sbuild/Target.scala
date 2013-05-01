@@ -74,7 +74,7 @@ trait Target {
   // def setEvictCache(evictCache: Boolean): Target
 
   private[sbuild] def isTransparentExec: Boolean
-  
+
   private[sbuild] def isSideeffectFree: Boolean
 }
 
@@ -106,17 +106,19 @@ case class ProjectTarget private[sbuild] (override val name: String,
     case _ => false
   }
   override private[sbuild] def isTransparentExec: Boolean = _transparentExec
-  
+
   private[this] var _sideeffectFree: Boolean = handler match {
     case Some(_: SideeffectFreeSchemeResolver) => true
     case _ => false
   }
   override private[sbuild] def isSideeffectFree: Boolean = _sideeffectFree
-  
-  private var _exec: TargetContext => Any = handler match {
-    case Some(handler: SchemeResolver) =>
+
+  private[this] var execReplaced: Boolean = false
+  private[this] var _exec: TargetContext => Any = handler match {
+    case Some(handler: SchemeResolver) => {
       ctx: TargetContext => handler.resolve(TargetRef(name)(project).nameWithoutProto, ctx)
-      case _ => null
+    }
+    case _ => null
   }
 
   private[sbuild] override def action = _exec
@@ -131,6 +133,7 @@ case class ProjectTarget private[sbuild] (override val name: String,
   override def exec(execution: TargetContext => Any): Target = {
     if (_exec != null) {
       project.log.log(LogLevel.Warn, s"Warning: Reassignment of exec block for target ${name}")
+      execReplaced = true
     }
     // always non-transparent, but in case we override a transparent scheme handler here
     _transparentExec = false
@@ -151,6 +154,7 @@ case class ProjectTarget private[sbuild] (override val name: String,
       "(" + name + "=>" + file + (if (phony) "[phony]" else "") +
       ",dependsOn=" + prereqs.map(t => t.name).mkString(" ~ ") +
       ",exec=" + (if (_exec == null) "non" else "defined") +
+      ",handler=" + handler + (if (execReplaced) " (meanwhile replaced)" else "") +
       ",isImplicit=" + isImplicit +
       ",isCacheable=" + isCacheable +
       ")"
