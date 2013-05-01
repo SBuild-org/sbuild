@@ -7,25 +7,23 @@ object OSGiVersion {
   private val SEPARATOR = "."
 
   /**
-   * The empty version "0.0.0". Equivalent to calling
-   * <code>new Version(0,0,0)</code>.
+   * The empty version "0.0.0". Equivalent to calling `new OSGiVersion(0,0,0)`.
    */
   val emptyVersion = new OSGiVersion(0, 0, 0)
 
   /**
    * Parses a version identifier from the specified string.
    *
-   * <p>
-   * See <code>Version(String)</code> for the format of the version string.
+   * See [[OSGiVersion(String)]] for the format of the version string.
    *
    * @param version
    *            String representation of the version identifier. Leading and
    *            trailing whitespace will be ignored.
-   * @return A <code>Version</code> object representing the version
-   *         identifier. If <code>version</code> is <code>null</code> or the
-   *         empty string then <code>emptyVersion</code> will be returned.
+   * @return A `OSGiVersion` object representing the version
+   *         identifier. If `version` is `null` or the
+   *         empty string then `emptyVersion` will be returned.
    * @throws IllegalArgumentException
-   *             If <code>version</code> is improperly formatted.
+   *             If `version` is improperly formatted.
    */
   def parseVersion(version: String): OSGiVersion = version match {
     case null => emptyVersion
@@ -37,21 +35,14 @@ object OSGiVersion {
 /**
  * Version identifier for bundles and packages.
  *
- * <p>
  * Version identifiers have four components.
- * <ol>
- * <li>Major version. A non-negative integer.</li>
- * <li>Minor version. A non-negative integer.</li>
- * <li>Micro version. A non-negative integer.</li>
- * <li>Qualifier. A text string. See <code>Version(String)</code> for the format
- * of the qualifier string.</li>
- * </ol>
+ *  - Major version. A non-negative integer.
+ *  - Minor version. A non-negative integer.
+ *  - Micro version. A non-negative integer.
+ *  - Qualifier. A text string. See <code>Version(String)</code> for the format of the qualifier string.
  *
- * <p>
- * <code>Version</code> objects are immutable.
+ * `OSGiVersion` objects are immutable.
  *
- * @since 1.3
- * @Immutable
  */
 class OSGiVersion() extends Comparable[OSGiVersion] {
 
@@ -66,21 +57,16 @@ class OSGiVersion() extends Comparable[OSGiVersion] {
   def qualifier = _qualifier
 
   /**
-   * Creates a version identifier from the specifed components.
+   * Creates a version identifier from the specified components.
    *
-   * @param major
-   *            Major component of the version identifier.
-   * @param minor
-   *            Minor component of the version identifier.
-   * @param micro
-   *            Micro component of the version identifier.
-   * @param qualifier
-   *            Qualifier component of the version identifier. If
-   *            <code>null</code> is specified, then the qualifier will be set
-   *            to the empty string.
+   * @param major Major component of the version identifier.
+   * @param minor Minor component of the version identifier.
+   * @param micro Micro component of the version identifier.
+   * @param qualifier 
+   *   Qualifier component of the version identifier. 
+   *   If `null` is specified, then the qualifier will be set to the empty string.
    * @throws IllegalArgumentException
-   *             If the numerical components are negative or the qualifier
-   *             string is invalid.
+   *   If the numerical components are negative or the qualifier string is invalid.
    */
   def this(major: Int, minor: Int, micro: Int, qualifier: String) {
     this
@@ -94,17 +80,12 @@ class OSGiVersion() extends Comparable[OSGiVersion] {
   /**
    * Creates a version identifier from the specified numerical components.
    *
-   * <p>
    * The qualifier is set to the empty string.
    *
-   * @param major
-   *            Major component of the version identifier.
-   * @param minor
-   *            Minor component of the version identifier.
-   * @param micro
-   *            Micro component of the version identifier.
-   * @throws IllegalArgumentException
-   *             If the numerical components are negative.
+   * @param major Major component of the version identifier.
+   * @param minor Minor component of the version identifier.
+   * @param micro Micro component of the version identifier.
+   * @throws IllegalArgumentException If the numerical components are negative.
    */
   def this(major: Int, minor: Int, micro: Int) {
     this(major, minor, micro, null)
@@ -113,10 +94,9 @@ class OSGiVersion() extends Comparable[OSGiVersion] {
   /**
    * Created a version identifier from the specified string.
    *
-   * <p>
    * Here is the grammar for version strings.
    *
-   * <pre>
+   * {{{
    * version ::= major('.'minor('.'micro('.'qualifier)?)?)?
    * major ::= digit+
    * minor ::= digit+
@@ -124,14 +104,12 @@ class OSGiVersion() extends Comparable[OSGiVersion] {
    * qualifier ::= (alpha|digit|'_'|'-')+
    * digit ::= [0..9]
    * alpha ::= [a..zA..Z]
-   * </pre>
+   * }}}
    *
    * There must be no whitespace in version.
    *
-   * @param version
-   *            String representation of the version identifier.
-   * @throws IllegalArgumentException
-   *             If <code>version</code> is improperly formatted.
+   * @param version String representation of the version identifier.
+   * @throws IllegalArgumentException If `version` is improperly formatted.
    */
   def this(version: String) {
     this
@@ -164,22 +142,16 @@ class OSGiVersion() extends Comparable[OSGiVersion] {
   }
 
   /**
-   * Called by the Version constructors to validate the version components.
+   * Called by the OSGiVersion constructors to validate the version components.
    *
    * @throws IllegalArgumentException
-   *             If the numerical components are negative or the qualifier
-   *             string is invalid.
+   *   If the numerical components are negative or the qualifier string is invalid.
    */
   private def validate() {
-    if (major < 0) {
-      throw new IllegalArgumentException("negative major")
-    }
-    if (minor < 0) {
-      throw new IllegalArgumentException("negative minor")
-    }
-    if (micro < 0) {
-      throw new IllegalArgumentException("negative micro")
-    }
+    if (major < 0) throw new IllegalArgumentException("negative major")
+    if (minor < 0) throw new IllegalArgumentException("negative minor")
+    if (micro < 0) throw new IllegalArgumentException("negative micro")
+
     val length = qualifier.length
     for (
       i <- 0 until length if "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
@@ -193,10 +165,9 @@ class OSGiVersion() extends Comparable[OSGiVersion] {
   /**
    * Returns the string representation of this version identifier.
    *
-   * <p>
-   * The format of the version string will be <code>major.minor.micro</code>
+   * The format of the version string will be `major.minor.micro`
    * if qualifier is the empty string or
-   * <code>major.minor.micro.qualifier</code> otherwise.
+   * `major.minor.micro.qualifier` otherwise.
    *
    * @return The string representation of this version identifier.
    */
@@ -219,18 +190,16 @@ class OSGiVersion() extends Comparable[OSGiVersion] {
   }
 
   /**
-   * Compares this <code>Version</code> object to another object.
+   * Compares this `OSGiVersion` object to another object.
    *
-   * <p>
-   * A version is considered to be <b>equal to </b> another version if the
+   * A version is considered to be '''equal to''' another version if the
    * major, minor and micro components are equal and the qualifier component
-   * is equal (using <code>String.equals</code>).
+   * is equal (using `String.equals`).
    *
    * @param object
-   *            The <code>Version</code> object to be compared.
-   * @return <code>true</code> if <code>object</code> is a
-   *         <code>Version</code> and is equal to this object;
-   *         <code>false</code> otherwise.
+   *            The `OSGiVersion` object to be compared.
+   * @return `true` if `object` is a `Version` and is equal to this object;
+   *         `false` otherwise.
    */
   override def equals(that: Any): Boolean = that match {
     case other: OSGiVersion =>
@@ -240,30 +209,26 @@ class OSGiVersion() extends Comparable[OSGiVersion] {
   }
 
   /**
-   * Compares this <code>Version</code> object to another object.
+   * Compares this `OSGiVersion` object to another object.
    *
-   * <p>
-   * A version is considered to be <b>less than </b> another version if its
+   * A version is considered to be '''less than''' another version if its
    * major component is less than the other version's major component, or the
    * major components are equal and its minor component is less than the other
    * version's minor component, or the major and minor components are equal
    * and its micro component is less than the other version's micro component,
    * or the major, minor and micro components are equal and it's qualifier
    * component is less than the other version's qualifier component (using
-   * <code>String.compareTo</code>).
+   * [[String#compareTo]]).
    *
-   * <p>
-   * A version is considered to be <b>equal to</b> another version if the
+   * A version is considered to be '''equal to''' another version if the
    * major, minor and micro components are equal and the qualifier component
-   * is equal (using <code>String.compareTo</code>).
+   * is equal (using [[String#compareTo]]).
    *
-   * @param object
-   *            The <code>Version</code> object to be compared.
+   * @param object The `OSGiVersion` object to be compared.
    * @return A negative integer, zero, or a positive integer if this object is
    *         less than, equal to, or greater than the specified
-   *         <code>Version</code> object.
-   * @throws ClassCastException
-   *             If the specified object is not a <code>Version</code>.
+   *         `OSGiVersion` object.
+   * @throws ClassCastException If the specified object is not a `OSGiVersion`.
    */
   def compareTo(other: OSGiVersion): Int = {
     if (other == this) {
