@@ -15,20 +15,16 @@ import java.io.FileNotFoundException
  *
  */
 class MvnSchemeHandler(
-    val downloadPath: File = new File(System.getProperty("user.home", ".") + "/.m2/repository"),
-    repos: Seq[String] = Seq("http://repo1.maven.org/maven2/"))(implicit project: Project) extends SchemeResolver {
-
-  protected var provisionedResources: Map[String, String] = Map()
+  val downloadPath: File = new File(System.getProperty("user.home", ".") + "/.m2/repository"),
+  repos: Seq[String] = Seq("http://repo1.maven.org/maven2/"))(implicit project: Project)
+    extends SchemeResolver {
 
   override def localPath(path: String): String = {
     "file:" + localFile(path).getAbsolutePath
   }
 
   def localFile(path: String): File = {
-    provisionedResources.get(path) match {
-      case Some(file) => new File(file)
-      case None => new File(downloadPath, constructMvnPath(path))
-    }
+    new File(downloadPath, constructMvnPath(path))
   }
 
   var online = true
@@ -60,11 +56,6 @@ class MvnSchemeHandler(
   }
 
   override def resolve(path: String, targetContext: TargetContext) = {
-    provisionedResources.get(path) map {
-      case _ =>
-      // TODO
-    }
-
     val target = localFile(path).getAbsoluteFile
     if (online && repos.size > 0) {
       var result: Option[Throwable] = None
@@ -89,12 +80,5 @@ class MvnSchemeHandler(
     }
   }
 
-  /**
-   * Provisioning of an existing resource under Maven group:artifact:verion coordinated.
-   * When the provisioned resource is requested, no download will happen. The provisioned file will be resolved instead.
-   */
-  def provision(gav: String, file: String) {
-    provisionedResources += (gav -> file)
-  }
-
 }
+
