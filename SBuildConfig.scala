@@ -7,7 +7,10 @@ object SBuildConfig {
   def sbuildOsgiVersion = sbuildVersion
 
   def cmdOptionVersion = "0.2.1"
-  def cmdOptionSource = s"http://cmdoption.tototec.de/cmdoption/attachments/download/13/de.tototec.cmdoption-${cmdOptionVersion}.jar"
+  def cmdOption = s"mvn:de.tototec:de.tototec.cmdoption:${cmdOptionVersion}"
+
+  def jansiVersion = "1.10"
+  val jansi = s"mvn:org.fusesource.jansi:jansi:${jansiVersion}"
 
   def scalaVersion = "2.10.1"
   def scalaBinVersion = "2.10"

@@ -5,7 +5,7 @@ import de.tototec.sbuild.TargetRefs._
 
 @version("0.4.0")
 @include("../SBuildConfig.scala")
-@classpath("mvn:org.apache.ant:ant:1.8.4") 
+@classpath("mvn:org.apache.ant:ant:1.8.4")
 class SBuild(implicit _project: Project) {
 
   val jar = s"target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar"
@@ -13,8 +13,8 @@ class SBuild(implicit _project: Project) {
 
   val compileCp =
     s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
-      "http://repo.fusesource.com/nexus/content/groups/public/org/fusesource/jansi/jansi/1.9/jansi-1.9.jar" ~
-      SBuildConfig.cmdOptionSource
+    SBuildConfig.jansi ~
+    SBuildConfig.cmdOption
 
   val testCp = compileCp ~
       s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:1.9.1" ~
