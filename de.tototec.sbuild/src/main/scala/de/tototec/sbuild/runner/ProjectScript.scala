@@ -123,7 +123,7 @@ class ProjectScript(_scriptFile: File,
       newCompile(sbuildClasspath ++ addCp, includes)
     }
 
-    useExistingCompiled(project, addCp)
+    useExistingCompiled(project, addCp, scriptBaseName, Seq("SBuild"))
   }
 
   def checkInfoFileUpToDate(includes: Map[String, Seq[File]]): Boolean = {
@@ -295,11 +295,22 @@ class ProjectScript(_scriptFile: File,
     resolveViaProject(cp, project, "@classpath entry").flatMap { case (key, value) => value }.map { _.getPath }.toArray
   }
 
-  def useExistingCompiled(project: Project, classpath: Array[String]): Any = {
+  def useExistingCompiled(project: Project, classpath: Array[String], className: String, fallbackClassNames: Seq[String] = Seq()): Any = {
     log.log(LogLevel.Debug, "Loading compiled version of build script: " + scriptFile)
     val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
     log.log(LogLevel.Debug, "CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
-    val clazz: Class[_] = cl.loadClass(scriptBaseName)
+    val clazz: Class[_] = try {
+      cl.loadClass(className)
+    } catch {
+      case e: ClassNotFoundException =>
+        val fallback = fallbackClassNames.filter(_ != className)
+        if (fallback.isEmpty)
+          throw e
+        else {
+          log.log(LogLevel.Debug, "Could not load class: " + className + ". Falling back to load build script class: " + fallback.head)
+          return useExistingCompiled(project, classpath, fallback.head, fallback.tail)
+        }
+    }
     val ctr = clazz.getConstructor(classOf[Project])
     val scriptInstance = ctr.newInstance(project)
     // We assume, that everything is done in constructor, so we are done here
