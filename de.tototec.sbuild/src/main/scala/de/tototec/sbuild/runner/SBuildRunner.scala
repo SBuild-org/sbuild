@@ -341,7 +341,8 @@ class SBuildRunner {
     }
 
     // Check targets requested from cmdline an throw a exception, if invalid targets were requested
-    val (requested: Seq[Target], invalid: Seq[String]) = determineRequestedTargets(config.params.asScala)(project)
+    val (requested: Seq[Target], invalid: Seq[String]) =
+      determineRequestedTargets(targets = config.params.asScala, supportCamelCaseShortCuts = true)(project)
     if (!invalid.isEmpty) {
       throw new TargetNotFoundException("Invalid target" + (if (invalid.size > 1) "s" else "") + " requested: " + invalid.mkString(", ") + ".");
     }
@@ -483,10 +484,31 @@ class SBuildRunner {
   /**
    * Determine the requested target for the given input string.
    */
-  def determineRequestedTarget(target: String, searchInAllProjects: Boolean = false)(implicit project: Project): Option[Target] =
+  def determineRequestedTarget(target: String, searchInAllProjects: Boolean = false, supportCamelCaseShortCuts: Boolean = false)(implicit project: Project): Option[Target] =
     project.findTarget(target, searchInAllProjects = searchInAllProjects) match {
       case Some(target) => Some(target)
       case None => TargetRef(target).explicitProto match {
+        case None | Some("phony") | Some("file") if supportCamelCaseShortCuts =>
+          val matcher = new CamelCaseMatcher(target)
+          val matches = project.targets.filter {
+            case (f, t) =>
+              val tref = TargetRef(t.name)(t.project)
+              tref.explicitProto match {
+                case None | Some("phony") | Some("file") =>
+                  matcher.matches(tref.nameWithoutProto)
+                case _ => false
+              }
+          }.toSeq
+          matches match {
+            case Seq() => None
+            case Seq((file, foundTarget)) =>
+              log.log(LogLevel.Debug, s"""Resolved shortcut camel case request "${target}" to target "${formatTarget(foundTarget)}".""")
+              Some(foundTarget)
+            case _ =>
+              // ambiguous match, found more that one
+              // Todo: think about replace Option by Try, to communicate better reason why nothing was found
+              None
+          }
         case None | Some("phony") | Some("file") => None
         case _ =>
           // A scheme handler might be able to resolve this thing
@@ -494,12 +516,12 @@ class SBuildRunner {
       }
     }
 
-  def determineRequestedTargets(targets: Seq[String])(implicit project: Project): (Seq[Target], Seq[String]) = {
+  def determineRequestedTargets(targets: Seq[String], supportCamelCaseShortCuts: Boolean = false)(implicit project: Project): (Seq[Target], Seq[String]) = {
 
     // The compile will throw a warning here, so we use the erasure version and keep the intent as comment
     // val (requested: Seq[Target], invalid: Seq[String]) =
     val (requested, invalid) = targets.map { t =>
-      determineRequestedTarget(t) match {
+      determineRequestedTarget(target = t, supportCamelCaseShortCuts = supportCamelCaseShortCuts) match {
         case None => t
         case Some(target) => target
       }
@@ -790,6 +812,7 @@ class SBuildRunner {
                   if (!curTarget.isSideeffectFree) transientTargetCache.map(_.evict)
                   val level = if (curTarget.isTransparentExec) LogLevel.Debug else LogLevel.Info
                   log.log(level, progressPrefix + "Executing target: " + colorTarget(formatTarget(curTarget)))
+                  log.log(LogLevel.Debug, "Target: " + curTarget)
                   if (curTarget.help != null && curTarget.help.trim != "")
                     log.log(level, progressPrefix + curTarget.help)
                   ctx.start
@@ -882,7 +905,12 @@ class SBuildRunner {
   import org.fusesource.jansi.Ansi._
   import org.fusesource.jansi.Ansi.Color._
 
-  def fPercent(text: => String) = ansi.fgBright(CYAN).a(text).reset
+  //  val isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+
+  def fPercent(text: => String) =
+    //    if (isWindows) ansi.fg(CYAN).a(text).reset
+    //    else
+    ansi.fgBright(CYAN).a(text).reset
   def fTarget(text: => String) = ansi.fg(GREEN).a(text).reset
   def fMainTarget(text: => String) = ansi.fg(GREEN).bold.a(text).reset
   def fOk(text: => String) = ansi.fgBright(GREEN).a(text).reset
