@@ -199,14 +199,14 @@ class SBuild(implicit _project: Project) {
       Path("../de.tototec.sbuild/src/main/scala"),
       Path("../de.tototec.sbuild/src/main/java"),
       Path("../de.tototec.sbuild.ant/src/main/scala"),
-      Path("../de.tototec.sbuild.addons/src/main/scala")      
+      Path("../de.tototec.sbuild.addons/src/main/scala")
   )
 
   val versionScalaFile = "../de.tototec.sbuild/SBuild.scala::target/generated-scala/scala/de/tototec/sbuild/SBuildVersion.scala"
 
   val docCp = s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
-      "http://repo.fusesource.com/nexus/content/groups/public/org/fusesource/jansi/jansi/1.9/jansi-1.9.jar" ~
-      SBuildConfig.cmdOptionSource ~
+      SBuildConfig.jansi ~
+      SBuildConfig.cmdOption ~
       "mvn:org.apache.ant:ant:1.8.3" ~
       "http://dl.dropbox.com/u/2590603/bnd/biz.aQute.bnd.jar" ~
       "mvn:org.liquibase:liquibase-core:2.0.3"

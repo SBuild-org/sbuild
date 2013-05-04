@@ -19,10 +19,12 @@ class SBuild(implicit _project: Project) {
   val antJar = s"de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-${sbuildVersion}.jar"
   val addonsJar = s"de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-${sbuildVersion}.jar"
   val pluginsJar = s"de.tototec.sbuild.plugins/target/de.tototec.sbuild.plugins-${sbuildVersion}.jar"
-  val cmdOptionJar = SBuildConfig.cmdOptionSource
+
+  val cmdOptionVersion = SBuildConfig.cmdOptionVersion
+  val cmdOption = SBuildConfig.cmdOption
 
   val jansiVersion = SBuildConfig.jansiVersion
-  val jansiJar = SBuildConfig.jansi
+  val jansi = SBuildConfig.jansi
 
   val distName = s"sbuild-${sbuildVersion}"
   val distDir = "target/" + distName
@@ -65,8 +67,8 @@ class SBuild(implicit _project: Project) {
     AntCopy(file = Path("ChangeLog.txt"), toDir = Path(distDir + "/doc"))
   }
 
-  Target("phony:copyJars").cacheable dependsOn cmdOptionJar ~ SBuildConfig.compilerPath ~
-      binJar ~ antJar ~ addonsJar ~ pluginsJar ~ jansiJar exec { ctx: TargetContext =>
+  Target("phony:copyJars").cacheable dependsOn cmdOption ~ SBuildConfig.compilerPath ~
+      binJar ~ antJar ~ addonsJar ~ pluginsJar ~ jansi exec { ctx: TargetContext =>
     ctx.fileDependencies foreach { file =>
       val targetFile = Path(distDir, "lib", file.getName)
       AntCopy(file = file, toFile = targetFile)
@@ -74,12 +76,12 @@ class SBuild(implicit _project: Project) {
     }
   }
 
-  Target(classpathProperties) dependsOn _project.projectFile ~ cmdOptionJar ~ jansiJar exec { ctx: TargetContext =>
+  Target(classpathProperties) dependsOn _project.projectFile ~ cmdOption ~ jansi exec { ctx: TargetContext =>
     val properties = s"""|# Classpath configuration for SBuild ${sbuildVersion}
       |sbuildClasspath = de.tototec.sbuild-${sbuildVersion}.jar
       |compileClasspath = scala-compiler-${scalaVersion}.jar:scala-reflect-${scalaVersion}.jar
       |projectClasspath = scala-library-${scalaVersion}.jar:de.tototec.sbuild.ant-${sbuildVersion}.jar:de.tototec.sbuild.addons-${sbuildVersion}.jar:de.tototec.sbuild.plugins-${sbuildVersion}.jar
-      |embeddedClasspath = de.tototec.sbuild-${sbuildVersion}.jar:${cmdOptionJar.files.head.getName}:${jansiJar.files.head.getName}
+      |embeddedClasspath = de.tototec.sbuild-${sbuildVersion}.jar:${cmdOption.files.head.getName}:${jansi.files.head.getName}
       |"""
     AntMkdir(dir = ctx.targetFile.get.getParentFile)
     AntEcho(file = ctx.targetFile.get, message = properties.stripMargin)
@@ -124,7 +126,7 @@ class SBuild(implicit _project: Project) {
       |fi
       |
       |""" +
-     s"""exec $${JRE} ${javaOptions} -cp "$${SBUILD_HOME}/lib/scala-library-${scalaVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar:$${SBUILD_HOME}/lib/jansi-${jansiVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.sbuild-${sbuildVersion}.jar" """ +
+     s"""exec $${JRE} ${javaOptions} -cp "$${SBUILD_HOME}/lib/scala-library-${scalaVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.cmdoption-${cmdOptionVersion}.jar:$${SBUILD_HOME}/lib/jansi-${jansiVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.sbuild-${sbuildVersion}.jar" """ +
      """de.tototec.sbuild.runner.SBuildRunner --sbuild-home "${SBUILD_HOME}" ${SBUILD_OPTS} "$@"
       |
       |unset SBUILD_HOME
