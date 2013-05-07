@@ -143,4 +143,12 @@ class TargetContextImpl(
     _attachedFiles ++= files
   }
 
+  override def toString(): String = getClass.getSimpleName() +
+    "(name=" + name +
+    ",targetFile=" + targetFile +
+    ",target=" + target +
+    ",prerequisitesLastModified=" + prerequisitesLastModified +
+    ",directDepsTargetContexts[names]=" + directDepsTargetContexts.map(_.name) +
+    ")"
+
 }
