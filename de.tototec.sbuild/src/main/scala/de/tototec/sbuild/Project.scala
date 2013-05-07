@@ -18,6 +18,7 @@ trait MutableProject extends ProjectBase {
   def uniqueTargetFile(targetRef: TargetRef): UniqueTargetFile
   protected[sbuild] def addProperty(key: String, value: String)
   protected[sbuild] def registerSchemeHandler(scheme: String, handler: SchemeHandler)
+  protected[sbuild] def replaceSchemeHandler(scheme: String, handler: SchemeHandler)
   protected[sbuild] def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
   protected[sbuild] def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
   protected[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean = true): Project
@@ -311,7 +312,7 @@ class BuildFileProject(_projectFile: File,
                 override def localPath(path: String) = handler.localPath(path)
                 override def resolve(path: String, targetContext: TargetContext) = {
                   val unwrappedPath = handler.localPath(path).split(":", 2)(1)
-                   log.log(LogLevel.Debug, s"""About to resolve "${path}" by calling undelying scheme handler's resolve with path "${unwrappedPath}""")
+                  log.log(LogLevel.Debug, s"""About to resolve "${path}" by calling undelying scheme handler's resolve with path "${unwrappedPath}""")
                   resolver.resolve(unwrappedPath, targetContext)
                 }
               }
@@ -366,6 +367,12 @@ class BuildFileProject(_projectFile: File,
   override def registerSchemeHandler(scheme: String, handler: SchemeHandler) {
     schemeHandlers.get(scheme).map {
       _ => log.log(LogLevel.Info, s"""Replacing scheme handler "${scheme}" for project "${projectFile}".""")
+    }
+    schemeHandlers += ((scheme, handler))
+  }
+  override def replaceSchemeHandler(scheme: String, handler: SchemeHandler) {
+    schemeHandlers.get(scheme).orElse {
+      throw ProjectConfigurationException.localized(s"""Cannot replace scheme handler "${scheme}" for project "${projectFile}". No previous scheme handler registered under this name.""")
     }
     schemeHandlers += ((scheme, handler))
   }

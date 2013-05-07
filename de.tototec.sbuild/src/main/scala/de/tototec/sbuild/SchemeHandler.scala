@@ -11,6 +11,17 @@ trait SchemeHandler {
 }
 
 /**
+ * Register a SchemeHandler under a scheme qualifier into the current project.
+ */
+object SchemeHandler {
+  def apply(scheme: String, handler: SchemeHandler)(implicit project: Project) =
+    project.registerSchemeHandler(scheme, handler)
+
+  def replace(scheme: String, handler: SchemeHandler)(implicit project: Project) =
+    project.replaceSchemeHandler(scheme, handler)
+}
+
+/**
  * A SchemeHandler, that also resolves the representing target.
  *  with a built-in target scheme.
  * The localPath of such schemes should translate into a built-in target scheme, either "file" or "phony".
@@ -23,14 +34,6 @@ trait SchemeResolver extends SchemeHandler {
    * Actually resolve the dependency/target.
    */
   def resolve(path: String, targetContext: TargetContext)
-}
-
-/**
- * Register a SchemeHandler under a scheme qualifier into the current project.
- */
-object SchemeHandler {
-  def apply(scheme: String, handler: SchemeHandler)(implicit project: Project) =
-    project.registerSchemeHandler(scheme, handler)
 }
 
 trait SchemeHandlerWithDependencies extends SchemeHandler {
@@ -51,7 +54,7 @@ trait TransparentSchemeResolver extends SchemeResolver
 
 /**
  * An internal marker interface.
- * Currently used to denote a scheme resolver, 
+ * Currently used to denote a scheme resolver,
  * that do not change other files except the target file (localPath) and the attached files (TargetContext).
  */
 trait SideeffectFreeSchemeResolver extends SchemeResolver
