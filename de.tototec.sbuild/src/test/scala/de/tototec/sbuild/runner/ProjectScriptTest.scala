@@ -23,4 +23,14 @@ class ProjectScriptTest extends FunSuite {
   testCutSimpleComment("""@classpath("http://example.org/hello.jar") \// hello""", """@classpath("http://example.org/hello.jar") \// hello""")
   testCutSimpleComment("""@version("0.3.1") // comment :-)""", """@version("0.3.1") """)
 
+  def testUnescapeStrings(source: String, expected: String) =
+    test("unescapeStrings: " + source) {
+      assert(ProjectScript.unescapeStrings(source) === expected)
+    }
+
+  testUnescapeStrings("""""", "")
+  testUnescapeStrings("""\\""", "\\")
+  testUnescapeStrings("""\n""", "\n")
+  testUnescapeStrings("""\t""", "\t")
+
 }

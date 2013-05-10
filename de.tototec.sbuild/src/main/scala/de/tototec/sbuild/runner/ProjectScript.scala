@@ -26,6 +26,9 @@ import de.tototec.sbuild.WithinTargetExecution
 import de.tototec.sbuild.TargetContextImpl
 import java.lang.reflect.Method
 import de.tototec.sbuild.BuildFileProject
+import scala.util.Try
+import java.text.ParseException
+import scala.annotation.tailrec
 
 object ProjectScript {
 
@@ -55,7 +58,45 @@ object ProjectScript {
     str
   }
 
+  def unescapeStrings(str: String): String = {
+
+    // http://www.java-blog-buch.de/0304-escape-sequenzen/
+    @tailrec
+    def unescape(seen: List[Char], str: List[Char]): List[Char] = str match {
+      case '\\' :: xs => xs match {
+        case '\\' :: ys => unescape('\\' :: seen, ys) // backslash
+        case 'b' :: ys => unescape('\b' :: seen, ys) // backspace
+        case 'n' :: ys => unescape('\n' :: seen, ys) // newline
+        case 'r' :: ys => unescape('\r' :: seen, ys) // carriage return
+        case 't' :: ys => unescape('\t' :: seen, ys) // tab
+        case 'f' :: ys => unescape('\f' :: seen, ys) // formfeed
+        case ''' :: ys => unescape('\'' :: seen, ys) // single quote
+        case '"' :: ys => unescape('\"' :: seen, ys) // double quote
+        case 'u' :: a :: b :: c :: d :: ys => unescape(Seq(a, b, c, d).toString.toInt.toChar :: seen, ys) // unicode
+        case a :: b :: c :: ys if a.isDigit && b.isDigit && c.isDigit && Seq(a, b, c).toString.toInt <= 377 =>
+          unescape(Integer.parseInt(Seq(a, b, c).toString, 8).toChar :: seen, ys) // octal with 3 digits
+        case a :: b :: ys if a.isDigit && b.isDigit =>
+          unescape(Integer.parseInt(Seq(a, b).toString, 8).toChar :: seen, ys)
+        case a :: ys if a.isDigit =>
+          unescape(Integer.parseInt(a.toString, 8).toChar :: seen, ys)
+        case a :: _ => throw new ParseException(s"""Cannot parse escape sequence "\\$a".""", -1) // error
+        case Nil => throw new ParseException("""Cannot parse unclosed escape sequence at end of string.""", -1) // error
+      }
+      case Nil => seen
+      case x :: xs => unescape(x :: seen, xs)
+    }
+
+    unescape(Nil, str.toList).reverse.mkString
+  }
+
+  /**
+   * Drop all caches. For now, this is the Scalac compiler and its ClassLoader.
+   */
   def dropCaches { scalaCompilerAndClassloader = None }
+  /**
+   * Cached instance of the Scalac compiler class and its ClassLoader.
+   * Using a cache will provide the benefit, that loading is faster and we potentially profit from any JIT-compilation at runtime.
+   */
   private var scalaCompilerAndClassloader: Option[(Any, Method, Method)] = None
 
 }
@@ -96,7 +137,7 @@ class ProjectScript(_scriptFile: File,
   lazy val targetBaseDir: File = new File(scriptFile.getParentFile, buildTargetDir)
   lazy val targetDir: File = new File(scriptFile.getParentFile, buildFileTargetDir)
   lazy val targetClassFile = new File(targetDir, scriptBaseName + ".class")
-  lazy val infoFile = new File(targetDir, ProjectScript.InfoFileName)
+  lazy val infoFile = new File(targetDir, InfoFileName)
 
   def checkFile = if (!scriptFile.exists) {
     throw new RuntimeException(s"Could not find build file: ${scriptFile.getName}\n" +
@@ -141,16 +182,14 @@ class ProjectScript(_scriptFile: File,
           ((lastInclude \ "path").text, (lastInclude \ "lastModified").text.toLong)
         }.toMap
 
-        includes.size == lastIncludes.size &&
-          includes.forall {
-            case (key, value) if value.size == 1 =>
-              lastIncludes.get(key) match {
-                case Some(time) => value.head.lastModified == time
-                case _ => false
-              }
-            case (key, value) =>
-              log.log(LogLevel.Error, s"""Include "${key}" does not resolve to exactly one file, but: ${value.toSeq}""")
-              false
+        val flatIncludes = includes.flatMap { case (key, value) => value }
+
+        flatIncludes.size == lastIncludes.size &&
+          flatIncludes.forall { file =>
+            lastIncludes.get(file.getPath()) match {
+              case Some(time) => file.lastModified == time
+              case _ => false
+            }
           }
       } catch {
         case e: Exception =>
@@ -211,9 +250,10 @@ class ProjectScript(_scriptFile: File,
         else
           annoLine.split(",")
 
+      // TODO: also support triple-quotes
       val finalAnnoItems = annoItems map { item => item.trim } map { item =>
         if (item.startsWith("\"") && item.endsWith("\"")) {
-          item.substring(1, item.length - 1)
+          unescapeStrings(item.substring(1, item.length - 1))
         } else {
           throw new RuntimeException("Unexpection token found: " + item)
         }
@@ -342,13 +382,14 @@ class ProjectScript(_scriptFile: File,
                  <includes>
                    {
                      includes.map {
-                       case (key, value) if value.length == 1 =>
-                         <include>
-                           <path>{ key }</path>
-                           <lastModified>{ value.head.lastModified }</lastModified>
-                         </include>
                        case (key, value) =>
-                         log.log(LogLevel.Error, s"""Include "${key}" does not resolve to exactly one file, but: ${value.toSeq}""")
+                         log.log(LogLevel.Debug, s"""@Include "${key}" resolved to ${value.size} files: ${value}""")
+                         value.map { file =>
+                           <include>
+                             <path>{ file.getPath }</path>
+                             <lastModified>{ file.lastModified }</lastModified>
+                           </include>
+                         }
                      }
                    }
                  </includes>
