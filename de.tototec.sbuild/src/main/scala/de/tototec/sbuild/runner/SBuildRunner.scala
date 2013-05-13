@@ -467,6 +467,7 @@ class SBuildRunner {
 
     if (!targets.isEmpty && !config.noProgress) {
       log.log(LogLevel.Info, fPercent("[0%]") + " Executing...")
+      log.log(LogLevel.Debug, "Requested targets: " + targets.map(t => formatTarget(t)(project)).mkString(" ~ "))
     }
 
     preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
@@ -489,6 +490,7 @@ class SBuildRunner {
       case Some(target) => Some(target)
       case None => TargetRef(target).explicitProto match {
         case None | Some("phony") | Some("file") if supportCamelCaseShortCuts =>
+          // this currently works only for non-explicit projects
           val matcher = new CamelCaseMatcher(target)
           val matches = project.targets.filter {
             case (f, t) =>

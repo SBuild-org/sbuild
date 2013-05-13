@@ -7,7 +7,7 @@ import java.io.FileNotFoundException
 /*
  * TODO: touch to file, do not preserve lastModified from archive, to support proper up-to-date detection
  */
-class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) extends SchemeResolver with SchemeHandlerWithDependencies {
+class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) extends SchemeResolver with SchemeResolverWithDependencies {
 
   val baseDir: File = _baseDir match {
     case null => Path(".sbuild/unzip")

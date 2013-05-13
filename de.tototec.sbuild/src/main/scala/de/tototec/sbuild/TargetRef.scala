@@ -91,9 +91,10 @@ class TargetRef(val ref: String)(implicit project: Project) {
           case Some(referencedTarget) =>
             // search the associated TargetContext for that target
 
-            withCtx.directDepsTargetContexts.find(_.target == referencedTarget) match {
+            withCtx.directDepsTargetContexts.find { ctx => ctx.target == referencedTarget } match {
               case None =>
                 // No target context found, so this TargetRef can not be part of the dependencies 
+                project.log.log(LogLevel.Debug, "referencedTarget = " + referencedTarget + "\ndirectDepsTargetContexts = " + withCtx.directDepsTargetContexts.mkString(",\n  "))
                 val ex = ProjectConfigurationException.localized("'TargetRef.files' is used for dependency \"{0}\", that is not declared with 'dependsOn'.", this.toString)
                 ex.buildScript = Some(project.projectFile)
                 ex.targetName = Some(withCtx.targetContext.name)

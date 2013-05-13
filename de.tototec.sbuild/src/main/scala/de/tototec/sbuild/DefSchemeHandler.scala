@@ -7,7 +7,7 @@ import scala.util.Try
 import scala.util.Success
 
 /**
- * Access to build script varibles of type [[TargetRefs]], [[TargetRef]], [[java.io.File]], [[java.lang.String]] as targets.
+ * Access to build script variables of type [[TargetRefs]], [[TargetRef]], [[java.io.File]], [[java.lang.String]] as targets.
  */
 class DefSchemeHandler(scriptInstance: Any)(implicit _project: Project) extends SchemeResolverWithDependencies {
 
