@@ -36,7 +36,7 @@ trait SchemeResolver extends SchemeHandler {
   def resolve(path: String, targetContext: TargetContext)
 }
 
-trait SchemeHandlerWithDependencies extends SchemeHandler {
+trait SchemeResolverWithDependencies extends SchemeResolver {
   /**
    * Return the dependencies required to be resolved when resolving the given path.
    * Please note, that the return value of this method needs to be stable for the same path,
@@ -44,6 +44,9 @@ trait SchemeHandlerWithDependencies extends SchemeHandler {
    */
   def dependsOn(path: String): TargetRefs
 }
+
+@deprecated("Use SchemeResolverWithDependencies instead.", "0.4.1")
+trait SchemeHandlerWithDependencies extends SchemeResolverWithDependencies
 
 /**
  * An internal marker interface.
