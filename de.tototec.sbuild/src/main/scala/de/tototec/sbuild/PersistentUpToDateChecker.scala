@@ -11,12 +11,13 @@ import java.io.FileOutputStream
  *
  * A (hidden) state file will be written into the directory given with <code>stateDir</code>.
  * If a previously created state file does not exists, the task will always be executed.
- * Therefore it is suggested, to place the state file into a directory, which gets clean automaticaly in a "clean" tasks.
+ * Therefore it is suggested, to place the state file into a directory, which gets clean automatically in a "clean" tasks.
  * The fact, if the task was executed or not, is reported back to the given TargetContext, so that tasks,
  * that depends on this tasks might be skipped, if this tasks was already up-to-date.
  *
  * TODO: Base up-to-date checks on lastModified instead of boolean
  */
+@deprecated("Replaced by cacheable-capabilities of SBuild core.", "0.4.1")
 object IfNotUpToDate {
 
   def apply(srcDir: File, stateDir: File)(task: => Any): Unit = {
@@ -49,6 +50,7 @@ object IfNotUpToDate {
 
 }
 
+@deprecated("Replaced by cacheable-capabilities of SBuild core.", "0.4.1")
 object PersistentUpToDateChecker {
 
   def apply(uniqueId: String, srcDir: File, stateDir: File) =
@@ -86,6 +88,7 @@ object PersistentUpToDateChecker {
 
 }
 
+@deprecated("Replaced by cacheable-capabilities of SBuild core.", "0.4.1")
 class PersistentUpToDateChecker(checkerUniqueId: String, srcDirOrFiles: Seq[File], stateDir: File) {
 
   def stateFile: File = new File(stateDir, ".filestates." + checkerUniqueId)
