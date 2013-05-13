@@ -286,7 +286,7 @@ class BuildFileProject(_projectFile: File,
         }
         throw e
       case Some(proto) => schemeHandlers.get(proto) match {
-        // here, we definitely have an project local target ref 
+        // here, we definitely have an project local target ref
         case Some(resolver: SchemeResolver) =>
           val handlerOutput = resolver.localPath(targetRef.nameWithoutProto)
           val outputRef = new TargetRef(handlerOutput)(this)
@@ -308,13 +308,24 @@ class BuildFileProject(_projectFile: File,
           uTF.handler match {
             case Some(resolver: SchemeResolver) =>
               // if the handler encapsulated an resolver, we have to wrap it here
-              class WrappedSchemeResolver(handler: SchemeHandler, resolver: SchemeResolver) extends SchemeResolver {
+              class WrappedSchemeResolver(handler: SchemeHandler, resolver: SchemeResolver)
+                  extends SchemeResolver
+                  with SchemeResolverWithDependencies {
+
+                def unwrappedPath(path: String): String = handler.localPath(path).split(":", 2)(1)
+
                 override def localPath(path: String) = handler.localPath(path)
+
                 override def resolve(path: String, targetContext: TargetContext) = {
-                  val unwrappedPath = handler.localPath(path).split(":", 2)(1)
+                  val unwrappedPath = this.unwrappedPath(path)
                   log.log(LogLevel.Debug, s"""About to resolve "${path}" by calling undelying scheme handler's resolve with path "${unwrappedPath}""")
                   resolver.resolve(unwrappedPath, targetContext)
                 }
+
+                override def dependsOn(path: String): TargetRefs = TargetRefs.fromSeq(resolver match {
+                  case withDeps: SchemeResolverWithDependencies => withDeps.dependsOn(unwrappedPath(path)).targetRefs
+                  case _ => Seq()
+                })
               }
               UniqueTargetFile(uTF.file, uTF.phony, Some(new WrappedSchemeResolver(handler, resolver)))
             case _ =>
@@ -384,12 +395,16 @@ class BuildFileProject(_projectFile: File,
     SchemeHandler("mvn", new MvnSchemeHandler())
     SchemeHandler("zip", new ZipSchemeHandler())
     SchemeHandler("scan", new ScanSchemeHandler())
+
+    // Experimental
+
     SchemeHandler("source", new MapperSchemeHandler(
       pathTranslators = Seq("mvn" -> { path => path + ";classifier=sources" })
     ))
     SchemeHandler("javadoc", new MapperSchemeHandler(
       pathTranslators = Seq("mvn" -> { path => path + ";classifier=javadoc" })
     ))
+
   }
 
   private var _properties: Map[String, String] = Map()
