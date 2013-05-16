@@ -13,6 +13,7 @@ SBuild trunk
   provided sources and javadoc for any given dependency, e.g. 
   "source:mvn:a.b.1" will be translated to "mvn:a.b.1;classifier=sources"
 * Fixed --fsc option.
+* Fixed colored output under windows.
 
 SBuild 0.4.0 - 2013-03-09
 
