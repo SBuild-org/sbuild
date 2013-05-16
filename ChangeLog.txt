@@ -12,6 +12,7 @@ SBuild trunk
 * New experimental default schemes "source" and "javadoc", that will try to
   provided sources and javadoc for any given dependency, e.g. 
   "source:mvn:a.b.1" will be translated to "mvn:a.b.1;classifier=sources"
+* Fixed --fsc option.
 
 SBuild 0.4.0 - 2013-03-09
 
