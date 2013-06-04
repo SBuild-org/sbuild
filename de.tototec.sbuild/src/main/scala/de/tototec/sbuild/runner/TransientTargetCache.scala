@@ -12,8 +12,8 @@ trait TransientTargetCache {
 
 class InMemoryTransientTargetCache extends TransientTargetCache {
   private[this] var cache: Map[Target, ExecutedTarget] = Map()
-  override def cache(target: Target, executedTarget: ExecutedTarget): Unit = cache += (target -> executedTarget)
-  override def evict: Unit = cache = Map()
+  override def cache(target: Target, executedTarget: ExecutedTarget): Unit = synchronized { cache += (target -> executedTarget) }
+  override def evict: Unit = synchronized { cache = Map() }
   override def get(target: Target): Option[ExecutedTarget] = cache.get(target)
 }
 

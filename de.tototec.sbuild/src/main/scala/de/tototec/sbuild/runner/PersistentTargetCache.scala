@@ -27,7 +27,7 @@ class PersistentTargetCache {
     new File(cacheStateDir(project), md5)
   }
 
-  def loadOrDropCachedState(ctx: TargetContext): Option[CachedState] = {
+  def loadOrDropCachedState(ctx: TargetContext): Option[CachedState] = this.synchronized {
     // TODO: check same prerequisites, 
     // check same fileDependencies, 
     // check same lastModified of fileDependencies, 
@@ -35,12 +35,6 @@ class PersistentTargetCache {
     // TODO: if all is same, return cached values
 
     ctx.project.log.log(LogLevel.Debug, "Checking execution state of target: " + ctx.name)
-
-    var cachedPrerequisitesLastModified: Option[Long] = None
-    var cachedFileDependencies: Set[File] = Set()
-    var cachedPrerequisites: Seq[String] = Seq()
-    var cachedTargetLastModified: Option[Long] = None
-    var cachedAttachedFiles: Seq[File] = Seq()
 
     //    val stateDir = Path(".sbuild/scala/" + ctx.target.project.projectFile.getName + "/cache")(ctx.project)
     //    val stateFile = new File(stateDir, ctx.name.replaceFirst("^phony:", ""))
@@ -50,6 +44,11 @@ class PersistentTargetCache {
       return None
     }
 
+    var cachedPrerequisitesLastModified: Option[Long] = None
+    var cachedFileDependencies: Set[File] = Set()
+    var cachedPrerequisites: Seq[String] = Seq()
+    var cachedTargetLastModified: Option[Long] = None
+    var cachedAttachedFiles: Seq[File] = Seq()
     var mode = ""
 
     val source = Source.fromFile(stateFile)
@@ -122,7 +121,7 @@ class PersistentTargetCache {
     Some(CachedState(targetLastModified = cachedTargetLastModified.get, attachedFiles = cachedAttachedFiles))
   }
 
-  def writeCachedState(ctx: TargetContextImpl) {
+  def writeCachedState(ctx: TargetContextImpl): Unit = this.synchronized {
     // TODO: robustness
     //    val stateDir = Path(".sbuild/scala/" + ctx.target.project.projectFile.getName + "/cache")(ctx.project)
     //    stateDir.mkdirs
@@ -164,7 +163,7 @@ class PersistentTargetCache {
 
   }
 
-  def dropCacheState(project: Project, cacheName: String) {
+  def dropCacheState(project: Project, cacheName: String): Unit = this.synchronized {
     cacheName match {
       case "*" => dropAllCacheState(project)
       case cache =>
@@ -173,6 +172,6 @@ class PersistentTargetCache {
     }
   }
 
-  def dropAllCacheState(project: Project): Unit = Util.delete(cacheStateDir(project))
+  def dropAllCacheState(project: Project): Unit = this.synchronized { Util.delete(cacheStateDir(project)) }
 
 }

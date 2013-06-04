@@ -17,6 +17,7 @@ import java.io.FileWriter
 import scala.io.Source
 import scala.util.Try
 import java.security.MessageDigest
+import scala.concurrent.Lock
 
 object SBuildRunner extends SBuildRunner {
 
@@ -375,9 +376,13 @@ class SBuildRunner {
       }
     }
 
-    val depTree = if (config.showDependencyTree) {
-      Some(new DependencyTree())
-    } else None
+    val parallelExecContext =
+      if (config.parallelProcessing) Some(new ParallelExecContext()(project))
+      else None
+
+    val depTree =
+      if (config.showDependencyTree) Some(new DependencyTree())
+      else None
 
     val treePrinter: Option[(Int, Target) => Unit] = depTree.map { t => t.addNode _ }
 
@@ -471,7 +476,8 @@ class SBuildRunner {
     }
 
     preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
-      transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache))(project)
+      transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
+      treeParallelExecContext = parallelExecContext)(project)
     if (!targets.isEmpty && !config.noProgress) {
       log.log(LogLevel.Info, fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
         " msec, Execution time: " + (System.currentTimeMillis - executionStart) + " msec")
@@ -546,6 +552,7 @@ class SBuildRunner {
     (if (project != target.project) {
       project.projectDirectory.toURI.relativize(target.project.projectFile.toURI).getPath + "::"
     } else "") + TargetRef(target).nameWithoutStandardProto
+
   /**
    * Visit a forest of targets, each target of parameter <code>request</code> is the root of a tree.
    * Each tree will search deep-first. If parameter <code>skipExec</code> is <code>true</code>, the associated actions will not executed.
@@ -559,7 +566,8 @@ class SBuildRunner {
                                    depth: Int = 0,
                                    treePrinter: Option[(Int, Target) => Unit] = None,
                                    dependencyCache: DependencyCache = new DependencyCache(),
-                                   transientTargetCache: Option[TransientTargetCache] = None)(implicit project: Project): Seq[ExecutedTarget] =
+                                   transientTargetCache: Option[TransientTargetCache] = None,
+                                   treeParallelExecContext: Option[ParallelExecContext] = None)(implicit project: Project): Seq[ExecutedTarget] =
     request.map { req =>
       preorderedDependenciesTree(
         curTarget = req,
@@ -569,7 +577,8 @@ class SBuildRunner {
         depth = depth,
         treePrinter = treePrinter,
         dependencyCache = dependencyCache,
-        transientTargetCache = transientTargetCache
+        transientTargetCache = transientTargetCache,
+        parallelExecContext = treeParallelExecContext
       )
     }
 
@@ -581,7 +590,7 @@ class SBuildRunner {
   class DependencyCache {
     private var depTrees: Map[Target, Seq[Target]] = Map()
 
-    def cached: Map[Target, Seq[Target]] = depTrees
+    def cached: Map[Target, Seq[Target]] = synchronized { depTrees }
 
     /**
      * Return the direct dependencies of the given target.
@@ -595,7 +604,7 @@ class SBuildRunner {
      * @throws ProjectConfigurationException If cycles are detected.
      * @throws UnsupportedSchemeException If an unsupported scheme was used in any of the targets.
      */
-    def targetDeps(target: Target, dependencyTrace: List[Target] = Nil)(implicit project: Project): Seq[Target] = {
+    def targetDeps(target: Target, dependencyTrace: List[Target] = Nil)(implicit project: Project): Seq[Target] = synchronized {
       // check for cycles
       dependencyTrace.find(dep => dep == target).map { cycle =>
         val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + formatTarget(cycle) +
@@ -633,9 +642,32 @@ class SBuildRunner {
      * @throws ProjectConfigurationException If cycles are detected.
      * @throws UnsupportedSchemeException If an unsupported scheme was used in any of the targets.
      */
-    def fillTreeRecursive(target: Target, parents: List[Target] = Nil)(implicit project: Project) {
+    def fillTreeRecursive(target: Target, parents: List[Target] = Nil)(implicit project: Project): Unit = synchronized {
       targetDeps(target, parents).foreach { dep => fillTreeRecursive(dep, target :: parents) }
     }
+
+  }
+
+  class ParallelExecContext(implicit project: Project) {
+    private[this] var _locks: Map[Target, Lock] = Map().withDefault { _ => new Lock() }
+
+    private[this] def getLock(target: Target): Lock = synchronized {
+      _locks.get(target) match {
+        case Some(l) => l
+        case None =>
+          val l = new Lock()
+          _locks += (target -> l)
+          l
+      }
+    }
+
+    def lock(target: Target): Unit = {
+      val lock = getLock(target)
+      if (!lock.available) log.log(LogLevel.Debug, s"Waiting for target: ${formatTarget(target)}")
+      lock.acquire
+    }
+
+    def unlock(target: Target): Unit = getLock(target).release
 
   }
 
@@ -653,226 +685,264 @@ class SBuildRunner {
                                  depth: Int = 0,
                                  treePrinter: Option[(Int, Target) => Unit] = None,
                                  dependencyCache: DependencyCache = new DependencyCache(),
-                                 transientTargetCache: Option[TransientTargetCache] = None)(implicit project: Project): ExecutedTarget = {
+                                 transientTargetCache: Option[TransientTargetCache] = None,
+                                 parallelExecContext: Option[ParallelExecContext] = None)(implicit project: Project): ExecutedTarget = {
 
-    val log = curTarget.project.log
+    def inner: ExecutedTarget = {
 
-    treePrinter match {
-      case Some(printFunc) => printFunc(depth, curTarget)
-      case _ =>
-    }
+      val log = curTarget.project.log
 
-    transientTargetCache.flatMap(_.get(curTarget)).map { cachedExecutedContext =>
-      execProgress.map(_.addToCurrentNr(cachedExecutedContext.treeSize))
-      return cachedExecutedContext;
-    }
+      treePrinter match {
+        case Some(printFunc) => printFunc(depth, curTarget)
+        case _ =>
+      }
 
-    val dependencies: Seq[Target] = dependencyCache.targetDeps(curTarget, dependencyTrace)
+      // if curTarget is already cached, use the cached result
+      transientTargetCache.flatMap(_.get(curTarget)).map { cachedExecutedContext =>
+        // push progress forward by the size of the cached result
+        execProgress.map(_.addToCurrentNr(cachedExecutedContext.treeSize))
+        return cachedExecutedContext
+      }
 
-    log.log(LogLevel.Debug, "Dependencies of " + formatTarget(curTarget) + ": " +
-      (if (dependencies.isEmpty) "<none>" else dependencies.map(formatTarget(_)).mkString(" ~ ")))
+      val dependencies: Seq[Target] = dependencyCache.targetDeps(curTarget, dependencyTrace)
 
-    val executedDependencies: Seq[ExecutedTarget] = dependencies.map { dep =>
-      preorderedDependenciesTree(
-        curTarget = dep,
-        execProgress = execProgress,
-        skipExec = skipExec,
-        dependencyTrace = curTarget :: dependencyTrace,
-        depth = depth + 1,
-        treePrinter = treePrinter,
-        dependencyCache = dependencyCache,
-        transientTargetCache = transientTargetCache)
-    }
+      log.log(LogLevel.Debug, "Dependencies of " + formatTarget(curTarget) + ": " +
+        (if (dependencies.isEmpty) "<none>" else dependencies.map(formatTarget(_)).mkString(" ~ ")))
 
-    // print dep-tree
-    lazy val trace = dependencyTrace match {
-      case Nil => ""
-      case x =>
-        var _prefix = "     "
-        def prefix = {
-          _prefix += "  "
-          _prefix
-        }
-        x.map { "\n" + prefix + formatTarget(_) }.mkString
-    }
-
-    case class ExecBag(ctx: TargetContext, wasUpToDate: Boolean)
-
-    val execBag: ExecBag = if (skipExec) {
-      // already known as up-to-date
-
-      ExecBag(new TargetContextImpl(curTarget, 0, Seq()), true)
-
-    } else {
-      // not skipped execution, determine if dependencies were up-to-date
-
-      log.log(LogLevel.Debug, "===> Current execution: " + formatTarget(curTarget) +
-        " -> requested by: " + trace + " <===")
-
-      log.log(LogLevel.Debug, "Executed dependency count: " + executedDependencies.size);
-
-      lazy val depsLastModified: Long = dependenciesLastModified(executedDependencies)
-      val ctx = new TargetContextImpl(curTarget, depsLastModified, executedDependencies.map(_.targetContext))
-      if (!executedDependencies.isEmpty)
-        log.log(LogLevel.Debug, s"Dependencies have last modified value '${depsLastModified}': " + executedDependencies.map { d => formatTarget(d.target) }.mkString(","))
-
-      val needsToRun: Boolean = curTarget.targetFile match {
-        case Some(file) =>
-          // file target
-          if (!file.exists) {
-            curTarget.project.log.log(LogLevel.Debug, s"""Target file "${file}" does not exists.""")
-            true
-          } else {
-            val fileLastModified = file.lastModified
-            if (fileLastModified < depsLastModified) {
-              // On Linux, Oracle JVM always reports only seconds file time stamp,
-              // even if file system supports more fine grained time stamps (e.g. ext4 supports nanoseconds)
-              // So, it can happen, that files we just wrote seems to be older than targets, which reported "NOW" as their lastModified.
-              curTarget.project.log.log(LogLevel.Debug, s"""Target file "${file}" is older (${fileLastModified}) then dependencies (${depsLastModified}).""")
-              val diff = depsLastModified - fileLastModified
-              if (diff < 1000 && fileLastModified % 1000 == 0 && System.getProperty("os.name").toLowerCase.contains("linux")) {
-                curTarget.project.log.log(LogLevel.Debug, s"""Assuming up-to-dateness. Target file "${file}" is only ${diff} msec older, which might be caused by files system limitations or Oracle Java limitations (e.g. for ext4).""")
-                false
-              } else true
-
-            } else false
-          }
-        case None if curTarget.action == null =>
-          // phony target but just a collector of dependencies
-          ctx.targetLastModified = depsLastModified
-          val files = ctx.fileDependencies
-          if (!files.isEmpty) {
-            log.log(LogLevel.Debug, s"Attaching ${files.size} files of dependencies to empty phony target.")
-            ctx.attachFileWithoutLastModifiedCheck(files)
-          }
-          false
-
+      val executedDependencies: Seq[ExecutedTarget] = parallelExecContext match {
         case None =>
-          // ensure, that the persistent state gets erased, whenever a non-cacheble phony target runs
-          curTarget.evictsCache.map { cacheName =>
-            curTarget.project.log.log(LogLevel.Debug,
-              s"""Target "${curTarget.name}" will evict the target state cache with name "${cacheName}" now.""")
-            persistentTargetCache.dropCacheState(curTarget.project, cacheName)
+          dependencies.map { dep =>
+            preorderedDependenciesTree(
+              curTarget = dep,
+              execProgress = execProgress,
+              skipExec = skipExec,
+              dependencyTrace = curTarget :: dependencyTrace,
+              depth = depth + 1,
+              treePrinter = treePrinter,
+              dependencyCache = dependencyCache,
+              transientTargetCache = transientTargetCache,
+              parallelExecContext = parallelExecContext)
           }
-          // phony target, have to run it always. Any laziness is up to it implementation
-          curTarget.project.log.log(LogLevel.Debug, s"""Target "${curTarget.name}" is phony and needs to run (if not cached).""")
-          true
+        case Some(_) =>
+          dependencies.par.map { dep =>
+            preorderedDependenciesTree(
+              curTarget = dep,
+              execProgress = execProgress,
+              skipExec = skipExec,
+              dependencyTrace = curTarget :: dependencyTrace,
+              depth = depth + 1,
+              treePrinter = treePrinter,
+              dependencyCache = dependencyCache,
+              transientTargetCache = transientTargetCache,
+              parallelExecContext = parallelExecContext)
+          }.seq
       }
 
-      if (!needsToRun)
-        log.log(LogLevel.Debug, "Target '" + formatTarget(curTarget) + "' does not need to run.")
-
-      val progressPrefix = execProgress match {
-        case Some(state) =>
-          val progress = (state.currentNr, state.maxCount) match {
-            case (c, m) if (c > 0 && m > 0) =>
-              val p = (c - 1) * 100 / m
-              fPercent("[" + math.min(100, math.max(0, p)) + "%] ")
-            case (c, m) => "[" + c + "/" + m + "] "
+      // print dep-tree
+      lazy val trace = dependencyTrace match {
+        case Nil => ""
+        case x =>
+          var _prefix = "     "
+          def prefix = {
+            _prefix += "  "
+            _prefix
           }
-          progress
-        case _ => ""
+          x.map { "\n" + prefix + formatTarget(_) }.mkString
       }
-      val colorTarget = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
 
-      val wasUpToDate: Boolean = if (!needsToRun) {
-        val level = if (dependencyTrace.isEmpty) LogLevel.Info else LogLevel.Debug
-        log.log(level, progressPrefix + "Skipping target:  " + colorTarget(formatTarget(curTarget)))
-        true
-      } else { // needsToRun
-        curTarget.action match {
-          case null =>
-            // Additional sanity check
-            if (!curTarget.phony) {
-              val ex = new ProjectConfigurationException(s"""Target "${curTarget.name}" has no defined execution. Don't know how to create or update file "${curTarget.file}".""")
-              ex.buildScript = Some(curTarget.project.projectFile)
-              ex.targetName = Some(curTarget.name)
-              throw ex
-            }
-            log.log(LogLevel.Debug, progressPrefix + "Skipping target:  " + colorTarget(formatTarget(curTarget)))
-            log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(curTarget))
-            true
-          case exec =>
-            WithinTargetExecution.set(new WithinTargetExecution {
-              override def targetContext: TargetContext = ctx
-              override def directDepsTargetContexts: Seq[TargetContext] = ctx.directDepsTargetContexts
-            })
-            try {
+      case class ExecBag(ctx: TargetContext, wasUpToDate: Boolean)
 
-              // if state is Some(_), it is already check to be up-to-date
-              val cachedState: Option[persistentTargetCache.CachedState] =
-                if (curTarget.isCacheable) persistentTargetCache.loadOrDropCachedState(ctx)
-                else None
+      val execBag: ExecBag = if (skipExec) {
+        // already known as up-to-date
 
-              val wasUpToDate: Boolean = cachedState match {
-                case Some(cache) =>
-                  log.log(LogLevel.Debug, progressPrefix + "Skipping cached target: " + colorTarget(formatTarget(curTarget)))
-                  ctx.start
-                  ctx.targetLastModified = cachedState.get.targetLastModified
-                  ctx.attachFileWithoutLastModifiedCheck(cache.attachedFiles)
-                  ctx.end
-                  true
+        ExecBag(new TargetContextImpl(curTarget, 0, Seq()), true)
 
-                case None =>
-                  if (!curTarget.isSideeffectFree) transientTargetCache.map(_.evict)
-                  val level = if (curTarget.isTransparentExec) LogLevel.Debug else LogLevel.Info
-                  log.log(level, progressPrefix + "Executing target: " + colorTarget(formatTarget(curTarget)))
-                  log.log(LogLevel.Debug, "Target: " + curTarget)
-                  if (curTarget.help != null && curTarget.help.trim != "")
-                    log.log(level, progressPrefix + curTarget.help)
-                  ctx.start
-                  exec.apply(ctx)
-                  ctx.end
-                  log.log(LogLevel.Debug, s"Executed target '${formatTarget(curTarget)}' in ${ctx.execDurationMSec} msec")
+      } else {
+        // not skipped execution, determine if dependencies were up-to-date
 
-                  // update persistent cache
-                  if (curTarget.isCacheable) persistentTargetCache.writeCachedState(ctx)
+        log.log(LogLevel.Debug, "===> Current execution: " + formatTarget(curTarget) +
+          " -> requested by: " + trace + " <===")
 
+        log.log(LogLevel.Debug, "Executed dependency count: " + executedDependencies.size);
+
+        lazy val depsLastModified: Long = dependenciesLastModified(executedDependencies)
+        val ctx = new TargetContextImpl(curTarget, depsLastModified, executedDependencies.map(_.targetContext))
+        if (!executedDependencies.isEmpty)
+          log.log(LogLevel.Debug, s"Dependencies have last modified value '${depsLastModified}': " + executedDependencies.map { d => formatTarget(d.target) }.mkString(","))
+
+        val needsToRun: Boolean = curTarget.targetFile match {
+          case Some(file) =>
+            // file target
+            if (!file.exists) {
+              curTarget.project.log.log(LogLevel.Debug, s"""Target file "${file}" does not exists.""")
+              true
+            } else {
+              val fileLastModified = file.lastModified
+              if (fileLastModified < depsLastModified) {
+                // On Linux, Oracle JVM always reports only seconds file time stamp,
+                // even if file system supports more fine grained time stamps (e.g. ext4 supports nanoseconds)
+                // So, it can happen, that files we just wrote seems to be older than targets, which reported "NOW" as their lastModified.
+                curTarget.project.log.log(LogLevel.Debug, s"""Target file "${file}" is older (${fileLastModified}) then dependencies (${depsLastModified}).""")
+                val diff = depsLastModified - fileLastModified
+                if (diff < 1000 && fileLastModified % 1000 == 0 && System.getProperty("os.name").toLowerCase.contains("linux")) {
+                  curTarget.project.log.log(LogLevel.Debug, s"""Assuming up-to-dateness. Target file "${file}" is only ${diff} msec older, which might be caused by files system limitations or Oracle Java limitations (e.g. for ext4).""")
                   false
-              }
+                } else true
 
-              ctx.targetLastModified match {
-                case Some(lm) =>
-                  log.log(LogLevel.Debug, s"The context of target '${formatTarget(curTarget)}' reports a last modified value of '${lm}'.")
-                case _ =>
-              }
-
-              ctx.attachedFiles match {
-                case Seq() =>
-                case files =>
-                  log.log(LogLevel.Debug, s"The context of target '${formatTarget(curTarget)}' has ${files.size} attached files")
-              }
-
-              wasUpToDate
-
-            } catch {
-              case e: TargetAware =>
-                ctx.end
-                if (e.targetName.isEmpty)
-                  e.targetName = Some(formatTarget(curTarget))
-                log.log(LogLevel.Debug, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}", e)
-                throw e
-              case e: Throwable =>
-                ctx.end
-                val ex = new ExecutionFailedException(s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getMessage}", e.getCause, s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getLocalizedMessage}")
-                ex.buildScript = Some(curTarget.project.projectFile)
-                ex.targetName = Some(formatTarget(curTarget))
-                log.log(LogLevel.Debug, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}", e)
-                throw ex
-            } finally {
-              WithinTargetExecution.remove
+              } else false
             }
+          case None if curTarget.action == null =>
+            // phony target but just a collector of dependencies
+            ctx.targetLastModified = depsLastModified
+            val files = ctx.fileDependencies
+            if (!files.isEmpty) {
+              log.log(LogLevel.Debug, s"Attaching ${files.size} files of dependencies to empty phony target.")
+              ctx.attachFileWithoutLastModifiedCheck(files)
+            }
+            false
+
+          case None =>
+            // ensure, that the persistent state gets erased, whenever a non-cacheble phony target runs
+            curTarget.evictsCache.map { cacheName =>
+              curTarget.project.log.log(LogLevel.Debug,
+                s"""Target "${curTarget.name}" will evict the target state cache with name "${cacheName}" now.""")
+              persistentTargetCache.dropCacheState(curTarget.project, cacheName)
+            }
+            // phony target, have to run it always. Any laziness is up to it implementation
+            curTarget.project.log.log(LogLevel.Debug, s"""Target "${curTarget.name}" is phony and needs to run (if not cached).""")
+            true
         }
+
+        if (!needsToRun)
+          log.log(LogLevel.Debug, "Target '" + formatTarget(curTarget) + "' does not need to run.")
+
+        val progressPrefix = execProgress match {
+          case Some(state) =>
+            val progress = (state.currentNr, state.maxCount) match {
+              case (c, m) if (c > 0 && m > 0) =>
+                val p = (c - 1) * 100 / m
+                fPercent("[" + math.min(100, math.max(0, p)) + "%] ")
+              case (c, m) => "[" + c + "/" + m + "] "
+            }
+            progress
+          case _ => ""
+        }
+        val colorTarget = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
+
+        val wasUpToDate: Boolean = if (!needsToRun) {
+          val level = if (dependencyTrace.isEmpty) LogLevel.Info else LogLevel.Debug
+          log.log(level, progressPrefix + "Skipping target:  " + colorTarget(formatTarget(curTarget)))
+          true
+        } else { // needsToRun
+          curTarget.action match {
+            case null =>
+              // Additional sanity check
+              if (!curTarget.phony) {
+                val ex = new ProjectConfigurationException(s"""Target "${curTarget.name}" has no defined execution. Don't know how to create or update file "${curTarget.file}".""")
+                ex.buildScript = Some(curTarget.project.projectFile)
+                ex.targetName = Some(curTarget.name)
+                throw ex
+              }
+              log.log(LogLevel.Debug, progressPrefix + "Skipping target:  " + colorTarget(formatTarget(curTarget)))
+              log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + formatTarget(curTarget))
+              true
+            case exec =>
+              WithinTargetExecution.set(new WithinTargetExecution {
+                override def targetContext: TargetContext = ctx
+                override def directDepsTargetContexts: Seq[TargetContext] = ctx.directDepsTargetContexts
+              })
+              try {
+
+                // if state is Some(_), it is already check to be up-to-date
+                val cachedState: Option[persistentTargetCache.CachedState] =
+                  if (curTarget.isCacheable) persistentTargetCache.loadOrDropCachedState(ctx)
+                  else None
+
+                val wasUpToDate: Boolean = cachedState match {
+                  case Some(cache) =>
+                    log.log(LogLevel.Debug, progressPrefix + "Skipping cached target: " + colorTarget(formatTarget(curTarget)))
+                    ctx.start
+                    ctx.targetLastModified = cachedState.get.targetLastModified
+                    ctx.attachFileWithoutLastModifiedCheck(cache.attachedFiles)
+                    ctx.end
+                    true
+
+                  case None =>
+                    if (!curTarget.isSideeffectFree) transientTargetCache.map(_.evict)
+                    val level = if (curTarget.isTransparentExec) LogLevel.Debug else LogLevel.Info
+                    log.log(level, progressPrefix + "Executing target: " + colorTarget(formatTarget(curTarget)))
+                    log.log(LogLevel.Debug, "Target: " + curTarget)
+                    if (curTarget.help != null && curTarget.help.trim != "")
+                      log.log(level, progressPrefix + curTarget.help)
+                    ctx.start
+                    exec.apply(ctx)
+                    ctx.end
+                    log.log(LogLevel.Debug, s"Executed target '${formatTarget(curTarget)}' in ${ctx.execDurationMSec} msec")
+
+                    // update persistent cache
+                    if (curTarget.isCacheable) persistentTargetCache.writeCachedState(ctx)
+
+                    false
+                }
+
+                ctx.targetLastModified match {
+                  case Some(lm) =>
+                    log.log(LogLevel.Debug, s"The context of target '${formatTarget(curTarget)}' reports a last modified value of '${lm}'.")
+                  case _ =>
+                }
+
+                ctx.attachedFiles match {
+                  case Seq() =>
+                  case files =>
+                    log.log(LogLevel.Debug, s"The context of target '${formatTarget(curTarget)}' has ${files.size} attached files")
+                }
+
+                wasUpToDate
+
+              } catch {
+                case e: TargetAware =>
+                  ctx.end
+                  if (e.targetName.isEmpty)
+                    e.targetName = Some(formatTarget(curTarget))
+                  log.log(LogLevel.Debug, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}", e)
+                  throw e
+                case e: Throwable =>
+                  ctx.end
+                  val ex = new ExecutionFailedException(s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getMessage}", e.getCause, s"Execution of target ${formatTarget(curTarget)} failed with an exception: ${e.getClass.getName}.\n${e.getLocalizedMessage}")
+                  ex.buildScript = Some(curTarget.project.projectFile)
+                  ex.targetName = Some(formatTarget(curTarget))
+                  log.log(LogLevel.Debug, s"Execution of target '${formatTarget(curTarget)}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}", e)
+                  throw ex
+              } finally {
+                WithinTargetExecution.remove
+              }
+          }
+        }
+
+        ExecBag(ctx, wasUpToDate)
       }
 
-      ExecBag(ctx, wasUpToDate)
+      execProgress.map(_.addToCurrentNr(1))
+
+      val executedTarget = new ExecutedTarget(targetContext = execBag.ctx, dependencies = executedDependencies)
+      if (execBag.wasUpToDate && transientTargetCache.isDefined)
+        transientTargetCache.get.cache(curTarget, executedTarget)
+
+      executedTarget
+
     }
 
-    execProgress.map(_.addToCurrentNr(1))
-    val executedTarget = new ExecutedTarget(targetContext = execBag.ctx, dependencies = executedDependencies)
-    if (execBag.wasUpToDate && transientTargetCache.isDefined)
-      transientTargetCache.get.cache(curTarget, executedTarget)
-    executedTarget
+    parallelExecContext match {
+      case None =>
+        inner
+      case Some(pec) =>
+        pec.lock(curTarget)
+        try {
+          inner
+        } finally {
+          pec.unlock(curTarget)
+        }
+    }
 
   }
 
