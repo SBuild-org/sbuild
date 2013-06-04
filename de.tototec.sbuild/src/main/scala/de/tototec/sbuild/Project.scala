@@ -101,34 +101,36 @@ class BuildFileProject(_projectFile: File,
       p.projectFile == newProjectFile
     }
 
-    val module = projectAlreadyIncluded match {
-      case Some(existing) => existing
-      case _ =>
-        projectReader match {
-          case None =>
-            val ex = new SBuildException("Does not know how to read the sub project")
-            ex.buildScript = Some(projectFile)
-            throw ex
+    this.synchronized {
+      val module = projectAlreadyIncluded match {
+        case Some(existing) => existing
+        case _ =>
+          projectReader match {
+            case None =>
+              val ex = new SBuildException("Does not know how to read the sub project")
+              ex.buildScript = Some(projectFile)
+              throw ex
 
-          case Some(reader) =>
-            val newProject = new BuildFileProject(newProjectFile, reader, Some(projectPool), log)
+            case Some(reader) =>
+              val newProject = new BuildFileProject(newProjectFile, reader, Some(projectPool), log)
 
-            // copy project properties 
-            if (copyProperties) properties.foreach {
-              case (key, value) => newProject.addProperty(key, value)
-            }
+              // copy project properties 
+              if (copyProperties) properties.foreach {
+                case (key, value) => newProject.addProperty(key, value)
+              }
 
-            reader.readProject(newProject, newProjectFile)
+              reader.readProject(newProject, newProjectFile)
 
-            projectPool.addProject(newProject)
+              projectPool.addProject(newProject)
 
-            newProject
-        }
+              newProject
+          }
+      }
+
+      _modules = modules ::: List(module)
+
+      module
     }
-
-    _modules = modules ::: List(module)
-
-    module
   }
 
   /**
@@ -148,7 +150,7 @@ class BuildFileProject(_projectFile: File,
       case None => createTarget(targetRef, isImplicit = isImplicit)
     }
 
-  override def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target = {
+  override def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target = this.synchronized {
     explicitForeignProject(targetRef) match {
       case Some(pFile) if targetRef.explicitNonStandardProto.isDefined =>
         // This must be a scheme handler, and as we have both scheme and project defined, we WANT the target
