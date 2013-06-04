@@ -75,6 +75,8 @@ class Config {
     description = "Remove all generated output and caches without reading any buildfile. This will essentially remove the \".sbuild\" directory in the current directory and all sub-directories, no matter, if sub-directories contain SBuild projects or not.")
   var justCleanRecursive: Boolean = false
 
-  
-  
+  @CmdOption(names = Array("--experimental-parallel"),
+    description = "Experimental: Enable parallel procession of targets.")
+  var parallelProcessing: Boolean = false
+
 }
