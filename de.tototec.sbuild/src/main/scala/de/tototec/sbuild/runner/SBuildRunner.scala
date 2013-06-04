@@ -532,7 +532,10 @@ class SBuildRunner {
     (requested.asInstanceOf[Seq[Target]], invalid.asInstanceOf[Seq[String]])
   }
 
-  class ExecProgress(var maxCount: Int, var currentNr: Int = 1)
+  class ExecProgress(val maxCount: Int, private[this] var _currentNr: Int = 1) {
+    def currentNr = _currentNr
+    def addToCurrentNr(addToCurrentNr: Int): Unit = this.synchronized { _currentNr += addToCurrentNr }
+  }
 
   def formatProject(project: Project)(implicit baseProject: Project) =
     if (baseProject != project)
@@ -660,7 +663,7 @@ class SBuildRunner {
     }
 
     transientTargetCache.flatMap(_.get(curTarget)).map { cachedExecutedContext =>
-      execProgress.map(_.currentNr += cachedExecutedContext.treeSize)
+      execProgress.map(_.addToCurrentNr(cachedExecutedContext.treeSize))
       return cachedExecutedContext;
     }
 
@@ -865,7 +868,7 @@ class SBuildRunner {
       ExecBag(ctx, wasUpToDate)
     }
 
-    execProgress.map(_.currentNr += 1)
+    execProgress.map(_.addToCurrentNr(1))
     val executedTarget = new ExecutedTarget(targetContext = execBag.ctx, dependencies = executedDependencies)
     if (execBag.wasUpToDate && transientTargetCache.isDefined)
       transientTargetCache.get.cache(curTarget, executedTarget)
@@ -907,7 +910,7 @@ class SBuildRunner {
   import org.fusesource.jansi.Ansi._
   import org.fusesource.jansi.Ansi.Color._
 
-  // It seems, under windows als bright colors are not displayed correctly
+  // It seems, under windows bright colors are not displayed correctly
   val isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 
   def fPercent(text: => String) =
