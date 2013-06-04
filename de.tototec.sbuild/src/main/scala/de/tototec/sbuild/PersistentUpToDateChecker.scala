@@ -17,7 +17,7 @@ import java.io.FileOutputStream
  *
  * TODO: Base up-to-date checks on lastModified instead of boolean
  */
-@deprecated("Replaced by cacheable-capabilities of SBuild core.", "0.4.1")
+@deprecated("Replaced by cacheable-capabilities of SBuild core.", "0.4.0.9000")
 object IfNotUpToDate {
 
   def apply(srcDir: File, stateDir: File)(task: => Any): Unit = {
@@ -50,7 +50,7 @@ object IfNotUpToDate {
 
 }
 
-@deprecated("Replaced by cacheable-capabilities of SBuild core.", "0.4.1")
+@deprecated("Replaced by cacheable-capabilities of SBuild core.", "0.4.0.9000")
 object PersistentUpToDateChecker {
 
   def apply(uniqueId: String, srcDir: File, stateDir: File) =
@@ -88,7 +88,7 @@ object PersistentUpToDateChecker {
 
 }
 
-@deprecated("Replaced by cacheable-capabilities of SBuild core.", "0.4.1")
+@deprecated("Replaced by cacheable-capabilities of SBuild core.", "0.4.0.9000")
 class PersistentUpToDateChecker(checkerUniqueId: String, srcDirOrFiles: Seq[File], stateDir: File) {
 
   def stateFile: File = new File(stateDir, ".filestates." + checkerUniqueId)
