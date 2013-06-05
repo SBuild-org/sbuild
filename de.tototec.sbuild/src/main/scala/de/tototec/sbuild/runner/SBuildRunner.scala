@@ -226,6 +226,9 @@ class SBuildRunner {
         log.log(LogLevel.Error, fError("Target:  ").toString + fErrorEmph(e.asInstanceOf[TargetAware].targetName.get).toString)
 
       log.log(LogLevel.Error, fError("Details: " + e.getLocalizedMessage).toString)
+
+      if (e.getCause() != null && e.getCause().isInstanceOf[InvocationTargetException] && e.getCause().getCause() != null)
+        log.log(LogLevel.Error, fError("Reflective invokation message: " + e.getCause().getCause().getLocalizedMessage()).toString())
     }
 
     try {
