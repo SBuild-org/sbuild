@@ -1,3 +1,0 @@
-- Evaluate return codes in exec-blocks
-- Mark empty phony targets as skipped, when all prerequitites were up-to-date
-- dependency watcher: watch all dependency files for changes, when a change occurs, run again
