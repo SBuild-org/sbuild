@@ -3,6 +3,7 @@ SBuild trunk
 * Updated dependencies: Scala 2.10.1, Jansi 1.10.
 * Added support to reference scheme handlers of other projects/modules.
 * Added parameters useArgsFile, jvmArgs and sourcePath to Scalac addon.
+* Added Scalac.scalaClasspath(version) classpath factory.
 * Fix FileNotFoundException in execution of cacheable targets with path
   separators in it's name.
 * Allow to evict caches per cacheable target.
