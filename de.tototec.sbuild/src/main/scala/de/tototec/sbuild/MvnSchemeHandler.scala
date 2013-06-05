@@ -3,6 +3,31 @@ package de.tototec.sbuild
 import java.io.File
 import java.io.FileNotFoundException
 
+object MavenSupport {
+  object MavenGav {
+    def apply(artifact: String): MavenGav = {
+      val (groupId, artifactId, versionWithOptions: Array[String]) = artifact.split(":", 3).map(_.trim) match {
+        case Array(g, a, versionWithOptions) => (g, a, versionWithOptions.split(";", 2).map(_.trim))
+        case _ => throw new RuntimeException("Invalid format. Format must be: groupId:artifactId:version[;key=val]*")
+      }
+
+      val version = versionWithOptions(0)
+      val options: Map[String, String] = versionWithOptions match {
+        case Array(version, options) => options.split(";").map(_.trim).map(_.split("=", 2).map(_.trim)).map(
+          _ match {
+            case Array(a) => ((a, "true"))
+            case Array(a, b) => ((a, b))
+          }).toMap
+        case _ => Map()
+      }
+
+      MavenGav(groupId, artifactId, version, options.get("classifier"))
+    }
+  }
+  case class MavenGav(groupId: String, artifactId: String, version: String, classifier: Option[String])
+
+}
+
 /**
  * A SchemeHandler able to download Maven artifacts from a set of Maven repositories.
  * Normally, one would register this handler with the "mvn" scheme.
@@ -19,6 +44,8 @@ class MvnSchemeHandler(
   repos: Seq[String] = Seq("http://repo1.maven.org/maven2/"))(implicit project: Project)
     extends SchemeResolver {
 
+  import MavenSupport._
+
   override def localPath(path: String): String = {
     "file:" + localFile(path).getAbsolutePath
   }
@@ -29,30 +56,11 @@ class MvnSchemeHandler(
 
   var online = true
 
-  def constructMvnPath(mvnUrlPathPart: String): String = {
-
-    val (group, artifact, versionWithOptions: Array[String]) = mvnUrlPathPart.split(":", 3).map(_.trim) match {
-      case Array(group, artifact, versionWithOptions) => (group, artifact, versionWithOptions.split(";", 2).map(_.trim))
-      case _ => throw new RuntimeException("Invalid format. Format must be: groupId:artifactId:version[;key=val]*")
-    }
-
-    val version = versionWithOptions(0)
-    val options: Map[String, String] = versionWithOptions match {
-      case Array(version, options) => options.split(";").map(_.trim).map(_.split("=", 2).map(_.trim)).map(
-        _ match {
-          case Array(a) => ((a, "true"))
-          case Array(a, b) => ((a, b))
-        }).toMap
-      case _ => Map()
-    }
-
-    val classifierPart = options.get("classifier") match {
-      case Some(x) => "-" + options("classifier")
-      case None => ""
-    }
-
-    group.replaceAllLiterally(".", "/") + "/" + artifact + "/" +
-      version + "/" + artifact + "-" + version + classifierPart + ".jar"
+  def constructMvnPath(mvnUrlPathPart: String): String = MavenGav(mvnUrlPathPart) match {
+    case MavenGav(group, artifact, version, classifier) =>
+      val classifierPart = classifier.map("-" + _).getOrElse("")
+      group.replaceAllLiterally(".", "/") + "/" + artifact + "/" +
+        version + "/" + artifact + "-" + version + classifierPart + ".jar"
   }
 
   override def resolve(path: String, targetContext: TargetContext) = {
