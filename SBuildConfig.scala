@@ -3,10 +3,10 @@ import de.tototec.sbuild.TargetRefs._
 
 object SBuildConfig {
 
-  def sbuildVersion = "0.4.0.9000"
+  def sbuildVersion = "0.4.0.9001"
   def sbuildOsgiVersion = sbuildVersion
 
-  def cmdOptionVersion = "0.2.1"
+  def cmdOptionVersion = "0.3.0"
   def cmdOption = s"mvn:de.tototec:de.tototec.cmdoption:${cmdOptionVersion}"
 
   def jansiVersion = "1.10"
