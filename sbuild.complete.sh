@@ -1,16 +1,15 @@
 # bash completion for de.tototec.sbuild
 
-# TODO: Also complete modules with "<module>::" and subsequent completion of that module's targets
-
 # have sbuild &&
 _sbuild()
 {
     # variables
     local file buildfile addBuildFile addBuildFiles
     local makef_inc cur prev i split=false
+    local sbuild_out
 
     COMPREPLY=()
-    _get_comp_words_by_ref cur prev
+    _get_comp_words_by_ref -n : cur prev
 
     _split_longopt && split=true
 
@@ -54,9 +53,30 @@ _sbuild()
             fi
         done
 
-        COMPREPLY=( $( compgen -W "$( sbuild -q ${buildfile} ${addBuildFiles} -l 2>/dev/null | \
-            sed 's/\t.*$//' )" -- "$cur" ) )
+        sbuild_out="$( sbuild -q ${buildfile} ${addBuildFiles} -L 2>/dev/null | sed -e 's/\t.*$//' )"
+
+        if [[ "$cur" =~ .*::.* ]]; then
+
+            # already specified a modules, so complete all targets of modules 
+            COMPREPLY=( $( compgen -W "${sbuild_out}" -- "$cur" ) )
+
+        else
+
+            # no module selected, remove all target of submodules
+            COMPREPLY=( $( compgen -W "$( echo "${sbuild_out}" | sed -e 's/^\(.*\)::.*$/\1::/' | sort -u )" -- "$cur" ) )
+
+            if [[ ${#COMPREPLY[@]} -eq 1 && "${COMPREPLY[0]}" =~ .*:: ]]; then
+                
+		# we can already complete and provide details
+                COMPREPLY=( $( compgen -W "${sbuild_out}" -- "$cur" ) )
+
+            fi
+
+        fi
 
     fi
+
+    __ltrim_colon_completions "${cur}"
+
 } &&
 complete -F _sbuild sbuild
