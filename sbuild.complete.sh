@@ -1,6 +1,8 @@
-# bash completion for GNU make
+# bash completion for de.tototec.sbuild
 
-have sbuild &&
+# TODO: Also complete modules with "<module>::" and subsequent completion of that module's targets
+
+# have sbuild &&
 _sbuild()
 {
     # variables
@@ -26,7 +28,7 @@ _sbuild()
           --additional-buildfile,--buildfile\
           --check --check-recursive --clean --create-stub\
           --define --dependency-tree\
-          --execution-plan\
+          --execution-plan --experimental-parallel\
           --fsc\
           --help\
           --just-clean --just-clean-recursive\
