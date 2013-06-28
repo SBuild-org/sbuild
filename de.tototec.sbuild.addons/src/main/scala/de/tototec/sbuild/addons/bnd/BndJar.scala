@@ -4,6 +4,7 @@ import java.io.File
 import java.net.URLClassLoader
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.LogLevel
+import de.tototec.sbuild.LogLevel
 
 /**
  * Companion object for [[BndJar]], which creates OSGi bundles.
@@ -20,9 +21,9 @@ object BndJar {
    *
    */
   def apply(bndClasspath: Seq[File] = null,
-            classpath: Seq[File] = null,
-            props: Map[String, String] = null,
-            destFile: File = null)(implicit project: Project) =
+    classpath: Seq[File] = null,
+    props: Map[String, String] = null,
+    destFile: File = null)(implicit project: Project) =
     new BndJar(
       bndClasspath = bndClasspath,
       classpath = classpath,
@@ -125,6 +126,14 @@ class BndJar(
     val jar = buildMethod.invoke(builder)
 
     val writeMethod = jarClass.getMethod("write", classOf[File])
+
+    if(!destFile.isAbsolute()) destFile = destFile.getAbsoluteFile()
+    
+    val parentDir = destFile.getParentFile()
+    if (parentDir != null && !parentDir.exists()) {
+      project.log.log(LogLevel.Debug, "Create directory: " + parentDir)
+      parentDir.mkdirs()
+    }
 
     writeMethod.invoke(jar, destFile)
 
