@@ -136,7 +136,9 @@ class ProjectScript(_scriptFile: File,
   }
   lazy val targetBaseDir: File = new File(scriptFile.getParentFile, buildTargetDir)
   lazy val targetDir: File = new File(scriptFile.getParentFile, buildFileTargetDir)
-  lazy val targetClassFile = new File(targetDir, scriptBaseName + ".class")
+  val defaultTargetClassName = scriptBaseName
+  def targetClassFile(targetClassName: String): File = new File(targetDir, targetClassName + ".class")
+  // lazy val targetClassFile = new File(targetDir, scriptBaseName + ".class")
   lazy val infoFile = new File(targetDir, InfoFileName)
 
   def checkFile = if (!scriptFile.exists) {
@@ -159,7 +161,7 @@ class ProjectScript(_scriptFile: File,
 
     val includes: Map[String, Seq[File]] = readIncludeFiles(project)
 
-    if (!checkInfoFileUpToDate(includes)) {
+    if (!checkInfoFileUpToDate(includes).upToDate) {
       //      println("Compiling build script " + scriptFile + "...")
       newCompile(sbuildClasspath ++ addCp, includes)
     }
@@ -167,12 +169,19 @@ class ProjectScript(_scriptFile: File,
     useExistingCompiled(project, addCp, scriptBaseName, Seq("SBuild"))
   }
 
-  def checkInfoFileUpToDate(includes: Map[String, Seq[File]]): Boolean = {
-    infoFile.exists && {
+  case class LastRunInfo(upToDate: Boolean, targetClassName: String)
+
+  def checkInfoFileUpToDate(includes: Map[String, Seq[File]]): LastRunInfo = {
+    if (!infoFile.exists()) LastRunInfo(false, defaultTargetClassName)
+    else {
       val info = xml.XML.loadFile(infoFile)
 
       val sourceSize = (info \ "sourceSize").text.toLong
       val sourceLastModified = (info \ "sourceLastModified").text.toLong
+      val targetClassName = (info \ "targetClassName").text match {
+        case "" | null => defaultTargetClassName
+        case x => x
+      }
       val targetClassLastModified = (info \ "targetClassLastModified").text.toLong
       val sbuildVersion = (info \ "sbuildVersion").text
       val sbuildOsgiVersion = (info \ "sbuildOsgiVersion").text
@@ -197,13 +206,17 @@ class ProjectScript(_scriptFile: File,
           false
       }
 
-      scriptFile.length == sourceSize &&
-        scriptFile.lastModified == sourceLastModified &&
-        targetClassFile.lastModified == targetClassLastModified &&
-        targetClassFile.lastModified >= scriptFile.lastModified &&
-        sbuildVersion == SBuildVersion.version &&
-        sbuildOsgiVersion == SBuildVersion.osgiVersion &&
-        includesMatch
+      val classFile = targetClassFile(targetClassName)
+
+      LastRunInfo(
+        upToDate = scriptFile.length == sourceSize &&
+          scriptFile.lastModified == sourceLastModified &&
+          classFile.lastModified == targetClassLastModified &&
+          classFile.lastModified >= scriptFile.lastModified &&
+          sbuildVersion == SBuildVersion.version &&
+          sbuildOsgiVersion == SBuildVersion.osgiVersion &&
+          includesMatch,
+        targetClassName = targetClassName)
     }
   }
 
@@ -372,11 +385,17 @@ class ProjectScript(_scriptFile: File,
 
     compile(classpath.mkString(File.pathSeparator), includes)
 
+    val (realTargetClassName, realTargetClassFile) = targetClassFile(defaultTargetClassName) match {
+      case classExists if classExists.exists() => (defaultTargetClassName, classExists)
+      case _ => ("SBuild", targetClassFile("SBuild"))
+    }
+    
     log.log(LogLevel.Debug, "Writing info file: " + infoFile)
     val info = <sbuild>
                  <sourceSize>{ scriptFile.length }</sourceSize>
                  <sourceLastModified>{ scriptFile.lastModified }</sourceLastModified>
-                 <targetClassLastModified>{ targetClassFile.lastModified }</targetClassLastModified>
+                 <targetClassName>{ realTargetClassName }</targetClassName>
+                 <targetClassLastModified>{ realTargetClassFile.lastModified }</targetClassLastModified>
                  <sbuildVersion>{ SBuildVersion.version }</sbuildVersion>
                  <sbuildOsgiVersion>{ SBuildVersion.osgiVersion }</sbuildOsgiVersion>
                  <includes>
