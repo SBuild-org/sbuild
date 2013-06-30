@@ -161,12 +161,14 @@ class ProjectScript(_scriptFile: File,
 
     val includes: Map[String, Seq[File]] = readIncludeFiles(project)
 
-    if (!checkInfoFileUpToDate(includes).upToDate) {
-      //      println("Compiling build script " + scriptFile + "...")
-      newCompile(sbuildClasspath ++ addCp, includes)
+    val buildClassName = checkInfoFileUpToDate(includes) match {
+      case LastRunInfo(true, className) => className
+      case _ =>
+        // println("Compiling build script " + scriptFile + "...")
+        newCompile(sbuildClasspath ++ addCp, includes)
     }
 
-    useExistingCompiled(project, addCp, scriptBaseName, Seq("SBuild"))
+    useExistingCompiled(project, addCp, buildClassName)
   }
 
   case class LastRunInfo(upToDate: Boolean, targetClassName: String)
@@ -348,22 +350,11 @@ class ProjectScript(_scriptFile: File,
     resolveViaProject(cp, project, "@classpath entry").flatMap { case (key, value) => value }.map { _.getPath }.toArray
   }
 
-  def useExistingCompiled(project: Project, classpath: Array[String], className: String, fallbackClassNames: Seq[String] = Seq()): Any = {
+  def useExistingCompiled(project: Project, classpath: Array[String], className: String): Any = {
     log.log(LogLevel.Debug, "Loading compiled version of build script: " + scriptFile)
     val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
     log.log(LogLevel.Debug, "CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
-    val clazz: Class[_] = try {
-      cl.loadClass(className)
-    } catch {
-      case e: ClassNotFoundException =>
-        val fallback = fallbackClassNames.filter(_ != className)
-        if (fallback.isEmpty)
-          throw e
-        else {
-          log.log(LogLevel.Debug, "Could not load class: " + className + ". Falling back to load build script class: " + fallback.head)
-          return useExistingCompiled(project, classpath, fallback.head, fallback.tail)
-        }
-    }
+    val clazz: Class[_] = cl.loadClass(className)
     val ctr = clazz.getConstructor(classOf[Project])
     val scriptInstance = ctr.newInstance(project)
     // We assume, that everything is done in constructor, so we are done here
@@ -378,7 +369,7 @@ class ProjectScript(_scriptFile: File,
     Util.delete(targetDir)
   }
 
-  def newCompile(classpath: Array[String], includes: Map[String, Seq[File]]) {
+  def newCompile(classpath: Array[String], includes: Map[String, Seq[File]]): String = {
     cleanScala()
     targetDir.mkdirs
     log.log(LogLevel.Info, "Compiling build script: " + scriptFile + (if (includes.isEmpty) "" else " and " + includes.size + " included files") + "...")
@@ -389,7 +380,7 @@ class ProjectScript(_scriptFile: File,
       case classExists if classExists.exists() => (defaultTargetClassName, classExists)
       case _ => ("SBuild", targetClassFile("SBuild"))
     }
-    
+
     log.log(LogLevel.Debug, "Writing info file: " + infoFile)
     val info = <sbuild>
                  <sourceSize>{ scriptFile.length }</sourceSize>
@@ -417,6 +408,7 @@ class ProjectScript(_scriptFile: File,
     xml.XML.write(file, info, "UTF-8", true, null)
     file.close
 
+    realTargetClassName
   }
 
   def compile(classpath: String, includes: Map[String, Seq[File]]) {
