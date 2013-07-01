@@ -1,6 +1,6 @@
 SBuild trunk
 
-* Updated dependencies: Scala 2.10.1, Jansi 1.10.
+* Updated dependencies: Scala 2.10.2, Jansi 1.10.
 * Added support to reference scheme handlers of other projects/modules.
 * Added parameters useArgsFile, jvmArgs and sourcePath to Scalac addon.
 * Added Scalac.scalaClasspath(version) classpath factory.
@@ -15,7 +15,9 @@ SBuild trunk
   "source:mvn:a.b.1" will be translated to "mvn:a.b.1;classifier=sources"
 * Fixed --fsc option.
 * Fixed colored output under windows.
-* BndJar addon creates target directory, if it does not exists.
+* BndJar addon creates now the target directory, if it does not exists.
+* New experimental scheme handler to access 'val's and 'def's in projects in
+  new project de.tototec.sbuild.experimental.
 
 SBuild 0.4.0 - 2013-03-09
 
