@@ -22,7 +22,7 @@ trait MutableProject extends ProjectBase {
   protected[sbuild] def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
   protected[sbuild] def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
   protected[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean = true): Project
-  protected[sbuild] def registerPlugin(plugin: Plugin)
+  protected[sbuild] def registerPlugin(plugin: ExperimentalPlugin)
   protected[sbuild] def applyPlugins
 }
 
@@ -423,9 +423,9 @@ class BuildFileProject(_projectFile: File,
   override def toString: String =
     getClass.getSimpleName + "(" + projectFile + ",targets=" + targets.map { case (f, p) => p.name }.mkString(",") + ")"
 
-  private[this] var _pluginsToInitLater: Seq[Plugin] = Seq()
+  private[this] var _pluginsToInitLater: Seq[ExperimentalPlugin] = Seq()
 
-  override protected[sbuild] def registerPlugin(plugin: Plugin) {
+  override protected[sbuild] def registerPlugin(plugin: ExperimentalPlugin) {
     _pluginsToInitLater ++= Seq(plugin)
   }
   override protected[sbuild] def applyPlugins {

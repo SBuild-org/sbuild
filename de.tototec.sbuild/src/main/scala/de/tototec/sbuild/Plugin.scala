@@ -1,14 +1,20 @@
 package de.tototec.sbuild
 
-trait Plugin {
+/**
+ * WARNING: Do not use this experimental API
+ */
+trait ExperimentalPlugin {
 
   def init
 
 }
 
-object Plugin {
+/**
+ * WARNING: Do not use this experimental API
+ */
+object ExperimentalPlugin {
 
-  def apply[T <: Plugin](plugin: T)(implicit project: Project): T = {
+  def apply[T <: ExperimentalPlugin](plugin: T)(implicit project: Project): T = {
     project.registerPlugin(plugin)
     plugin
   }
