@@ -12,7 +12,7 @@ object SBuildConfig {
   def jansiVersion = "1.10"
   val jansi = s"mvn:org.fusesource.jansi:jansi:${jansiVersion}"
 
-  def scalaVersion = "2.10.1"
+  def scalaVersion = "2.10.2"
   def scalaBinVersion = "2.10"
 
   def compilerPath(implicit project: Project) =

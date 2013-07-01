@@ -38,6 +38,7 @@ class SBuild(implicit _project: Project) {
     "de.tototec.sbuild.ant",
     "de.tototec.sbuild.addons",
     "de.tototec.sbuild.plugins",
+    "de.tototec.sbuild.experimental",
     "doc"
   )
 
