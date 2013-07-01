@@ -10,17 +10,14 @@ class SBuild(implicit _project: Project) {
 
   val jar = s"target/de.tototec.sbuild.ant-${SBuildConfig.sbuildVersion}.jar"
 
-  // Current version of bnd (with ant tasks) is not in Maven repo 
-  val bnd_1_50_0 = "http://dl.dropbox.com/u/2590603/bnd/biz.aQute.bnd.jar"
-
   val compileCp =
     s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" ~
+      "mvn:org.apache.ant:ant:1.8.4" ~
       s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
       s"mvn:org.scala-lang:scala-compiler:${SBuildConfig.scalaVersion}" ~
       s"mvn:org.scala-lang:scala-reflect:${SBuildConfig.scalaVersion}" ~
-      "mvn:org.apache.ant:ant:1.8.4" ~
       "mvn:org.liquibase:liquibase-core:2.0.3" ~
-      bnd_1_50_0
+      "mvn:biz.aQute:bnd:1.50.0"
 
   ExportDependencies("eclipse.classpath", compileCp)
 
@@ -45,7 +42,7 @@ class SBuild(implicit _project: Project) {
 
   Target(jar) dependsOn "compile" ~ "LICENSE.txt" exec { ctx: TargetContext =>
     AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"),
-      fileSet = AntFileSet(dir = Path("."), includes="LICENSE.txt"),
+      fileSet = AntFileSet(dir = Path("."), includes = "LICENSE.txt"),
       manifestEntries = Map("SBuild-ComponentName" -> "de.tototec.sbuild.ant")
     )
   }
