@@ -3,11 +3,8 @@ import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
-@version("0.3.2")
-@include("../SBuildConfig.scala",
-  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/support/ForkSupport.scala",
-  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/scala/Scaladoc.scala"
-)
+@version("0.4.0")
+@include("../SBuildConfig.scala")
 @classpath(
   "mvn:org.apache.ant:ant:1.8.4",
   "zip:file=plugins/org.eclipse.mylyn.wikitext.core_1.7.2.v20120916-1200.jar;archive=http://mirror.netcologne.de/eclipse//mylyn/drops/3.8.2/v20120916-1200/mylyn-3.8.2.v20120916-1200.zip",
@@ -194,41 +191,5 @@ class SBuild(implicit _project: Project) {
 
     (newContent, names)
   }
-
-  val moduleSourceDirs = Seq(
-      Path("../de.tototec.sbuild/src/main/scala"),
-      Path("../de.tototec.sbuild/src/main/java"),
-      Path("../de.tototec.sbuild.ant/src/main/scala"),
-      Path("../de.tototec.sbuild.addons/src/main/scala")
-  )
-
-  val versionScalaFile = "../de.tototec.sbuild/SBuild.scala::target/generated-scala/scala/de/tototec/sbuild/SBuildVersion.scala"
-
-  val docCp = s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
-      SBuildConfig.jansi ~
-      SBuildConfig.cmdOption ~
-      "mvn:org.apache.ant:ant:1.8.3" ~
-      "http://dl.dropbox.com/u/2590603/bnd/biz.aQute.bnd.jar" ~
-      "mvn:org.liquibase:liquibase-core:2.0.3"
-
-  Target("phony:checkScalaSources") exec { ctx: TargetContext =>
-    IfNotUpToDate(moduleSourceDirs, Path("target"), ctx) {}
-  }
-
-  Module("../de.tototec.sbuild")
-
-  Target("phony:scaladoc") dependsOn SBuildConfig.compilerPath ~ docCp ~ "checkScalaSources" ~ versionScalaFile exec {
-    addons.scala.Scaladoc(
-      scaladocClasspath = SBuildConfig.compilerPath.files,
-      classpath = docCp.files ++ SBuildConfig.compilerPath.files,
-      sources = versionScalaFile.files,
-      srcDirs = moduleSourceDirs,
-      destDir = Path("target/scaladoc"),
-      deprecation = true, unchecked = true, implicits = true,
-      docVersion = SBuildConfig.sbuildVersion,
-      docTitle = s"SBuild"
-    )
-  }
-
 
 }
