@@ -19,7 +19,7 @@ object ForkSupport {
    * @param arguments The arguments to the JVM. The first parameter should be the Java class containing a `main` method.
    * @param interactive If `true`, the input stream is routed to the newly started process, to read user input.
    *
-   *  @return The return value of the Java process. Typically 0 indicated success whereas any other value is treated as error.
+   * @return The return value of the Java process. Typically 0 indicated success whereas any other value is treated as error.
    */
   def runJavaAndWait(classpath: Seq[File], arguments: Array[String], interactive: Boolean = false)(implicit project: Project): Int = {
 
