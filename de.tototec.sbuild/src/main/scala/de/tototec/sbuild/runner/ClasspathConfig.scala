@@ -77,9 +77,12 @@ class ClasspathConfig {
 
   def readFromProperties(sbuildLibDir: File, properties: Properties) {
 
-    def splitAndPrepend(propertyValue: String): Array[String] = propertyValue.split(";|:").map {
-      case lib if new File(lib).isAbsolute() => lib
-      case lib => new File(sbuildLibDir.getAbsoluteFile, lib).getPath
+    def splitAndPrepend(propertyValue: String): Array[String] = propertyValue match {
+      case null | "" => Array()
+      case v => v.split(";|:").map {
+        case lib if new File(lib).isAbsolute() => lib
+        case lib => new File(sbuildLibDir.getAbsoluteFile, lib).getPath
+      }
     }
 
     sbuildClasspath = splitAndPrepend(properties.getProperty("sbuildClasspath"))
