@@ -15,9 +15,12 @@ SBuild trunk
   "source:mvn:a.b.1" will be translated to "mvn:a.b.1;classifier=sources"
 * Fixed --fsc option.
 * Fixed colored output under windows.
+* Bash Completion support.
 * BndJar addon creates now the target directory, if it does not exists.
 * New experimental scheme handler to access 'val's and 'def's in projects in
   new project de.tototec.sbuild.experimental.
+* Added mechanism to locate files relative to included scala files, via
+  Path[Config]("path/relative/to/Config.scala").
 
 SBuild 0.4.0 - 2013-03-09
 

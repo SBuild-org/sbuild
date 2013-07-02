@@ -19,6 +19,7 @@ class SBuild(implicit _project: Project) {
   val antJar = s"de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-${sbuildVersion}.jar"
   val addonsJar = s"de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-${sbuildVersion}.jar"
   val pluginsJar = s"de.tototec.sbuild.plugins/target/de.tototec.sbuild.plugins-${sbuildVersion}.jar"
+  val compilerPluginJar = s"de.tototec.sbuild.compilerplugin/target/de.tototec.sbuild.compilerplugin-${sbuildVersion}.jar"
 
   val cmdOptionVersion = SBuildConfig.cmdOptionVersion
   val cmdOption = SBuildConfig.cmdOption
@@ -37,6 +38,7 @@ class SBuild(implicit _project: Project) {
     "de.tototec.sbuild",
     "de.tototec.sbuild.ant",
     "de.tototec.sbuild.addons",
+    "de.tototec.sbuild.compilerplugin",
     "de.tototec.sbuild.plugins",
     "de.tototec.sbuild.experimental",
     "doc"
@@ -55,7 +57,9 @@ class SBuild(implicit _project: Project) {
   Target("phony:scaladoc") dependsOn
     "de.tototec.sbuild::scaladoc" ~
     "de.tototec.sbuild.ant::scaladoc" ~
-    "de.tototec.sbuild.addons::scaladoc"
+    "de.tototec.sbuild.addons::scaladoc" ~
+    "de.tototec.sbuild.compilerplugin::scaladoc" ~
+    "de.tototec.sbuild.experimental::scaladoc"
 //    "de.tototec.sbuild.plugins::scaladoc"
 
   Target(distZip) dependsOn "createDistDir" exec { ctx: TargetContext =>
@@ -69,7 +73,7 @@ class SBuild(implicit _project: Project) {
   }
 
   Target("phony:copyJars").cacheable dependsOn cmdOption ~ SBuildConfig.compilerPath ~
-      binJar ~ antJar ~ addonsJar ~ pluginsJar ~ jansi exec { ctx: TargetContext =>
+      binJar ~ antJar ~ addonsJar ~ pluginsJar ~ compilerPluginJar ~ jansi exec { ctx: TargetContext =>
     ctx.fileDependencies foreach { file =>
       val targetFile = Path(distDir, "lib", file.getName)
       AntCopy(file = file, toFile = targetFile)
@@ -83,6 +87,7 @@ class SBuild(implicit _project: Project) {
       |compileClasspath = scala-compiler-${scalaVersion}.jar:scala-reflect-${scalaVersion}.jar
       |projectClasspath = scala-library-${scalaVersion}.jar:de.tototec.sbuild.ant-${sbuildVersion}.jar:de.tototec.sbuild.addons-${sbuildVersion}.jar:de.tototec.sbuild.plugins-${sbuildVersion}.jar
       |embeddedClasspath = de.tototec.sbuild-${sbuildVersion}.jar:${cmdOption.files.head.getName}:${jansi.files.head.getName}
+      |compilerPluginJar = de.tototec.sbuild.compilerplugin-${sbuildVersion}.jar
       |"""
     AntMkdir(dir = ctx.targetFile.get.getParentFile)
     AntEcho(file = ctx.targetFile.get, message = properties.stripMargin)

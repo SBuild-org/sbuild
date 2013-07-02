@@ -1,14 +1,14 @@
 package de.tototec.sbuild.plugins
 
 import de.tototec.sbuild.Project
-import de.tototec.sbuild.Plugin
+import de.tototec.sbuild.ExperimentalPlugin
 import de.tototec.sbuild.Target
 import de.tototec.sbuild.Util.NullSafe
 import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.ant.tasks.AntJar
 import de.tototec.sbuild.Path
 
-class JarPlugin()(implicit _project: Project) extends Plugin {
+class JarPlugin()(implicit _project: Project) extends ExperimentalPlugin {
 
   var targetDir: String = null
   var artifact: String = null

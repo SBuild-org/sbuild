@@ -1,6 +1,6 @@
 package de.tototec.sbuild.plugins
 
-import de.tototec.sbuild.Plugin
+import de.tototec.sbuild.ExperimentalPlugin
 import de.tototec.sbuild.TargetRef
 import de.tototec.sbuild.TargetRefs
 import de.tototec.sbuild.TargetRefs._
@@ -11,7 +11,7 @@ import de.tototec.sbuild.Util.NullSafe
 import de.tototec.sbuild.Path
 import de.tototec.sbuild.addons.java.Javac
 
-class JavaPlugin()(implicit _project: Project) extends Plugin {
+class JavaPlugin()(implicit _project: Project) extends ExperimentalPlugin {
 
   // compile
 
