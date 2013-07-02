@@ -45,16 +45,24 @@ class ClasspathConfig {
   }
   var projectClasspath: Array[String] = Array()
 
+  @CmdOption(names = Array("--compiler-plugin-jar"), args = Array("JAR"), hidden = true)
+  def compilerPluginJars_=(jars: String): Unit = compilerPluginJars = jars match {
+    case null => Array[String]()
+    case x => x.split(";|:")
+  }
+  var compilerPluginJars: Array[String] = Array()
+
   @CmdOption(names = Array("--no-fsc"), description = "Do not try to use the fast scala compiler (client/server)")
   var noFsc: Boolean = true
-  
+
   @CmdOption(names = Array("--fsc"), description = "Use the fast scala compiler (client/server). The fsc compiler of the correct Scala version must be installed.", conflictsWith = Array("--no-fsc"))
   def fsc = noFsc = false
 
   def validate: Boolean = {
     sbuildClasspath.forall { new File(_).exists } &&
       compileClasspath.forall { new File(_).exists } &&
-      projectClasspath.forall { new File(_).exists }
+      projectClasspath.forall { new File(_).exists } &&
+      compilerPluginJars.forall { new File(_).exists }
   }
 
   def readFromPropertiesFile(propertiesFile: File) {
@@ -77,6 +85,7 @@ class ClasspathConfig {
     sbuildClasspath = splitAndPrepend(properties.getProperty("sbuildClasspath"))
     compileClasspath = splitAndPrepend(properties.getProperty("compileClasspath"))
     projectClasspath = splitAndPrepend(properties.getProperty("projectClasspath"))
+    compilerPluginJars = splitAndPrepend(properties.getProperty("compilerPluginJar"))
   }
 
 }

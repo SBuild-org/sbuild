@@ -1,6 +1,10 @@
 package de.tototec.sbuild
 
 import java.io.File
+import scala.reflect.ClassTag
+import java.util.Properties
+import java.io.BufferedInputStream
+import java.io.FileInputStream
 
 trait ProjectBase {
   def projectDirectory: File
@@ -12,6 +16,8 @@ trait ProjectBase {
   protected[sbuild] def properties: Map[String, String]
   protected[sbuild] def schemeHandlers: Map[String, SchemeHandler]
   protected[sbuild] def targets: Map[File, Target]
+  // since 0.4.0.9002
+  protected[sbuild] def includeDirOf[T: ClassTag]: File
 }
 
 trait MutableProject extends ProjectBase {
@@ -22,6 +28,7 @@ trait MutableProject extends ProjectBase {
   protected[sbuild] def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
   protected[sbuild] def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
   protected[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean = true): Project
+  /** Very exerimental. Do not use yet. */
   protected[sbuild] def registerPlugin(plugin: ExperimentalPlugin)
   protected[sbuild] def applyPlugins
 }
@@ -37,6 +44,7 @@ case class UniqueTargetFile(file: File, phony: Boolean, handler: Option[SchemeHa
 class BuildFileProject(_projectFile: File,
                        _projectReader: ProjectReader = null,
                        _projectPool: Option[ProjectPool] = None,
+                       typesToIncludedFilesProperties: Option[File] = None,
                        override val log: SBuildLogger = SBuildNoneLogger) extends Project {
 
   private val projectReader: Option[ProjectReader] = Option(_projectReader)
@@ -112,17 +120,9 @@ class BuildFileProject(_projectFile: File,
               throw ex
 
             case Some(reader) =>
-              val newProject = new BuildFileProject(newProjectFile, reader, Some(projectPool), log)
-
-              // copy project properties 
-              if (copyProperties) properties.foreach {
-                case (key, value) => newProject.addProperty(key, value)
-              }
-
-              reader.readProject(newProject, newProjectFile)
-
-              projectPool.addProject(newProject)
-
+              val newProject = reader.readAndCreateProject(newProjectFile, properties, Some(projectPool), Some(log))
+              // TODO: decide, if this should be does by the project reader
+              projectPool.addProject(newProject.asInstanceOf[BuildFileProject])
               newProject
           }
       }
@@ -435,6 +435,37 @@ class BuildFileProject(_projectFile: File,
       plugin.init
       log.log(LogLevel.Debug, s"""Initialized plugin "${plugin.getClass()}": ${plugin.toString()}""")
       _pluginsToInitLater = _pluginsToInitLater.tail
+    }
+  }
+
+  // since 0.4.0.9002
+  lazy val typesToIncludedFilesMap: Map[String, File] = typesToIncludedFilesProperties match {
+    case Some(file) if file.exists() =>
+      val props = new Properties()
+      val inStream = new BufferedInputStream(new FileInputStream(file))
+      try {
+        import scala.collection.JavaConverters._
+        props.load(inStream)
+        props.entrySet().asScala.map(entry => (entry.getKey().asInstanceOf[String], new File(entry.getValue().asInstanceOf[String]))).toMap
+      } catch {
+        case e: Exception => Map()
+      } finally {
+        inStream.close()
+      }
+
+    case None => Map()
+  }
+
+  // since 0.4.0.9002
+  def includeDirOf[T: ClassTag]: File = {
+    val classTag = scala.reflect.classTag[T]
+    val className = classTag.runtimeClass.getName()
+    typesToIncludedFilesMap.get(className) match {
+      case Some(file) if file.getParentFile() != null => file.getParentFile()
+      case _ =>
+        val ex = new ProjectConfigurationException(s"""Could not determine the location if the included file which contains class "${className}".""")
+        ex.buildScript = Some(projectFile)
+        throw ex
     }
   }
 

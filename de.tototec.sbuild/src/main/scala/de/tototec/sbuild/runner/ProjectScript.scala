@@ -105,6 +105,7 @@ class ProjectScript(_scriptFile: File,
                     sbuildClasspath: Array[String],
                     compileClasspath: Array[String],
                     additionalProjectClasspath: Array[String],
+                    compilerPluginJars: Array[String],
                     noFsc: Boolean,
                     log: SBuildLogger) {
 
@@ -117,6 +118,7 @@ class ProjectScript(_scriptFile: File,
       classpathConfig.sbuildClasspath,
       classpathConfig.compileClasspath,
       classpathConfig.projectClasspath,
+      classpathConfig.compilerPluginJars,
       classpathConfig.noFsc,
       log)
   }
@@ -140,6 +142,8 @@ class ProjectScript(_scriptFile: File,
   def targetClassFile(targetClassName: String): File = new File(targetDir, targetClassName + ".class")
   // lazy val targetClassFile = new File(targetDir, scriptBaseName + ".class")
   lazy val infoFile = new File(targetDir, InfoFileName)
+
+  val typesToIncludedFilesPropertiesFile: File = new File(targetDir, "analyzedtypes.properties")
 
   def checkFile = if (!scriptFile.exists) {
     throw new RuntimeException(s"Could not find build file: ${scriptFile.getName}\n" +
@@ -412,7 +416,17 @@ class ProjectScript(_scriptFile: File,
   }
 
   def compile(classpath: String, includes: Map[String, Seq[File]]) {
-    val params = Array("-classpath", classpath, "-deprecation", "-g:vars", "-d", targetDir.getPath, scriptFile.getPath) ++
+    val compilerPluginSettings = compilerPluginJars match {
+      case Array() => Array[String]()
+      case jars => jars.map { jar: String => "-Xplugin:" + jar }
+    }
+    val params = compilerPluginSettings ++ Array(
+      "-P:analyzetypes:outfile=" + typesToIncludedFilesPropertiesFile.getPath(),
+      "-classpath", classpath,
+      "-deprecation",
+      "-g:vars",
+      "-d", targetDir.getPath,
+      scriptFile.getPath) ++
       (includes.flatMap { case (name, files) => files }.map { _.getPath })
 
     lazy val lazyCompilerClassloader = {

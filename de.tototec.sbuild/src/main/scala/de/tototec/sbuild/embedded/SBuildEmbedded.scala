@@ -41,23 +41,15 @@ class SBuildEmbedded(sbuildHomeDir: File) {
 
   def loadProject(projectFile: File, props: Properties): Project = {
 
-    debug("About to read project: " + projectFile)
-
-    implicit val sbuildProject = new BuildFileProject(projectFile, projectReader)
-    props.asScala foreach {
-      case (key, value) => sbuildProject.addProperty(key, value)
-    }
-
-    debug("About to read SBuild project: " + projectFile);
     try {
-      projectReader.readProject(sbuildProject, projectFile)
+      debug("About to read SBuild project: " + projectFile)
+      projectReader.readAndCreateProject(projectFile, props.asScala.toMap, None, None)
     } catch {
       case e: Throwable =>
         error("Could not read Project file. Cause: " + e.getMessage)
         throw e
     }
 
-    sbuildProject
   }
 
   /**
@@ -65,8 +57,8 @@ class SBuildEmbedded(sbuildHomeDir: File) {
    */
   def lastModified(projectFile: File): Long = {
     0L
-  } 
-  
+  }
+
   def loadResolver(projectFile: File, props: Properties): EmbeddedResolver =
     new ProjectEmbeddedResolver(loadProject(projectFile, props))
 

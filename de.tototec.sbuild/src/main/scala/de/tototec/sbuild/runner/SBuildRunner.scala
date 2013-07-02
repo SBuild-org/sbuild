@@ -1,23 +1,44 @@
 package de.tototec.sbuild.runner
 
-import java.io.BufferedOutputStream
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
-import java.util.Date
+
 import scala.collection.JavaConverters._
-import de.tototec.cmdoption.CmdlineParser
-import de.tototec.cmdoption.CmdOption
-import de.tototec.sbuild._
-import org.fusesource.jansi.AnsiConsole
-import org.fusesource.jansi.Ansi
-import java.io.FileWriter
-import scala.io.Source
-import scala.util.Try
-import java.security.MessageDigest
 import scala.concurrent.Lock
+
+import org.fusesource.jansi.Ansi
+import org.fusesource.jansi.Ansi.Color.CYAN
+import org.fusesource.jansi.Ansi.Color.GREEN
+import org.fusesource.jansi.Ansi.Color.RED
+import org.fusesource.jansi.Ansi.ansi
+import org.fusesource.jansi.AnsiConsole
+
+import de.tototec.cmdoption.CmdOption
+import de.tototec.cmdoption.CmdlineParser
+import de.tototec.sbuild.BuildFileProject
+import de.tototec.sbuild.BuildScriptAware
+import de.tototec.sbuild.ExecutionFailedException
+import de.tototec.sbuild.InvalidApiUsageException
+import de.tototec.sbuild.LogLevel
+import de.tototec.sbuild.Project
+import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.ProjectReader
+import de.tototec.sbuild.SBuildConsoleLogger
+import de.tototec.sbuild.SBuildException
+import de.tototec.sbuild.SBuildLogger
+import de.tototec.sbuild.SBuildVersion
+import de.tototec.sbuild.Target
+import de.tototec.sbuild.TargetAware
+import de.tototec.sbuild.TargetContext
+import de.tototec.sbuild.TargetContextImpl
+import de.tototec.sbuild.TargetNotFoundException
+import de.tototec.sbuild.TargetRef
+import de.tototec.sbuild.TargetRef.fromString
+import de.tototec.sbuild.UnsupportedSchemeException
+import de.tototec.sbuild.Util
+import de.tototec.sbuild.WithinTargetExecution
 
 object SBuildRunner extends SBuildRunner {
 
@@ -284,13 +305,7 @@ class SBuildRunner {
     }
 
     val projectReader: ProjectReader = new SimpleProjectReader(classpathConfig, log, clean = config.clean)
-
-    val project = new BuildFileProject(projectFile, projectReader, None, log)
-    config.defines.asScala foreach {
-      case (key, value) => project.addProperty(key, value)
-    }
-
-    projectReader.readProject(project, projectFile)
+    val project = projectReader.readAndCreateProject(projectFile, config.defines.asScala.toMap, None, Some(log)).asInstanceOf[BuildFileProject]
 
     val additionalProjects = config.additionalBuildfiles.map { buildfile =>
       project.findModule(buildfile) match {
