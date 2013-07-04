@@ -166,16 +166,16 @@ class ProjectScript(_scriptFile: File,
     val includes: Map[String, Seq[File]] = readIncludeFiles(project)
 
     val buildClassName = checkInfoFileUpToDate(includes) match {
-      case LastRunInfo(true, className) => className
-      case _ =>
+      case LastRunInfo(true, className, _) => className
+      case LastRunInfo(_, _, reason) =>
         // println("Compiling build script " + scriptFile + "...")
-        newCompile(sbuildClasspath ++ addCp, includes)
+        newCompile(sbuildClasspath ++ addCp, includes, reason)
     }
 
     useExistingCompiled(project, addCp, buildClassName)
   }
 
-  case class LastRunInfo(upToDate: Boolean, targetClassName: String)
+  case class LastRunInfo(upToDate: Boolean, targetClassName: String, issues: Option[String] = None)
 
   def checkInfoFileUpToDate(includes: Map[String, Seq[File]]): LastRunInfo = {
     if (!infoFile.exists()) LastRunInfo(false, defaultTargetClassName)
@@ -192,7 +192,15 @@ class ProjectScript(_scriptFile: File,
       val sbuildVersion = (info \ "sbuildVersion").text
       val sbuildOsgiVersion = (info \ "sbuildOsgiVersion").text
 
-      def includesMatch: Boolean = try {
+      val sbuildVersionMatch = sbuildVersion == SBuildVersion.version && sbuildOsgiVersion == SBuildVersion.osgiVersion
+
+      val classFile = targetClassFile(targetClassName)
+      val scriptFileUpToDate = scriptFile.length == sourceSize &&
+        scriptFile.lastModified == sourceLastModified &&
+        classFile.lastModified == targetClassLastModified &&
+        classFile.lastModified >= scriptFile.lastModified
+
+      lazy val includesMatch: Boolean = try {
         val lastIncludes = (info \ "includes" \ "include").map { lastInclude =>
           ((lastInclude \ "path").text, (lastInclude \ "lastModified").text.toLong)
         }.toMap
@@ -212,17 +220,16 @@ class ProjectScript(_scriptFile: File,
           false
       }
 
-      val classFile = targetClassFile(targetClassName)
-
       LastRunInfo(
-        upToDate = scriptFile.length == sourceSize &&
-          scriptFile.lastModified == sourceLastModified &&
-          classFile.lastModified == targetClassLastModified &&
-          classFile.lastModified >= scriptFile.lastModified &&
-          sbuildVersion == SBuildVersion.version &&
-          sbuildOsgiVersion == SBuildVersion.osgiVersion &&
-          includesMatch,
-        targetClassName = targetClassName)
+        upToDate = sbuildVersionMatch && scriptFileUpToDate && includesMatch,
+        targetClassName = targetClassName,
+        issues = (sbuildVersionMatch, scriptFileUpToDate, includesMatch) match {
+          case (false, _, _) => Some(s"SBuild version changed (${sbuildVersion} -> ${SBuildVersion.version})")
+          case (_, false, _) => None
+          case (_, _, false) => Some("Includes changed")
+          case _ => None
+        }
+      )
     }
   }
 
@@ -373,10 +380,17 @@ class ProjectScript(_scriptFile: File,
     Util.delete(targetDir)
   }
 
-  def newCompile(classpath: Array[String], includes: Map[String, Seq[File]]): String = {
+  def newCompile(classpath: Array[String], includes: Map[String, Seq[File]], printReason: Option[String] = None): String = {
     cleanScala()
     targetDir.mkdirs
-    log.log(LogLevel.Info, "Compiling build script: " + scriptFile + (if (includes.isEmpty) "" else " and " + includes.size + " included files") + "...")
+    log.log(LogLevel.Info,
+      (printReason match {
+        case None => ""
+        case Some(r) => r + ": "
+      }) + "Compiling build script: " + scriptFile +
+        (if (includes.isEmpty) "" else " and " + includes.size + " included files") +
+        "..."
+    )
 
     compile(classpath.mkString(File.pathSeparator), includes)
 

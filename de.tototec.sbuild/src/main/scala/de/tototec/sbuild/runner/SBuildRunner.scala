@@ -409,7 +409,7 @@ class SBuildRunner {
     // The execution plan (chain) will be evaluated on first need
     lazy val chain: Seq[ExecutedTarget] = {
       if (!targets.isEmpty && !config.noProgress) {
-        log.log(LogLevel.Info, "Calculating dependency tree...")
+        log.log(LogLevel.Debug, "Calculating dependency tree...")
       }
       val chain = preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter, dependencyCache = dependencyCache)(project)
       log.log(LogLevel.Debug, "Target Dependency Cache: " + dependencyCache.cached.map {

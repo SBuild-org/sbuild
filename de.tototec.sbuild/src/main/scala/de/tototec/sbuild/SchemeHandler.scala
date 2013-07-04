@@ -17,6 +17,7 @@ object SchemeHandler {
   def apply(scheme: String, handler: SchemeHandler)(implicit project: Project) =
     project.registerSchemeHandler(scheme, handler)
 
+  // since 0.4.0.9001
   def replace(scheme: String, handler: SchemeHandler)(implicit project: Project) =
     project.replaceSchemeHandler(scheme, handler)
 }
