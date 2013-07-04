@@ -44,7 +44,7 @@ class SBuild(implicit _project: Project) {
     "doc"
   )
 
-  val javaOptions = "-XX:MaxPermSize=196m"
+  val javaOptions = "-XX:MaxPermSize=256m"
 
   Target("phony:clean").evictCache dependsOn modules.map(m => m("clean")) exec {
     AntDelete(dir = Path("target"))
