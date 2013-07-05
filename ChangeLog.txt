@@ -23,6 +23,9 @@ SBuild trunk
   new project de.tototec.sbuild.experimental.
 * Added mechanism to locate files relative to included scala files, via
   Path[Config]("path/relative/to/Config.scala").
+* Removed deprecated code: IfNotUpToDate, PersistentUpToDateChecker. Their
+  functionality is now provided via phony cacheable targets
+  (Target.cacheable, Target.evictCache).
 
 SBuild 0.4.0 - 2013-03-09
 
