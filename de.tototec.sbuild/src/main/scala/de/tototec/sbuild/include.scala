@@ -23,9 +23,9 @@ import scala.annotation.Annotation
  * }}}
  *
  * Classes and objects from included files may refer to their current directory, e.g. to access file system resources.
- * This can be easily accomplished by using [[de.tototec.sbuild.Path$.apply]].
+ * This can be easily accomplished by using [[de.tototec.sbuild.Path$.apply[T]*]].
  *
- * Example of an included file, utilizing [[de.tototec.sbuild.Path$.apply]]:
+ * Example of an included file, utilizing [[de.tototec.sbuild.Path$.apply[T]*]]:
  * {{{
  * // ... in an included file
  *
