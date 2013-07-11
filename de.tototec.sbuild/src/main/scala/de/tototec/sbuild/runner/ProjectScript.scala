@@ -29,6 +29,8 @@ import de.tototec.sbuild.BuildFileProject
 import scala.util.Try
 import java.text.ParseException
 import scala.annotation.tailrec
+import de.tototec.sbuild.ExportDependencies
+import de.tototec.sbuild.TargetRefs
 
 object ProjectScript {
 
@@ -165,11 +167,19 @@ class ProjectScript(_scriptFile: File,
 
     val includes: Map[String, Seq[File]] = readIncludeFiles(project)
 
+    // TODO: also check additional classpath entries 
     val buildClassName = checkInfoFileUpToDate(includes) match {
       case LastRunInfo(true, className, _) => className
       case LastRunInfo(_, _, reason) =>
         // println("Compiling build script " + scriptFile + "...")
         newCompile(sbuildClasspath ++ addCp, includes, reason)
+    }
+
+    // Experimental: Attach included files 
+    {
+      implicit val _p = project
+      val includedFiles = includes.flatMap { case (k, v) => v }.map(TargetRef(_)).toSeq
+      ExportDependencies("sbuild.project.includes", TargetRefs.fromSeq(includedFiles))
     }
 
     useExistingCompiled(project, addCp, buildClassName)
