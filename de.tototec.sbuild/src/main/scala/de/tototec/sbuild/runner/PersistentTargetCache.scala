@@ -11,6 +11,7 @@ import de.tototec.sbuild.Project
 import de.tototec.sbuild.Path
 import de.tototec.sbuild.Util
 import java.security.MessageDigest
+import java.io.BufferedWriter
 
 class PersistentTargetCache {
 
@@ -27,17 +28,11 @@ class PersistentTargetCache {
     new File(cacheStateDir(project), md5)
   }
 
-  def loadOrDropCachedState(ctx: TargetContext): Option[CachedState] = this.synchronized {
-    // TODO: check same prerequisites, 
-    // check same fileDependencies, 
-    // check same lastModified of fileDependencies, 
-    // check same lastModified
-    // TODO: if all is same, return cached values
+  def loadOrDropCachedState(ctx: TargetContext): Option[CachedState] = synchronized {
+    // TODO check same lastModified of fileDependencies, 
 
     ctx.project.log.log(LogLevel.Debug, "Checking execution state of target: " + ctx.name)
 
-    //    val stateDir = Path(".sbuild/scala/" + ctx.target.project.projectFile.getName + "/cache")(ctx.project)
-    //    val stateFile = new File(stateDir, ctx.name.replaceFirst("^phony:", ""))
     val stateFile = cacheStateFile(ctx.project, ctx.name)
     if (!stateFile.exists) {
       ctx.project.log.log(LogLevel.Debug, s"""No execution state file for target "${ctx.name}" exists.""")
@@ -121,57 +116,53 @@ class PersistentTargetCache {
     Some(CachedState(targetLastModified = cachedTargetLastModified.get, attachedFiles = cachedAttachedFiles))
   }
 
-  def writeCachedState(ctx: TargetContextImpl): Unit = this.synchronized {
-    // TODO: robustness
-    //    val stateDir = Path(".sbuild/scala/" + ctx.target.project.projectFile.getName + "/cache")(ctx.project)
-    //    stateDir.mkdirs
-    //    val stateFile = new File(stateDir, ctx.name.replaceFirst("^phony:", ""))
-
-    val stateFile = cacheStateFile(ctx.project, ctx.name)
+  def writeCachedState(ctx: TargetContextImpl): Unit = synchronized {
+    val cacheName = ctx.name
+    val stateFile = cacheStateFile(ctx.project, cacheName)
     stateFile.getParentFile() match {
       case pf: File => pf.mkdirs()
-      case _ => // strage
+      case _ => // nothing to create
     }
 
-    val writer = new FileWriter(stateFile)
+    val writer = new BufferedWriter(new FileWriter(stateFile))
+    try {
+      writer.write("[prerequisitesLastModified]\n")
+      writer.write(ctx.prerequisitesLastModified + "\n")
 
-    writer.write("[prerequisitesLastModified]\n")
-    writer.write(ctx.prerequisitesLastModified + "\n")
+      writer.write("[prerequisites]\n")
+      ctx.prerequisites.foreach { dep => writer.write(dep.ref + "\n") }
 
-    writer.write("[prerequisites]\n")
-    ctx.prerequisites.foreach { dep => writer.write(dep.ref + "\n") }
+      writer.write("[fileDependencies]\n")
+      ctx.fileDependencies.foreach { dep => writer.write(dep.getPath + "\n") }
 
-    writer.write("[fileDependencies]\n")
-    ctx.fileDependencies.foreach { dep => writer.write(dep.getPath + "\n") }
+      writer.write("[targetLastModified]\n")
+      val targetLM = ctx.targetLastModified match {
+        case Some(lm) => lm
+        case _ =>
+          ctx.endTime match {
+            case Some(x) => x.getTime
+            case None => System.currentTimeMillis
+          }
+      }
+      writer.write(targetLM + "\n")
 
-    writer.write("[targetLastModified]\n")
-    val targetLM = ctx.targetLastModified match {
-      case Some(lm) => lm
-      case _ =>
-        ctx.endTime match {
-          case Some(x) => x.getTime
-          case None => System.currentTimeMillis
-        }
+      writer.write("[attachedFiles]\n")
+      ctx.attachedFiles.foreach { file => writer.write(file.getPath + "\n") }
+
+    } finally {
+      writer.close
     }
-    writer.write(targetLM + "\n")
-
-    writer.write("[attachedFiles]\n")
-    ctx.attachedFiles.foreach { file => writer.write(file.getPath + "\n") }
-
-    writer.close
-    ctx.project.log.log(LogLevel.Debug, s"""Wrote execution cache state file for target "${ctx.name}" to ${stateFile}.""")
+    ctx.project.log.log(LogLevel.Debug, s"""Wrote execution cache state file for target "${cacheName}" to ${stateFile}.""")
 
   }
 
-  def dropCacheState(project: Project, cacheName: String): Unit = this.synchronized {
+  def dropCacheState(project: Project, cacheName: String): Unit = synchronized {
     cacheName match {
       case "*" => dropAllCacheState(project)
-      case cache =>
-        val stateDir = Path(".sbuild/scala/" + project.projectFile.getName + "/cache")(project)
-        Util.delete(stateDir)
+      case cache => Util.delete(cacheStateFile(project, cacheName))
     }
   }
 
-  def dropAllCacheState(project: Project): Unit = this.synchronized { Util.delete(cacheStateDir(project)) }
+  def dropAllCacheState(project: Project): Unit = synchronized { Util.delete(cacheStateDir(project)) }
 
 }
