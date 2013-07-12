@@ -60,18 +60,12 @@ trait Target {
   private[sbuild] def isImplicit: Boolean
 
   def isCacheable: Boolean
-  /**
-   * EXPERIMENTAL! Do not use in your Build scripts!
-   */
   def cacheable: Target
   def setCacheable(cacheable: Boolean): Target
 
-  // deprecated
-  // def isEvictCache: Boolean
   def evictsCache: Option[String]
   def evictCache: Target
   def evictCache(cacheName: String): Target
-  // def setEvictCache(evictCache: Boolean): Target
 
   private[sbuild] def isTransparentExec: Boolean
 
@@ -176,16 +170,19 @@ case class ProjectTarget private[sbuild] (override val name: String,
   }
 
   private[this] var _evictCache: Option[String] = None
-  //  def isEvictCache: Boolean = _evictCache.isDefined
+  
   override def evictsCache: Option[String] = _evictCache
+
   override def evictCache: Target = {
     _evictCache = Some("")
     this
   }
+  
   override def evictCache(cacheName: String): Target = {
     _evictCache = Some(cacheName)
     this
   }
+  
   def setEvictCache(evictCache: Boolean): Target = {
     _evictCache = evictCache match {
       case true => Some("")

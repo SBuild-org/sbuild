@@ -116,9 +116,9 @@ object ForkSupport {
   }
 
   /**
-   * Converts a Seq of files into a string containing the absolute file pathes concatenated with the platform specific path separator (":" on Unix, ";" on Windows).
+   * Converts a Seq of files into a string containing the absolute file paths concatenated with the platform specific path separator (":" on Unix, ";" on Windows).
    */
-  def pathAsArg(pathes: Seq[File]): String = pathes.map(p => p.getAbsolutePath).mkString(File.pathSeparator)
+  def pathAsArg(paths: Seq[File]): String = paths.map(p => p.getAbsolutePath).mkString(File.pathSeparator)
 
   /**
    * Concatetes the input string into a single white space separated string. Any whitespace in the input strings will be masked with a backslash ("\").

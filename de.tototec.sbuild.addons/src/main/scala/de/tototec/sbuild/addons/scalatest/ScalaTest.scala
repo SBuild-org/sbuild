@@ -119,8 +119,8 @@ class ScalaTest(
     def whiteSpaceSeparated(seq: Seq[String]): String = seq.map(_.replaceAll(" ", "\\ ")).mkString(" ")
 
     // As the runPath is seq of string, and we execute ScalaTest in the current VM, it is not
-    // guaranteed that we run in the project directory, so relative runPathes must be converted
-    // to absolute pathes
+    // guaranteed that we run in the project directory, so relative runPaths must be converted
+    // to absolute paths
     lazy val absoluteRunPath = runPath.map { path =>
       path match {
         case x if x.startsWith("http:") => x
