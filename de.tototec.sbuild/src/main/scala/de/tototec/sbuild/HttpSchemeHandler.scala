@@ -5,7 +5,7 @@ import java.net.URL
 import java.io.FileNotFoundException
 
 /**
- * An HTTP-Scheme handler, that will download the given URI into a directory preserving the URi as path.
+ * An HTTP-Scheme handler, that will download the given URI into a directory preserving the URI as path.
  * Example:
  * The HttpSchemeHandler is configured to use '.sbuild/http' as download directory
  * The file 'http://example.com/downloads/example.jar' will be downloaded into
