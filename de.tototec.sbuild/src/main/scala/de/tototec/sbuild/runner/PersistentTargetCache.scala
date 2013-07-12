@@ -158,7 +158,7 @@ class PersistentTargetCache {
 
   def dropCacheState(project: Project, cacheName: String): Unit = synchronized {
     cacheName match {
-      case "*" => dropAllCacheState(project)
+      case "*" | "" => dropAllCacheState(project)
       case cache => Util.delete(cacheStateFile(project, cacheName))
     }
   }
