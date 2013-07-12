@@ -73,7 +73,7 @@ class SBuild(implicit _project: Project) {
   }
 
   Target("phony:copyJars").cacheable dependsOn cmdOption ~ SBuildConfig.compilerPath ~
-      binJar ~ antJar ~ addonsJar ~ pluginsJar ~ compilerPluginJar ~ jansi exec { ctx: TargetContext =>
+      binJar ~ antJar ~ addonsJar ~ compilerPluginJar ~ jansi exec { ctx: TargetContext =>
     ctx.fileDependencies foreach { file =>
       val targetFile = Path(distDir, "lib", file.getName)
       AntCopy(file = file, toFile = targetFile)
@@ -85,7 +85,7 @@ class SBuild(implicit _project: Project) {
     val properties = s"""|# Classpath configuration for SBuild ${sbuildVersion}
       |sbuildClasspath = de.tototec.sbuild-${sbuildVersion}.jar
       |compileClasspath = scala-compiler-${scalaVersion}.jar:scala-reflect-${scalaVersion}.jar
-      |projectClasspath = scala-library-${scalaVersion}.jar:de.tototec.sbuild.ant-${sbuildVersion}.jar:de.tototec.sbuild.addons-${sbuildVersion}.jar:de.tototec.sbuild.plugins-${sbuildVersion}.jar
+      |projectClasspath = scala-library-${scalaVersion}.jar:de.tototec.sbuild.ant-${sbuildVersion}.jar:de.tototec.sbuild.addons-${sbuildVersion}.jar
       |embeddedClasspath = de.tototec.sbuild-${sbuildVersion}.jar:${cmdOption.files.head.getName}:${jansi.files.head.getName}
       |compilerPluginJar = de.tototec.sbuild.compilerplugin-${sbuildVersion}.jar
       |"""
