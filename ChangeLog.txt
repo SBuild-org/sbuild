@@ -1,4 +1,4 @@
-SBuild trunk
+SBuild 0.5.0 - 2013-07-12:
 
 * Updated dependencies: Scala 2.10.2, Jansi 1.10.
 * Added support to reference scheme handlers of other projects/modules.
@@ -26,6 +26,7 @@ SBuild trunk
 * Removed deprecated code: IfNotUpToDate, PersistentUpToDateChecker. Their
   functionality is now provided via phony cacheable targets
   (Target.cacheable, Target.evictCache).
+* Deprecated Pathes and added Paths object.
 
 SBuild 0.4.0 - 2013-03-09
 
