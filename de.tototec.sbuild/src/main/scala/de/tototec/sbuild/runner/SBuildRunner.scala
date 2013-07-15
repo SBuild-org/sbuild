@@ -558,7 +558,7 @@ class SBuildRunner {
 
   class ExecProgress(val maxCount: Int, private[this] var _currentNr: Int = 1) {
     def currentNr = _currentNr
-    def addToCurrentNr(addToCurrentNr: Int): Unit = this.synchronized { _currentNr += addToCurrentNr }
+    def addToCurrentNr(addToCurrentNr: Int): Unit = synchronized { _currentNr += addToCurrentNr }
   }
 
   def formatProject(project: Project)(implicit baseProject: Project) =
