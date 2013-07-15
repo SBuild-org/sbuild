@@ -96,16 +96,6 @@ class TargetContextImpl(
    */
   override def prerequisites: Seq[TargetRef] = target.dependants
 
-  //  override def fileDependencies: Seq[File] = target.dependants map { t =>
-  //    target.project.findTarget(t, true) match {
-  //      case None => throw new ProjectConfigurationException("Missing dependency: " + t.name)
-  //      case Some(found) => found.targetFile match {
-  //        case None => null
-  //        case Some(f) => f
-  //      }
-  //    }
-  //  } filter { f => f != null }
-  //  
   override def fileDependencies: Seq[File] = directDepsTargetContexts.flatMap(_.targetFiles)
 
   private var _targetLastModified: Option[Long] = None
