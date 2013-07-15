@@ -44,8 +44,6 @@ package de.tototec
  *  - `[[ZipSchemeHandler]]`
  *  - `[[ScanSchemeHandler]]`
  * 
- * @version 0.4.0
- * 
  */
 package object sbuild {
 

@@ -95,7 +95,6 @@ package de.tototec.sbuild
  *
  * Whenever you need to configure the tasks in a more complex way, you can simply re-add the "new" and invoke the `execute` method after you are done with configuring the tasks.
  *
- * @version 0.4.0
  */
 package object ant {
 
