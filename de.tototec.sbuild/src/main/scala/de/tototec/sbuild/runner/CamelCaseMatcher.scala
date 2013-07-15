@@ -4,10 +4,8 @@ import java.util.regex.Pattern
 
 object CamelCaseMatcher {
 
-  def matchCamelCase(fullName: String, shortName: String): Boolean = {
-    // TODO: cache pattern
+  def matchCamelCase(fullName: String, shortName: String): Boolean =
     buildPattern(shortName).matcher(fullName).matches()
-  }
 
   def buildPattern(shortName: String): Pattern = {
     val patternString =
