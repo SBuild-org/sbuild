@@ -109,7 +109,7 @@ class BuildFileProject(_projectFile: File,
       p.projectFile == newProjectFile
     }
 
-    this.synchronized {
+    synchronized {
       val module = projectAlreadyIncluded match {
         case Some(existing) => existing
         case _ =>
@@ -120,10 +120,7 @@ class BuildFileProject(_projectFile: File,
               throw ex
 
             case Some(reader) =>
-              val newProject = reader.readAndCreateProject(newProjectFile, properties, Some(projectPool), Some(log))
-              // TODO: decide, if this should be does by the project reader
-              projectPool.addProject(newProject.asInstanceOf[BuildFileProject])
-              newProject
+              reader.readAndCreateProject(newProjectFile, properties, Some(projectPool), Some(log))
           }
       }
 
@@ -150,7 +147,7 @@ class BuildFileProject(_projectFile: File,
       case None => createTarget(targetRef, isImplicit = isImplicit)
     }
 
-  override def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target = this.synchronized {
+  override def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target = synchronized {
     explicitForeignProject(targetRef) match {
       case Some(pFile) if targetRef.explicitNonStandardProto.isDefined =>
         // This must be a scheme handler, and as we have both scheme and project defined, we WANT the target

@@ -30,7 +30,7 @@ class SimpleProjectReader(
     //  Compile Script and load compiled class
     try {
       script.compileAndExecute(project)
-      // projectPool.map { pool => pool.addProject(project.asInstanceOf[BuildFileProject]) }
+      projectPool.map { pool => pool.addProject(project) }
       project
     } catch {
       case e: InvocationTargetException =>
