@@ -66,7 +66,7 @@ class SBuildRunner {
 
   private[runner] var verbose = false
 
-  private var log: SBuildLogger = new SBuildConsoleLogger(LogLevel.info)
+  private[this] var log: SBuildLogger = new SBuildConsoleLogger(LogLevel.info)
 
   private val persistentTargetCache = new PersistentTargetCache()
 

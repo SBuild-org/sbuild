@@ -125,37 +125,39 @@ class ProjectScript(_scriptFile: File,
       log)
   }
 
-  val scriptFile: File = Path.normalize(_scriptFile)
+  private[this] val scriptFile: File = Path.normalize(_scriptFile)
   require(scriptFile.isFile, "scriptFile must be a file")
-  val projectDir: File = scriptFile.getParentFile
+  private[this] val projectDir: File = scriptFile.getParentFile
 
-  val buildTargetDir = ".sbuild";
-  val buildFileTargetDir = ".sbuild/scala/" + scriptFile.getName;
+  private[this] val buildTargetDir = ".sbuild";
+  private[this] val buildFileTargetDir = ".sbuild/scala/" + scriptFile.getName;
 
-  val scriptBaseName = scriptFile.getName.endsWith(".scala") match {
+  private[this] val scriptBaseName = scriptFile.getName.endsWith(".scala") match {
     case true => scriptFile.getName.substring(0, scriptFile.getName.length - 6)
     case false =>
       log.log(LogLevel.Debug, "Scriptfile name does not end in '.scala'")
       scriptFile.getName
   }
-  lazy val targetBaseDir: File = new File(scriptFile.getParentFile, buildTargetDir)
-  lazy val targetDir: File = new File(scriptFile.getParentFile, buildFileTargetDir)
-  val defaultTargetClassName = scriptBaseName
-  def targetClassFile(targetClassName: String): File = new File(targetDir, targetClassName + ".class")
+  private[this] lazy val targetBaseDir: File = new File(scriptFile.getParentFile, buildTargetDir)
+  private[this] lazy val targetDir: File = new File(scriptFile.getParentFile, buildFileTargetDir)
+  private[this] val defaultTargetClassName = scriptBaseName
+  private[this] def targetClassFile(targetClassName: String): File = new File(targetDir, targetClassName + ".class")
   // lazy val targetClassFile = new File(targetDir, scriptBaseName + ".class")
-  lazy val infoFile = new File(targetDir, InfoFileName)
+  private[this] lazy val infoFile = new File(targetDir, InfoFileName)
 
+  /** File that contains the map from Scala type to the containing source file. */
   val typesToIncludedFilesPropertiesFile: File = new File(targetDir, "analyzedtypes.properties")
 
-  def checkFile = if (!scriptFile.exists) {
+  private[this] def checkFile = if (!scriptFile.exists) {
     throw new RuntimeException(s"Could not find build file: ${scriptFile.getName}\n" +
       s"Searched in: ${scriptFile.getAbsoluteFile.getParent}")
   }
 
+  /**
+   * Compile this project script (if necessary) and apply it to the given Project.
+   */
   def compileAndExecute(project: Project): Any = {
     checkFile
-
-    val infoFile = new File(targetDir, "sbuild.info.xml")
 
     val version = readAnnotationWithSingleAttribute("version", "value")
     val osgiVersion = OSGiVersion.parseVersion(version)
@@ -301,7 +303,7 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  def readAnnotationWithSingleAttribute(annoName: String, valueName: String): String = {
+  protected def readAnnotationWithSingleAttribute(annoName: String, valueName: String): String = {
     readAnnotationWithVarargAttribute(annoName, valueName, true) match {
       case Array() => ""
       case Array(value) => value
@@ -309,7 +311,7 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  def readIncludeFiles(project: Project): Map[String, Seq[File]] = {
+  protected def readIncludeFiles(project: Project): Map[String, Seq[File]] = {
     log.log(LogLevel.Debug, "About to find include files.")
     val cp = readAnnotationWithVarargAttribute(annoName = "include", valueName = "value")
     log.log(LogLevel.Debug, "Using include files: " + cp.mkString(", "))
@@ -318,10 +320,10 @@ class ProjectScript(_scriptFile: File,
     resolveViaProject(cp, project, "@include entry")
   }
 
-  def resolveViaProject(targets: Seq[String], project: Project, purposeOfEntry: String): Map[String, Seq[File]] =
+  protected def resolveViaProject(targets: Seq[String], project: Project, purposeOfEntry: String): Map[String, Seq[File]] =
     targets.map(t => (t -> resolveViaProject(t, project, purposeOfEntry))).toMap
 
-  def resolveViaProject(target: String, project: Project, purposeOfEntry: String): Seq[File] = {
+  protected def resolveViaProject(target: String, project: Project, purposeOfEntry: String): Seq[File] = {
 
     class RequirementsResolver extends BuildFileProject(
       _projectFile = project.projectFile,
@@ -364,14 +366,14 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  def readAdditionalClasspath(project: Project): Array[String] = {
+  protected def readAdditionalClasspath(project: Project): Array[String] = {
     log.log(LogLevel.Debug, "About to find additional classpath entries.")
     val cp = readAnnotationWithVarargAttribute(annoName = "classpath", valueName = "value")
     log.log(LogLevel.Debug, "Using additional classpath entries: " + cp.mkString(", "))
     resolveViaProject(cp, project, "@classpath entry").flatMap { case (key, value) => value }.map { _.getPath }.toArray
   }
 
-  def useExistingCompiled(project: Project, classpath: Array[String], className: String): Any = {
+  protected def useExistingCompiled(project: Project, classpath: Array[String], className: String): Any = {
     log.log(LogLevel.Debug, "Loading compiled version of build script: " + scriptFile)
     val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
     log.log(LogLevel.Debug, "CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
@@ -390,7 +392,7 @@ class ProjectScript(_scriptFile: File,
     Util.delete(targetDir)
   }
 
-  def newCompile(classpath: Array[String], includes: Map[String, Seq[File]], printReason: Option[String] = None): String = {
+  protected def newCompile(classpath: Array[String], includes: Map[String, Seq[File]], printReason: Option[String] = None): String = {
     cleanScala()
     targetDir.mkdirs
     log.log(LogLevel.Info,
@@ -439,7 +441,7 @@ class ProjectScript(_scriptFile: File,
     realTargetClassName
   }
 
-  def compile(classpath: String, includes: Map[String, Seq[File]]) {
+  protected def compile(classpath: String, includes: Map[String, Seq[File]]) {
     val compilerPluginSettings = compilerPluginJars match {
       case Array() => Array[String]()
       case jars => jars.map { jar: String => "-Xplugin:" + jar }
