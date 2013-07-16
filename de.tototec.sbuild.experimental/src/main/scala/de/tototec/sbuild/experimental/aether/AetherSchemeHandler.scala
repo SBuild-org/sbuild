@@ -95,6 +95,7 @@ class AetherSchemeHandler(
       val requestedDeps = path.split(",").map { p => MavenGav(p) }
 
       val files = worker.resolve(requestedDeps)
+      files.foreach { f => targetContext.attachFile(f) }
 
       //    println("Resolved files: " + files)
 

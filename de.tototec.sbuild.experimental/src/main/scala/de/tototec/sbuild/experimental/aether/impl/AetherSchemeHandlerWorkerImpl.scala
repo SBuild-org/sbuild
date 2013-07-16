@@ -75,7 +75,7 @@ class AetherSchemeHandlerWorkerImpl(localRepoDir: File, remoteRepos: Seq[AetherS
     val centralRepo = new RemoteRepository.Builder("central", "default", "http://repo1.maven.org/maven2").build()
 
     val collectRequest = new CollectRequest()
-    deps match {
+    deps.toList match {
       case Nil =>
       case root :: other =>
         collectRequest.setRoot(root)
