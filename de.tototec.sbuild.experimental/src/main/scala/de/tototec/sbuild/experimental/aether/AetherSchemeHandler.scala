@@ -75,21 +75,34 @@ class AetherSchemeHandler(
         cl
     }
 
-    val workerImplClass = aetherClassLoader.loadClass(thisClass.getPackage().getName() + "." + "impl.AetherSchemeHandlerWorkerImpl")
-    val workerImplClassCtr = workerImplClass.getConstructor(classOf[File], classOf[Seq[AetherSchemeHandler.Repository]])
-    val worker = workerImplClassCtr.newInstance(localRepoDir, remoteRepos).asInstanceOf[AetherSchemeHandlerWorker]
-    worker
+    try {
+      val workerImplClass = aetherClassLoader.loadClass(thisClass.getPackage().getName() + "." + "impl.AetherSchemeHandlerWorkerImpl")
+      val workerImplClassCtr = workerImplClass.getConstructor(classOf[File], classOf[Seq[AetherSchemeHandler.Repository]])
+      val worker = workerImplClassCtr.newInstance(localRepoDir, remoteRepos).asInstanceOf[AetherSchemeHandlerWorker]
+      worker
+    } catch {
+      case e: ClassNotFoundException =>
+        // TODO: Lift exception into domain
+        throw e
+    }
   }
 
   def localPath(path: String): String = s"phony:aether-dependencies-${Integer.toHexString(hashCode())}-${path}"
 
   def resolve(path: String, targetContext: TargetContext) {
+    try {
 
-    val requestedDeps = path.split(",").map { p => MavenGav(p) }
+      val requestedDeps = path.split(",").map { p => MavenGav(p) }
 
-    val files = worker.resolve(requestedDeps)
+      val files = worker.resolve(requestedDeps)
 
-    //    println("Resolved files: " + files)
+      //    println("Resolved files: " + files)
+
+    } catch {
+      case e: ClassNotFoundException =>
+        // TODO: Lift exception into domain
+        throw e
+    }
 
   }
 
