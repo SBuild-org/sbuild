@@ -37,7 +37,8 @@ import de.tototec.sbuild.ant.tasks._
   "mvn:org.codehaus.plexus:plexus-utils:2.1",
   "mvn:org.sonatype.sisu:sisu-guava:0.9.9",
   "mvn:org.sonatype.sisu:sisu-guice:3.1.0",
-  "mvn:org.slf4j:slf4j-api:1.6.2"
+  "mvn:org.slf4j:slf4j-api:1.7.5",
+  "mvn:org.slf4j:slf4j-simple:1.7.5"
 )
 class AetherTestFlat(implicit _project: Project) {
 
@@ -50,6 +51,10 @@ class AetherTestFlat(implicit _project: Project) {
 
   Target("phony:resolveViaAether") dependsOn testCp exec {
     println("Resolved classpath: " + testCp.files)
+  }
+
+  Target("phony:show") dependsOn Prop("deps", "") exec { ctx: TargetContext =>
+    println("Deps:\n - " + Prop("deps").files.mkString("\n - "))
   }
 
 }

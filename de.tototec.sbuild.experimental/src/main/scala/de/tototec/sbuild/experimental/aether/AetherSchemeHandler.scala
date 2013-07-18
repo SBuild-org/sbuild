@@ -19,6 +19,7 @@ object AetherSchemeHandler {
   def fullAetherCp(implicit project: Project): TargetRefs = {
     val aetherVersion = "0.9.0.M2"
     val wagonVersion = "2.4"
+    val slf4jVersion = "1.7.5"
 
     import TargetRefs._
 
@@ -52,7 +53,8 @@ object AetherSchemeHandler {
       "mvn:org.codehaus.plexus:plexus-utils:2.1" ~
       "mvn:org.sonatype.sisu:sisu-guava:0.9.9" ~
       "mvn:org.sonatype.sisu:sisu-guice:3.1.0" ~
-      "mvn:org.slf4j:slf4j-api:1.6.2"
+      "mvn:org.slf4j:slf4j-api:1.7.5" ~
+      "mvn:org.slf4j:slf4j-simple:1.7.5"
   }
 
 }
