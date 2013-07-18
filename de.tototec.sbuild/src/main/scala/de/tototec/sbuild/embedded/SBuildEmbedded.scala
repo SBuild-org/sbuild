@@ -99,7 +99,7 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
         val targetRef = TargetRef.fromString(dep)
         targetRef.explicitProto match {
           case None | Some("file") if targetRef.explicitProject == None && Path(targetRef.nameWithoutProto).exists =>
-            return Seq(Path(targetRef.nameWithoutProto))
+            Seq(Path(targetRef.nameWithoutProto))
           case _ =>
             throw new TargetNotFoundException(s"""Could not found target with name "${dep}" in project ${project.projectFile}.""")
         }
@@ -107,7 +107,7 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
       case Some(target) =>
 
         // TODO: progress
-        val executedTarget = SBuildRunner.preorderedDependenciesTree(curTarget = target)(project)
+        val executedTarget = SBuildRunner.preorderedDependenciesTree(curTarget = target)
         executedTarget.targetContext.targetFiles
     }
   }
