@@ -510,12 +510,16 @@ class SBuildRunner {
    * Determine the requested target for the given input string.
    */
   def determineRequestedTarget(target: String, searchInAllProjects: Boolean = false, supportCamelCaseShortCuts: Boolean = false)(implicit project: Project): Option[Target] =
-    project.findTarget(target, searchInAllProjects = searchInAllProjects) match {
+    determineRequestedTarget(TargetRef(target), searchInAllProjects, supportCamelCaseShortCuts)
+
+  def determineRequestedTarget(targetRef: TargetRef, searchInAllProjects: Boolean, supportCamelCaseShortCuts: Boolean)(implicit project: Project): Option[Target] =
+
+    project.findTarget(targetRef, searchInAllProjects = searchInAllProjects) match {
       case Some(target) => Some(target)
-      case None => TargetRef(target).explicitProto match {
+      case None => targetRef.explicitProto match {
         case None | Some("phony") | Some("file") if supportCamelCaseShortCuts =>
           // this currently works only for non-explicit projects
-          val matcher = new CamelCaseMatcher(target)
+          val matcher = new CamelCaseMatcher(targetRef.name)
           val matches = project.targets.filter {
             case (f, t) =>
               val tref = TargetRef(t.name)(t.project)
@@ -528,7 +532,7 @@ class SBuildRunner {
           matches match {
             case Seq() => None
             case Seq((file, foundTarget)) =>
-              log.log(LogLevel.Debug, s"""Resolved shortcut camel case request "${target}" to target "${formatTarget(foundTarget)}".""")
+              log.log(LogLevel.Debug, s"""Resolved shortcut camel case request "${targetRef}" to target "${formatTarget(foundTarget)}".""")
               Some(foundTarget)
             case _ =>
               // ambiguous match, found more that one
@@ -538,7 +542,7 @@ class SBuildRunner {
         case None | Some("phony") | Some("file") => None
         case _ =>
           // A scheme handler might be able to resolve this thing
-          Some(project.createTarget(TargetRef(target)))
+          Some(project.createTarget(targetRef, isImplicit = true))
       }
     }
 
@@ -1015,3 +1019,4 @@ class SBuildRunner {
     else ansi.fgBright(RED).bold.a(text).reset
 
 }
+
