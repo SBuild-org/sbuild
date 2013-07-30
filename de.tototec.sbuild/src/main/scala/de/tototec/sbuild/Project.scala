@@ -5,6 +5,7 @@ import scala.reflect.ClassTag
 import java.util.Properties
 import java.io.BufferedInputStream
 import java.io.FileInputStream
+import de.tototec.sbuild.SchemeHandler.SchemeContext
 
 trait ProjectBase {
   def projectDirectory: File
@@ -172,7 +173,25 @@ class BuildFileProject(_projectFile: File,
           case None => "file"
         }
 
-        val target = new ProjectTarget(targetRef.name, file, phony, handler, this)
+        lazy val targetSchemeContext = SchemeContext(proto, targetRef.nameWithoutProto)
+
+        val target = new ProjectTarget(targetRef.name, file, phony, this,
+          initialPrereqs = handler match {
+            case Some(handler: SchemeResolverWithDependencies) => handler.dependsOn(targetSchemeContext).targetRefs
+            case _ => Seq[TargetRef]()
+          },
+          initialExec = handler match {
+            case Some(handler: SchemeResolver) => { ctx: TargetContext => handler.resolve(targetSchemeContext, ctx) }
+            case _ => null
+          },
+          initialTransparentExec = handler match {
+            case Some(_: TransparentSchemeResolver) => true
+            case _ => false
+          },
+          initialSideEffectFree = handler match {
+            case Some(_: SideeffectFreeSchemeResolver) => true
+            case _ => false
+          })
         target.isImplicit = isImplicit
         targets += (file -> target)
         target
@@ -287,42 +306,64 @@ class BuildFileProject(_projectFile: File,
       case Some(proto) => schemeHandlers.get(proto) match {
         // here, we definitely have an project local target ref
         case Some(resolver: SchemeResolver) =>
-          val handlerOutput = resolver.localPath(targetRef.nameWithoutProto)
+          val schemeContext = SchemeContext(proto, targetRef.nameWithoutProto)
+          val handlerOutput = resolver.localPath(schemeContext)
           val outputRef = new TargetRef(handlerOutput)(this)
           val phony = outputRef.explicitProto match {
             case Some("phony") => true
             case Some("file") => false
             case _ =>
+              // A scheme resolver must resolve to "phony" or "file" only.
               val e = new UnsupportedSchemeException("The defined scheme \"" + outputRef.explicitProto + "\" did not resolve to phony or file protocol.")
               e.buildScript = Some(projectFile)
               throw e
           }
           UniqueTargetFile(Path(outputRef.nameWithoutProto)(this), phony, Some(resolver))
         case Some(handler: SchemeHandler) =>
-          // this is a handler but not a resolver
-          val expandedTargetRef = TargetRef(handler.localPath(targetRef.nameWithoutProto))(this)
+          // This is a scheme handler but not a scheme resolver, which means, only the name gets aliased.
+          // It might "resolve" to another scheme, so we have to evaluate the outcome of localPath recursive
+
+          val schemeContext = SchemeContext(proto, targetRef.nameWithoutProto)
+          val handlerOutput = handler.localPath(schemeContext)
+          val expandedTargetRef = TargetRef(handlerOutput)(this)
           log.log(LogLevel.Debug, s"""About to expand scheme handler "${proto}" from "${targetRef}" to "${expandedTargetRef}"""")
+
+          // the recusive call!
           val uTF = uniqueTargetFile(expandedTargetRef)
           // if we are here, we had success to resolve the handler
+
           uTF.handler match {
             case Some(resolver: SchemeResolver) =>
+              // the found scheme handler delegates to a "real" scheme resolver,
+              // so instead of applying the bare handler we use a wrapper, which handles all possible implementable methods.
+
               // if the handler encapsulated an resolver, we have to wrap it here
-              class WrappedSchemeResolver(handler: SchemeHandler, resolver: SchemeResolver)
+              /**
+               * Merges a primary SchemeHandler and a secondary SchemeResolver.
+               * The localPath-method is delegated to the primary SchemeHandler.
+               * All other methods will be delegated to the secondary SchemeResolver.
+               */
+              class WrappedSchemeResolver(primaryHandler: SchemeHandler, secondaryResolver: SchemeResolver)
                   extends SchemeResolver
                   with SchemeResolverWithDependencies {
 
-                def unwrappedPath(path: String): String = handler.localPath(path).split(":", 2)(1)
+                //                  def unwrappedPath(schemeContext: SchemeContext): String = handler.localPath(schemeContext).split(":", 2)(1)
+                def unwrappedScheme(schemeContext: SchemeContext): SchemeContext =
+                  primaryHandler.localPath(schemeContext).split(":", 2) match {
+                    case Array(unwrappedProto, unwrappedPath) => SchemeContext(unwrappedProto, unwrappedPath)
+                    // other cases do not apply, as we know there is an explicit scheme
+                  }
 
-                override def localPath(path: String) = handler.localPath(path)
+                override def localPath(schemeContext: SchemeContext) = primaryHandler.localPath(schemeContext)
 
-                override def resolve(path: String, targetContext: TargetContext) = {
-                  val unwrappedPath = this.unwrappedPath(path)
-                  log.log(LogLevel.Debug, s"""About to resolve "${path}" by calling undelying scheme handler's resolve with path "${unwrappedPath}""")
-                  resolver.resolve(unwrappedPath, targetContext)
+                override def resolve(schemeContext: SchemeContext, targetContext: TargetContext) = {
+                  val unwrappedPath = this.unwrappedScheme(schemeContext)
+                  log.log(LogLevel.Debug, s"""About to resolve "${schemeContext}" by calling undelying scheme handler's resolve with path "${unwrappedPath}""")
+                  secondaryResolver.resolve(unwrappedPath, targetContext)
                 }
 
-                override def dependsOn(path: String): TargetRefs = TargetRefs.fromSeq(resolver match {
-                  case withDeps: SchemeResolverWithDependencies => withDeps.dependsOn(unwrappedPath(path)).targetRefs
+                override def dependsOn(schemeContext: SchemeContext): TargetRefs = TargetRefs.fromSeq(secondaryResolver match {
+                  case withDeps: SchemeResolverWithDependencies => withDeps.dependsOn(unwrappedScheme(schemeContext)).targetRefs
                   case _ => Seq()
                 })
               }

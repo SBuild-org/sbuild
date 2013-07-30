@@ -2,6 +2,7 @@ package de.tototec.sbuild
 
 import org.scalatest.FunSuite
 import java.io.File
+import de.tototec.sbuild.SchemeHandler.SchemeContext
 
 class ZipSchemeHandlerTest extends FunSuite {
 
@@ -14,7 +15,7 @@ class ZipSchemeHandlerTest extends FunSuite {
 
   val httpPath = Path(".sbuild/http")
   val zipPath = Path(".sbuild/unzip")
-  
+
   SchemeHandler("http", new HttpSchemeHandler(httpPath))
 
   val zipHandler = new ZipSchemeHandler(zipPath)
@@ -22,39 +23,39 @@ class ZipSchemeHandlerTest extends FunSuite {
   test("Base dir is correct") {
     assert(zipHandler.baseDir === zipPath)
   }
-  
+
   test("Bad path with missing key=value pair") {
     intercept[ProjectConfigurationException] {
-      zipHandler.localPath("badPath")
+      zipHandler.localPath(SchemeContext("zip", "badPath"))
     }
   }
 
   test("Bad path with unsupported key=value pair") {
     intercept[ProjectConfigurationException] {
-      zipHandler.localPath("badKey=badValue")
+      zipHandler.localPath(SchemeContext("zip", "badKey=badValue"))
     }
   }
 
   test("Bad path with missing value in key=value pair") {
     intercept[ProjectConfigurationException] {
-      zipHandler.localPath("file")
+      zipHandler.localPath(SchemeContext("zip", "file"))
     }
   }
 
   test("Valid path without nested scheme") {
-    assert(zipHandler.localPath("file=/content.jar;archive=test.zip") === "file:" + zipPath.getPath + "/8caba7d65b81501f3b65eca199c28ace/content.jar")
+    assert(zipHandler.localPath(SchemeContext("zip", "file=/content.jar;archive=test.zip")) === "file:" + zipPath.getPath + "/8caba7d65b81501f3b65eca199c28ace/content.jar")
   }
 
   test("Valid path with explicit file scheme") {
-    assert(zipHandler.localPath("file=/content.jar;archive=file:test.zip") === "file:" + zipPath + "/64435b5ec7279a1857b506ab0cdd344e/content.jar")
+    assert(zipHandler.localPath(SchemeContext("zip", "file=/content.jar;archive=file:test.zip")) === "file:" + zipPath + "/64435b5ec7279a1857b506ab0cdd344e/content.jar")
   }
 
   test("Valid path with nested http scheme") {
-    assert(zipHandler.localPath("file=/content.jar;archive=http://example.org/test.zip") === "file:" + zipPath.getPath + "/81ce359bcbbb6f271516cb8dd272cb25/content.jar")
+    assert(zipHandler.localPath(SchemeContext("zip", "file=/content.jar;archive=http://example.org/test.zip")) === "file:" + zipPath.getPath + "/81ce359bcbbb6f271516cb8dd272cb25/content.jar")
   }
 
   test("Valid path with nested http scheme and renamed file") {
-    assert(zipHandler.localPath("file=content.jar;targetFile=renamed-content.jar;archive=http://example.org/test.zip") === "file:" + projDir + "/renamed-content.jar")
+    assert(zipHandler.localPath(SchemeContext("zip", "file=content.jar;targetFile=renamed-content.jar;archive=http://example.org/test.zip")) === "file:" + projDir + "/renamed-content.jar")
   }
 
 }

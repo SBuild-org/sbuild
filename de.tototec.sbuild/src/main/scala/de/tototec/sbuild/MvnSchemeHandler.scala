@@ -2,6 +2,7 @@ package de.tototec.sbuild
 
 import java.io.File
 import java.io.FileNotFoundException
+import de.tototec.sbuild.SchemeHandler.SchemeContext
 
 object MavenSupport {
   object MavenGav {
@@ -46,8 +47,8 @@ class MvnSchemeHandler(
 
   import MavenSupport._
 
-  override def localPath(path: String): String = {
-    "file:" + localFile(path).getAbsolutePath
+  override def localPath(schemeCtx: SchemeContext): String = {
+    "file:" + localFile(schemeCtx.path).getAbsolutePath
   }
 
   def localFile(path: String): File = {
@@ -63,12 +64,12 @@ class MvnSchemeHandler(
         version + "/" + artifact + "-" + version + classifierPart + ".jar"
   }
 
-  override def resolve(path: String, targetContext: TargetContext) = {
-    val target = localFile(path).getAbsoluteFile
+  override def resolve(schemeCtx: SchemeContext, targetContext: TargetContext) = {
+    val target = localFile(schemeCtx.path).getAbsoluteFile
     if (online && repos.size > 0) {
       var result: Option[Throwable] = None
       repos.takeWhile(repo => {
-        val url = repo + "/" + constructMvnPath(path)
+        val url = repo + "/" + constructMvnPath(schemeCtx.path)
         result = Util.download(url, target.getPath, project.log)
         val failed = result.isDefined || !target.exists
         if (failed) project.log.log(LogLevel.Info, "Download failed.")

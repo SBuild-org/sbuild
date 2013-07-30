@@ -3,6 +3,7 @@ package de.tototec.sbuild
 import java.io.File
 import java.net.URL
 import java.io.FileNotFoundException
+import de.tototec.sbuild.SchemeHandler.SchemeContext
 
 /**
  * An HTTP-Scheme handler, that will download the given URI into a directory preserving the URI as path.
@@ -20,8 +21,8 @@ class HttpSchemeHandler(downloadDir: File = null,
   forceDownload)
     with SchemeResolver {
 
-  override def resolve(path: String, targetContext: TargetContext) = {
-    val lastModified = download(path, project.log)
+  override def resolve(schemeCtx: SchemeContext, targetContext: TargetContext) = {
+    val lastModified = download(schemeCtx.path, project.log)
     targetContext.targetLastModified = lastModified
   }
 
@@ -33,7 +34,7 @@ class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = 
 
   def url(path: String): URL = new URL("http:" + path)
 
-  override def localPath(path: String): String = "file:" + localFile(path).getPath
+  override def localPath(schemeCtx: SchemeContext): String = "file:" + localFile(schemeCtx.path).getPath
 
   def localFile(path: String): File = {
     url(path)

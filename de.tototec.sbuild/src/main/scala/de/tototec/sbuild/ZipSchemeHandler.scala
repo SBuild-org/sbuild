@@ -3,6 +3,7 @@ package de.tototec.sbuild
 import java.io.File
 import java.security.MessageDigest
 import java.io.FileNotFoundException
+import de.tototec.sbuild.SchemeHandler.SchemeContext
 
 /*
  * TODO: touch to file, do not preserve lastModified from archive, to support proper up-to-date detection
@@ -14,18 +15,18 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
     case x => x.getAbsoluteFile
   }
 
-  override def localPath(path: String): String = {
-    val config = parseConfig(path)
+  override def localPath(schemeCtx: SchemeContext): String = {
+    val config = parseConfig(schemeCtx.path)
     "file:" + config.targetFile.getPath
   }
 
-  override def dependsOn(path: String): TargetRefs = {
-    val config = parseConfig(path)
+  override def dependsOn(schemeCtx: SchemeContext): TargetRefs = {
+    val config = parseConfig(schemeCtx.path)
     return TargetRefs(TargetRef(config.archive)(project))
   }
 
-  override def resolve(path: String, targetContext: TargetContext) = {
-    val config = parseConfig(path)
+  override def resolve(schemeCtx: SchemeContext, targetContext: TargetContext) = {
+    val config = parseConfig(schemeCtx.path)
     val file = config.targetFile
 
     targetContext.fileDependencies match {

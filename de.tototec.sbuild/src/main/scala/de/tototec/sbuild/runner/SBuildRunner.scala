@@ -324,7 +324,7 @@ class SBuildRunner {
     // Now, that we loaded all projects, we can release some resources. 
     ProjectScript.dropCaches
 
-    log.log(LogLevel.Debug, "Targets: \n" + project.targets.values.mkString("\n"))
+    log.log(LogLevel.Debug, "Targets: \n" + project.targets.values.filter(!_.isImplicit).mkString("\n"))
 
     /**
      * Format a target relative to the base project.

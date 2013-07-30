@@ -114,6 +114,6 @@ class TargetRef(val ref: String)(implicit project: Project) {
       baseUri.relativize(absFile.toURI).getPath
     }
   }
-
+  
 }
 

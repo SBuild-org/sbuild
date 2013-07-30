@@ -1,6 +1,7 @@
 package de.tototec.sbuild
 
 import java.io.File
+import de.tototec.sbuild.SchemeHandler.SchemeContext
 
 /**
  * Scans a directory for files, recursiv.
@@ -17,12 +18,12 @@ class ScanSchemeHandler(implicit project: Project)
     with TransparentSchemeResolver
     with SideeffectFreeSchemeResolver {
 
-  override def localPath(path: String): String = s"phony:scan-${path}"
+  override def localPath(schemeCtx: SchemeContext): String = s"phony:${schemeCtx.scheme}:${schemeCtx.path}"
 
-  override def resolve(path: String, targetContext: TargetContext): Unit = {
+  override def resolve(schemeCtx: SchemeContext, targetContext: TargetContext): Unit = {
     // Ensure, we always report a last modified, even, if we don't find any file
     targetContext.targetLastModified = 1
-    scan(path, targetContext).foreach { f => targetContext.attachFile(f) }
+    scan(schemeCtx.path, targetContext).foreach { f => targetContext.attachFile(f) }
   }
 
   def scan(path: String, targetContext: TargetContext): Array[File] = {

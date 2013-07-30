@@ -1,19 +1,24 @@
 package de.tototec.sbuild
 
+import de.tototec.sbuild.SchemeHandler.SchemeContext
+
 /**
  * Translates a target name into another target name
  */
 trait SchemeHandler {
+
   /**
    * The resulting target name (path) this target resolves to.
    */
-  def localPath(path: String): String
+  def localPath(schemeContext: SchemeContext): String
 }
 
 /**
  * Register a SchemeHandler under a scheme qualifier into the current project.
  */
 object SchemeHandler {
+  case class SchemeContext(scheme: String, path: String)
+
   def apply(scheme: String, handler: SchemeHandler)(implicit project: Project) =
     project.registerSchemeHandler(scheme, handler)
 
@@ -34,7 +39,7 @@ trait SchemeResolver extends SchemeHandler {
   /**
    * Actually resolve the dependency/target.
    */
-  def resolve(path: String, targetContext: TargetContext)
+  def resolve(schemeContext: SchemeContext, targetContext: TargetContext)
 }
 
 trait SchemeResolverWithDependencies extends SchemeResolver {
@@ -43,7 +48,7 @@ trait SchemeResolverWithDependencies extends SchemeResolver {
    * Please note, that the return value of this method needs to be stable for the same path,
    * as it is evaluated at configuration time, not at resolving time.
    */
-  def dependsOn(path: String): TargetRefs
+  def dependsOn(schemeContext: SchemeContext): TargetRefs
 }
 
 @deprecated("Use SchemeResolverWithDependencies instead.", "0.4.1")

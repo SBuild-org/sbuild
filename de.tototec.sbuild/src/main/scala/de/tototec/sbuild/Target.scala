@@ -80,40 +80,28 @@ object Target {
     project.findOrCreateTarget(targetRef)
 }
 
-case class ProjectTarget private[sbuild] (override val name: String,
-                                          override val file: File,
-                                          override val phony: Boolean,
-                                          handler: Option[SchemeHandler],
-                                          override val project: Project) extends Target {
+class ProjectTarget private[sbuild] (override val name: String,
+                                     override val file: File,
+                                     override val phony: Boolean,
+                                     override val project: Project,
+                                     initialPrereqs: Seq[TargetRef] = Seq(),
+                                     initialExec: TargetContext => Any = null,
+                                     initialTransparentExec: Boolean = false,
+                                     initialSideEffectFree: Boolean = false) extends Target {
 
   private[sbuild] var isImplicit = false
 
   private var _help: String = _
-  private var prereqs: Seq[TargetRef] = handler match {
-    case Some(handler: SchemeResolverWithDependencies) =>
-      handler.dependsOn(TargetRef(name)(project).nameWithoutProto).targetRefs
-    case _ => Seq[TargetRef]()
-  }
+  private var prereqs: Seq[TargetRef] = initialPrereqs
 
-  private[this] var _transparentExec: Boolean = handler match {
-    case Some(_: TransparentSchemeResolver) => true
-    case _ => false
-  }
+  private[this] var _transparentExec: Boolean = initialTransparentExec
   override private[sbuild] def isTransparentExec: Boolean = _transparentExec
 
-  private[this] var _sideeffectFree: Boolean = handler match {
-    case Some(_: SideeffectFreeSchemeResolver) => true
-    case _ => false
-  }
+  private[this] var _sideeffectFree: Boolean = initialSideEffectFree
   override private[sbuild] def isSideeffectFree: Boolean = _sideeffectFree
 
   private[this] var execReplaced: Boolean = false
-  private[this] var _exec: TargetContext => Any = handler match {
-    case Some(handler: SchemeResolver) => {
-      ctx: TargetContext => handler.resolve(TargetRef(name)(project).nameWithoutProto, ctx)
-    }
-    case _ => null
-  }
+  private[this] var _exec: TargetContext => Any = initialExec
 
   private[sbuild] override def action = _exec
   private[sbuild] override def dependants = prereqs
@@ -147,8 +135,12 @@ case class ProjectTarget private[sbuild] (override val name: String,
     getClass.getSimpleName +
       "(" + name + "=>" + file + (if (phony) "[phony]" else "") +
       ",dependsOn=" + prereqs.map(t => t.name).mkString(" ~ ") +
-      ",exec=" + (if (_exec == null) "non" else "defined") +
-      ",handler=" + handler + (if (execReplaced) " (meanwhile replaced)" else "") +
+      ",exec=" + (_exec match {
+        case null => "non"
+        case _ if execReplaced => "replaced"
+        case e if e.eq(initialExec) => "initialized"
+        case _ => "defined"
+      }) +
       ",isImplicit=" + isImplicit +
       ",isCacheable=" + isCacheable +
       ")"
@@ -170,19 +162,19 @@ case class ProjectTarget private[sbuild] (override val name: String,
   }
 
   private[this] var _evictCache: Option[String] = None
-  
+
   override def evictsCache: Option[String] = _evictCache
 
   override def evictCache: Target = {
     _evictCache = Some("")
     this
   }
-  
+
   override def evictCache(cacheName: String): Target = {
     _evictCache = Some(cacheName)
     this
   }
-  
+
   def setEvictCache(evictCache: Boolean): Target = {
     _evictCache = evictCache match {
       case true => Some("")
@@ -190,5 +182,16 @@ case class ProjectTarget private[sbuild] (override val name: String,
     }
     this
   }
+
+  def canEqual(other: Any): Boolean = other.isInstanceOf[ProjectTarget]
+  override def equals(other: Any): Boolean = other match {
+    case that: ProjectTarget => that.canEqual(this) &&
+      name == that.name &&
+      file == that.file &&
+      phony == that.phony &&
+      project == that.project
+    case _ => false
+  }
+  override def hashCode: Int = Seq(name, file, phony, project).foldLeft(1) { (prev, h) => 41 * prev + h.hashCode }
 
 }

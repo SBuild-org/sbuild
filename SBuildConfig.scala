@@ -3,7 +3,7 @@ import de.tototec.sbuild.TargetRefs._
 
 object SBuildConfig {
 
-  def sbuildVersion = "0.5.0.9000"
+  def sbuildVersion = "0.5.0.9001"
   def sbuildOsgiVersion = sbuildVersion
 
   def cmdOptionVersion = "0.3.0"

@@ -1,3 +1,15 @@
+SBuild trunk:
+
+* Fixed a bug in SBuildEmbedded concerning incomplete file lists for local
+  file dependencies.
+* New ResolveFiles API to eagerly resolve dependencies, e.g. to fulfil 
+  additional dependencies of a scheme handler.
+* Changed SchemeHandler API again. Replaced the type String of the path
+  parameter by the new type SchemeContext. With this change, a scheme handler
+  is able to retrieve the effectively used scheme.
+* Refactored initialization logic of ProjectTarget into Project. ProjectTarget
+  is now free of any SchemeHandler logic.
+
 SBuild 0.5.0 - 2013-07-12:
 
 * Updated dependencies: Scala 2.10.2, Jansi 1.10.
