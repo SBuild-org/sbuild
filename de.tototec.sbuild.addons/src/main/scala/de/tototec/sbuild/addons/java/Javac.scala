@@ -176,7 +176,7 @@ class Javac(
       args ++= absSourceFiles
     }
 
-    project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} source files to ${destDir}")
+    project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} Java source files to ${destDir}")
 
     if (destDir != null && !sourceFiles.isEmpty) destDir.mkdirs
 

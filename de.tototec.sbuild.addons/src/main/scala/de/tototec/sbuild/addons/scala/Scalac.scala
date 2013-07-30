@@ -299,7 +299,7 @@ class Scalac(
       args ++= absSourceFiles.sorted
     }
 
-    project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} source files to ${destDir}")
+    project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} Scala source files to ${destDir}")
 
     if (destDir != null && !sourceFiles.isEmpty) destDir.mkdirs
 
