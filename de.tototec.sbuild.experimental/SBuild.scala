@@ -56,18 +56,36 @@ class SBuild(implicit _project: Project) {
 
   ExportDependencies("eclipse.classpath", compileCp)
 
-  Target("phony:all") dependsOn jar ~ sourcesZip
+  val sources = "scan:src/main/scala" ~ "scan:target/generated-scala"
+
+  Target("phony:all") dependsOn jar ~ sourcesZip ~ aetherImplJar ~ aetherJar
 
   Target("phony:clean").evictCache exec {
     AntDelete(dir = Path("target"))
   }
 
-  Target("phony:compile").cacheable dependsOn SBuildConfig.compilerPath ~ compileCp ~ "scan:src/main/scala" exec {
+  val versionScala = Target("target/generated-scala/Version.scala") dependsOn _project.projectFile ~ Path("../SBuildConfig.scala") exec { ctx: TargetContext =>
+    AntMkdir(dir = ctx.targetFile.get.getParentFile)
+    AntEcho(file = ctx.targetFile.get, message = s"""// GENERATED
+      package ${namespace} {
+      package aether {
+      private object InternalConstants {
+        def version = "${sbuildVersion}"  
+        def aetherImplJarName = s"${namespace}.aether.impl-${sbuildVersion}.jar"
+      }
+      }
+      }"""
+    )
+  }
+
+  Target("scan:target/generated-scala") dependsOn versionScala
+
+  Target("phony:compile").cacheable dependsOn SBuildConfig.compilerPath ~ compileCp ~ sources exec {
     val output = "target/classes"
     addons.scala.Scalac(
       compilerClasspath = compilerPath.files,
       classpath = compileCp.files,
-      sources = "scan:src/main/scala".files,
+      sources = sources.files,
       destDir = Path(output),
       unchecked = true, deprecation = true, debugInfo = "vars"
     )
@@ -87,11 +105,11 @@ class SBuild(implicit _project: Project) {
     ))
   }
 
-  Target("phony:scaladoc").cacheable dependsOn compilerPath ~ compileCp ~ "scan:src/main/scala" exec {
+  Target("phony:scaladoc").cacheable dependsOn compilerPath ~ compileCp ~ sources exec {
     addons.scala.Scaladoc(
       scaladocClasspath = compilerPath.files,
       classpath = compileCp.files,
-      sources = "scan:src/main/scala".files,
+      sources = sources.files,
       destDir = Path("target/scaladoc"),
       deprecation = true, unchecked = true, implicits = true,
       docVersion = sbuildVersion,
@@ -99,17 +117,20 @@ class SBuild(implicit _project: Project) {
     )
   }
 
-  Target(s"target/de.tototec.sbuild.experimental.aether-${sbuildVersion}.jar") dependsOn
-    "compile" ~ "LICENSE.txt" exec { ctx: TargetContext =>
+  lazy val aetherJar = Target(s"target/de.tototec.sbuild.experimental.aether-${sbuildVersion}.jar") dependsOn
+    "compile" ~ "LICENSE.txt" ~ aetherImplJar exec { ctx: TargetContext =>
       AntJar(
         destFile = ctx.targetFile.get,
         baseDir = Path("target/classes"),
         includes = "de/tototec/sbuild/experimental/aether/*.class",
-        fileSet = AntFileSet(file = Path("LICENSE.txt"))
+        fileSets = Seq(
+          AntFileSet(file = Path("LICENSE.txt")),
+          AntFileSet(file = aetherImplJar.files.head)
+        )
       )
     }
 
-  Target(s"target/de.tototec.sbuild.experimental.aether.impl-${sbuildVersion}.jar") dependsOn
+  lazy val aetherImplJar = Target(s"target/de.tototec.sbuild.experimental.aether.impl-${sbuildVersion}.jar") dependsOn
     "compile" ~ "LICENSE.txt" exec { ctx: TargetContext =>
       AntJar(
         destFile = ctx.targetFile.get,

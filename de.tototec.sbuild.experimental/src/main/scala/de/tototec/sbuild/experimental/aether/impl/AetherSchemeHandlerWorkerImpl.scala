@@ -66,10 +66,10 @@ class AetherSchemeHandlerWorkerImpl(localRepoDir: File, remoteRepos: Seq[AetherS
 
     // create Maven dependencies from it
     val deps = requestedArtifacts.map {
-      case MavenGav(a, g, v, Some(c)) =>
-        new Dependency(new DefaultArtifact(s"$a:$g:jar:$c:$v"), "compile")
-      case MavenGav(a, g, v, None) =>
-        new Dependency(new DefaultArtifact(s"$a:$g:$v"), "compile")
+      case MavenGav(g, a, v, None) =>
+        new Dependency(new DefaultArtifact(g, a, "jar", v), "compile")
+      case MavenGav(g, a, v, Some(c)) =>
+        new Dependency(new DefaultArtifact(g, a, c, "jar", v), "compile")
     }
 
     val centralRepo = new RemoteRepository.Builder("central", "default", "http://repo1.maven.org/maven2").build()

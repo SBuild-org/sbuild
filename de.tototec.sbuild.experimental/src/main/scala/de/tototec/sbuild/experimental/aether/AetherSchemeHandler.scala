@@ -2,7 +2,6 @@ package de.tototec.sbuild.experimental.aether
 
 import java.io.File
 import java.net.URLClassLoader
-
 import de.tototec.sbuild.LogLevel
 import de.tototec.sbuild.MavenSupport.MavenGav
 import de.tototec.sbuild.Project
@@ -10,8 +9,12 @@ import de.tototec.sbuild.SchemeResolver
 import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.TargetRefs
 import de.tototec.sbuild.TargetRefs.fromString
+import de.tototec.sbuild.ResolveFiles
+import de.tototec.sbuild.SchemeHandler.SchemeContext
 
 object AetherSchemeHandler {
+
+  val version = InternalConstants.version
 
   case class Repository(name: String, layout: String, url: String)
   val CentralRepo = Repository("central", "default", "http://repo1.maven.org/maven2")
@@ -57,6 +60,18 @@ object AetherSchemeHandler {
       "mvn:org.slf4j:slf4j-simple:1.7.5"
   }
 
+  def resolveAndCreate(localRepoDir: File = new File(System.getProperty("user.home") + "/.m2/repository"),
+                       remoteRepos: Seq[AetherSchemeHandler.Repository] = Seq(AetherSchemeHandler.CentralRepo))(implicit project: Project): AetherSchemeHandler = {
+
+    val implJar = ClasspathUtil.extractResourceToFile(classOf[AetherSchemeHandler].getClassLoader, InternalConstants.aetherImplJarName, allElements = false, deleteOnVmExit = true, project)
+    project.log.log(LogLevel.Debug, "Using aether impl jar: " + implJar)
+
+    val classpath = implJar ++ ResolveFiles(fullAetherCp)
+
+    new AetherSchemeHandler(classpath, localRepoDir, remoteRepos)
+
+  }
+
 }
 
 class AetherSchemeHandler(
@@ -89,12 +104,13 @@ class AetherSchemeHandler(
     }
   }
 
-  def localPath(path: String): String = s"phony:aether-dependencies-${Integer.toHexString(hashCode())}-${path}"
+  def localPath(schemeCtx: SchemeContext): String = s"phony:${schemeCtx.scheme}:${schemeCtx.path}"
 
-  def resolve(path: String, targetContext: TargetContext) {
+  def resolve(schemeCtx: SchemeContext, targetContext: TargetContext) {
     try {
 
-      val requestedDeps = path.split(",").map { p => MavenGav(p) }
+      val requestedDeps = schemeCtx.path.split(",").map { p => MavenGav(p) }
+      project.log.log(LogLevel.Debug, "About to resolve the following requested dependencies: " + requestedDeps.mkString(", "))
 
       val files = worker.resolve(requestedDeps)
       files.foreach { f => targetContext.attachFile(f) }
