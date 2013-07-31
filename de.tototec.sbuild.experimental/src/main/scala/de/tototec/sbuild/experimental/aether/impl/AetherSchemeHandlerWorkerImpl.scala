@@ -75,13 +75,9 @@ class AetherSchemeHandlerWorkerImpl(localRepoDir: File, remoteRepos: Seq[AetherS
     val centralRepo = new RemoteRepository.Builder("central", "default", "http://repo1.maven.org/maven2").build()
 
     val collectRequest = new CollectRequest()
-    deps.toList match {
-      case Nil =>
-      case root :: other =>
-        collectRequest.setRoot(root)
-        other.foreach(d => collectRequest.addDependency(d))
-    }
+    deps.foreach { d => collectRequest.addDependency(d) }
     collectRequest.addRepository(centralRepo)
+    
     val node = repoSystem.collectDependencies(session, collectRequest).getRoot()
 
     val dependencyRequest = new DependencyRequest()
@@ -99,10 +95,6 @@ class AetherSchemeHandlerWorkerImpl(localRepoDir: File, remoteRepos: Seq[AetherS
       if (file != null) file.getAbsoluteFile() else null
     }.filter(_ != null)
 
-    //    val classpath = nlg.getClassPath()
-    //    System.out.println(nlg.getClassPath())
-
-    //    println("Dependency files: " + files)
     files
 
   }
