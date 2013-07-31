@@ -1,4 +1,4 @@
-package de.tototec.sbuild.experimental
+package de.tototec.sbuild.experimental.reflect
 
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -12,24 +12,25 @@ import de.tototec.sbuild.TargetNotFoundException
 import de.tototec.sbuild.TargetRef
 import de.tototec.sbuild.TargetRefs
 import de.tototec.sbuild.LogLevel
+import de.tototec.sbuild.SchemeHandler.SchemeContext
 
 /**
  * Access to build script variables of type [[TargetRefs]], [[TargetRef]], [[java.io.File]], [[java.lang.String]] as targets.
  */
 class DefSchemeHandler(scriptInstance: Any)(implicit _project: Project) extends SchemeResolverWithDependencies {
 
-  override def localPath(path: String): String = "phony:" + path + "Field"
+  override def localPath(schemeCtx: SchemeContext): String = s"phony:${schemeCtx.scheme}:${schemeCtx.path}"
 
-  def resolve(path: String, targetContext: TargetContext) {} // Noop
+  def resolve(schemeCtx: SchemeContext, targetContext: TargetContext) {} // Noop
 
-  override def dependsOn(path: String): TargetRefs = {
-    val access = Try(scriptInstance.getClass.getMethod(path)).orElse(Try(scriptInstance.getClass.getField(path)))
-    _project.log.log(LogLevel.Debug, "Accessor for \"" + path + "\" is: " + access)
+  override def dependsOn(schemeCtx: SchemeContext): TargetRefs = {
+    val access = Try(scriptInstance.getClass.getMethod(schemeCtx.path)).orElse(Try(scriptInstance.getClass.getField(schemeCtx.path)))
+    _project.log.log(LogLevel.Debug, "Accessor for \"" + schemeCtx.path + "\" is: " + access)
     val value = access match {
       case Success(field: Field) => field.get(scriptInstance)
       case Success(method: Method) => method.invoke(scriptInstance)
       case _ =>
-        val ex = new TargetNotFoundException("Cannot find field or method with name \"" + path + "\" in project script")
+        val ex = new TargetNotFoundException("Cannot find field or method with name \"" + schemeCtx.path + "\" in project script")
         ex.buildScript = Some(_project.projectFile)
         throw ex
     }
@@ -39,7 +40,7 @@ class DefSchemeHandler(scriptInstance: Any)(implicit _project: Project) extends 
       case x: File => TargetRefs.fromFile(x)
       case x: String => TargetRefs.fromString(x)
       case x =>
-        val ex = new TargetNotFoundException("Cannot access field or method with name \"" + path + "\" in project script. Value was null or has unsupported type: " + (if (x == null) "null" else x.getClass()))
+        val ex = new TargetNotFoundException("Cannot access field or method with name \"" + schemeCtx.path + "\" in project script. Value was null or has unsupported type: " + (if (x == null) "null" else x.getClass()))
         ex.buildScript = Some(_project.projectFile)
         throw ex
     }
