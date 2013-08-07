@@ -45,6 +45,8 @@ class MvnSchemeHandler(
   repos: Seq[String] = Seq("http://repo1.maven.org/maven2/"))(implicit project: Project)
     extends SchemeResolver {
 
+  private val userAgent = s"SBuild/${SBuildVersion.osgiVersion} (MvnSchemeHandler)"
+
   import MavenSupport._
 
   override def localPath(schemeCtx: SchemeContext): String = {
@@ -70,7 +72,7 @@ class MvnSchemeHandler(
       var result: Option[Throwable] = None
       repos.takeWhile(repo => {
         val url = repo + "/" + constructMvnPath(schemeCtx.path)
-        result = Util.download(url, target.getPath, project.log)
+        result = Util.download(url, target.getPath, project.log, Some(userAgent))
         val failed = result.isDefined || !target.exists
         if (failed) project.log.log(LogLevel.Info, "Download failed.")
         failed

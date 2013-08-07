@@ -1,4 +1,4 @@
-SBuild trunk:
+SBuild 0.5.0.9001 - trunk:
 
 * Fixed a bug in SBuildEmbedded concerning incomplete file lists for local
   file dependencies.
@@ -9,6 +9,9 @@ SBuild trunk:
   is able to retrieve the effectively used scheme.
 * Refactored initialization logic of ProjectTarget into Project. ProjectTarget
   is now free of any SchemeHandler logic.
+* Download methods of util, HttpSchemeHandler and MvnSchemeHandler set an 
+  SBuild specific user agent. This fixed 403 Forbidden issues for some Maven
+  repositories (e.g. Central).
 
 SBuild 0.5.0 - 2013-07-12:
 

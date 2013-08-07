@@ -38,7 +38,7 @@ object Util {
     success
   }
 
-  def download(url: String, target: String, log: SBuildLogger = log): Option[Throwable] = {
+  def download(url: String, target: String, log: SBuildLogger = log, userAgent: Option[String]): Option[Throwable] = {
 
     try {
 
@@ -68,7 +68,9 @@ object Util {
 
           val outStream = new BufferedOutputStream(new FileOutputStream(downloadTargetFile))
           try {
-            val inStream = new BufferedInputStream(new URL(url).openStream)
+            val connection = new URL(url).openConnection
+            userAgent.map { agent => connection.setRequestProperty("User-Agent", agent) }
+            val inStream = new BufferedInputStream(connection.getInputStream())
 
             var last = System.currentTimeMillis
             var len = 0
@@ -259,7 +261,7 @@ object Util {
       }
 
     def whenNull = orElse _
-    
+
     def orElse(orElse: => T): T =
       if (possibleNull != null) possibleNull
       else orElse

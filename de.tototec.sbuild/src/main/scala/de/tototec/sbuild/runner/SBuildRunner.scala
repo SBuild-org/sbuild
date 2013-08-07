@@ -4,17 +4,14 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
-
 import scala.collection.JavaConverters._
 import scala.concurrent.Lock
-
 import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.Ansi.Color.CYAN
 import org.fusesource.jansi.Ansi.Color.GREEN
 import org.fusesource.jansi.Ansi.Color.RED
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole
-
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.sbuild.BuildFileProject
@@ -41,6 +38,8 @@ import de.tototec.sbuild.Util
 import de.tototec.sbuild.WithinTargetExecution
 
 object SBuildRunner extends SBuildRunner {
+
+  System.setProperty("http.agent", "SBuild/" + SBuildVersion.osgiVersion)
 
   def main(args: Array[String]) {
     AnsiConsole.systemInstall
@@ -534,7 +533,8 @@ class SBuildRunner {
             case Seq((file, foundTarget)) =>
               log.log(LogLevel.Debug, s"""Resolved shortcut camel case request "${targetRef}" to target "${formatTarget(foundTarget)}".""")
               Some(foundTarget)
-            case _ =>
+            case multiMatch =>
+              log.log(LogLevel.Debug, s"""Ambiguous match for request "${targetRef}". Candidates: """ + multiMatch.map { t => formatTarget(t._2) }.mkString(", "))
               // ambiguous match, found more that one
               // Todo: think about replace Option by Try, to communicate better reason why nothing was found
               None

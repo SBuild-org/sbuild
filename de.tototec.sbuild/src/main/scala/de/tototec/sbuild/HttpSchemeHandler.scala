@@ -32,6 +32,8 @@ class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = 
 
   var online: Boolean = true
 
+  private val userAgent = s"SBuild/${SBuildVersion.osgiVersion} (HttpSchemeHandler)"
+
   def url(path: String): URL = new URL("http:" + path)
 
   override def localPath(schemeCtx: SchemeContext): String = "file:" + localFile(schemeCtx.path).getPath
@@ -53,7 +55,7 @@ class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = 
       } else {
         val url = this.url(path)
         //        println("Downloading " + url + "...")
-        Util.download(url.toString, target.getPath, log) match {
+        Util.download(url.toString, target.getPath, log, Some(userAgent)) match {
           case Some(e) => throw e
           case _ => target.lastModified
         }
