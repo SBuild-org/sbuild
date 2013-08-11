@@ -14,6 +14,9 @@ class SBuild(implicit _project: Project) {
   val osgiVersion = SBuildConfig.sbuildOsgiVersion
 
   val scalaVersion = SBuildConfig.scalaVersion
+  val scalaLibrary = s"mvn:org.scala-lang:scala-library:${scalaVersion}"
+  val scalaCompiler = s"mvn:org.scala-lang:scala-compiler:${scalaVersion}"
+  val scalaReflect = s"mvn:org.scala-lang:scala-reflect:${scalaVersion}"
 
   val binJar = s"de.tototec.sbuild/target/de.tototec.sbuild-${sbuildVersion}.jar"
   val antJar = s"de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-${sbuildVersion}.jar"
@@ -81,19 +84,25 @@ class SBuild(implicit _project: Project) {
     }
   }
 
-  Target(classpathProperties) dependsOn _project.projectFile ~ cmdOption ~ jansi exec { ctx: TargetContext =>
+  Target(classpathProperties) dependsOn
+    _project.projectFile ~
+    binJar ~ compilerPluginJar ~
+    cmdOption ~ jansi ~
+    scalaLibrary ~ scalaCompiler ~ scalaReflect exec { ctx: TargetContext =>
     val properties = s"""|# Classpath configuration for SBuild ${sbuildVersion}
       |sbuildClasspath = de.tototec.sbuild-${sbuildVersion}.jar
-      |compileClasspath = scala-compiler-${scalaVersion}.jar:scala-reflect-${scalaVersion}.jar
-      |projectClasspath = scala-library-${scalaVersion}.jar:de.tototec.sbuild.ant-${sbuildVersion}.jar:de.tototec.sbuild.addons-${sbuildVersion}.jar
-      |embeddedClasspath = de.tototec.sbuild-${sbuildVersion}.jar:${cmdOption.files.head.getName}:${jansi.files.head.getName}
-      |compilerPluginJar = de.tototec.sbuild.compilerplugin-${sbuildVersion}.jar
+      |compileClasspath = ${scalaCompiler.files.head.getName}:${scalaReflect.files.head.getName}
+      |projectClasspath = ${scalaLibrary.files.head.getName}:de.tototec.sbuild.ant-${sbuildVersion}.jar:de.tototec.sbuild.addons-${sbuildVersion}.jar
+      |embeddedClasspath = ${binJar.files.head.getName}:${cmdOption.files.head.getName}:${jansi.files.head.getName}
+      |compilerPluginJar = ${compilerPluginJar.files.head.getName}
       |"""
     AntMkdir(dir = ctx.targetFile.get.getParentFile)
     AntEcho(file = ctx.targetFile.get, message = properties.stripMargin)
   }
 
-  Target(distDir + "/bin/sbuild") dependsOn _project.projectFile exec { ctx: TargetContext =>
+  val sbuildRunnerClass = "de.tototec.sbuild.runner.SBuildRunner"
+
+  Target(distDir + "/bin/sbuild") dependsOn _project.projectFile ~ binJar ~ jansi ~ cmdOption ~ scalaLibrary exec { ctx: TargetContext =>
 
     val sbuildSh = """|#!/bin/sh
       |
@@ -132,8 +141,8 @@ class SBuild(implicit _project: Project) {
       |fi
       |
       |""" +
-     s"""exec $${JRE} ${javaOptions} -cp "$${SBUILD_HOME}/lib/scala-library-${scalaVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.cmdoption-${cmdOptionVersion}.jar:$${SBUILD_HOME}/lib/jansi-${jansiVersion}.jar:$${SBUILD_HOME}/lib/de.tototec.sbuild-${sbuildVersion}.jar" """ +
-     """de.tototec.sbuild.runner.SBuildRunner --sbuild-home "${SBUILD_HOME}" ${SBUILD_OPTS} "$@"
+     s"""exec $${JRE} ${javaOptions} -cp "$${SBUILD_HOME}/lib/${scalaLibrary.files.head.getName}:$${SBUILD_HOME}/lib/${cmdOption.files.head.getName}:$${SBUILD_HOME}/lib/${jansi.files.head.getName}:$${SBUILD_HOME}/lib/${binJar.files.head.getName}" ${sbuildRunnerClass} """ +
+     """--sbuild-home "${SBUILD_HOME}" ${SBUILD_OPTS} "$@"
       |
       |unset SBUILD_HOME
       |"""
@@ -142,7 +151,7 @@ class SBuild(implicit _project: Project) {
     AntChmod(file = ctx.targetFile.get, perm = "+x")
   }
 
-  Target(distDir + "/bin/sbuild.bat") dependsOn _project.projectFile exec { ctx: TargetContext =>
+  Target(distDir + "/bin/sbuild.bat") dependsOn _project.projectFile ~ binJar ~ cmdOption ~ jansi ~ scalaLibrary exec { ctx: TargetContext =>
 
     val sbuildBat =
       """|
@@ -222,7 +231,7 @@ class SBuild(implicit _project: Project) {
          |if NOT "%JAVA_HOME%"=="" SET SBUILD_JAVA_EXE=%JAVA_HOME%\bin\java.exe
          |
          |""" +
-      s""""%SBUILD_JAVA_EXE%" ${javaOptions} -cp "%SBUILD_HOME%\\lib\\scala-library-${scalaVersion}.jar;%SBUILD_HOME%\\lib\\jansi-${jansiVersion}.jar;%SBUILD_HOME%\\lib\\de.tototec.cmdoption-${SBuildConfig.cmdOptionVersion}.jar;%SBUILD_HOME%\\lib\\de.tototec.sbuild-${sbuildVersion}.jar" de.tototec.sbuild.runner.SBuildRunner --sbuild-home "%SBUILD_HOME%" %SBUILD_CMD_LINE_ARGS%
+      s""""%SBUILD_JAVA_EXE%" ${javaOptions} -cp "%SBUILD_HOME%\\lib\\${scalaLibrary.files.head.getName};%SBUILD_HOME%\\lib\\${jansi.files.head.getName};%SBUILD_HOME%\\lib\\${cmdOption.files.head.getName};%SBUILD_HOME%\\lib\\${binJar.files.head.getName}" ${sbuildRunnerClass} --sbuild-home "%SBUILD_HOME%" %SBUILD_CMD_LINE_ARGS%
          |""" + """
          |goto end
          |
