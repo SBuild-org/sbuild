@@ -79,4 +79,11 @@ class Config {
     description = "Experimental: Enable parallel procession of targets.")
   var parallelProcessing: Boolean = false
 
+  @CmdOption(names = Array("--jobs"), args = Array("N"), description = "Experimental: Allow processing N targets in parallel.")
+  def setParallelJobs(jobs: Int) {
+    parallelProcessing = true
+    parallelJobs = jobs
+  }
+  var parallelJobs: Int = 0
+
 }

@@ -80,7 +80,7 @@ class TargetRef(val ref: String)(implicit project: Project) {
         // So, we must find a target for the used TargetRef. 
         // When not, the used TargetRef was not part of the dependencies
 
-        project.findTarget(this, searchInAllProjects = true) match {
+        project.findTarget(this, searchInAllProjects = true, includeImplicit = true) match {
           case None =>
             // No target found, so this TargetRef can not be part of the dependencies 
             val ex = ProjectConfigurationException.localized("'TargetRef.files' is used for dependency \"{0}\", that is not declared with 'dependsOn'.", this.toString)

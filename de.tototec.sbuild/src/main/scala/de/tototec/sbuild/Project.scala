@@ -11,13 +11,25 @@ trait ProjectBase {
   def projectDirectory: File
   def projectFile: File
   protected[sbuild] val log: SBuildLogger
-  protected[sbuild] def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false): Option[Target]
+  /**
+   * Find an explicitly registered target.
+   *
+   * @param targetRef The target name to find.
+   * @param searchInAllProjects If <code>true</code> and no target was found in
+   *        the current project and the TargetRef did not contain a project
+   *        referrer, search in all other projects.
+   * @param Also find targets that were created/cached implicit in the project but do not have a corresponding explicit definition.
+   */
+  protected[sbuild] def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false, includeImplicit: Boolean = false): Option[Target]
   protected[sbuild] def prerequisites(target: Target, searchInAllProjects: Boolean = false): Seq[Target]
   protected[sbuild] def findModule(dirOrFile: String): Option[Project]
   protected[sbuild] def properties: Map[String, String]
+  /** All active scheme handler in this project. */
   protected[sbuild] def schemeHandlers: Map[String, SchemeHandler]
-  protected[sbuild] def targets: Map[File, Target]
+  /** All explicit defined targets in this project. */
+  protected[sbuild] def targets: Seq[Target]
   // since 0.4.0.9002
+  /** Get the directory which contains the included source file containing the type T. */
   protected[sbuild] def includeDirOf[T: ClassTag]: File
 }
 
@@ -133,13 +145,14 @@ class BuildFileProject(_projectFile: File,
 
   /**
    * Map(file -> Target) of targets.
+   * The explicit defined targets and implicitly created ones.
    */
-  private var _targets: Map[File, Target] = Map()
-  override protected[sbuild] def targets: Map[File, Target] = _targets
-  private def targets_=(targets: Map[File, Target]): Unit = _targets = targets
+  private var targetMap: Map[File, Target] = Map()
+  override protected[sbuild] def targets: Seq[Target] = targetMap.values.toSeq.filter(!_.isImplicit)
+  //  private def targets_=(targets: Map[File, Target]): Unit = _targets = targets
 
   override def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target =
-    findTarget(targetRef, searchInAllProjects = false) match {
+    internalFindTarget(targetRef, searchInAllProjects = false, includeImplicit = true) match {
       case Some(t: ProjectTarget) if t.isImplicit && !isImplicit =>
         // we change it to explicit
         t.isImplicit = false
@@ -193,26 +206,42 @@ class BuildFileProject(_projectFile: File,
             case _ => false
           })
         target.isImplicit = isImplicit
-        targets += (file -> target)
+        targetMap += (file -> target)
         target
     }
   }
 
   /**
+   * Find an explicitly registered target.
+   *
    * @param targetRef The target name to find.
    * @param searchInAllProjects If <code>true</code> and no target was found in
    *        the current project and the TargetRef did not contain a project
    *        referrer, search in all other projects.
+   * @param Also find targets that were created/cached implicit in the project but do not have a corresponding explicit definition.
    */
-  override def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false): Option[Target] =
+  override protected[sbuild] def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false, includeImplicit: Boolean = false): Option[Target] =
+    internalFindTarget(targetRef, searchInAllProjects, includeImplicit)
+
+  /**
+   * Find a target.
+   *
+   * @param targetRef The target name to find.
+   * @param searchInAllProjects If <code>true</code> and no target was found in
+   *        the current project and the TargetRef did not contain a project
+   *        referrer, search in all other projects.
+   * @param Also find targets that were created/cached implicit in the project but do not have a corresponding explicit definition.
+   */
+  private def internalFindTarget(targetRef: TargetRef, searchInAllProjects: Boolean, includeImplicit: Boolean): Option[Target] =
     explicitForeignProject(targetRef) match {
       case Some(pFile) =>
+        // delegate to the other project
         projectPool.propjectMap.get(pFile) match {
           case None =>
             val ex = new TargetNotFoundException("Could not find target: " + targetRef + ". Unknown project: " + pFile)
             ex.buildScript = Some(projectFile)
             throw ex
-          case Some(p) => p.findTarget(targetRef, searchInAllProjects = false) match {
+          case Some(p) => p.internalFindTarget(targetRef, searchInAllProjects = false, includeImplicit) match {
             case None if targetRef.explicitNonStandardProto.isDefined =>
               None
             case None =>
@@ -223,8 +252,11 @@ class BuildFileProject(_projectFile: File,
           }
         }
       case None =>
+        // handle in this project
         uniqueTargetFile(targetRef) match {
-          case UniqueTargetFile(file, phony, _) => targets.get(file) match {
+          case UniqueTargetFile(file, phony, _) => targetMap.get(file) match {
+
+            case Some(found) if !found.isImplicit || includeImplicit => Some(found)
 
             // If nothing was found and the target in question is a file target and searchInAllProjects was requested, then search in other projects
             case None if searchInAllProjects && !phony =>
@@ -233,9 +265,10 @@ class BuildFileProject(_projectFile: File,
                 if (otherProj == this) {
                   None
                 } else {
-                  otherProj.targets.get(file) match {
+                  otherProj.targetMap.get(file) match {
                     // If the found one is phony, it is not a perfect match
                     case Some(t) if t.phony => None
+                    case Some(t) if t.isImplicit && !includeImplicit => None
                     case x => x
                   }
                 }
@@ -382,7 +415,7 @@ class BuildFileProject(_projectFile: File,
 
   override def prerequisites(target: Target, searchInAllProjects: Boolean = false): Seq[Target] =
     target.dependants.map { dep =>
-      findTarget(dep, searchInAllProjects = searchInAllProjects) match {
+      internalFindTarget(dep, searchInAllProjects = searchInAllProjects, includeImplicit = true) match {
         case Some(target) => target
         case None =>
           // TODO: if none target was found, look in other project if they provide the target
@@ -459,7 +492,7 @@ class BuildFileProject(_projectFile: File,
   override protected[sbuild] var antProject: Option[Any] = None
 
   override def toString: String =
-    getClass.getSimpleName + "(" + projectFile + ",targets=" + targets.map { case (f, p) => p.name }.mkString(",") + ")"
+    getClass.getSimpleName + "(" + projectFile + ",targets=" + targets.map(_.name).mkString(",") + ")"
 
   private[this] var _pluginsToInitLater: Seq[ExperimentalPlugin] = Seq()
 

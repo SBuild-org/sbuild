@@ -114,7 +114,7 @@ class ProjectTarget private[sbuild] (override val name: String,
   override def exec(execution: => Any): Target = exec((_: TargetContext) => execution)
   override def exec(execution: TargetContext => Any): Target = {
     if (_exec != null) {
-      project.log.log(LogLevel.Warn, s"Warning: Reassignment of exec block for target ${name}")
+      project.log.log(LogLevel.Warn, s"Warning: Reassignment of exec block for target ${name} in project file ${project.projectFile}")
       execReplaced = true
     }
     // always non-transparent, but in case we override a transparent scheme handler here

@@ -36,6 +36,8 @@ import de.tototec.sbuild.TargetRef.fromString
 import de.tototec.sbuild.UnsupportedSchemeException
 import de.tototec.sbuild.Util
 import de.tototec.sbuild.WithinTargetExecution
+import scala.concurrent.forkjoin.ForkJoinPool
+import scala.collection.parallel.ForkJoinTaskSupport
 
 object SBuildRunner extends SBuildRunner {
 
@@ -134,7 +136,7 @@ class SBuildRunner {
     val cache = new DependencyCache()
 
     val targetsToCheck = projects.flatMap { p =>
-      p.targets.values.filterNot(_.isImplicit)
+      p.targets
     }
     // Console.println("About to check targets: "+targetsToCheck.mkString(", "))
     var errors: Seq[(Target, String)] = Seq()
@@ -157,7 +159,7 @@ class SBuildRunner {
    * If cacheable targets are found but not at least one evictCache target, return a error message.
    */
   def checkCacheableTargets(project: Project, printWarning: Boolean)(implicit baseProject: Project): Option[String] = {
-    val targets = project.targets.values.filterNot(_.isImplicit)
+    val targets = project.targets
     val cacheable = targets.filter(_.isCacheable)
     val evict = targets.filter(_.evictsCache.isDefined)
 
@@ -303,6 +305,7 @@ class SBuildRunner {
       return 0
     }
 
+    log.log(LogLevel.Info, "Initializing project...")
     val projectReader: ProjectReader = new SimpleProjectReader(classpathConfig, log, clean = config.clean)
     val project = projectReader.readAndCreateProject(projectFile, config.defines.asScala.toMap, None, Some(log)).asInstanceOf[BuildFileProject]
 
@@ -323,13 +326,14 @@ class SBuildRunner {
     // Now, that we loaded all projects, we can release some resources. 
     ProjectScript.dropCaches
 
-    log.log(LogLevel.Debug, "Targets: \n" + project.targets.values.filter(!_.isImplicit).mkString("\n"))
+    log.log(LogLevel.Debug, "Targets: \n" + project.targets.mkString("\n"))
 
     /**
-     * Format a target relative to the base project.
+     * Format all non-implicit targets of a project.
+     * If the project is not the main/entry project, to project name will included in the formatted name.
      */
     def formatTargetsOf(baseProject: Project): String = {
-      baseProject.targets.values.toSeq.filter(!_.isImplicit).sortBy(_.name).map { t =>
+      baseProject.targets.sortBy(_.name).map { t =>
         formatTarget(t)(project) + " \t" + (t.help match {
           case null => ""
           case s: String => s
@@ -393,9 +397,14 @@ class SBuildRunner {
       }
     }
 
-    val parallelExecContext =
-      if (config.parallelProcessing) Some(new ParallelExecContext()(project))
-      else None
+    val parallelExecContext = if (config.parallelProcessing) {
+      val jobsOption = config.parallelJobs match {
+        case 0 => None
+        case x => Some(x)
+      }
+      log.log(LogLevel.Debug, "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + jobsOption.toString)
+      Some(new ParallelExecContext(jobsOption)(project))
+    } else None
 
     val depTree =
       if (config.showDependencyTree) Some(new DependencyTree())
@@ -520,21 +529,21 @@ class SBuildRunner {
           // this currently works only for non-explicit projects
           val matcher = new CamelCaseMatcher(targetRef.name)
           val matches = project.targets.filter {
-            case (f, t) =>
+            case t =>
               val tref = TargetRef(t.name)(t.project)
               tref.explicitProto match {
                 case None | Some("phony") | Some("file") =>
                   matcher.matches(tref.nameWithoutProto)
                 case _ => false
               }
-          }.toSeq
+          }
           matches match {
             case Seq() => None
-            case Seq((file, foundTarget)) =>
+            case Seq(foundTarget) =>
               log.log(LogLevel.Debug, s"""Resolved shortcut camel case request "${targetRef}" to target "${formatTarget(foundTarget)}".""")
               Some(foundTarget)
             case multiMatch =>
-              log.log(LogLevel.Debug, s"""Ambiguous match for request "${targetRef}". Candidates: """ + multiMatch.map { t => formatTarget(t._2) }.mkString(", "))
+              log.log(LogLevel.Debug, s"""Ambiguous match for request "${targetRef}". Candidates: """ + multiMatch.map { t => formatTarget(t) }.mkString(", "))
               // ambiguous match, found more that one
               // Todo: think about replace Option by Try, to communicate better reason why nothing was found
               None
@@ -670,8 +679,21 @@ class SBuildRunner {
 
   }
 
-  class ParallelExecContext(implicit project: Project) {
+  /**
+   * Context used when processing targets in parallel.
+   *
+   * @param threadCount If Some(count), the count of threads to be used.
+   *   If None, then it defaults to the count of processor cores.
+   */
+  class ParallelExecContext(val threadCount: Option[Int] = None)(implicit project: Project) {
     private[this] var _locks: Map[Target, Lock] = Map().withDefault { _ => new Lock() }
+
+    val pool = threadCount match {
+      case None => new ForkJoinPool()
+      case Some(threads) => new ForkJoinPool(threads)
+    }
+
+    def taskSupport = new ForkJoinTaskSupport(pool)
 
     private[this] def getLock(target: Target): Lock = synchronized {
       _locks.get(target) match {
@@ -745,8 +767,12 @@ class SBuildRunner {
               transientTargetCache = transientTargetCache,
               parallelExecContext = parallelExecContext)
           }
-        case Some(_) =>
-          dependencies.par.map { dep =>
+        case Some(parCtx) =>
+          // val parDeps = collection.parallel.mutable.ParArray(dependencies: _*)
+          val parDeps = collection.parallel.immutable.ParVector(dependencies: _*)
+          parDeps.tasksupport = parCtx.taskSupport
+
+          val result = parDeps.map { dep =>
             preorderedDependenciesTree(
               curTarget = dep,
               execProgress = execProgress,
@@ -757,7 +783,9 @@ class SBuildRunner {
               dependencyCache = dependencyCache,
               transientTargetCache = transientTargetCache,
               parallelExecContext = parallelExecContext)
-          }.seq
+          }
+
+          result.seq.toSeq
       }
 
       // print dep-tree
@@ -957,12 +985,12 @@ class SBuildRunner {
     parallelExecContext match {
       case None =>
         inner
-      case Some(pec) =>
-        pec.lock(curTarget)
+      case Some(parCtx) =>
+        parCtx.lock(curTarget)
         try {
           inner
         } finally {
-          pec.unlock(curTarget)
+          parCtx.unlock(curTarget)
         }
     }
 
