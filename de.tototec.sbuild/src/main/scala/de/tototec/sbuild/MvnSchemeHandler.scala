@@ -42,7 +42,7 @@ object MavenSupport {
  */
 class MvnSchemeHandler(
   val downloadPath: File = new File(System.getProperty("user.home", ".") + "/.m2/repository"),
-  repos: Seq[String] = Seq("http://repo1.maven.org/maven2/"))(implicit project: Project)
+  repos: Seq[String] = Seq("http://repo1.maven.org/maven2"))(implicit project: Project)
     extends SchemeResolver {
 
   private val userAgent = s"SBuild/${SBuildVersion.osgiVersion} (MvnSchemeHandler)"
@@ -70,13 +70,13 @@ class MvnSchemeHandler(
     val target = localFile(schemeCtx.path).getAbsoluteFile
     if (online && repos.size > 0) {
       var result: Option[Throwable] = None
-      repos.takeWhile(repo => {
+      repos.takeWhile { repo =>
         val url = repo + "/" + constructMvnPath(schemeCtx.path)
         result = Util.download(url, target.getPath, project.log, Some(userAgent))
         val failed = result.isDefined || !target.exists
         if (failed) project.log.log(LogLevel.Info, "Download failed.")
         failed
-      })
+      }
       result match {
         case Some(e) => throw e
         case _ =>
