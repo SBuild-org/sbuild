@@ -17,6 +17,12 @@ object AetherSchemeHandler {
   val version = InternalConstants.version
 
   case class Repository(name: String, layout: String, url: String)
+  object Repository {
+    implicit def fromFullName(fullName:String): Repository = fullName.split("::") match {
+      case Array(name, layout, url) => Repository(name, layout, url)
+      case _ => throw new IllegalArgumentException("Unsupported repository definition (required: <name>::<layout>::<url>): " + fullName)
+    }
+  }
   val CentralRepo = Repository("central", "default", "http://repo1.maven.org/maven2")
 
   def fullAetherCp(implicit project: Project): TargetRefs = {
