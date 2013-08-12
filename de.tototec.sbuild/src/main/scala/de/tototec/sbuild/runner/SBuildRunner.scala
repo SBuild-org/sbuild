@@ -38,6 +38,7 @@ import de.tototec.sbuild.Util
 import de.tototec.sbuild.WithinTargetExecution
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.collection.parallel.ForkJoinTaskSupport
+import de.tototec.sbuild.SBuildException
 
 object SBuildRunner extends SBuildRunner {
 
@@ -695,6 +696,16 @@ class SBuildRunner {
 
     def taskSupport = new ForkJoinTaskSupport(pool)
 
+    private[this] var _firstError: Option[Throwable] = None
+    def getFirstError(currentError: Throwable): Throwable = synchronized {
+      _firstError match {
+        case None =>
+          _firstError = Some(currentError)
+          currentError
+        case Some(e) => e
+      }
+    }
+
     private[this] def getLock(target: Target): Lock = synchronized {
       _locks.get(target) match {
         case Some(l) => l
@@ -802,6 +813,19 @@ class SBuildRunner {
 
       case class ExecBag(ctx: TargetContext, wasUpToDate: Boolean)
 
+      def calcProgressPrefix = execProgress match {
+        case Some(state) =>
+          val progress = (state.currentNr, state.maxCount) match {
+            case (c, m) if (c > 0 && m > 0) =>
+              val p = (c - 1) * 100 / m
+              fPercent("[" + math.min(100, math.max(0, p)) + "%] ")
+            case (c, m) => "[" + c + "/" + m + "] "
+          }
+          progress
+        case _ => ""
+      }
+      val colorTarget = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
+
       val execBag: ExecBag = if (skipExec) {
         // already known as up-to-date
 
@@ -866,18 +890,7 @@ class SBuildRunner {
         if (!needsToRun)
           log.log(LogLevel.Debug, "Target '" + formatTarget(curTarget) + "' does not need to run.")
 
-        val progressPrefix = execProgress match {
-          case Some(state) =>
-            val progress = (state.currentNr, state.maxCount) match {
-              case (c, m) if (c > 0 && m > 0) =>
-                val p = (c - 1) * 100 / m
-                fPercent("[" + math.min(100, math.max(0, p)) + "%] ")
-              case (c, m) => "[" + c + "/" + m + "] "
-            }
-            progress
-          case _ => ""
-        }
-        val colorTarget = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
+        val progressPrefix = calcProgressPrefix
 
         val wasUpToDate: Boolean = if (!needsToRun) {
           val level = if (dependencyTrace.isEmpty) LogLevel.Info else LogLevel.Debug
@@ -973,6 +986,11 @@ class SBuildRunner {
       }
 
       execProgress.map(_.addToCurrentNr(1))
+      // when parallel, print some finish message
+      if (!execBag.wasUpToDate && parallelExecContext.isDefined && !execBag.ctx.target.isTransparentExec) {
+        val finishedPrefix = calcProgressPrefix
+        log.log(LogLevel.Info, finishedPrefix + "Finished target: " + colorTarget(formatTarget(curTarget)) + " after " + execBag.ctx.execDurationMSec + " msec")
+      }
 
       val executedTarget = new ExecutedTarget(targetContext = execBag.ctx, dependencies = executedDependencies)
       if (execBag.wasUpToDate && transientTargetCache.isDefined)
@@ -989,6 +1007,13 @@ class SBuildRunner {
         parCtx.lock(curTarget)
         try {
           inner
+        } catch {
+          case e: Throwable =>
+            log.log(LogLevel.Debug, "Catched an exception in parallel executed targets.", e)
+            val firstError = parCtx.getFirstError(e)
+            // we need to stop the complete ForkJoinPool
+            parCtx.pool.shutdownNow()
+            throw firstError
         } finally {
           parCtx.unlock(curTarget)
         }

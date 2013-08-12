@@ -12,9 +12,11 @@ SBuild 0.5.0.9001 - trunk:
 * Download methods of util, HttpSchemeHandler and MvnSchemeHandler set an 
   SBuild specific user agent. This fixed 403 Forbidden issues for some Maven
   repositories (e.g. Central).
-* Updated dependencies: Jansi 1.11.
+* Updated dependencies: Jansi 1.11, CmdOption 0.3.1
 * Added new cmdline option --jobs to configure the number of targets to run in
   parallel.
+* Improved error handling for parallel builds. A failed target now fails the
+  complete build instantly.
 
 SBuild 0.5.0 - 2013-07-12:
 
