@@ -6,6 +6,7 @@ trait SBuildLogger {
 
 trait LogLevel
 object LogLevel {
+  case object Never extends LogLevel
   case object Info extends LogLevel
   case object Debug extends LogLevel
   case object Warn extends LogLevel

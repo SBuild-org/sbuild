@@ -1,13 +1,12 @@
 package de.tototec.sbuild.runner
 
 import java.io.File
-
 import org.scalatest.FunSuite
-
 import de.tototec.sbuild.BuildFileProject
 import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetRef.fromString
 import de.tototec.sbuild.TargetRefs.fromTarget
+import de.tototec.sbuild.SBuildNoneLogger
 
 class ChainCreatorTest extends FunSuite {
 
@@ -21,21 +20,23 @@ class ChainCreatorTest extends FunSuite {
   private val gB = Target("phony:b")
   private val gC = Target("phony:c")
 
+  val targetExecutor = new TargetExecutor(project, SBuildNoneLogger)
+  
   test("build chain test 1") {
-    assert(Seq(g1) === SBuildRunner.preorderedDependenciesForest(Seq(g1)).flatMap(_.linearized).map(_.target))
-    assert(Seq(g1) === SBuildRunner.preorderedDependenciesForest(Seq(g1), skipExec = true).flatMap(_.linearized).map(_.target))
+    assert(Seq(g1) === targetExecutor.preorderedDependenciesForest(Seq(g1)).flatMap(_.linearized).map(_.target))
+    assert(Seq(g1) === targetExecutor.preorderedDependenciesForest(Seq(g1), skipExec = true).flatMap(_.linearized).map(_.target))
   }
   test("build chain test 2") {
-    assert(Seq(g1, g2) === SBuildRunner.preorderedDependenciesForest(Seq(g2)).flatMap(_.linearized).map(_.target))
-    assert(Seq(g1, g2) === SBuildRunner.preorderedDependenciesForest(Seq(g2), skipExec = true).flatMap(_.linearized).map(_.target))
+    assert(Seq(g1, g2) === targetExecutor.preorderedDependenciesForest(Seq(g2)).flatMap(_.linearized).map(_.target))
+    assert(Seq(g1, g2) === targetExecutor.preorderedDependenciesForest(Seq(g2), skipExec = true).flatMap(_.linearized).map(_.target))
   }
   test("build chain test 3") {
-    assert(Seq(g1, g1, g2) === SBuildRunner.preorderedDependenciesForest(Seq(g1, g2)).flatMap(_.linearized).map(_.target))
-    assert(Seq(g1, g1, g2) === SBuildRunner.preorderedDependenciesForest(Seq(g1, g2), skipExec = true).flatMap(_.linearized).map(_.target))
+    assert(Seq(g1, g1, g2) === targetExecutor.preorderedDependenciesForest(Seq(g1, g2)).flatMap(_.linearized).map(_.target))
+    assert(Seq(g1, g1, g2) === targetExecutor.preorderedDependenciesForest(Seq(g1, g2), skipExec = true).flatMap(_.linearized).map(_.target))
   }
   test("build chain test 4") {
-    assert(Seq(g1, g2, g1) === SBuildRunner.preorderedDependenciesForest(Seq(g2, g1)).flatMap(_.linearized).map(_.target))
-    assert(Seq(g1, g2, g1) === SBuildRunner.preorderedDependenciesForest(Seq(g2, g1), skipExec = true).flatMap(_.linearized).map(_.target))
+    assert(Seq(g1, g2, g1) === targetExecutor.preorderedDependenciesForest(Seq(g2, g1)).flatMap(_.linearized).map(_.target))
+    assert(Seq(g1, g2, g1) === targetExecutor.preorderedDependenciesForest(Seq(g2, g1), skipExec = true).flatMap(_.linearized).map(_.target))
   }
 
 }

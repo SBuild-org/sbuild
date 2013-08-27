@@ -6,11 +6,11 @@ object SBuildConfig {
   def sbuildVersion = "0.5.0.9001"
   def sbuildOsgiVersion = sbuildVersion
 
-  def cmdOptionVersion = "0.3.1"
+  private def cmdOptionVersion = "0.3.1"
   def cmdOption = s"mvn:de.tototec:de.tototec.cmdoption:${cmdOptionVersion}"
   // def cmdOption = s"/home/lefou/work/tototec/cmdoption-trunk/de.tototec.cmdoption/target/de.tototec.cmdoption-${cmdOptionVersion}.jar"
 
-  def jansiVersion = "1.11"
+  private def jansiVersion = "1.11"
   val jansi = s"mvn:org.fusesource.jansi:jansi:${jansiVersion}"
 
   def scalaVersion = "2.10.2"

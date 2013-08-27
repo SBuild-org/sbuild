@@ -2,6 +2,7 @@ package de.tototec.sbuild
 
 import de.tototec.sbuild.runner.SBuildRunner
 import java.io.File
+import de.tototec.sbuild.runner.TargetExecutor
 
 /**
  * EXPERIMENTAL API - Resolve TargetRefs.
@@ -10,8 +11,10 @@ object ResolveFiles {
 
   def apply(targetRefs: TargetRefs)(implicit project: Project): Seq[File] = {
 
+    lazy val targetExecutor = new TargetExecutor(project, project.log, logConfig = TargetExecutor.LogConfig(topLevelSkipped = LogLevel.Debug))
+
     project.log.log(LogLevel.Debug, "ResolveFiles request: " + targetRefs)
-    
+
     val targetRefFiles = targetRefs.targetRefs.flatMap { targetRef =>
       SBuildRunner.determineRequestedTarget(targetRef, searchInAllProjects = true, supportCamelCaseShortCuts = false) match {
         case None =>
@@ -28,7 +31,7 @@ object ResolveFiles {
 
         case Some(target) =>
           project.log.log(LogLevel.Debug, "About to resolve target: " + target)
-          val executedTarget = SBuildRunner.preorderedDependenciesTree(curTarget = target)
+          val executedTarget = targetExecutor.preorderedDependenciesTree(curTarget = target)
 
           project.log.log(LogLevel.Debug, "Resolved target '" + target + "' to: " + executedTarget)
           executedTarget.targetContext.targetFiles

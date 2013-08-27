@@ -20,6 +20,7 @@ import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.TargetNotFoundException
 import scala.util.Try
 import scala.util.Failure
+import de.tototec.sbuild.runner.TargetExecutor
 
 object SBuildEmbedded {
   private[embedded] def debug(msg: => String) = Console.println(msg)
@@ -89,7 +90,9 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
   override def resolve(dep: String, progressMonitor: ProgressMonitor): Try[Seq[File]] = Try(doResolve(dep, progressMonitor))
 
   protected def doResolve(dep: String, progressMonitor: ProgressMonitor): Seq[File] = {
-    implicit val p = project
+    implicit val _baseProject = project
+    
+    lazy val targetExecutor = new TargetExecutor(project, project.log)
 
     SBuildRunner.determineRequestedTarget(dep, true) match {
 
@@ -107,7 +110,7 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
       case Some(target) =>
 
         // TODO: progress
-        val executedTarget = SBuildRunner.preorderedDependenciesTree(curTarget = target)
+        val executedTarget = targetExecutor.preorderedDependenciesTree(curTarget = target)
         executedTarget.targetContext.targetFiles
     }
   }

@@ -10,10 +10,8 @@ import de.tototec.sbuild.TargetRefs._
 )
 class SBuild(implicit _project: Project) {
 
-  val sbuildVersion = SBuildConfig.sbuildVersion
-  val osgiVersion = SBuildConfig.sbuildOsgiVersion
+  import SBuildConfig.{sbuildVersion, sbuildOsgiVersion, scalaVersion, cmdOption, jansi}
 
-  val scalaVersion = SBuildConfig.scalaVersion
   val scalaLibrary = s"mvn:org.scala-lang:scala-library:${scalaVersion}"
   val scalaCompiler = s"mvn:org.scala-lang:scala-compiler:${scalaVersion}"
   val scalaReflect = s"mvn:org.scala-lang:scala-reflect:${scalaVersion}"
@@ -23,12 +21,6 @@ class SBuild(implicit _project: Project) {
   val addonsJar = s"de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-${sbuildVersion}.jar"
   val pluginsJar = s"de.tototec.sbuild.plugins/target/de.tototec.sbuild.plugins-${sbuildVersion}.jar"
   val compilerPluginJar = s"de.tototec.sbuild.compilerplugin/target/de.tototec.sbuild.compilerplugin-${sbuildVersion}.jar"
-
-  val cmdOptionVersion = SBuildConfig.cmdOptionVersion
-  val cmdOption = SBuildConfig.cmdOption
-
-  val jansiVersion = SBuildConfig.jansiVersion
-  val jansi = SBuildConfig.jansi
 
   val distName = s"sbuild-${sbuildVersion}"
   val distDir = "target/" + distName

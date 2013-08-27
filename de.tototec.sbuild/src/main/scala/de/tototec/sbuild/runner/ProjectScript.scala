@@ -355,10 +355,12 @@ class ProjectScript(_scriptFile: File,
         }
 
       case Some(target) =>
+        
+        val targetExecutor = new TargetExecutor(project, project.log)
 
         // TODO: progress
         val executedTarget =
-          SBuildRunner.preorderedDependenciesTree(
+          targetExecutor.preorderedDependenciesTree(
             curTarget = target,
             transientTargetCache = Some(new InMemoryTransientTargetCache())
           )
