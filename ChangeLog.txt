@@ -18,7 +18,8 @@ SBuild 0.5.0.9001 - trunk:
 * Improved error handling for parallel builds. A failed target now fails the
   complete build instantly.
 * Handle invalid commandline options properly.
-* Better download progress.
+* Better download progress (percent, content length, url) and failure handling
+  (resume, retry).
 
 SBuild 0.5.0 - 2013-07-12:
 
