@@ -39,6 +39,7 @@ import de.tototec.sbuild.WithinTargetExecution
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.collection.parallel.ForkJoinTaskSupport
 import de.tototec.sbuild.SBuildException
+import de.tototec.cmdoption.CmdlineParserException
 
 object SBuildRunner extends SBuildRunner {
 
@@ -70,7 +71,7 @@ class SBuildRunner {
 
   private[this] var log: SBuildLogger = new SBuildConsoleLogger(LogLevel.info)
 
-//  private val persistentTargetCache = new PersistentTargetCache()
+  //  private val persistentTargetCache = new PersistentTargetCache()
 
   /**
    * Create a new build file.
@@ -172,6 +173,24 @@ class SBuildRunner {
     } else None
   }
 
+  private[this] def errorOutput(e: Throwable, msg: String = null) = {
+    log.log(LogLevel.Error, "")
+
+    if (msg != null)
+      log.log(LogLevel.Error, fError(msg).toString)
+
+    if (e.isInstanceOf[BuildScriptAware] && e.asInstanceOf[BuildScriptAware].buildScript.isDefined)
+      log.log(LogLevel.Error, fError("Project: ").toString + fErrorEmph(e.asInstanceOf[BuildScriptAware].buildScript.get.getPath).toString)
+
+    if (e.isInstanceOf[TargetAware] && e.asInstanceOf[TargetAware].targetName.isDefined)
+      log.log(LogLevel.Error, fError("Target:  ").toString + fErrorEmph(e.asInstanceOf[TargetAware].targetName.get).toString)
+
+    log.log(LogLevel.Error, fError("Details: " + e.getLocalizedMessage).toString)
+
+    if (e.getCause() != null && e.getCause().isInstanceOf[InvocationTargetException] && e.getCause().getCause() != null)
+      log.log(LogLevel.Error, fError("Reflective invokation message: " + e.getCause().getCause().getLocalizedMessage()).toString())
+  }
+
   /**
    * Run the SBuild (command line) application with the given arguments.
    *
@@ -182,81 +201,69 @@ class SBuildRunner {
 
     val aboutAndVersion = "SBuild " + SBuildVersion.version + " (c) 2011 - 2013, ToToTec GbR, Tobias Roeser"
 
-    val config = new Config()
-    val classpathConfig = new ClasspathConfig()
-    val cmdlineConfig = new {
-      @CmdOption(names = Array("--version"), isHelp = true, description = "Show SBuild version.")
-      var showVersion = false
+    try {
 
-      @CmdOption(names = Array("--help", "-h"), isHelp = true, description = "Show this help screen.")
-      var help = false
+      val config = new Config()
+      val classpathConfig = new ClasspathConfig()
+      val cmdlineConfig = new {
+        @CmdOption(names = Array("--version"), isHelp = true, description = "Show SBuild version.")
+        var showVersion = false
 
-      @CmdOption(names = Array("--no-color"), description = "Disable colored output.")
-      var noColor = false
-    }
-    val cp = new CmdlineParser(config, classpathConfig, cmdlineConfig)
-    cp.setResourceBundle("de.tototec.sbuild.runner.Messages", getClass.getClassLoader())
-    cp.setAboutLine(aboutAndVersion)
-    cp.setProgramName("sbuild")
+        @CmdOption(names = Array("--help", "-h"), isHelp = true, description = "Show this help screen.")
+        var help = false
 
-    cp.parse(args: _*)
+        @CmdOption(names = Array("--no-color"), description = "Disable colored output.")
+        var noColor = false
+      }
+      val cp = new CmdlineParser(config, classpathConfig, cmdlineConfig)
+      cp.setResourceBundle("de.tototec.sbuild.runner.Messages", getClass.getClassLoader())
+      cp.setAboutLine(aboutAndVersion)
+      cp.setProgramName("sbuild")
 
-    if (cmdlineConfig.noColor)
-      Ansi.setEnabled(false)
+      cp.parse(args: _*)
 
-    if (cmdlineConfig.help) {
-      cp.usage
-      return 0
-    }
+      if (cmdlineConfig.noColor)
+        Ansi.setEnabled(false)
 
-    if (cmdlineConfig.showVersion) {
-      println(aboutAndVersion)
-      return 0
-    }
+      if (cmdlineConfig.help) {
+        cp.usage
+        return 0
+      }
 
-    if (config.justClean || config.justCleanRecursive) {
-      def cleanStateDir(dir: File, recursive: Boolean): Boolean = {
-        var success = true
-        val stateDir = new File(dir, ".sbuild")
-        if (stateDir.exists && stateDir.isDirectory) {
-          log.log(LogLevel.Info, "Deleting " + stateDir.getPath())
-          success = Util.delete(stateDir) && success
-        }
-        if (recursive) {
-          val files = dir.listFiles
-          if (files != null) files.map { file =>
-            if (file.isDirectory) {
-              success = cleanStateDir(file, recursive) && success
+      if (cmdlineConfig.showVersion) {
+        println(aboutAndVersion)
+        return 0
+      }
+
+      if (config.justClean || config.justCleanRecursive) {
+        def cleanStateDir(dir: File, recursive: Boolean): Boolean = {
+          var success = true
+          val stateDir = new File(dir, ".sbuild")
+          if (stateDir.exists && stateDir.isDirectory) {
+            log.log(LogLevel.Info, "Deleting " + stateDir.getPath())
+            success = Util.delete(stateDir) && success
+          }
+          if (recursive) {
+            val files = dir.listFiles
+            if (files != null) files.map { file =>
+              if (file.isDirectory) {
+                success = cleanStateDir(file, recursive) && success
+              }
             }
           }
+          success
         }
-        success
+        val baseDir = new File(new File(".").getAbsoluteFile.toURI.normalize)
+        if (cleanStateDir(baseDir, config.justCleanRecursive)) return 0 else return 1
       }
-      val baseDir = new File(new File(".").getAbsoluteFile.toURI.normalize)
-      if (cleanStateDir(baseDir, config.justCleanRecursive)) return 0 else return 1
-    }
 
-    def errorOutput(e: Throwable, msg: String = null) = {
-      log.log(LogLevel.Error, "")
-
-      if (msg != null)
-        log.log(LogLevel.Error, fError(msg).toString)
-
-      if (e.isInstanceOf[BuildScriptAware] && e.asInstanceOf[BuildScriptAware].buildScript.isDefined)
-        log.log(LogLevel.Error, fError("Project: ").toString + fErrorEmph(e.asInstanceOf[BuildScriptAware].buildScript.get.getPath).toString)
-
-      if (e.isInstanceOf[TargetAware] && e.asInstanceOf[TargetAware].targetName.isDefined)
-        log.log(LogLevel.Error, fError("Target:  ").toString + fErrorEmph(e.asInstanceOf[TargetAware].targetName.get).toString)
-
-      log.log(LogLevel.Error, fError("Details: " + e.getLocalizedMessage).toString)
-
-      if (e.getCause() != null && e.getCause().isInstanceOf[InvocationTargetException] && e.getCause().getCause() != null)
-        log.log(LogLevel.Error, fError("Reflective invokation message: " + e.getCause().getCause().getLocalizedMessage()).toString())
-    }
-
-    try {
       run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
+
     } catch {
+      case e: CmdlineParserException =>
+        errorOutput(e, "SBuild commandline was invalid. Please use --help for supported commandline options.")
+        if (verbose) throw e
+        1
       case e: InvalidApiUsageException =>
         errorOutput(e, "SBuild detected a invalid usage of SBuild API. Please consult the API Refence Documentation at http://sbuild.tototec.de .")
         if (verbose) throw e
