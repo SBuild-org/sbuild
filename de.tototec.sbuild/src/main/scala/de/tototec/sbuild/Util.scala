@@ -51,8 +51,6 @@ object Util {
         }
         case false => { // File needs download
 
-          val format = new DecimalFormat("#,##0.0")
-
           log.log(LogLevel.Info, s"Downloading ${url}")
 
           // copy into temp file
@@ -72,12 +70,25 @@ object Util {
             userAgent.map { agent => connection.setRequestProperty("User-Agent", agent) }
             val inStream = new BufferedInputStream(connection.getInputStream())
 
+            // connection opened
+            val contentLength = connection.getHeaderField("content-length") match {
+              case null => -1
+              case length => try { length.toLong } catch { case _: Exception => -1 }
+            }
+
             var last = System.currentTimeMillis
             var len = 0
             var break = false
             var alreadyLogged = false
 
-            def logProgress = log.log(LogLevel.Info, s"Downloaded ${format.format(len / 1024)} kb")
+            val format = new DecimalFormat("#,##0.#")
+            def formatLength(length: Long): String = format.format(length / 1024)
+
+            def logProgress = if (contentLength > 0) {
+              log.log(LogLevel.Info, s"Downloaded ${formatLength(len)} of ${formatLength(contentLength)} kb (${format.format((len * 1000 / contentLength).toLong.toDouble / 10)}%) from ${url}")
+            } else {
+              log.log(LogLevel.Info, s"Downloaded ${formatLength(len)} kb from ${url}")
+            }
 
             var buffer = new Array[Byte](1024)
 
@@ -99,6 +110,12 @@ object Util {
 
             if (alreadyLogged && len > 0) {
               logProgress
+            }
+
+            if (contentLength > 0 && len != contentLength) {
+              // stream closed to early
+              // TODO: resume download, if connection is closed before complete file was transfered
+              // TODO: if no resume is supported, retry n times before giving up
             }
 
             inStream.close
