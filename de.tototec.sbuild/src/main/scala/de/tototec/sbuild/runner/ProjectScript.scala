@@ -357,7 +357,10 @@ class ProjectScript(_scriptFile: File,
         val targetExecutor = new TargetExecutor(
           baseProject = project,
           log = project.log,
-          logConfig = TargetExecutor.LogConfig(topLevelSkipped = LogLevel.Debug)
+          logConfig = TargetExecutor.LogConfig(
+              executing = LogLevel.Debug,
+              topLevelSkipped = LogLevel.Debug
+          )
         )
 
         // TODO: progress
