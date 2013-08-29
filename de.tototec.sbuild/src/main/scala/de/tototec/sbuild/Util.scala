@@ -131,26 +131,31 @@ object Util {
                 logProgress
               }
 
-              if (contentLength >= 0 && len != contentLength) {
-                log.log(LogLevel.Info, s"Download stream closed before download was complete from ${url}")
+              // TODO: if no resume is supported, retry n times before giving up
+              // TODO: implement a timeout, to avoid ever-blocking downloads
 
-                if (retries < retryCount) {
-                  retry = true
-                  alreadyLogged = true
-                  retries = if (len > lastRetryLen) 0 else (retries + 1)
-                  lastRetryLen = len
-                  log.log(LogLevel.Info, s"Resuming download from ${url}")
+              contentLength match {
+                case l if l < 0 => // cannot use contentLength to verify result
+                case l if len == l => // download size is equal to expected size => good
+                case l if len < l =>
+                  // stream closed to early
+                  log.log(LogLevel.Info, s"Download stream closed before download was complete from ${url}")
 
-                } else {
+                  if (retries < retryCount) {
+                    log.log(LogLevel.Info, s"Resuming download from ${url}")
+                    retry = true
+                    alreadyLogged = true
+                    retries = if (len > lastRetryLen) 0 else (retries + 1)
+                    lastRetryLen = len
+                  } else {
+                    outStream.close
+                    cleanup
+                    throw new SBuildException(s"To many failed retries (s${retries}). Cannot download from ${url}");
+                  }
+                case _ =>
                   outStream.close
                   cleanup
-                  throw new SBuildException(s"To many failed retries (s${retries}). Cannot download from ${url}");
-                }
-
-                // stream closed to early
-                // TODO: resume download, if connection is closed before complete file was transfered
-                // TODO: if no resume is supported, retry n times before giving up
-                // TODO: implement a timeout, to avoid ever-blocking downloads
+                  throw new SBuildException(s"Size of downloaded file does not match expected size: ${url}");
               }
 
               inStream.close
