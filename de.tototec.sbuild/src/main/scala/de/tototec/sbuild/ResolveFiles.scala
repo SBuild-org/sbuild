@@ -1,7 +1,7 @@
 package de.tototec.sbuild
 
 import java.io.File
-import de.tototec.sbuild.runner.TargetExecutor
+import de.tototec.sbuild.execute.TargetExecutor
 
 /**
  * EXPERIMENTAL API - Resolve TargetRefs.

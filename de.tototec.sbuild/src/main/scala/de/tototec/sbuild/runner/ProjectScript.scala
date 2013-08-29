@@ -31,6 +31,8 @@ import java.text.ParseException
 import scala.annotation.tailrec
 import de.tototec.sbuild.ExportDependencies
 import de.tototec.sbuild.TargetRefs
+import de.tototec.sbuild.execute.TargetExecutor
+import de.tototec.sbuild.execute.InMemoryTransientTargetCache
 
 object ProjectScript {
 

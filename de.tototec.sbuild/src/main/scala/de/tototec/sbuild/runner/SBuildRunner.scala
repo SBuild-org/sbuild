@@ -41,6 +41,10 @@ import scala.collection.parallel.ForkJoinTaskSupport
 import de.tototec.sbuild.SBuildException
 import de.tototec.cmdoption.CmdlineParserException
 import de.tototec.sbuild.CamelCaseMatcher
+import de.tototec.sbuild.execute.TargetExecutor
+import de.tototec.sbuild.execute.ExecutedTarget
+import de.tototec.sbuild.execute.InMemoryTransientTargetCache
+import de.tototec.sbuild.execute.LoggingTransientTargetCache
 
 object SBuildRunner extends SBuildRunner {
 
@@ -53,14 +57,6 @@ object SBuildRunner extends SBuildRunner {
     sys.exit(retval)
   }
 
-}
-
-class ExecutedTarget(
-    val targetContext: TargetContext,
-    val dependencies: Seq[ExecutedTarget]) {
-  def target = targetContext.target
-  val treeSize: Int = dependencies.foldLeft(1) { (a, b) => a + b.treeSize }
-  def linearized: Seq[ExecutedTarget] = dependencies.flatMap { et => et.linearized } ++ Seq(this)
 }
 
 /**

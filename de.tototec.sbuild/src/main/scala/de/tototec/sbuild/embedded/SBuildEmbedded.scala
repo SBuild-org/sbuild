@@ -19,7 +19,7 @@ import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.TargetNotFoundException
 import scala.util.Try
 import scala.util.Failure
-import de.tototec.sbuild.runner.TargetExecutor
+import de.tototec.sbuild.execute.TargetExecutor
 
 object SBuildEmbedded {
   private[embedded] def debug(msg: => String) = Console.println(msg)

@@ -1,4 +1,4 @@
-package de.tototec.sbuild.runner
+package de.tototec.sbuild.execute
 
 import java.io.File
 import org.scalatest.FunSuite
@@ -10,7 +10,6 @@ import de.tototec.sbuild.SBuildNoneLogger
 
 class ChainCreatorTest extends FunSuite {
 
-  SBuildRunner.verbose = true
   private implicit val project = new BuildFileProject(new File("SBuild.scala"), null)
 
   private val g1 = Target("phony:1")

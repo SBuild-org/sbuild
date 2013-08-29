@@ -1,8 +1,7 @@
-package de.tototec.sbuild.runner
+package de.tototec.sbuild.execute
 
-import de.tototec.sbuild.TargetContext
-import de.tototec.sbuild.Target
 import de.tototec.sbuild.LogLevel
+import de.tototec.sbuild.Target
 
 trait TransientTargetCache {
   def cache(target: Target, executedTarget: ExecutedTarget)
