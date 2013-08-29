@@ -12,7 +12,6 @@ import de.tototec.sbuild.ProjectReader
 import scala.collection.JavaConverters._
 import scala.xml.XML
 import de.tototec.sbuild.Path
-import de.tototec.sbuild.runner.SBuildRunner
 import de.tototec.sbuild.SBuildException
 import de.tototec.sbuild.Target
 import java.util.Properties
@@ -91,15 +90,16 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
 
   protected def doResolve(dep: String, progressMonitor: ProgressMonitor): Seq[File] = {
     implicit val _baseProject = project
+
+    val targetRef = TargetRef(dep)
     
     lazy val targetExecutor = new TargetExecutor(project, project.log)
 
-    SBuildRunner.determineRequestedTarget(dep, true) match {
+    project.determineRequestedTarget(targetRef, searchInAllProjects = true, supportCamelCaseShortCuts = false) match {
 
       case None =>
         // not found
         // if an existing file, then proceed.
-        val targetRef = TargetRef.fromString(dep)
         targetRef.explicitProto match {
           case None | Some("file") if targetRef.explicitProject == None && Path(targetRef.nameWithoutProto).exists =>
             Seq(Path(targetRef.nameWithoutProto))

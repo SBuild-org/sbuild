@@ -13,16 +13,16 @@ trait Target {
   def file: File
   /**
    * The file this target produces.
-   * <code>None</code> if this target is phony.
+   * `None` if this target is phony.
    */
   def targetFile: Option[File]
   /** The name of this target. */
   def name: String
   /**
-   * If <code>true</code>, this target does not (necessarily) produces a file resource with the same name.
+   * If `true`, this target does not (necessarily) produces a file resource with the same name.
    * A phony target can therefore not profit from the advanced up-to-date checks as files can.
    * <p/>
-   * E.g. a "clean' target might delete various resources but will most likely not create a "clean" file,
+   * E.g. a "clean" target might delete various resources but will most likely not create the file "clean",
    * so it has to be phony.
    * Otherwise, if a file or directory with the same name ("clean" here) exists,
    * it would be used to check, if the target needs to run or not.
@@ -70,6 +70,12 @@ trait Target {
   private[sbuild] def isTransparentExec: Boolean
 
   private[sbuild] def isSideeffectFree: Boolean
+
+  /**
+   *  A formatted textual representation of this target relative to a base project.
+   *  @since 0.5.0.9002
+   */
+  def formatRelativeTo(baseProject: Project): String
 }
 
 object Target {
@@ -193,5 +199,10 @@ class ProjectTarget private[sbuild] (override val name: String,
     case _ => false
   }
   override def hashCode: Int = Seq(name, file, phony, project).foldLeft(1) { (prev, h) => 41 * prev + h.hashCode }
+
+  def formatRelativeTo(baseProject: Project): String =
+    (if (project != baseProject) {
+      baseProject.projectDirectory.toURI.relativize(project.projectFile.toURI).getPath + "::"
+    } else "") + TargetRef(this).nameWithoutStandardProto
 
 }

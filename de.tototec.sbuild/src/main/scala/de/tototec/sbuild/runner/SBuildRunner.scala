@@ -40,6 +40,7 @@ import scala.concurrent.forkjoin.ForkJoinPool
 import scala.collection.parallel.ForkJoinTaskSupport
 import de.tototec.sbuild.SBuildException
 import de.tototec.cmdoption.CmdlineParserException
+import de.tototec.sbuild.CamelCaseMatcher
 
 object SBuildRunner extends SBuildRunner {
 
@@ -143,7 +144,7 @@ class SBuildRunner {
     // Console.println("About to check targets: "+targetsToCheck.mkString(", "))
     var errors: Seq[(Target, String)] = Seq()
     targetsToCheck.foreach { target =>
-      log.log(LogLevel.Info, "Checking target: " + formatTarget(target)(baseProject))
+      log.log(LogLevel.Info, "Checking target: " + target.formatRelativeTo(baseProject))
       try {
         cache.fillTreeRecursive(target, Nil)
         log.log(LogLevel.Info, "  \t" + fOk("OK"))
@@ -342,7 +343,7 @@ class SBuildRunner {
      */
     def formatTargetsOf(baseProject: Project): String = {
       baseProject.targets.sortBy(_.name).map { t =>
-        formatTarget(t)(project) + " \t" + (t.help match {
+        t.formatRelativeTo(baseProject) + " \t" + (t.help match {
           case null => ""
           case s: String => s
         })
@@ -392,12 +393,12 @@ class SBuildRunner {
           case (depth, target) =>
 
             var prefix = if (lastDepth > depth && depth > 0) {
-              List.fill(depth - 1)("  ").mkString + "  (" + formatTarget(lastShown(depth - 1))(project) + ")\n"
+              List.fill(depth - 1)("  ").mkString + "  (" + lastShown(depth - 1).formatRelativeTo(project) + ")\n"
             } else ""
 
             lastDepth = depth
             lastShown += (depth -> target)
-            val line = prefix + List.fill(depth)("  ").mkString + "  " + formatTarget(target)(project)
+            val line = prefix + List.fill(depth)("  ").mkString + "  " + target.formatRelativeTo(project)
 
             line
         }
@@ -431,8 +432,8 @@ class SBuildRunner {
       }
       val chain = targetExecutor.preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter, dependencyCache = dependencyCache)
       log.log(LogLevel.Debug, "Target Dependency Cache: " + dependencyCache.cached.map {
-        case (t, d) => "\n  " + formatTarget(t)(project) + " -> " + d.map {
-          dep => formatTarget(dep)(project)
+        case (t, d) => "\n  " + t.formatRelativeTo(project) + " -> " + d.map {
+          dep => dep.formatRelativeTo(project)
         }.mkString(", ")
       })
       chain
@@ -456,7 +457,7 @@ class SBuildRunner {
         node.dependencies match {
           case Seq() =>
             line += 1
-            plan = ("  " + line + ". " + formatTarget(node.target)(project)) :: plan
+            plan = ("  " + line + ". " + node.target.formatRelativeTo(project)) :: plan
           case deps =>
             preorderDepthFirst(deps)
         }
@@ -488,7 +489,7 @@ class SBuildRunner {
       if (!errors.isEmpty) log.log(LogLevel.Error, s"Found the following ${fError(errors.size.toString)} problems:")
       errors.foreach {
         case (target, message) =>
-          log.log(LogLevel.Error, fError(formatTarget(target)(project) + ": " + message).toString)
+          log.log(LogLevel.Error, fError(target.formatRelativeTo(project) + ": " + message).toString)
       }
 
       // also check for possible caching problems
@@ -508,7 +509,7 @@ class SBuildRunner {
 
     if (!targets.isEmpty && !config.noProgress) {
       log.log(LogLevel.Info, fPercent("[0%]") + " Executing...")
-      log.log(LogLevel.Debug, "Requested targets: " + targets.map(t => formatTarget(t)(project)).mkString(" ~ "))
+      log.log(LogLevel.Debug, "Requested targets: " + targets.map(_.formatRelativeTo(project)).mkString(" ~ "))
     }
 
     targetExecutor.preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
@@ -524,53 +525,12 @@ class SBuildRunner {
     0
   }
 
-  /**
-   * Determine the requested target for the given input string.
-   */
-  def determineRequestedTarget(target: String, searchInAllProjects: Boolean = false, supportCamelCaseShortCuts: Boolean = false)(implicit project: Project): Option[Target] =
-    determineRequestedTarget(TargetRef(target), searchInAllProjects, supportCamelCaseShortCuts)
-
-  def determineRequestedTarget(targetRef: TargetRef, searchInAllProjects: Boolean, supportCamelCaseShortCuts: Boolean)(implicit project: Project): Option[Target] =
-
-    project.findTarget(targetRef, searchInAllProjects = searchInAllProjects) match {
-      case Some(target) => Some(target)
-      case None => targetRef.explicitProto match {
-        case None | Some("phony") | Some("file") if supportCamelCaseShortCuts =>
-          // this currently works only for non-explicit projects
-          val matcher = new CamelCaseMatcher(targetRef.name)
-          val matches = project.targets.filter {
-            case t =>
-              val tref = TargetRef(t.name)(t.project)
-              tref.explicitProto match {
-                case None | Some("phony") | Some("file") =>
-                  matcher.matches(tref.nameWithoutProto)
-                case _ => false
-              }
-          }
-          matches match {
-            case Seq() => None
-            case Seq(foundTarget) =>
-              log.log(LogLevel.Debug, s"""Resolved shortcut camel case request "${targetRef}" to target "${formatTarget(foundTarget)}".""")
-              Some(foundTarget)
-            case multiMatch =>
-              log.log(LogLevel.Debug, s"""Ambiguous match for request "${targetRef}". Candidates: """ + multiMatch.map { t => formatTarget(t) }.mkString(", "))
-              // ambiguous match, found more that one
-              // Todo: think about replace Option by Try, to communicate better reason why nothing was found
-              None
-          }
-        case None | Some("phony") | Some("file") => None
-        case _ =>
-          // A scheme handler might be able to resolve this thing
-          Some(project.createTarget(targetRef, isImplicit = true))
-      }
-    }
-
   def determineRequestedTargets(targets: Seq[String], supportCamelCaseShortCuts: Boolean = false)(implicit project: Project): (Seq[Target], Seq[String]) = {
 
     // The compile will throw a warning here, so we use the erasure version and keep the intent as comment
     // val (requested: Seq[Target], invalid: Seq[String]) =
     val (requested, invalid) = targets.map { t =>
-      determineRequestedTarget(target = t, supportCamelCaseShortCuts = supportCamelCaseShortCuts) match {
+      project.determineRequestedTarget(targetRef = TargetRef(t), searchInAllProjects = false, supportCamelCaseShortCuts = supportCamelCaseShortCuts) match {
         case None => t
         case Some(target) => target
       }
@@ -588,11 +548,6 @@ class SBuildRunner {
     if (baseProject != project)
       baseProject.projectDirectory.toURI.relativize(project.projectFile.toURI).getPath
     else project.projectFile.getName
-
-  def formatTarget(target: Target)(implicit project: Project) =
-    (if (project != target.project) {
-      project.projectDirectory.toURI.relativize(target.project.projectFile.toURI).getPath + "::"
-    } else "") + TargetRef(target).nameWithoutStandardProto
 
   import org.fusesource.jansi.Ansi._
   import org.fusesource.jansi.Ansi.Color._

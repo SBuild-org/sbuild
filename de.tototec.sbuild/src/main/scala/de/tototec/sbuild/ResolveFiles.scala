@@ -1,6 +1,5 @@
 package de.tototec.sbuild
 
-import de.tototec.sbuild.runner.SBuildRunner
 import java.io.File
 import de.tototec.sbuild.runner.TargetExecutor
 
@@ -16,7 +15,7 @@ object ResolveFiles {
     project.log.log(LogLevel.Debug, "ResolveFiles request: " + targetRefs)
 
     val targetRefFiles = targetRefs.targetRefs.flatMap { targetRef =>
-      SBuildRunner.determineRequestedTarget(targetRef, searchInAllProjects = true, supportCamelCaseShortCuts = false) match {
+      project.determineRequestedTarget(targetRef, searchInAllProjects = true, supportCamelCaseShortCuts = false) match {
         case None =>
           // not found
           // if an existing file, then proceed.

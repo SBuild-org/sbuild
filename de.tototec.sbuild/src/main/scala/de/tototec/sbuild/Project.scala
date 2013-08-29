@@ -15,7 +15,7 @@ trait ProjectBase {
    * Find an explicitly registered target.
    *
    * @param targetRef The target name to find.
-   * @param searchInAllProjects If <code>true</code> and no target was found in
+   * @param searchInAllProjects If `true` and no target was found in
    *        the current project and the TargetRef did not contain a project
    *        referrer, search in all other projects.
    * @param Also find targets that were created/cached implicit in the project but do not have a corresponding explicit definition.
@@ -44,6 +44,17 @@ trait MutableProject extends ProjectBase {
   /** Very exerimental. Do not use yet. */
   protected[sbuild] def registerPlugin(plugin: ExperimentalPlugin)
   protected[sbuild] def applyPlugins
+
+  /**
+   * Determine the target associated to the given target reference.
+   * @param targetRef The target reference.
+   * If the target reference contains an explicit project qualifier, the target will be searched in the associated project.
+   * @param searchInAllProjects If `true` and the target reference is a file but not found in the project, all projects will be searched for targets that produce that same file.
+   * @param supportCamelCaseShortCuts If `true`, the target reference is handled as a camelCase pattern, which must match exactly one target.
+   * @return `Some(Target)` if the target could be derived from the project configuration or `None` if the target is unknown.
+   * @since 0.5.0.9002
+   */
+  protected[sbuild] def determineRequestedTarget(targetRef: TargetRef, searchInAllProjects: Boolean, supportCamelCaseShortCuts: Boolean): Option[Target]
 }
 
 trait ProjectAntSupport {
@@ -227,7 +238,7 @@ class BuildFileProject(_projectFile: File,
    * Find a target.
    *
    * @param targetRef The target name to find.
-   * @param searchInAllProjects If <code>true</code> and no target was found in
+   * @param searchInAllProjects If `true` and no target was found in
    *        the current project and the TargetRef did not contain a project
    *        referrer, search in all other projects.
    * @param Also find targets that were created/cached implicit in the project but do not have a corresponding explicit definition.
@@ -539,6 +550,41 @@ class BuildFileProject(_projectFile: File,
         throw ex
     }
   }
+
+  override protected[sbuild] def determineRequestedTarget(targetRef: TargetRef, searchInAllProjects: Boolean, supportCamelCaseShortCuts: Boolean): Option[Target] =
+
+    findTarget(targetRef, searchInAllProjects = searchInAllProjects) match {
+      case Some(target) => Some(target)
+      case None => targetRef.explicitProto match {
+        case None | Some("phony") | Some("file") if supportCamelCaseShortCuts =>
+          // this currently works only for non-explicit projects
+          val matcher = new CamelCaseMatcher(targetRef.name)
+          val matches = targets.filter {
+            case t =>
+              val tref = TargetRef(t.name)(t.project)
+              tref.explicitProto match {
+                case None | Some("phony") | Some("file") =>
+                  matcher.matches(tref.nameWithoutProto)
+                case _ => false
+              }
+          }
+          matches match {
+            case Seq() => None
+            case Seq(foundTarget) =>
+              log.log(LogLevel.Debug, s"""Resolved shortcut camel case request "${targetRef}" to target "${foundTarget.formatRelativeTo(this)}".""")
+              Some(foundTarget)
+            case multiMatch =>
+              log.log(LogLevel.Debug, s"""Ambiguous match for request "${targetRef}". Candidates: """ + multiMatch.map(_.formatRelativeTo(this)).mkString(", "))
+              // ambiguous match, found more that one
+              // Todo: think about replace Option by Try, to communicate better reason why nothing was found
+              None
+          }
+        case None | Some("phony") | Some("file") => None
+        case _ =>
+          // A scheme handler might be able to resolve this thing
+          Some(createTarget(targetRef, isImplicit = true))
+      }
+    }
 
 }
 

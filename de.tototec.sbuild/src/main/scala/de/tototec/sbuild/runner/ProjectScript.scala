@@ -329,19 +329,17 @@ class ProjectScript(_scriptFile: File,
       _projectFile = project.projectFile,
       log = new SBuildLogger {
         override def log(logLevel: LogLevel, msg: => String, cause: Throwable = null) {
-          val level = logLevel match {
-            case LogLevel.Info => LogLevel.Debug
-            case x => x
-          }
-          project.log.log(level, "RequirementsResolver: " + msg, cause)
+          //          val level = logLevel match {
+          //            case LogLevel.Info => LogLevel.Debug
+          //            case x => x
+          //          }
+          project.log.log(logLevel, "RequirementsResolver: " + msg, cause)
         }
       }
     )
     implicit val p: Project = new RequirementsResolver
 
-    // TODO: the used project has to manipulate the log, e.g. move all info to debug.
-
-    SBuildRunner.determineRequestedTarget(target, true) match {
+    p.determineRequestedTarget(targetRef = TargetRef(target), searchInAllProjects = true, supportCamelCaseShortCuts = false) match {
 
       case None =>
         // not found
@@ -355,8 +353,12 @@ class ProjectScript(_scriptFile: File,
         }
 
       case Some(target) =>
-        
-        val targetExecutor = new TargetExecutor(project, project.log)
+
+        val targetExecutor = new TargetExecutor(
+          baseProject = project,
+          log = project.log,
+          logConfig = TargetExecutor.LogConfig(topLevelSkipped = LogLevel.Debug)
+        )
 
         // TODO: progress
         val executedTarget =

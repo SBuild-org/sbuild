@@ -1,7 +1,6 @@
 package de.tototec.sbuild
 
 import java.io.File
-import de.tototec.sbuild.runner.SBuildRunner
 import java.net.URI
 
 object TargetRef {
