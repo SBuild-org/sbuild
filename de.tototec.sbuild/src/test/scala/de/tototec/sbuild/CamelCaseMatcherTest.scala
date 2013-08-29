@@ -1,4 +1,4 @@
-package de.tototec.sbuild.runner
+package de.tototec.sbuild
 
 import org.scalatest.FunSuite
 
