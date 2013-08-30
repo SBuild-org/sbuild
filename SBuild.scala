@@ -17,6 +17,7 @@ class SBuild(implicit _project: Project) {
   val scalaReflect = s"mvn:org.scala-lang:scala-reflect:${scalaVersion}"
 
   val binJar = s"de.tototec.sbuild/target/de.tototec.sbuild-${sbuildVersion}.jar"
+  val runnerJar = s"de.tototec.sbuild.runner/target/de.tototec.sbuild.runner-${sbuildVersion}.jar"
   val antJar = s"de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-${sbuildVersion}.jar"
   val addonsJar = s"de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-${sbuildVersion}.jar"
   val pluginsJar = s"de.tototec.sbuild.plugins/target/de.tototec.sbuild.plugins-${sbuildVersion}.jar"
@@ -31,6 +32,7 @@ class SBuild(implicit _project: Project) {
 
   val modules = Modules(
     "de.tototec.sbuild",
+    "de.tototec.sbuild.runner",
     "de.tototec.sbuild.ant",
     "de.tototec.sbuild.addons",
     "de.tototec.sbuild.compilerplugin",
@@ -51,6 +53,7 @@ class SBuild(implicit _project: Project) {
 
   Target("phony:scaladoc") dependsOn
     "de.tototec.sbuild::scaladoc" ~
+    "de.tototec.sbuild.runner::scaladoc" ~
     "de.tototec.sbuild.ant::scaladoc" ~
     "de.tototec.sbuild.addons::scaladoc" ~
     "de.tototec.sbuild.compilerplugin::scaladoc" ~
@@ -68,7 +71,7 @@ class SBuild(implicit _project: Project) {
   }
 
   Target("phony:copyJars").cacheable dependsOn cmdOption ~ SBuildConfig.compilerPath ~
-      binJar ~ antJar ~ addonsJar ~ compilerPluginJar ~ jansi exec { ctx: TargetContext =>
+      binJar ~ runnerJar ~ antJar ~ addonsJar ~ compilerPluginJar ~ jansi exec { ctx: TargetContext =>
     ctx.fileDependencies foreach { file =>
       val targetFile = Path(distDir, "lib", file.getName)
       AntCopy(file = file, toFile = targetFile)
@@ -78,14 +81,20 @@ class SBuild(implicit _project: Project) {
 
   Target(classpathProperties) dependsOn
     _project.projectFile ~
-    binJar ~ compilerPluginJar ~
+    binJar ~ runnerJar ~ compilerPluginJar ~
+    antJar ~ addonsJar ~
     cmdOption ~ jansi ~
     scalaLibrary ~ scalaCompiler ~ scalaReflect exec { ctx: TargetContext =>
     val properties = s"""|# Classpath configuration for SBuild ${sbuildVersion}
+      |# sbuildClasspath - Used to load the SBuild API
       |sbuildClasspath = de.tototec.sbuild-${sbuildVersion}.jar
+      |# compileClasspath - Used to load the compiler to compile the buildfile in initialization phase
       |compileClasspath = ${scalaCompiler.files.head.getName}:${scalaReflect.files.head.getName}
-      |projectClasspath = ${scalaLibrary.files.head.getName}:de.tototec.sbuild.ant-${sbuildVersion}.jar:de.tototec.sbuild.addons-${sbuildVersion}.jar
-      |embeddedClasspath = ${binJar.files.head.getName}:${cmdOption.files.head.getName}:${jansi.files.head.getName}
+      |# projectClasspath - Used to compile and load the buildfiles
+      |projectClasspath = ${scalaLibrary.files.head.getName}:${antJar.files.head.getName}:${addonsJar.files.head.getName}
+      |# embeddedClasspath - Used to load the SBuild embedded API and all its dependencies, e.g. from IDE's
+      |embeddedClasspath = ${binJar.files.head.getName}:${runnerJar.files.head.getName}:${cmdOption.files.head.getName}:${jansi.files.head.getName}
+      |# compilerPluginJar - Used by the build file compiler to load the compiler plugin which extracts additional infos
       |compilerPluginJar = ${compilerPluginJar.files.head.getName}
       |"""
     AntMkdir(dir = ctx.targetFile.get.getParentFile)
@@ -94,7 +103,7 @@ class SBuild(implicit _project: Project) {
 
   val sbuildRunnerClass = "de.tototec.sbuild.runner.SBuildRunner"
 
-  Target(distDir + "/bin/sbuild") dependsOn _project.projectFile ~ binJar ~ jansi ~ cmdOption ~ scalaLibrary exec { ctx: TargetContext =>
+  Target(distDir + "/bin/sbuild") dependsOn _project.projectFile ~ binJar ~ runnerJar ~ jansi ~ cmdOption ~ scalaLibrary exec { ctx: TargetContext =>
 
     val sbuildSh = """|#!/bin/sh
       |
@@ -133,7 +142,7 @@ class SBuild(implicit _project: Project) {
       |fi
       |
       |""" +
-     s"""exec $${JRE} ${javaOptions} -cp "$${SBUILD_HOME}/lib/${scalaLibrary.files.head.getName}:$${SBUILD_HOME}/lib/${cmdOption.files.head.getName}:$${SBUILD_HOME}/lib/${jansi.files.head.getName}:$${SBUILD_HOME}/lib/${binJar.files.head.getName}" ${sbuildRunnerClass} """ +
+     s"""exec $${JRE} ${javaOptions} -cp "$${SBUILD_HOME}/lib/${scalaLibrary.files.head.getName}:$${SBUILD_HOME}/lib/${cmdOption.files.head.getName}:$${SBUILD_HOME}/lib/${jansi.files.head.getName}:$${SBUILD_HOME}/lib/${binJar.files.head.getName}:$${SBUILD_HOME}/lib/${runnerJar.files.head.getName}" ${sbuildRunnerClass} """ +
      """--sbuild-home "${SBUILD_HOME}" ${SBUILD_OPTS} "$@"
       |
       |unset SBUILD_HOME
@@ -143,7 +152,7 @@ class SBuild(implicit _project: Project) {
     AntChmod(file = ctx.targetFile.get, perm = "+x")
   }
 
-  Target(distDir + "/bin/sbuild.bat") dependsOn _project.projectFile ~ binJar ~ cmdOption ~ jansi ~ scalaLibrary exec { ctx: TargetContext =>
+  Target(distDir + "/bin/sbuild.bat") dependsOn _project.projectFile ~ binJar ~ runnerJar ~ cmdOption ~ jansi ~ scalaLibrary exec { ctx: TargetContext =>
 
     val sbuildBat =
       """|
@@ -223,7 +232,7 @@ class SBuild(implicit _project: Project) {
          |if NOT "%JAVA_HOME%"=="" SET SBUILD_JAVA_EXE=%JAVA_HOME%\bin\java.exe
          |
          |""" +
-      s""""%SBUILD_JAVA_EXE%" ${javaOptions} -cp "%SBUILD_HOME%\\lib\\${scalaLibrary.files.head.getName};%SBUILD_HOME%\\lib\\${jansi.files.head.getName};%SBUILD_HOME%\\lib\\${cmdOption.files.head.getName};%SBUILD_HOME%\\lib\\${binJar.files.head.getName}" ${sbuildRunnerClass} --sbuild-home "%SBUILD_HOME%" %SBUILD_CMD_LINE_ARGS%
+      s""""%SBUILD_JAVA_EXE%" ${javaOptions} -cp "%SBUILD_HOME%\\lib\\${scalaLibrary.files.head.getName};%SBUILD_HOME%\\lib\\${jansi.files.head.getName};%SBUILD_HOME%\\lib\\${cmdOption.files.head.getName};%SBUILD_HOME%\\lib\\${binJar.files.head.getName};%SBUILD_HOME%\\lib\\${runnerJar.files.head.getName}" ${sbuildRunnerClass} --sbuild-home "%SBUILD_HOME%" %SBUILD_CMD_LINE_ARGS%
          |""" + """
          |goto end
          |

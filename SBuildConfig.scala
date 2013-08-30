@@ -3,7 +3,7 @@ import de.tototec.sbuild.TargetRefs._
 
 object SBuildConfig {
 
-  def sbuildVersion = "0.5.0.9002"
+  def sbuildVersion = "0.5.0.9003"
   def sbuildOsgiVersion = sbuildVersion
 
   private def cmdOptionVersion = "0.3.1"
@@ -16,9 +16,12 @@ object SBuildConfig {
   def scalaVersion = "2.10.2"
   def scalaBinVersion = "2.10"
 
+  def scalaLibrary = s"mvn:org.scala-lang:scala-library:${scalaVersion}"
+  def scalaCompiler = s"mvn:org.scala-lang:scala-compiler:${scalaVersion}"
+  def scalaReflect = s"mvn:org.scala-lang:scala-reflect:${scalaVersion}"
+  def scalaActors = s"mvn:org.scala-lang:scala-actors:${scalaVersion}"
+
   def compilerPath(implicit project: Project) =
-    s"mvn:org.scala-lang:scala-library:${scalaVersion}" ~
-    s"mvn:org.scala-lang:scala-compiler:${scalaVersion}" ~
-    s"mvn:org.scala-lang:scala-reflect:${scalaVersion}"
+    scalaLibrary ~ scalaCompiler ~ scalaReflect
 
 }

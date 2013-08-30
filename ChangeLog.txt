@@ -20,6 +20,8 @@ SBuild 0.5.0.9001 - trunk:
 * Handle invalid commandline options properly.
 * Better download progress (percent, content length, url) and failure handling
   (resume, retry).
+* Moved SBuild runner into separate project de.tototec.sbuild.runner to keep
+  the SBuild API as small as possible.
 
 SBuild 0.5.0 - 2013-07-12:
 
