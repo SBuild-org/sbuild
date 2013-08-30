@@ -192,4 +192,24 @@ class SBuild(implicit _project: Project) {
     (newContent, names)
   }
 
+  val jBakeDeps = Seq(
+    "jbake.jar",
+    "lib/args4j-2.0.23.jar",
+    "lib/commons-configuration-1.9.jar",
+    "lib/commons-io-2.4.jar",
+    "lib/commons-lang-2.6.jar",
+    "lib/commons-logging-1.1.1.jar",
+    "lib/freemarker-2.3.19.jar",
+    "lib/markdownj-0.3.0-1.0.2b4.jar"
+  ).map(file => TargetRef(s"zip:file=jbake-2.1/${file};archive=http://jbake.org/files/jbake-2.1-bin.zip"))
+
+  Target("phony:experimentalJBake") dependsOn jBakeDeps exec {
+    val sourceDir = Path("jbake")
+    val targetDir = Path("target/jbake")
+    addons.support.ForkSupport.runJavaAndWait(classpath = jBakeDeps.files, arguments = Array(
+      "org.jbake.launcher.Main", sourceDir.getAbsolutePath, targetDir.getAbsolutePath
+    ))
+  }
+
 }
+
