@@ -13,9 +13,9 @@ class SBuild(implicit _project: Project) {
   val compileCp =
     s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" ~
       "mvn:org.apache.ant:ant:1.8.4" ~
-      s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
-      s"mvn:org.scala-lang:scala-compiler:${SBuildConfig.scalaVersion}" ~
-      s"mvn:org.scala-lang:scala-reflect:${SBuildConfig.scalaVersion}" ~
+      SBuildConfig.scalaLibrary ~
+      SBuildConfig.scalaCompiler ~
+      SBuildConfig.scalaReflect ~
       "mvn:org.liquibase:liquibase-core:2.0.3" ~
       "mvn:biz.aQute:bnd:1.50.0"
 

@@ -13,7 +13,7 @@ class SBuild(implicit _project: Project) {
   val addonsJar = s"target/de.tototec.sbuild.addons-${SBuildConfig.sbuildVersion}.jar"
 
   val compileCp =
-    s"mvn:org.scala-lang:scala-library:${SBuildConfig.scalaVersion}" ~
+    SBuildConfig.scalaLibrary ~
     s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar"
   //      ("mvn: org.scalatest:scalatest_" + scalaVersion + ":1.6.1") ~
   //      ("http://cloud.github.com/downloads/KentBeck/junit/junit-4.10.jar") ~
