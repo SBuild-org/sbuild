@@ -85,5 +85,8 @@ class Config {
     parallelJobs = jobs
   }
   var parallelJobs: Int = 0
+  
+  @CmdOption(names = Array("--repeat"), args = Array("SECONDS"), description = "Repeat the requested action after the given time (in seconds), but not before the previous run was completed.")
+  var repeatAfterSec: Int = 0
 
 }

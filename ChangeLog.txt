@@ -22,6 +22,9 @@ SBuild 0.5.0.9001 - trunk:
   (resume, retry).
 * Moved SBuild runner into separate project de.tototec.sbuild.runner to keep
   the SBuild API as small as possible.
+* Improved error messages of ScanSchemeHandler.
+* Added new commandline option --repeat to let SBuild repeat an action after
+  a given time interval.
 
 SBuild 0.5.0 - 2013-07-12:
 

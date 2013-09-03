@@ -256,32 +256,34 @@ class SBuildRunner {
 
       run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
 
-    } catch {
-      case e: CmdlineParserException =>
-        errorOutput(e, "SBuild commandline was invalid. Please use --help for supported commandline options.")
-        if (verbose) throw e
-        1
-      case e: InvalidApiUsageException =>
-        errorOutput(e, "SBuild detected a invalid usage of SBuild API. Please consult the API Refence Documentation at http://sbuild.tototec.de .")
-        if (verbose) throw e
-        1
-      case e: ProjectConfigurationException =>
-        errorOutput(e, "SBuild detected a failure in the project configuration or the build scripts.")
-        if (verbose) throw e
-        1
-      case e: TargetNotFoundException =>
-        errorOutput(e, "SBuild failed because an invalid target was requested. For a list of available targets use --list-targets or --list-targets-recursive. Use --help for a list of other commandline options.")
-        if (verbose) throw e
-        1
-      case e: ExecutionFailedException =>
-        errorOutput(e, "SBuild detected a failure in a target execution.")
-        if (verbose) throw e
-        1
-      case e: Exception =>
-        errorOutput(e, "SBuild failed with an unexpected exception (" + e.getClass.getSimpleName + ").")
-        if (verbose) throw e
-        1
-    }
+    } catch exceptionHandler(rethrowInVerboseMode = true)
+  }
+
+  def exceptionHandler(rethrowInVerboseMode: Boolean): PartialFunction[Throwable, Int] = {
+    case e: CmdlineParserException =>
+      errorOutput(e, "SBuild commandline was invalid. Please use --help for supported commandline options.")
+      if (rethrowInVerboseMode && verbose) throw e
+      1
+    case e: InvalidApiUsageException =>
+      errorOutput(e, "SBuild detected a invalid usage of SBuild API. Please consult the API Refence Documentation at http://sbuild.tototec.de .")
+      if (rethrowInVerboseMode && verbose) throw e
+      1
+    case e: ProjectConfigurationException =>
+      errorOutput(e, "SBuild detected a failure in the project configuration or the build scripts.")
+      if (rethrowInVerboseMode && verbose) throw e
+      1
+    case e: TargetNotFoundException =>
+      errorOutput(e, "SBuild failed because an invalid target was requested. For a list of available targets use --list-targets or --list-targets-recursive. Use --help for a list of other commandline options.")
+      if (rethrowInVerboseMode && verbose) throw e
+      1
+    case e: ExecutionFailedException =>
+      errorOutput(e, "SBuild detected a failure in a target execution.")
+      if (rethrowInVerboseMode && verbose) throw e
+      1
+    case e: Exception =>
+      errorOutput(e, "SBuild failed with an unexpected exception (" + e.getClass.getSimpleName + ").")
+      if (rethrowInVerboseMode && verbose) throw e
+      1
   }
 
   /**
@@ -351,7 +353,7 @@ class SBuildRunner {
       val projectsToList = if (config.listTargetsRecursive) {
         project.projectPool.projects
       } else {
-        Seq(project) ++ additionalProjects
+        project :: additionalProjects.toList
       }
       val out = projectsToList.sortWith(projectSorter(project) _).map { p => formatTargetsOf(p) }
       log.log(LogLevel.Info, out.mkString("\n\n"))
@@ -377,7 +379,7 @@ class SBuildRunner {
 
     // The dependencyTree will be populated by the treePrinter, in case it was requested on commandline
 
-    class DependencyTree {
+    class DependencyTree(baseProject: Project) {
       private var dependencyTree = List[(Int, Target)]()
 
       def addNode(depth: Int, node: Target): Unit = dependencyTree = (depth -> node) :: dependencyTree
@@ -389,12 +391,12 @@ class SBuildRunner {
           case (depth, target) =>
 
             var prefix = if (lastDepth > depth && depth > 0) {
-              List.fill(depth - 1)("  ").mkString + "  (" + lastShown(depth - 1).formatRelativeTo(project) + ")\n"
+              List.fill(depth - 1)("  ").mkString + "  (" + lastShown(depth - 1).formatRelativeTo(baseProject) + ")\n"
             } else ""
 
             lastDepth = depth
             lastShown += (depth -> target)
-            val line = prefix + List.fill(depth)("  ").mkString + "  " + target.formatRelativeTo(project)
+            val line = prefix + List.fill(depth)("  ").mkString + "  " + target.formatRelativeTo(baseProject)
 
             line
         }
@@ -402,17 +404,8 @@ class SBuildRunner {
       }
     }
 
-    val parallelExecContext = if (config.parallelProcessing) {
-      val jobsOption = config.parallelJobs match {
-        case 0 => None
-        case x => Some(x)
-      }
-      log.log(LogLevel.Debug, "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + jobsOption.toString)
-      Some(new TargetExecutor.ParallelExecContext(threadCount = jobsOption, baseProject = project))
-    } else None
-
     val depTree =
-      if (config.showDependencyTree) Some(new DependencyTree())
+      if (config.showDependencyTree) Some(new DependencyTree(project))
       else None
 
     val treePrinter: Option[(Int, Target) => Unit] = depTree.map { t => t.addNode _ }
@@ -495,25 +488,57 @@ class SBuildRunner {
       return if (errors.isEmpty) 0 else 1
     }
 
-    // force evaluation of lazy val chain, if required, and switch afterwards from bootstrap to execution time benchmarking.
-    val execProgress =
-      if (config.noProgress) None
-      else Some(new TargetExecutor.ExecProgress(maxCount = chain.foldLeft(0) { (a, b) => a + b.treeSize }))
+    val bootstrapTime = System.currentTimeMillis - bootstrapStart
 
-    val executionStart = System.currentTimeMillis
-    val bootstrapTime = executionStart - bootstrapStart
+    val localExceptionHandler: PartialFunction[Throwable, Int] =
+      if (config.repeatAfterSec > 0) exceptionHandler(rethrowInVerboseMode = false)
+      else { case t: Throwable => throw t }
 
-    if (!targets.isEmpty && !config.noProgress) {
-      log.log(LogLevel.Info, fPercent("[0%]") + " Executing...")
-      log.log(LogLevel.Debug, "Requested targets: " + targets.map(_.formatRelativeTo(project)).mkString(" ~ "))
-    }
+    var repeat = true
+    var lastRepeatStart = 0L
+    while (repeat) {
+      repeat = config.repeatAfterSec > 0
+      if (repeat) {
+        val nextStart = lastRepeatStart + (config.repeatAfterSec * 1000)
+        nextStart - System.currentTimeMillis match {
+          case msec if msec > 0 =>
+            log.log(LogLevel.Info, s"Repeating execution in ${msec} milliseconds...")
+            Thread.sleep(msec)
+          case _ =>
+            log.log(LogLevel.Info, s"Repeating execution...")
+        }
+      }
+      lastRepeatStart = System.currentTimeMillis
 
-    targetExecutor.preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
-      transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
-      treeParallelExecContext = parallelExecContext)
-    if (!targets.isEmpty && !config.noProgress) {
-      log.log(LogLevel.Info, fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
-        " msec, Execution time: " + (System.currentTimeMillis - executionStart) + " msec")
+      val parallelExecContext = if (config.parallelProcessing) {
+        val jobsOption = config.parallelJobs match {
+          case 0 => None
+          case x => Some(x)
+        }
+        log.log(LogLevel.Debug, "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + jobsOption.toString)
+        Some(new TargetExecutor.ParallelExecContext(threadCount = jobsOption, baseProject = project))
+      } else None
+
+      try {
+        // force evaluation of lazy val chain, if required, and switch afterwards from bootstrap to execution time benchmarking.
+        val execProgress =
+          if (config.noProgress) None
+          else Some(new TargetExecutor.ExecProgress(maxCount = chain.foldLeft(0) { (a, b) => a + b.treeSize }))
+
+        if (!targets.isEmpty && !config.noProgress) {
+          log.log(LogLevel.Info, fPercent("[0%]") + " Executing...")
+          log.log(LogLevel.Debug, "Requested targets: " + targets.map(_.formatRelativeTo(project)).mkString(" ~ "))
+        }
+
+        targetExecutor.preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
+          transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
+          treeParallelExecContext = parallelExecContext)
+        if (!targets.isEmpty && !config.noProgress) {
+          log.log(LogLevel.Info, fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
+            " msec, Execution time: " + (System.currentTimeMillis - lastRepeatStart) + " msec")
+        }
+
+      } catch localExceptionHandler
     }
 
     log.log(LogLevel.Debug, "Finished")
@@ -533,11 +558,6 @@ class SBuildRunner {
     }.partition(_.isInstanceOf[Target])
 
     (requested.asInstanceOf[Seq[Target]], invalid.asInstanceOf[Seq[String]])
-  }
-
-  class ExecProgress(val maxCount: Int, private[this] var _currentNr: Int = 1) {
-    def currentNr = _currentNr
-    def addToCurrentNr(addToCurrentNr: Int): Unit = synchronized { _currentNr += addToCurrentNr }
   }
 
   def formatProject(project: Project)(implicit baseProject: Project) =
