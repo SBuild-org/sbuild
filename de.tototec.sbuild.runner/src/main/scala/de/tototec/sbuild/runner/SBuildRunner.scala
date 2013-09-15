@@ -339,8 +339,8 @@ class SBuildRunner {
      * Format all non-implicit targets of a project.
      * If the project is not the main/entry project, to project name will included in the formatted name.
      */
-    def formatTargetsOf(baseProject: Project): String = {
-      baseProject.targets.sortBy(_.name).map { t =>
+    def formatTargetsOf(project: Project, baseProject: Project): String = {
+      project.targets.sortBy(_.name).map { t =>
         t.formatRelativeTo(baseProject) + " \t" + (t.help match {
           case null => ""
           case s: String => s
@@ -355,7 +355,7 @@ class SBuildRunner {
       } else {
         project :: additionalProjects.toList
       }
-      val out = projectsToList.sortWith(projectSorter(project) _).map { p => formatTargetsOf(p) }
+      val out = projectsToList.sortWith(projectSorter(project) _).map { p => formatTargetsOf(p, project) }
       log.log(LogLevel.Info, out.mkString("\n\n"))
       // early exit
       return 0
