@@ -33,6 +33,8 @@ import de.tototec.sbuild.ExportDependencies
 import de.tototec.sbuild.TargetRefs
 import de.tototec.sbuild.execute.TargetExecutor
 import de.tototec.sbuild.execute.InMemoryTransientTargetCache
+import de.tototec.sbuild.BuildfileCompilationException
+import de.tototec.sbuild.SBuildException
 
 object ProjectScript {
 
@@ -93,15 +95,19 @@ object ProjectScript {
     unescape(Nil, str.toList).reverse.mkString
   }
 
+  case class CachedScalaCompiler(compilerClass: Class[_], compilerMethod: Method, reporterMethod: Method)
+  case class CachedExtendedScalaCompiler(compilerClass: Class[_], compilerMethod: Method, reporterMethod: Method, outputMethod: Method, clearOutputMethod: Method)
+
   /**
    * Drop all caches. For now, this is the Scalac compiler and its ClassLoader.
    */
-  def dropCaches { scalaCompilerAndClassloader = None }
+  def dropCaches { cachedScalaCompiler = None; cachedExtendedScalaCompiler = None }
   /**
    * Cached instance of the Scalac compiler class and its ClassLoader.
    * Using a cache will provide the benefit, that loading is faster and we potentially profit from any JIT-compilation at runtime.
    */
-  private var scalaCompilerAndClassloader: Option[(Any, Method, Method)] = None
+  private var cachedScalaCompiler: Option[CachedScalaCompiler] = None
+  private var cachedExtendedScalaCompiler: Option[CachedExtendedScalaCompiler] = None
 
 }
 
@@ -151,14 +157,14 @@ class ProjectScript(_scriptFile: File,
   val typesToIncludedFilesPropertiesFile: File = new File(targetDir, "analyzedtypes.properties")
 
   private[this] def checkFile = if (!scriptFile.exists) {
-    throw new RuntimeException(s"Could not find build file: ${scriptFile.getName}\n" +
+    throw new ProjectConfigurationException(s"Could not find build file: ${scriptFile.getName}\n" +
       s"Searched in: ${scriptFile.getAbsoluteFile.getParent}")
   }
 
   /**
    * Compile this project script (if necessary) and apply it to the given Project.
    */
-  def compileAndExecute(project: Project): Any = {
+  def compileAndExecute(project: Project): Any = try {
     checkFile
 
     val version = readAnnotationWithSingleAttribute("version", "value")
@@ -187,6 +193,9 @@ class ProjectScript(_scriptFile: File,
     }
 
     useExistingCompiled(project, addCp, buildClassName)
+  } catch {
+    case e: SBuildException =>
+      e.buildScript = Some(project.projectFile)
   }
 
   case class LastRunInfo(upToDate: Boolean, targetClassName: String, issues: Option[String] = None)
@@ -360,8 +369,8 @@ class ProjectScript(_scriptFile: File,
           baseProject = project,
           log = project.log,
           logConfig = TargetExecutor.LogConfig(
-              executing = LogLevel.Debug,
-              topLevelSkipped = LogLevel.Debug
+            executing = LogLevel.Debug,
+            topLevelSkipped = LogLevel.Debug
           )
         )
 
@@ -476,30 +485,67 @@ class ProjectScript(_scriptFile: File,
       val compileMethod = compileClient.asInstanceOf[Object].getClass.getMethod("process", Array(classOf[Array[String]]): _*)
       log.log(LogLevel.Debug, "Executing CompileClient with args: " + params.mkString(" "))
       val retVal = compileMethod.invoke(compileClient, params).asInstanceOf[Boolean]
-      if (!retVal) throw new SBuildException("Could not compile build file " + scriptFile.getAbsolutePath + " with CompileClient. See compiler output.")
+      if (!retVal) throw new BuildfileCompilationException("Could not compile build file " + scriptFile.getAbsolutePath + " with CompileClient. See compiler output.")
     }
 
     def compileWithoutFsc {
-      val (compiler, compilerMethod, reporterMethod) = ProjectScript.scalaCompilerAndClassloader match {
-        case Some((c, cm, rm)) =>
-          log.log(LogLevel.Debug, "Reusing cached compiler instance.")
-          (c, cm, rm)
-        case None =>
-          val compiler = lazyCompilerClassloader.loadClass("scala.tools.nsc.Main")
-          val compilerMethod = compiler.getMethod("process", Array(classOf[Array[String]]): _*)
-          val reporterMethod = compiler.getMethod("reporter")
-          val cache = (compiler, compilerMethod, reporterMethod)
-          log.log(LogLevel.Debug, "Caching compiler for later use.")
-          ProjectScript.scalaCompilerAndClassloader = Some(cache)
-          cache
-      }
 
-      log.log(LogLevel.Debug, "Executing Scala Compile with args: " + params.mkString(" "))
-      compilerMethod.invoke(null, params)
-      val reporter = reporterMethod.invoke(null)
-      val hasErrorsMethod = reporter.asInstanceOf[Object].getClass.getMethod("hasErrors")
-      val hasErrors = hasErrorsMethod.invoke(reporter).asInstanceOf[Boolean]
-      if (hasErrors) throw new SBuildException("Could not compile build file " + scriptFile.getAbsolutePath + " with scala compiler. See compiler output.")
+      val useExtendedCompiler = true
+      if (useExtendedCompiler) {
+
+        val cachedCompiler = ProjectScript.cachedExtendedScalaCompiler match {
+          case Some(cached) =>
+            log.log(LogLevel.Debug, "Reusing cached compiler instance.")
+            cached
+          case None =>
+            val compiler = lazyCompilerClassloader.loadClass("de.tototec.sbuild.scriptcompiler.ScriptCompiler")
+            //            val compiler = compilerClass.getConstructor().newInstance()
+            val compilerMethod = compiler.getMethod("process", Array(classOf[Array[String]]): _*)
+            val reporterMethod = compiler.getMethod("reporter")
+            val outputMethod = compiler.getMethod("getRecordedOutput")
+            val clearOutputMethod = compiler.getMethod("clearRecordedOutput")
+            val cache = CachedExtendedScalaCompiler(compiler, compilerMethod, reporterMethod, outputMethod, clearOutputMethod)
+            log.log(LogLevel.Debug, "Caching compiler for later use.")
+            ProjectScript.cachedExtendedScalaCompiler = Some(cache)
+            cache
+        }
+
+        log.log(LogLevel.Debug, "Executing Scala Compile with args: " + params.mkString(" "))
+        val compilerInstance = cachedCompiler.compilerClass.getConstructor().newInstance()
+
+        cachedCompiler.compilerMethod.invoke(compilerInstance, params)
+        val reporter = cachedCompiler.reporterMethod.invoke(compilerInstance)
+        val hasErrorsMethod = reporter.asInstanceOf[Object].getClass.getMethod("hasErrors")
+        val hasErrors = hasErrorsMethod.invoke(reporter).asInstanceOf[Boolean]
+        if (hasErrors) {
+          val output = cachedCompiler.outputMethod.invoke(compilerInstance).asInstanceOf[Seq[String]]
+          cachedCompiler.clearOutputMethod.invoke(compilerInstance)
+          throw new BuildfileCompilationException("Could not compile build file " + scriptFile.getAbsolutePath + " with scala compiler.\nCompiler output:\n" + output.mkString("\n"))
+        }
+        cachedCompiler.clearOutputMethod.invoke(compilerInstance)
+
+      } else {
+        val cachedCompiler = ProjectScript.cachedScalaCompiler match {
+          case Some(cached) =>
+            log.log(LogLevel.Debug, "Reusing cached compiler instance.")
+            cached
+          case None =>
+            val compiler = lazyCompilerClassloader.loadClass("scala.tools.nsc.Main")
+            val compilerMethod = compiler.getMethod("process", Array(classOf[Array[String]]): _*)
+            val reporterMethod = compiler.getMethod("reporter")
+            val cache = CachedScalaCompiler(compiler, compilerMethod, reporterMethod)
+            log.log(LogLevel.Debug, "Caching compiler for later use.")
+            ProjectScript.cachedScalaCompiler = Some(cache)
+            cache
+        }
+
+        log.log(LogLevel.Debug, "Executing Scala Compile with args: " + params.mkString(" "))
+        cachedCompiler.compilerMethod.invoke(null, params)
+        val reporter = cachedCompiler.reporterMethod.invoke(null)
+        val hasErrorsMethod = reporter.asInstanceOf[Object].getClass.getMethod("hasErrors")
+        val hasErrors = hasErrorsMethod.invoke(reporter).asInstanceOf[Boolean]
+        if (hasErrors) throw new BuildfileCompilationException("Could not compile build file " + scriptFile.getAbsolutePath + " with scala compiler. See compiler output.")
+      }
     }
 
     if (noFsc) {
@@ -510,9 +556,7 @@ class ProjectScript(_scriptFile: File,
       } catch {
         case e: SBuildException => throw e
         case e: Exception =>
-          log.log(LogLevel.Debug, "Compilation with CompileClient failed. trying non-dispributed Scala compiler.")
-          // throw new SBuildException("Could not compile build file " + scriptFile.getName + " with CompileClient. Exception: " + e.getMessage, e)
-          // we should try with normal scala compiler
+          log.log(LogLevel.Debug, "Compilation with CompileClient failed. trying non-distributed Scala compiler.")
           compileWithoutFsc
       }
     }
