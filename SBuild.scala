@@ -21,6 +21,7 @@ class SBuild(implicit _project: Project) {
   val antJar = s"de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-${sbuildVersion}.jar"
   val addonsJar = s"de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-${sbuildVersion}.jar"
   val pluginsJar = s"de.tototec.sbuild.plugins/target/de.tototec.sbuild.plugins-${sbuildVersion}.jar"
+  val scriptCompilerJar = s"de.tototec.sbuild.scriptcompiler/target/de.tototec.sbuild.scriptcompiler-${sbuildVersion}.jar"
   val compilerPluginJar = s"de.tototec.sbuild.compilerplugin/target/de.tototec.sbuild.compilerplugin-${sbuildVersion}.jar"
 
   val distName = s"sbuild-${sbuildVersion}"
@@ -35,6 +36,7 @@ class SBuild(implicit _project: Project) {
     "de.tototec.sbuild.runner",
     "de.tototec.sbuild.ant",
     "de.tototec.sbuild.addons",
+    "de.tototec.sbuild.scriptcompiler",
     "de.tototec.sbuild.compilerplugin",
     "de.tototec.sbuild.plugins",
     "de.tototec.sbuild.experimental",
@@ -71,7 +73,7 @@ class SBuild(implicit _project: Project) {
   }
 
   Target("phony:copyJars").cacheable dependsOn cmdOption ~ SBuildConfig.compilerPath ~
-      binJar ~ runnerJar ~ antJar ~ addonsJar ~ compilerPluginJar ~ jansi exec { ctx: TargetContext =>
+      binJar ~ runnerJar ~ antJar ~ addonsJar ~ compilerPluginJar ~ scriptCompilerJar ~ jansi exec { ctx: TargetContext =>
     ctx.fileDependencies foreach { file =>
       val targetFile = Path(distDir, "lib", file.getName)
       AntCopy(file = file, toFile = targetFile)
@@ -81,7 +83,7 @@ class SBuild(implicit _project: Project) {
 
   Target(classpathProperties) dependsOn
     _project.projectFile ~
-    binJar ~ runnerJar ~ compilerPluginJar ~
+    binJar ~ runnerJar ~ compilerPluginJar ~ scriptCompilerJar ~
     antJar ~ addonsJar ~
     cmdOption ~ jansi ~
     scalaLibrary ~ scalaCompiler ~ scalaReflect exec { ctx: TargetContext =>
@@ -89,7 +91,7 @@ class SBuild(implicit _project: Project) {
       |# sbuildClasspath - Used to load the SBuild API
       |sbuildClasspath = de.tototec.sbuild-${sbuildVersion}.jar
       |# compileClasspath - Used to load the compiler to compile the buildfile in initialization phase
-      |compileClasspath = ${scalaCompiler.files.head.getName}:${scalaReflect.files.head.getName}
+      |compileClasspath = ${scalaCompiler.files.head.getName}:${scalaReflect.files.head.getName}:${scriptCompilerJar.files.head.getName}
       |# projectClasspath - Used to compile and load the buildfiles
       |projectClasspath = ${scalaLibrary.files.head.getName}:${antJar.files.head.getName}:${addonsJar.files.head.getName}
       |# embeddedClasspath - Used to load the SBuild embedded API and all its dependencies, e.g. from IDE's
