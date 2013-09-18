@@ -196,6 +196,7 @@ class ProjectScript(_scriptFile: File,
   } catch {
     case e: SBuildException =>
       e.buildScript = Some(project.projectFile)
+      throw e
   }
 
   case class LastRunInfo(upToDate: Boolean, targetClassName: String, issues: Option[String] = None)
