@@ -130,3 +130,18 @@ object InvalidApiUsageException extends LocalizableSupport[InvalidApiUsageExcept
  */
 class InvalidApiUsageException(msg: String, cause: Throwable = null, localizedMsg: String = null)
   extends ProjectConfigurationException(msg, cause, localizedMsg)
+
+
+//////////////////////
+
+object BuildfileCompilationException extends LocalizableSupport[BuildfileCompilationException] {
+  override def create(msg: String, cause: Throwable, localizedMsg: String): BuildfileCompilationException =
+    new BuildfileCompilationException(msg, cause, localizedMsg)
+}
+
+/**
+ * Invalid use of SBuild API.
+ */
+class BuildfileCompilationException(msg: String, cause: Throwable = null, localizedMsg: String = null)
+  extends ProjectConfigurationException(msg, cause, localizedMsg)
+
