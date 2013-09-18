@@ -18,7 +18,7 @@ object AetherSchemeHandler {
 
   case class Repository(name: String, layout: String, url: String)
   object Repository {
-    implicit def fromFullName(fullName:String): Repository = fullName.split("::") match {
+    implicit def fromFullName(fullName: String): Repository = fullName.split("::") match {
       case Array(name, layout, url) => Repository(name, layout, url)
       case _ => throw new IllegalArgumentException("Unsupported repository definition (required: <name>::<layout>::<url>): " + fullName)
     }
@@ -115,7 +115,7 @@ class AetherSchemeHandler(
   def resolve(schemeCtx: SchemeContext, targetContext: TargetContext) {
     try {
 
-      val requestedDeps = schemeCtx.path.split(",").map { p => MavenGav(p) }
+      val requestedDeps = schemeCtx.path.split(",").map(p => MavenGav(p.trim))
       project.log.log(LogLevel.Debug, "About to resolve the following requested dependencies: " + requestedDeps.mkString(", "))
 
       val files = worker.resolve(requestedDeps)
