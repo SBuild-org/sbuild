@@ -59,6 +59,10 @@ class SBuildEmbedded(sbuildHomeDir: File) {
     0L
   }
 
+  /**
+   * @throws de.tototec.sbuild.BuildscriptCompileException If the buildfile could not be compiled.
+   * @throws de.tototec.sbuil.ProjectConfigurationException If the buildfile contains invalid directives. 
+   */
   def loadResolver(projectFile: File, props: Properties): EmbeddedResolver =
     new ProjectEmbeddedResolver(loadProject(projectFile, props))
 
