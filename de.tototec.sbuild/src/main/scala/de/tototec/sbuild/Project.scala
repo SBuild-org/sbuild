@@ -164,7 +164,7 @@ class BuildFileProject(_projectFile: File,
   //  private def targets_=(targets: Map[File, Target]): Unit = _targets = targets
 
   override def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target =
-    internalFindTarget(targetRef, searchInAllProjects = false, includeImplicit = true) match {
+    internalFindTarget(targetRef, searchInAllProjects = false, includeImplicit = true, supportCamelCaseShortCuts = false) match {
       case Some(t: ProjectTarget) if t.isImplicit && !isImplicit =>
         // we change it to explicit
         t.isImplicit = false
@@ -233,7 +233,7 @@ class BuildFileProject(_projectFile: File,
    * @param Also find targets that were created/cached implicit in the project but do not have a corresponding explicit definition.
    */
   override protected[sbuild] def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false, includeImplicit: Boolean = false): Option[Target] =
-    internalFindTarget(targetRef, searchInAllProjects, includeImplicit)
+    internalFindTarget(targetRef, searchInAllProjects, includeImplicit, supportCamelCaseShortCuts = false)
 
   /**
    * Find a target.
@@ -244,7 +244,11 @@ class BuildFileProject(_projectFile: File,
    *        referrer, search in all other projects.
    * @param Also find targets that were created/cached implicit in the project but do not have a corresponding explicit definition.
    */
-  private def internalFindTarget(targetRef: TargetRef, searchInAllProjects: Boolean, includeImplicit: Boolean): Option[Target] =
+  private def internalFindTarget(targetRef: TargetRef,
+                                 searchInAllProjects: Boolean,
+                                 includeImplicit: Boolean,
+                                 supportCamelCaseShortCuts: Boolean,
+                                 originalRequestedProject: Project = this): Option[Target] =
     explicitForeignProject(targetRef) match {
       case Some(pFile) =>
         // delegate to the other project
@@ -253,7 +257,7 @@ class BuildFileProject(_projectFile: File,
             val ex = new TargetNotFoundException("Could not find target: " + targetRef + ". Unknown project: " + pFile)
             ex.buildScript = Some(projectFile)
             throw ex
-          case Some(p) => p.internalFindTarget(targetRef, searchInAllProjects = false, includeImplicit) match {
+          case Some(p) => p.internalFindTarget(targetRef, searchInAllProjects = false, includeImplicit, supportCamelCaseShortCuts, originalRequestedProject = this) match {
             case None if targetRef.explicitNonStandardProto.isDefined =>
               None
             case None =>
@@ -265,7 +269,8 @@ class BuildFileProject(_projectFile: File,
         }
       case None =>
         // handle in this project
-        uniqueTargetFile(targetRef) match {
+        val localFound = uniqueTargetFile(targetRef) match {
+          // the only case!
           case UniqueTargetFile(file, phony, _) => targetMap.get(file) match {
 
             case Some(found) if !found.isImplicit || includeImplicit => Some(found)
@@ -311,8 +316,25 @@ class BuildFileProject(_projectFile: File,
               }
 
             case x => x
-
           }
+        }
+
+        localFound match {
+          case None if supportCamelCaseShortCuts && Seq(None, Some("phony")).contains(targetRef.explicitProto) =>
+            val matcher = new CamelCaseMatcher(targetRef.name)
+            val matches = targets.filter(t => t.phony && matcher.matches(TargetRef(t.name)(t.project).nameWithoutProto))
+            matches match {
+              case Seq() => None
+              case Seq(foundTarget) =>
+                log.log(LogLevel.Debug, s"""Resolved shortcut camel case request "${targetRef}" to target "${foundTarget.formatRelativeTo(originalRequestedProject)}".""")
+                Some(foundTarget)
+              case multiMatch =>
+                log.log(LogLevel.Debug, s"""Ambiguous match for request "${targetRef}". Candidates: """ + multiMatch.map(_.formatRelativeTo(originalRequestedProject)).mkString(", "))
+                // ambiguous match, found more that one
+                // Todo: think about replace Option by Try, to communicate better reason why nothing was found
+                None
+            }
+          case x => x
         }
     }
 
@@ -432,7 +454,7 @@ class BuildFileProject(_projectFile: File,
   override def prerequisitesGrouped(target: Target, searchInAllProjects: Boolean = false): Seq[Seq[Target]] =
     target.dependants.targetRefGroups.map { group =>
       group.map { dep =>
-        internalFindTarget(dep, searchInAllProjects = searchInAllProjects, includeImplicit = true) match {
+        internalFindTarget(dep, searchInAllProjects = searchInAllProjects, includeImplicit = true, supportCamelCaseShortCuts = false) match {
           case Some(target) => target
           case None =>
             // TODO: if none target was found, look in other project if they provide the target
@@ -558,38 +580,19 @@ class BuildFileProject(_projectFile: File,
 
   override protected[sbuild] def determineRequestedTarget(targetRef: TargetRef, searchInAllProjects: Boolean, supportCamelCaseShortCuts: Boolean): Option[Target] =
 
-    findTarget(targetRef, searchInAllProjects = searchInAllProjects) match {
-      case Some(target) => Some(target)
-      case None => targetRef.explicitProto match {
-        case None | Some("phony") | Some("file") if supportCamelCaseShortCuts =>
-          // this currently works only for non-explicit projects
-          val matcher = new CamelCaseMatcher(targetRef.name)
-          val matches = targets.filter {
-            case t =>
-              val tref = TargetRef(t.name)(t.project)
-              tref.explicitProto match {
-                case None | Some("phony") | Some("file") =>
-                  matcher.matches(tref.nameWithoutProto)
-                case _ => false
-              }
-          }
-          matches match {
-            case Seq() => None
-            case Seq(foundTarget) =>
-              log.log(LogLevel.Debug, s"""Resolved shortcut camel case request "${targetRef}" to target "${foundTarget.formatRelativeTo(this)}".""")
-              Some(foundTarget)
-            case multiMatch =>
-              log.log(LogLevel.Debug, s"""Ambiguous match for request "${targetRef}". Candidates: """ + multiMatch.map(_.formatRelativeTo(this)).mkString(", "))
-              // ambiguous match, found more that one
-              // Todo: think about replace Option by Try, to communicate better reason why nothing was found
-              None
-          }
-        case None | Some("phony") | Some("file") => None
-        case _ =>
-          // A scheme handler might be able to resolve this thing
-          Some(createTarget(targetRef, isImplicit = true))
+    internalFindTarget(targetRef,
+      searchInAllProjects = searchInAllProjects,
+      includeImplicit = false,
+      supportCamelCaseShortCuts = supportCamelCaseShortCuts,
+      originalRequestedProject = this) match {
+        case Some(target) => Some(target)
+        case None => targetRef.explicitProto match {
+          case None | Some("phony") | Some("file") => None
+          case _ =>
+            // A scheme handler might be able to resolve this thing
+            Some(createTarget(targetRef, isImplicit = true))
+        }
       }
-    }
 
 }
 
