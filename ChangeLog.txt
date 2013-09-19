@@ -26,9 +26,10 @@ SBuild trunk:
 * Added new commandline option --repeat to let SBuild repeat an action after
   a given time interval.
 * Build script compiler now records scala compiler output, e.g. for later use
-  in IDEs.
-* Added suuport for sequential dependencies, which will be executed
-  sequentially.
+  in IDEs. Created new scriptcompiler project.
+* Added support for sequential dependencies, which will be executed
+  sequentially. You have to use "~~" instead of "~".
+* Various internal cleanups.
 
 SBuild 0.5.0 - 2013-07-12:
 
