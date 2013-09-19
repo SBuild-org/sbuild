@@ -1,14 +1,26 @@
 package de.tototec.sbuild
 
 import java.io.File
+
 import scala.reflect.ClassTag
 
+/**
+ * Path can be used to produce absolute [[File]] instances which are relative to the current SBuild project directory
+ * or the directory containing an included and explicit requested project resource.
+ */
 object Path {
 
   // since SBuild 0.4.0.9002
-  def apply[T: ClassTag](path: String, paths: String*)(implicit project: Project): File = {
+  def apply[T: ClassTag](path: String, paths: String*)(implicit project: Project): File =
+    Path[T](new File(path), paths: _*)
+
+  def apply(path: String, paths: String*)(implicit project: Project): File =
+    Path(new File(path), paths: _*)
+
+  // since SBuild 0.5.0.9003
+  def apply[T: ClassTag](path: File, paths: String*)(implicit project: Project): File = {
     val baseDir = project.includeDirOf[T]
-    val file = normalize(new File(path), baseDir)
+    val file = normalize(path, baseDir)
     if (paths.isEmpty) {
       file
     } else {
@@ -16,8 +28,9 @@ object Path {
     }
   }
 
-  def apply(path: String, paths: String*)(implicit project: Project): File = {
-    val file = normalize(new File(path), project.projectDirectory)
+  // since SBuild 0.5.0.9003
+  def apply(path: File, paths: String*)(implicit project: Project): File = {
+    val file = normalize(path, project.projectDirectory)
     if (paths.isEmpty) {
       file
     } else {
