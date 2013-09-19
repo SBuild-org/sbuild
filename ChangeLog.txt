@@ -1,4 +1,4 @@
-SBuild trunk:
+SBuild 0.6.0 - 2013-09-19:
 
 * Fixed a bug in SBuildEmbedded concerning incomplete file lists for local
   file dependencies.
