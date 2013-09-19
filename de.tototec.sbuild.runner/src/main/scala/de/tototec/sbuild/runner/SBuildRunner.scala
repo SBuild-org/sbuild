@@ -421,7 +421,7 @@ class SBuildRunner {
       }
       val chain = targetExecutor.preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter, dependencyCache = dependencyCache)
       log.log(LogLevel.Debug, "Target Dependency Cache: " + dependencyCache.cached.map {
-        case (t, d) => "\n  " + t.formatRelativeTo(project) + " -> " + d.map {
+        case (t, d) => "\n  " + t.formatRelativeTo(project) + " -> " + d.flatten.map {
           dep => dep.formatRelativeTo(project)
         }.mkString(", ")
       })

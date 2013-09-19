@@ -33,11 +33,11 @@ trait Target {
    * A prerequisites (dependencies) to this target. SBuild will ensure,
    * that these dependency are up-to-date before this target will be executed.
    */
-  def dependsOn(goals: => TargetRefs): Target
+  def dependsOn(goals: TargetRefs): Target
   /**
    * Get a list of all (current) prerequisites (dependencies) of this target.
    */
-  private[sbuild] def dependants: Seq[TargetRef]
+  private[sbuild] def dependants: TargetRefs
 
   /**
    * Apply an block of actions, that will be executed, if this target was requested but not up-to-date.
@@ -90,7 +90,7 @@ class ProjectTarget private[sbuild] (override val name: String,
                                      override val file: File,
                                      override val phony: Boolean,
                                      override val project: Project,
-                                     initialPrereqs: Seq[TargetRef] = Seq(),
+                                     initialPrereqs: TargetRefs = TargetRefs(),
                                      initialExec: TargetContext => Any = null,
                                      initialTransparentExec: Boolean = false,
                                      initialSideEffectFree: Boolean = false) extends Target {
@@ -98,7 +98,7 @@ class ProjectTarget private[sbuild] (override val name: String,
   private[sbuild] var isImplicit = false
 
   private var _help: String = _
-  private var prereqs: Seq[TargetRef] = initialPrereqs
+  private var prereqs: TargetRefs = initialPrereqs
 
   private[this] var _transparentExec: Boolean = initialTransparentExec
   override private[sbuild] def isTransparentExec: Boolean = _transparentExec
@@ -109,11 +109,11 @@ class ProjectTarget private[sbuild] (override val name: String,
   private[this] var execReplaced: Boolean = false
   private[this] var _exec: TargetContext => Any = initialExec
 
-  private[sbuild] override def action = _exec
-  private[sbuild] override def dependants = prereqs
+  private[sbuild] override def action: TargetContext => Any = _exec
+  private[sbuild] override def dependants: TargetRefs = prereqs
 
-  override def dependsOn(targetRefs: => TargetRefs): Target = {
-    prereqs ++= targetRefs.targetRefs
+  override def dependsOn(targetRefs: TargetRefs): Target = {
+    prereqs = prereqs ~ targetRefs
     ProjectTarget.this
   }
 
@@ -140,7 +140,7 @@ class ProjectTarget private[sbuild] (override val name: String,
   override def toString() =
     getClass.getSimpleName +
       "(" + name + "=>" + file + (if (phony) "[phony]" else "") +
-      ",dependsOn=" + prereqs.map(t => t.name).mkString(" ~ ") +
+      ",dependsOn=" + prereqs +
       ",exec=" + (_exec match {
         case null => "non"
         case _ if execReplaced => "replaced"

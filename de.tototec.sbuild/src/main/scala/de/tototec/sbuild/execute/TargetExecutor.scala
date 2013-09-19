@@ -51,9 +51,9 @@ object TargetExecutor {
   class DependencyCache(baseProject: Project) {
     private implicit val _baseProject = baseProject
 
-    private var depTrees: Map[Target, Seq[Target]] = Map()
+    private var depTrees: Map[Target, Seq[Seq[Target]]] = Map()
 
-    def cached: Map[Target, Seq[Target]] = synchronized { depTrees }
+    def cached: Map[Target, Seq[Seq[Target]]] = synchronized { depTrees }
 
     /**
      * Return the direct dependencies of the given target.
@@ -67,7 +67,7 @@ object TargetExecutor {
      * @throws ProjectConfigurationException If cycles are detected.
      * @throws UnsupportedSchemeException If an unsupported scheme was used in any of the targets.
      */
-    def targetDeps(target: Target, dependencyTrace: List[Target] = Nil): Seq[Target] = synchronized {
+    def targetDeps(target: Target, dependencyTrace: List[Target] = Nil): Seq[Seq[Target]] = synchronized {
       // check for cycles
       dependencyTrace.find(dep => dep == target).map { cycle =>
         val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + cycle.formatRelativeTo(baseProject) +
@@ -80,7 +80,7 @@ object TargetExecutor {
         case Some(deps) => deps
         case None =>
           try {
-            val deps = target.project.prerequisites(target = target, searchInAllProjects = true)
+            val deps = target.project.prerequisitesGrouped(target = target, searchInAllProjects = true)
             depTrees += (target -> deps)
             deps
           } catch {
@@ -106,7 +106,11 @@ object TargetExecutor {
      * @throws UnsupportedSchemeException If an unsupported scheme was used in any of the targets.
      */
     def fillTreeRecursive(target: Target, parents: List[Target] = Nil): Unit = synchronized {
-      targetDeps(target, parents).foreach { dep => fillTreeRecursive(dep, target :: parents) }
+      targetDeps(target, parents).foreach { group =>
+        group.foreach { dep =>
+          fillTreeRecursive(dep, target :: parents)
+        }
+      }
     }
 
   }
@@ -231,14 +235,14 @@ class TargetExecutor(baseProject: Project,
         return cachedExecutedContext
       }
 
-      val dependencies: Seq[Target] = dependencyCache.targetDeps(curTarget, dependencyTrace)
+      val dependencies: Seq[Seq[Target]] = dependencyCache.targetDeps(curTarget, dependencyTrace)
 
       log.log(LogLevel.Debug, "Dependencies of " + curTargetFormatted + ": " +
-        (if (dependencies.isEmpty) "<none>" else dependencies.map(_.formatRelativeTo(baseProject)).mkString(" ~ ")))
+        (if (dependencies.isEmpty) "<none>" else dependencies.map(_.map(_.formatRelativeTo(baseProject)).mkString(" ~ ")).mkString(" ~~ ")))
 
       val executedDependencies: Seq[ExecutedTarget] = parallelExecContext match {
         case None =>
-          dependencies.map { dep =>
+          dependencies.flatten.map { dep =>
             preorderedDependenciesTree(
               curTarget = dep,
               execProgress = execProgress,
@@ -251,24 +255,29 @@ class TargetExecutor(baseProject: Project,
               parallelExecContext = parallelExecContext)
           }
         case Some(parCtx) =>
-          // val parDeps = collection.parallel.mutable.ParArray(dependencies: _*)
-          val parDeps = collection.parallel.immutable.ParVector(dependencies: _*)
-          parDeps.tasksupport = parCtx.taskSupport
 
-          val result = parDeps.map { dep =>
-            preorderedDependenciesTree(
-              curTarget = dep,
-              execProgress = execProgress,
-              skipExec = skipExec,
-              dependencyTrace = curTarget :: dependencyTrace,
-              depth = depth + 1,
-              treePrinter = treePrinter,
-              dependencyCache = dependencyCache,
-              transientTargetCache = transientTargetCache,
-              parallelExecContext = parallelExecContext)
-          }
+          dependencies.map { group =>
 
-          result.seq.toSeq
+            // val parDeps = collection.parallel.mutable.ParArray(dependencies: _*)
+            val parDeps = collection.parallel.immutable.ParVector(group: _*)
+            parDeps.tasksupport = parCtx.taskSupport
+
+            val result = parDeps.map { dep =>
+              preorderedDependenciesTree(
+                curTarget = dep,
+                execProgress = execProgress,
+                skipExec = skipExec,
+                dependencyTrace = curTarget :: dependencyTrace,
+                depth = depth + 1,
+                treePrinter = treePrinter,
+                dependencyCache = dependencyCache,
+                transientTargetCache = transientTargetCache,
+                parallelExecContext = parallelExecContext)
+            }
+
+            result.seq.toSeq
+            
+          }.flatten
       }
 
       // print dep-tree

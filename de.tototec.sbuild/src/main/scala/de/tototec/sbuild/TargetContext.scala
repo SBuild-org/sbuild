@@ -94,7 +94,7 @@ class TargetContextImpl(
   /**
    * The prerequisites (direct dependencies) of this target.
    */
-  override def prerequisites: Seq[TargetRef] = target.dependants
+  override def prerequisites: Seq[TargetRef] = target.dependants.targetRefs
 
   override def fileDependencies: Seq[File] = directDepsTargetContexts.flatMap(_.targetFiles)
 

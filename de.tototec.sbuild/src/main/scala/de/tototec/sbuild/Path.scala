@@ -17,7 +17,7 @@ object Path {
   def apply(path: String, paths: String*)(implicit project: Project): File =
     Path(new File(path), paths: _*)
 
-  // since SBuild 0.5.0.9003
+  // since SBuild 0.5.0.9004
   def apply[T: ClassTag](path: File, paths: String*)(implicit project: Project): File = {
     val baseDir = project.includeDirOf[T]
     val file = normalize(path, baseDir)
@@ -28,7 +28,7 @@ object Path {
     }
   }
 
-  // since SBuild 0.5.0.9003
+  // since SBuild 0.5.0.9004
   def apply(path: File, paths: String*)(implicit project: Project): File = {
     val file = normalize(path, project.projectDirectory)
     if (paths.isEmpty) {

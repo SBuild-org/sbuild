@@ -22,6 +22,7 @@ trait ProjectBase {
    */
   protected[sbuild] def findTarget(targetRef: TargetRef, searchInAllProjects: Boolean = false, includeImplicit: Boolean = false): Option[Target]
   protected[sbuild] def prerequisites(target: Target, searchInAllProjects: Boolean = false): Seq[Target]
+  protected[sbuild] def prerequisitesGrouped(target: Target, searchInAllProjects: Boolean = false): Seq[Seq[Target]]
   protected[sbuild] def findModule(dirOrFile: String): Option[Project]
   protected[sbuild] def properties: Map[String, String]
   /** All active scheme handler in this project. */
@@ -291,7 +292,7 @@ class BuildFileProject(_projectFile: File,
                 case x =>
                   // Found more than one. What should we do about it?
                   // We check the maximal one with contains dependencies and/or actions
-                  val realTargets = candidates.filter(t => t.get.action == null && t.get.dependants.isEmpty)
+                  val realTargets = candidates.filter(t => t.get.action == null && t.get.dependants.targetRefs.isEmpty)
                   realTargets match {
                     case Seq(bestCandidate) => // Perfect, we will use that one
                       bestCandidate
@@ -425,35 +426,39 @@ class BuildFileProject(_projectFile: File,
   }
 
   override def prerequisites(target: Target, searchInAllProjects: Boolean = false): Seq[Target] =
-    target.dependants.map { dep =>
-      internalFindTarget(dep, searchInAllProjects = searchInAllProjects, includeImplicit = true) match {
-        case Some(target) => target
-        case None =>
-          // TODO: if none target was found, look in other project if they provide the target
-          dep.explicitProto match {
-            case Some("phony") =>
-              throw new TargetNotFoundException("Non-existing prerequisite '" + dep.name + "' found for target: " + target)
-            case None | Some("file") =>
-              // try to find a file
-              createTarget(dep, isImplicit = true) exec {
-                val file = Path(dep.name)(this)
-                if (!file.exists || !file.isDirectory) {
-                  val e = new ProjectConfigurationException("Don't know how to build prerequisite: " + dep)
-                  e.buildScript = explicitForeignProject(dep) match {
-                    case None => Some(projectFile)
-                    case x => x
+    prerequisitesGrouped(target, searchInAllProjects).flatten
+
+  // Since SBUild 0.5.0.9005
+  override def prerequisitesGrouped(target: Target, searchInAllProjects: Boolean = false): Seq[Seq[Target]] =
+    target.dependants.targetRefGroups.map { group =>
+      group.map { dep =>
+        internalFindTarget(dep, searchInAllProjects = searchInAllProjects, includeImplicit = true) match {
+          case Some(target) => target
+          case None =>
+            // TODO: if none target was found, look in other project if they provide the target
+            dep.explicitProto match {
+              case Some("phony") =>
+                throw new TargetNotFoundException("Non-existing prerequisite '" + dep.name + "' found for target: " + target)
+              case None | Some("file") =>
+                // try to find a file
+                createTarget(dep, isImplicit = true) exec {
+                  val file = Path(dep.name)(this)
+                  if (!file.exists || !file.isDirectory) {
+                    val e = new ProjectConfigurationException("Don't know how to build prerequisite: " + dep)
+                    e.buildScript = explicitForeignProject(dep) match {
+                      case None => Some(projectFile)
+                      case x => x
+                    }
+                    throw e
                   }
-                  throw e
                 }
-              }
-            case _ =>
-              // A scheme handler might be able to resolve this thing
-              createTarget(dep, isImplicit = true)
-          }
+              case _ =>
+                // A scheme handler might be able to resolve this thing
+                createTarget(dep, isImplicit = true)
+            }
+        }
       }
     }
-
-  //  def prerequisitesMap: Map[Target, List[Target]] = targets.values.map(goal => (goal, prerequisites(goal))).toMap
 
   private[this] var _schemeHandlers: Map[String, SchemeHandler] = Map()
   override protected[sbuild] def schemeHandlers: Map[String, SchemeHandler] = _schemeHandlers

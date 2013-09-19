@@ -27,6 +27,8 @@ SBuild trunk:
   a given time interval.
 * Build script compiler now records scala compiler output, e.g. for later use
   in IDEs.
+* Added suuport for sequential dependencies, which will be executed
+  sequentially.
 
 SBuild 0.5.0 - 2013-07-12:
 
