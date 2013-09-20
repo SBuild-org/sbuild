@@ -510,14 +510,16 @@ class SBuildRunner {
       }
       lastRepeatStart = System.currentTimeMillis
 
-      val parallelExecContext = if (config.parallelProcessing) {
-        val jobsOption = config.parallelJobs match {
-          case 0 => None
-          case x => Some(x)
-        }
-        log.log(LogLevel.Debug, "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + jobsOption.toString)
-        Some(new TargetExecutor.ParallelExecContext(threadCount = jobsOption, baseProject = project))
-      } else None
+      val parallelExecContext = config.parallelJobs match {
+        case 1 => None
+        case _ =>
+          val jobsOption = config.parallelJobs match {
+            case x if x > 1 => Some(x)
+            case _ => None
+          }
+          log.log(LogLevel.Debug, "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + jobsOption.toString)
+          Some(new TargetExecutor.ParallelExecContext(threadCount = jobsOption, baseProject = project))
+      }
 
       try {
         // force evaluation of lazy val chain, if required, and switch afterwards from bootstrap to execution time benchmarking.

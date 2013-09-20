@@ -46,9 +46,9 @@ class SBuild(implicit _project: Project) {
 
   }
 
-  Target(jar) dependsOn "compile" ~ "LICENSE.txt" exec { ctx: TargetContext =>
+  Target(jar) dependsOn "compile" ~ "LICENSE.txt" ~ "scan:src/main/resources" exec { ctx: TargetContext =>
     new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes")) {
-      // if (Path("src/main/resources").exists) add(AntFileSet(dir = Path("src/main/resources")))
+       if (Path("src/main/resources").exists) add(AntFileSet(dir = Path("src/main/resources")))
       add(AntFileSet(file = Path("LICENSE.txt")))
     }.execute
   }
