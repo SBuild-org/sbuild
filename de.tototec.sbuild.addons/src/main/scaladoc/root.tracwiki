@@ -1,8 +1,10 @@
 ==SBuild Addons Reference==
 
-This is the API Reference for SBuild Addons. All addons are located in package [[de.tototec.sbuild.addons]].
+This is the API Reference for SBuild Addons.
 
 This version is designed to be used with SBuild $#{SBUILD_VERSION}.
+
+Detailed documentation of all addons are located in package [[de.tototec.sbuild.addons]] and it's subpackages.
 
 Project Homepage: [[http://sbuild.tototec.de/]]
 

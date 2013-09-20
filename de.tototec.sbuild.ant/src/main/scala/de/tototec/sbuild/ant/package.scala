@@ -5,7 +5,7 @@ package de.tototec.sbuild
  *
  * This is the API Reference for SBuild Ant Support and the Ant Wrappers.
  *
- * This version is designed to be used with SBuild 0.4.0.
+ * This version is designed to be used with SBuild $#{SBUILD_VERSION}.
  *
  * Project Homepage: [[http://sbuild.tototec.de/]]
  *

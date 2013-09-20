@@ -62,10 +62,6 @@ class SBuild(implicit _project: Project) {
         org.unix4j.Unix4j.cat(source).sed(s"s/\\$$#\\{SBUILD_VERSION\\}/${SBuildConfig.sbuildVersion}/g").toFile(target)
       }
 
-      // parse root page
-      val targetRoot = Path("target/generated-scaladoc/root.tracwiki")
-      substVars(Path("src/main/scaladoc/root.tracwiki"), targetRoot)
-
       def substVarsInDir(sourceDir: File, targetDir: File, files: Seq[File]) = {
         val prefixL = sourceDir.getPath.length
         files.foreach { file =>
@@ -74,6 +70,11 @@ class SBuild(implicit _project: Project) {
           substVars(file, targetFile)
         }
       }
+
+      // parse root page
+      val targetRoot = Path("target/generated-scaladoc/root.tracwiki")
+      substVars(Path("src/main/scaladoc/root.tracwiki"), targetRoot)
+
       substVarsInDir(Path("src/main/scala"), Path("target/generated-scaladoc"), "scan:src/main/scala".files)
 
       addons.scala.Scaladoc(
