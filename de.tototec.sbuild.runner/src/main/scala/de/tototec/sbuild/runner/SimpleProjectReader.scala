@@ -12,11 +12,12 @@ import de.tototec.sbuild.ProjectPool
 class SimpleProjectReader(
   classpathConfig: ClasspathConfig,
   log: SBuildLogger = SBuildNoneLogger,
-  clean: Boolean = false)
+  clean: Boolean = false,
+  fileLocker: FileLocker)
     extends ProjectReader {
 
   override def readAndCreateProject(projectFile: File, properties: Map[String, String], projectPool: Option[ProjectPool], log: Option[SBuildLogger]): Project = {
-    val script = new ProjectScript(projectFile, classpathConfig, log.getOrElse(this.log))
+    val script = new ProjectScript(projectFile, classpathConfig, log.getOrElse(this.log), fileLocker)
     if (clean) {
       script.clean
     }

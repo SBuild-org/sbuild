@@ -35,6 +35,7 @@ import de.tototec.sbuild.execute.TargetExecutor
 import de.tototec.sbuild.execute.InMemoryTransientTargetCache
 import de.tototec.sbuild.BuildfileCompilationException
 import de.tototec.sbuild.SBuildException
+import scala.collection.LinearSeq
 
 object ProjectScript {
 
@@ -117,20 +118,23 @@ class ProjectScript(_scriptFile: File,
                     additionalProjectClasspath: Array[String],
                     compilerPluginJars: Array[String],
                     noFsc: Boolean,
-                    log: SBuildLogger) {
+                    log: SBuildLogger,
+                    fileLocker: FileLocker) {
 
   import ProjectScript._
 
   def this(scriptFile: File,
            classpathConfig: ClasspathConfig,
-           log: SBuildLogger) {
+           log: SBuildLogger,
+           fileLocker: FileLocker) {
     this(scriptFile,
       classpathConfig.sbuildClasspath,
       classpathConfig.compileClasspath,
       classpathConfig.projectClasspath,
       classpathConfig.compilerPluginJars,
       classpathConfig.noFsc,
-      log)
+      log,
+      fileLocker)
   }
 
   private[this] val scriptFile: File = Path.normalize(_scriptFile)
@@ -153,6 +157,9 @@ class ProjectScript(_scriptFile: File,
   // lazy val targetClassFile = new File(targetDir, scriptBaseName + ".class")
   private[this] lazy val infoFile = new File(targetDir, InfoFileName)
 
+  /** The lock file used to synchronize compilation of the build file by multiple processes. */
+  private[this] val lockFile = new File(targetBaseDir, "lock/" + scriptFile.getName + ".lock")
+
   /** File that contains the map from Scala type to the containing source file. */
   val typesToIncludedFilesPropertiesFile: File = new File(targetDir, "analyzedtypes.properties")
 
@@ -167,23 +174,50 @@ class ProjectScript(_scriptFile: File,
   def compileAndExecute(project: Project): Any = try {
     checkFile
 
-    val version = readAnnotationWithSingleAttribute("version", "value")
+    // We get an iterator and convert it to a stream, which will cache all seen lines
+    val sourceStream = new BufferedSource(new FileInputStream(scriptFile)).getLines().toStream
+    // Now we create an iterator which utilizes the already lazy and potentially cached stream
+    def buildScriptIterator = sourceStream.iterator
+
+    val version = readAnnotationWithSingleAttribute(buildScriptIterator, "version", "value")
     val osgiVersion = OSGiVersion.parseVersion(version)
     if (osgiVersion.compareTo(new OSGiVersion(SBuildVersion.osgiVersion)) > 0) {
       throw new SBuildException("The buildscript '" + scriptFile + "' requires at least SBuild version: " + version)
     }
 
-    val addCp: Array[String] = readAdditionalClasspath(project) ++ additionalProjectClasspath
+    val addCp: Array[String] = readAdditionalClasspath(project, buildScriptIterator) ++ additionalProjectClasspath
 
-    val includes: Map[String, Seq[File]] = readIncludeFiles(project)
+    val includes: Map[String, Seq[File]] = readIncludeFiles(project, buildScriptIterator)
 
     // TODO: also check additional classpath entries 
-    val buildClassName = checkInfoFileUpToDate(includes) match {
-      case LastRunInfo(true, className, _) => className
-      case LastRunInfo(_, _, reason) =>
-        // println("Compiling build script " + scriptFile + "...")
-        newCompile(sbuildClasspath ++ addCp, includes, reason)
+
+    def compileWhenNecessary(checkLock: Boolean): String = if (checkLock) {
+      checkInfoFileUpToDate(includes) match {
+        case LastRunInfo(true, className, _) => className
+        case LastRunInfo(_, _, reason) =>
+          fileLocker.acquire(lockFile, 30000, s"SBuild ${SBuildVersion.osgiVersion} for project file: ${scriptFile}") match {
+            case Right(fileLock) => try {
+              // println("Compiling build script " + scriptFile + "...")
+              log.log(LogLevel.Info, "Waiting for another SBuild process to release the build file: " + scriptFile)
+              compileWhenNecessary(false)
+            } finally {
+              fileLock.release
+            }
+            case Left(reason) => {
+              throw new BuildfileCompilationException("Buildfile compilation is locked by another process: " + reason)
+            }
+          }
+      }
+    } else {
+      checkInfoFileUpToDate(includes) match {
+        case LastRunInfo(true, className, _) => className
+        case LastRunInfo(_, _, reason) =>
+          // println("Compiling build script " + scriptFile + "...")
+          newCompile(sbuildClasspath ++ addCp, includes, reason)
+      }
     }
+
+    val buildClassName = compileWhenNecessary(checkLock = true)
 
     // Experimental: Attach included files 
     {
@@ -257,10 +291,10 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  def readAnnotationWithVarargAttribute(annoName: String, valueName: String, singleArg: Boolean = false): Array[String] = {
+  def readAnnotationWithVarargAttribute(buildScript: => Iterator[String], annoName: String, valueName: String, singleArg: Boolean = false): Array[String] = {
     var inAnno = false
     var skipRest = false
-    val it = new BufferedSource(new FileInputStream(scriptFile)).getLines()
+    val it = buildScript
     var annoLine = ""
     while (!skipRest && it.hasNext) {
       var line = cutSimpleComment(it.next).trim
@@ -315,17 +349,17 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  protected def readAnnotationWithSingleAttribute(annoName: String, valueName: String): String = {
-    readAnnotationWithVarargAttribute(annoName, valueName, true) match {
+  protected def readAnnotationWithSingleAttribute(buildScript: => Iterator[String], annoName: String, valueName: String): String = {
+    readAnnotationWithVarargAttribute(buildScript, annoName, valueName, true) match {
       case Array() => ""
       case Array(value) => value
       case _ => throw new RuntimeException("Unexpected annotation syntax detected. Expected single arg annotation @" + annoName)
     }
   }
 
-  protected def readIncludeFiles(project: Project): Map[String, Seq[File]] = {
+  protected def readIncludeFiles(project: Project, buildScript: => Iterator[String]): Map[String, Seq[File]] = {
     log.log(LogLevel.Debug, "About to find include files.")
-    val cp = readAnnotationWithVarargAttribute(annoName = "include", valueName = "value")
+    val cp = readAnnotationWithVarargAttribute(buildScript, annoName = "include", valueName = "value")
     log.log(LogLevel.Debug, "Using include files: " + cp.mkString(", "))
 
     // TODO: specific error message, when fetch or download fails
@@ -385,9 +419,9 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  protected def readAdditionalClasspath(project: Project): Array[String] = {
+  protected def readAdditionalClasspath(project: Project, buildScript: => Iterator[String]): Array[String] = {
     log.log(LogLevel.Debug, "About to find additional classpath entries.")
-    val cp = readAnnotationWithVarargAttribute(annoName = "classpath", valueName = "value")
+    val cp = readAnnotationWithVarargAttribute(buildScript, annoName = "classpath", valueName = "value")
     log.log(LogLevel.Debug, "Using additional classpath entries: " + cp.mkString(", "))
     resolveViaProject(cp, project, "@classpath entry").flatMap { case (key, value) => value }.map { _.getPath }.toArray
   }

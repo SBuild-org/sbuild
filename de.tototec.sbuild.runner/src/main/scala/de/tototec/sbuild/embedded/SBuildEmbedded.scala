@@ -20,6 +20,7 @@ import de.tototec.sbuild.TargetNotFoundException
 import scala.util.Try
 import scala.util.Failure
 import de.tototec.sbuild.execute.TargetExecutor
+import de.tototec.sbuild.runner.FileLocker
 
 object SBuildEmbedded {
   private[embedded] def debug(msg: => String) = Console.println(msg)
@@ -34,7 +35,7 @@ class SBuildEmbedded(sbuildHomeDir: File) {
     val classpathConfig = new ClasspathConfig()
     classpathConfig.sbuildHomeDir = sbuildHomeDir
     classpathConfig.noFsc = true
-    new SimpleProjectReader(classpathConfig)
+    new SimpleProjectReader(classpathConfig, fileLocker = new FileLocker())
   }
 
   // TODO: Method to check, if a project is up-to-date
@@ -61,7 +62,7 @@ class SBuildEmbedded(sbuildHomeDir: File) {
 
   /**
    * @throws de.tototec.sbuild.BuildscriptCompileException If the buildfile could not be compiled.
-   * @throws de.tototec.sbuil.ProjectConfigurationException If the buildfile contains invalid directives. 
+   * @throws de.tototec.sbuil.ProjectConfigurationException If the buildfile contains invalid directives.
    */
   def loadResolver(projectFile: File, props: Properties): EmbeddedResolver =
     new ProjectEmbeddedResolver(loadProject(projectFile, props))
@@ -96,7 +97,7 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
     implicit val _baseProject = project
 
     val targetRef = TargetRef(dep)
-    
+
     lazy val targetExecutor = new TargetExecutor(project, project.log)
 
     project.determineRequestedTarget(targetRef, searchInAllProjects = true, supportCamelCaseShortCuts = false) match {

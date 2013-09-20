@@ -313,7 +313,8 @@ class SBuildRunner {
     }
 
     log.log(LogLevel.Info, "Initializing project...")
-    val projectReader: ProjectReader = new SimpleProjectReader(classpathConfig, log, clean = config.clean)
+    val fileLocker = new FileLocker()
+    val projectReader: ProjectReader = new SimpleProjectReader(classpathConfig, log, clean = config.clean, fileLocker)
     val project = projectReader.readAndCreateProject(projectFile, config.defines.asScala.toMap, None, Some(log)).asInstanceOf[BuildFileProject]
 
     val additionalProjects = config.additionalBuildfiles.map { buildfile =>
