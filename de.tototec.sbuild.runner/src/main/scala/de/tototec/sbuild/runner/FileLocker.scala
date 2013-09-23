@@ -16,9 +16,15 @@ class FileLocker(updateIntervalMsec: Long = 1000,
    * @param processInformation Some information which can be used by another process to get additional information about the lock creator.
    * @return Either a `Right[FileLock]` containing the successful acquired file lock or a `Left[String]` containing some failure information.
    */
-  def acquire(file: File, timeoutMsec: Long, processInformation: String, createDirs: Boolean = true): Either[String, FileLock] = {
+  def acquire(file: File,
+              timeoutMsec: Long,
+              processInformation: String,
+              createDirs: Boolean = true,
+              onFirstWait: () => Unit = { () => },
+              onDeleteOrphanLock: () => Unit = { () => }): Either[String, FileLock] = {
     val startTime = System.currentTimeMillis
     var newTimeOut = timeoutMsec
+    var firstCheck = true
     while (newTimeOut >= 0 && file.exists) {
       val checkTime = System.currentTimeMillis
       val lastTouchTime = file.lastModified
@@ -26,8 +32,13 @@ class FileLocker(updateIntervalMsec: Long = 1000,
       if (lastTouchTime < fileToOldTime) {
         // About to delete orphan lock file
         // TODO: read file content, as it contains some information about the process, that just died.
+        onDeleteOrphanLock()
         file.delete
       } else {
+        if (firstCheck) {
+          onFirstWait()
+          firstCheck = false
+        }
         newTimeOut = timeoutMsec - (checkTime - startTime)
         if (newTimeOut >= 0) {
           Thread.sleep(math.min(newTimeOut, checkIntervalMsec))

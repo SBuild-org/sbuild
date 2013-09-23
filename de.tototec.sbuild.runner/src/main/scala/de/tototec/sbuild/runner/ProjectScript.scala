@@ -191,31 +191,33 @@ class ProjectScript(_scriptFile: File,
 
     // TODO: also check additional classpath entries 
 
-    def compileWhenNecessary(checkLock: Boolean): String = if (checkLock) {
+    def compileWhenNecessary(checkLock: Boolean): String =
       checkInfoFileUpToDate(includes) match {
         case LastRunInfo(true, className, _) => className
-        case LastRunInfo(_, _, reason) =>
-          fileLocker.acquire(lockFile, 30000, s"SBuild ${SBuildVersion.osgiVersion} for project file: ${scriptFile}") match {
-            case Right(fileLock) => try {
-              // println("Compiling build script " + scriptFile + "...")
-              log.log(LogLevel.Info, "Waiting for another SBuild process to release the build file: " + scriptFile)
-              compileWhenNecessary(false)
-            } finally {
-              fileLock.release
-            }
-            case Left(reason) => {
-              throw new BuildfileCompilationException("Buildfile compilation is locked by another process: " + reason)
-            }
-          }
-      }
-    } else {
-      checkInfoFileUpToDate(includes) match {
-        case LastRunInfo(true, className, _) => className
-        case LastRunInfo(_, _, reason) =>
+        case LastRunInfo(_, _, reason) if !checkLock =>
           // println("Compiling build script " + scriptFile + "...")
           newCompile(sbuildClasspath ++ addCp, includes, reason)
+        case LastRunInfo(_, _, reason) =>
+          fileLocker.acquire(
+            file = lockFile,
+            timeoutMsec = 30000,
+            processInformation = s"SBuild ${SBuildVersion.osgiVersion} for project file: ${scriptFile}",
+            onFirstWait = () =>
+              log.log(LogLevel.Info, "Waiting for another SBuild process to release the build file: " + scriptFile),
+            onDeleteOrphanLock = () =>
+              log.log(LogLevel.Debug, "Deleting orphan lock file: " + lockFile)
+          ) match {
+              case Right(fileLock) => try {
+                // println("Compiling build script " + scriptFile + "...")
+                compileWhenNecessary(false)
+              } finally {
+                fileLock.release
+              }
+              case Left(reason) => {
+                throw new BuildfileCompilationException("Buildfile compilation is locked by another process: " + reason)
+              }
+            }
       }
-    }
 
     val buildClassName = compileWhenNecessary(checkLock = true)
 
