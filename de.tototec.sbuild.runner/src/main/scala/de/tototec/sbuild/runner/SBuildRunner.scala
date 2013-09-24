@@ -1,19 +1,26 @@
 package de.tototec.sbuild.runner
 
+import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FileReader
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
-import scala.collection.JavaConverters._
-import scala.concurrent.Lock
+import java.util.Properties
+
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.collection.JavaConverters.mapAsScalaMapConverter
+
 import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.Ansi.Color.CYAN
 import org.fusesource.jansi.Ansi.Color.GREEN
 import org.fusesource.jansi.Ansi.Color.RED
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole
+
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
+import de.tototec.cmdoption.CmdlineParserException
 import de.tototec.sbuild.BuildFileProject
 import de.tototec.sbuild.BuildScriptAware
 import de.tototec.sbuild.ExecutionFailedException
@@ -28,23 +35,13 @@ import de.tototec.sbuild.SBuildLogger
 import de.tototec.sbuild.SBuildVersion
 import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetAware
-import de.tototec.sbuild.TargetContext
-import de.tototec.sbuild.TargetContextImpl
 import de.tototec.sbuild.TargetNotFoundException
 import de.tototec.sbuild.TargetRef
-import de.tototec.sbuild.TargetRef.fromString
-import de.tototec.sbuild.UnsupportedSchemeException
 import de.tototec.sbuild.Util
-import de.tototec.sbuild.WithinTargetExecution
-import scala.concurrent.forkjoin.ForkJoinPool
-import scala.collection.parallel.ForkJoinTaskSupport
-import de.tototec.sbuild.SBuildException
-import de.tototec.cmdoption.CmdlineParserException
-import de.tototec.sbuild.CamelCaseMatcher
-import de.tototec.sbuild.execute.TargetExecutor
 import de.tototec.sbuild.execute.ExecutedTarget
 import de.tototec.sbuild.execute.InMemoryTransientTargetCache
 import de.tototec.sbuild.execute.LoggingTransientTargetCache
+import de.tototec.sbuild.execute.TargetExecutor
 
 object SBuildRunner extends SBuildRunner {
 
@@ -188,6 +185,31 @@ class SBuildRunner {
       log.log(LogLevel.Error, fError("Reflective invokation message: " + e.getCause().getCause().getLocalizedMessage()).toString())
   }
 
+  private[this] def readAndApplyGlobal(config: Config) {
+    val rcFile = new File(System.getProperty("user.home"), ".sbuildrc")
+    if (!rcFile.exists()) log.log(LogLevel.Debug, "No global settings file found: " + rcFile)
+    else {
+      log.log(LogLevel.Debug, "About to read global settings file: " + rcFile)
+      val props = new Properties()
+      try {
+        props.load(new BufferedReader(new FileReader(rcFile)))
+      } catch {
+        case e: Exception => log.log(LogLevel.Error, s"""Could not read settings file "${rcFile.getPath}".""", e)
+      }
+
+      def readSetting(key: String, applyFunction: String => Unit) = try {
+        props.getProperty(key) match {
+          case null =>
+          case value => applyFunction(value)
+        }
+      } catch {
+        case e: Exception => log.log(LogLevel.Error, s"""Could not read setting "${key}" from settings file "${rcFile.getPath}".""", e)
+      }
+
+      readSetting("jobs", jobCount => if (config.parallelJobs.isEmpty) config.parallelJobs = Some(jobCount.toInt))
+    }
+  }
+
   /**
    * Run the SBuild (command line) application with the given arguments.
    *
@@ -211,6 +233,9 @@ class SBuildRunner {
 
         @CmdOption(names = Array("--no-color"), description = "Disable colored output.")
         var noColor = false
+
+        @CmdOption(names = Array("--no-global"), description = "Do not read global settings from <USER HOME>/.sbuildrc.")
+        var noGlobal = false
       }
       val cp = new CmdlineParser(config, classpathConfig, cmdlineConfig)
       cp.setResourceBundle("de.tototec.sbuild.runner.Messages", getClass.getClassLoader())
@@ -218,6 +243,9 @@ class SBuildRunner {
       cp.setProgramName("sbuild")
 
       cp.parse(args: _*)
+      if (!cmdlineConfig.noGlobal) {
+        readAndApplyGlobal(config)
+      }
 
       if (cmdlineConfig.noColor)
         Ansi.setEnabled(false)
@@ -511,15 +539,17 @@ class SBuildRunner {
       }
       lastRepeatStart = System.currentTimeMillis
 
-      val parallelExecContext = config.parallelJobs match {
+      val parallelExecContext = config.parallelJobs.flatMap {
         case 1 => None
-        case _ =>
-          val jobsOption = config.parallelJobs match {
+        case jobCount =>
+          // Multiple jobs
+          val explicitJobCount = jobCount match {
             case x if x > 1 => Some(x)
-            case _ => None
+            case 0 => None
+            case _ => None // TODO: this should be a config error
           }
-          log.log(LogLevel.Debug, "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + jobsOption.toString)
-          Some(new TargetExecutor.ParallelExecContext(threadCount = jobsOption, baseProject = project))
+          log.log(LogLevel.Debug, "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + explicitJobCount.toString)
+          Some(new TargetExecutor.ParallelExecContext(threadCount = explicitJobCount, baseProject = project))
       }
 
       try {

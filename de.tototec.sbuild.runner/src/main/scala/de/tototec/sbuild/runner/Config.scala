@@ -76,7 +76,8 @@ class Config {
   var justCleanRecursive: Boolean = false
 
   @CmdOption(names = Array("--jobs", "-j"), args = Array("N"), maxCount = -1 /* allow overriding */ , description = "Allow processing N targets in parallel.")
-  var parallelJobs: Int = 1
+  def setParallelJobs(jobs: Int) = parallelJobs = Some(jobs)
+  var parallelJobs: Option[Int] = None
 
   @CmdOption(names = Array("--repeat"), args = Array("SECONDS"), description = "Repeat the requested action after the given time (in seconds), but not before the previous run was completed.")
   var repeatAfterSec: Int = 0
