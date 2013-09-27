@@ -362,7 +362,7 @@ class ProjectScript(_scriptFile: File,
   protected def readIncludeFiles(project: Project, buildScript: => Iterator[String]): Map[String, Seq[File]] = {
     log.log(LogLevel.Debug, "About to find include files.")
     val cp = readAnnotationWithVarargAttribute(buildScript, annoName = "include", valueName = "value")
-    log.log(LogLevel.Debug, "Using include files: " + cp.mkString(", "))
+    log.log(LogLevel.Debug, if (cp.isEmpty) "No includes files specified." else s"Using ${cp.size} included files:\n - ${cp.mkString("\n - ")}")
 
     // TODO: specific error message, when fetch or download fails
     resolveViaProject(cp, project, "@include entry")
@@ -478,7 +478,7 @@ class ProjectScript(_scriptFile: File,
                    {
                      includes.map {
                        case (key, value) =>
-                         log.log(LogLevel.Debug, s"""@Include "${key}" resolved to ${value.size} files: ${value}""")
+                         log.log(LogLevel.Debug, s"""@include("${key}") resolved to ${value.size} files: ${value.mkString(", ")}""")
                          value.map { file =>
                            <include>
                              <path>{ file.getPath }</path>
