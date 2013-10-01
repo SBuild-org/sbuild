@@ -14,13 +14,10 @@ class SBuild(implicit _project: Project) {
 
   val jar = s"target/de.tototec.sbuild.plugins-${sbuildVersion}.jar"
 
-  val compilerCp =
-    s"mvn:org.scala-lang:scala-library:${scalaVersion}" ~
-    s"mvn:org.scala-lang:scala-compiler:${scalaVersion}" ~
-    s"mvn:org.scala-lang:scala-reflect:${scalaVersion}"
+  val compilerCp = SBuildConfig.compilerPath
 
   val compileCp =
-    s"mvn:org.scala-lang:scala-library:${scalaVersion}" ~
+    SBuildConfig.scalaLibrary ~
       s"../de.tototec.sbuild/target/de.tototec.sbuild-${sbuildVersion}.jar" ~
       s"../de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-${sbuildVersion}.jar" ~
       s"../de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-${sbuildVersion}.jar" ~
@@ -41,8 +38,7 @@ class SBuild(implicit _project: Project) {
       classpath = compileCp.files,
       sources = "scan:src/main/scala".files,
       destDir = Path("target/classes"),
-      debugInfo = "vars"
-    )
+      debugInfo = "vars")
   }
 
   Target(jar) dependsOn "compile" exec { ctx: TargetContext =>
