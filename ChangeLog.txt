@@ -1,3 +1,7 @@
+SBuild trunk:
+
+* Check and warn for identical module definitions in a project.
+
 SBuild 0.6.0 - 2013-09-19:
 
 * Fixed a bug in SBuildEmbedded concerning incomplete file lists for local

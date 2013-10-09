@@ -41,7 +41,7 @@ trait MutableProject extends ProjectBase {
   protected[sbuild] def replaceSchemeHandler(scheme: String, handler: SchemeHandler)
   protected[sbuild] def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
   protected[sbuild] def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
-  protected[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean = true): Project
+  protected[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean): Project
   /** Very exerimental. Do not use yet. */
   protected[sbuild] def registerPlugin(plugin: ExperimentalPlugin)
   protected[sbuild] def applyPlugins
@@ -82,13 +82,13 @@ class BuildFileProject(_projectFile: File,
   require(projectDirectory.exists, "Project directory '" + projectDirectory + "' does not exists")
   require(projectDirectory.isDirectory, "Project directory '" + projectDirectory + "' is not an directory")
 
-  private[sbuild] val projectPool = _projectPool match {
+  private[sbuild] val projectPool: ProjectPool = _projectPool match {
     case Some(p) => p
     case None => new ProjectPool(this)
   }
 
-  private var _modules: List[Project] = List()
-  def modules: List[Project] = _modules
+  private var _modules: List[Project] = Nil
+  def modules: Seq[Project] = _modules.reverse
 
   override protected[sbuild] def findModule(dirOrFile: String): Option[Project] =
     Path(dirOrFile)(this) match {
@@ -107,7 +107,7 @@ class BuildFileProject(_projectFile: File,
         }
     }
 
-  override protected[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean = true): Project = {
+  override protected[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean): Project = {
 
     val newProjectDirOrFile = Path(dirOrFile)(this)
     if (!newProjectDirOrFile.exists) {
@@ -130,13 +130,15 @@ class BuildFileProject(_projectFile: File,
 
     // file exists checks passed, now check for double-added projects
 
-    val projectAlreadyIncluded = projectPool.projects.find { p =>
-      p.projectFile == newProjectFile
+    val projectAlreadyIncludedInProject = modules.find(p => p.projectFile == newProjectFile)
+    projectAlreadyIncludedInProject.map { p =>
+      log.log(LogLevel.Warn, s"Warning: Module ${projectPool.formatProjectFileRelativeToBase(p)} is specified multiple times in project ${projectPool.formatProjectFileRelativeToBase(this)}")
     }
 
+    val projectAlreadyIncludedInPool = projectPool.projects.find(p => p.projectFile == newProjectFile)
     synchronized {
-      val module = projectAlreadyIncluded match {
-        case Some(existing) => existing
+      val module = projectAlreadyIncludedInPool match {
+        case Some(existingInPool) => existingInPool
         case _ =>
           projectReader match {
             case None =>
@@ -149,7 +151,7 @@ class BuildFileProject(_projectFile: File,
           }
       }
 
-      _modules = modules ::: List(module)
+      _modules ::= module
 
       module
     }
@@ -596,8 +598,9 @@ class BuildFileProject(_projectFile: File,
 
 }
 
-class ProjectPool(project: BuildFileProject) {
-  private var _projects: Map[File, BuildFileProject] = Map((project.projectFile -> project))
+class ProjectPool(val baseProject: BuildFileProject) {
+  private var _projects: Map[File, BuildFileProject] = Map()
+  addProject(baseProject)
 
   def addProject(project: BuildFileProject) {
     _projects += (project.projectFile -> project)
@@ -605,4 +608,9 @@ class ProjectPool(project: BuildFileProject) {
 
   def projects: Seq[BuildFileProject] = _projects.values.toSeq
   def propjectMap: Map[File, BuildFileProject] = _projects
+
+  def formatProjectFileRelativeToBase(project: Project): String =
+    if (baseProject != project)
+      baseProject.projectDirectory.toURI.relativize(project.projectFile.toURI).getPath
+    else project.projectFile.getName
 }
