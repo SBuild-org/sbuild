@@ -31,22 +31,20 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
 
     targetContext.fileDependencies match {
       case Seq(zipFile) =>
-        if (!file.exists) {
+        if (!file.exists || file.lastModified < zipFile.lastModified) try {
+          Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)))
           try {
-            Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)))
-            try {
-              file.setLastModified(System.currentTimeMillis)
-            } catch {
-              case e: Exception =>
-                project.log.log(LogLevel.Warn, s"""Could not change lastModified time of extracted file "${file.getPath}".""", e)
-            }
+            file.setLastModified(System.currentTimeMillis)
           } catch {
-            case e: FileNotFoundException =>
-              val ex = new ExecutionFailedException(s"""Could not resolve "${targetContext.name}" to "${file}".
-${e.getMessage}""", e)
-              ex.buildScript = Some(project.projectFile)
-              throw ex
+            case e: Exception =>
+              project.log.log(LogLevel.Warn, s"""Could not change lastModified time of extracted file "${file.getPath}".""", e)
           }
+        } catch {
+          case e: FileNotFoundException =>
+            val ex = new ExecutionFailedException(s"""Could not resolve "${targetContext.name}" to "${file}".
+${e.getMessage}""", e)
+            ex.buildScript = Some(project.projectFile)
+            throw ex
         }
       case x =>
         // something wrong

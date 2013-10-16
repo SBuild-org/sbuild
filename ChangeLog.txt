@@ -1,6 +1,9 @@
 SBuild trunk:
 
 * Check and warn for identical module definitions in a project.
+* ZipSchemeHandler: When an to-be-extracted resource already exists, but has
+  an older modification date than the zip file, re-extract it and set the
+  modification date accordingly.
 
 SBuild 0.6.0 - 2013-09-19:
 
