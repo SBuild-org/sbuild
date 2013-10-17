@@ -313,18 +313,19 @@ object Util {
     }
   }
 
-  implicit class NullSafe[T](possibleNull: T) {
-
-    def notNull(action: T => Unit) =
-      if (possibleNull != null) {
-        action(possibleNull)
-      }
-
-    def whenNull = orElse _
-
-    def orElse(orElse: => T): T =
-      if (possibleNull != null) possibleNull
-      else orElse
-  }
+  // Commented out: you can always use Option(x).getOrElse etc.
+  //  implicit class NullSafe[T](possibleNull: T) {
+  //
+  //    def notNull(action: T => Unit) =
+  //      if (possibleNull != null) {
+  //        action(possibleNull)
+  //      }
+  //
+  //    def whenNull = orElse _
+  //
+  //    def orElse(orElse: => T): T =
+  //      if (possibleNull != null) possibleNull
+  //      else orElse
+  //  }
 
 }

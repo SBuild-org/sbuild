@@ -5,8 +5,50 @@ import java.security.MessageDigest
 import java.io.FileNotFoundException
 import de.tototec.sbuild.SchemeHandler.SchemeContext
 
-/*
- * TODO: touch to file, do not preserve lastModified from archive, to support proper up-to-date detection
+/**
+ * The SchemeHandler to extract resources from a ZIP resource.
+ *
+ * TODO: Syntax
+ *
+ *
+ * Syntax
+ * ------
+ *
+ *         target ::= <scheme> ':' ( single-file | file-pattern ) ';archive=' <archive>
+ *    single-file ::= 'file=' <file> ( ';targetFile=' <file> )?
+ *   file-pattern ::= 'pattern=' <pattern>
+ *
+ *
+ * The `scheme` is the name under which the ZipSchemeHandler was registered.
+ * The `archive`is the ZIP archive and can be any supported target resolving to a file target.
+ *
+ * Extracting single files
+ * -----------------------
+ *
+ * The `file` is a the path to the to-be-extracted file in the archive.
+ * The optional `targetFile` denotes the location, where the extracted file should be stored.
+ *
+ * The ZipSchemeHandler will resolve to a file scheme pointing to the extracted file.
+ *
+ * Examples:
+ * {{{
+ * // register under the "zip" scheme
+ * SchemeHandler("zip", new ZipSchemeHandler())
+ *
+ * // a target that depends on the MANIFEST.MF file extracted from a local file
+ * Target("phony:localTest") dependsOn "zip:file=META-INF/MANIFEST.MF;archive=example-1.0.jar"
+ *
+ * // a target that depends on the MANIFEST.MF file extracted from a Maven artifact.
+ * Target("phony:remoteTest") dependsOn "zip:file=META-INF/MANIFEST.MF;archive=mvn:org.example:example:1.0"
+ * }}}
+ *
+ * Extracting multiple files (no yet implemented)
+ * ----------------------------------------------
+ *
+ * Use `pattern` to specify a regular expression pattern which will match those files from the archive to be extracted.
+ * The ZipSchemeHandler will resolve to a phony scheme including all extracted files as attached files.
+ * Remember that it is legal for ZIP resources, to not include directory entries, thus your might want to match concrete files inside the archive.
+ *
  */
 class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) extends SchemeResolver with SchemeResolverWithDependencies {
 
@@ -15,9 +57,9 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
     case x => x.getAbsoluteFile
   }
 
-  override def localPath(schemeCtx: SchemeContext): String = {
-    val config = parseConfig(schemeCtx.path)
-    "file:" + config.targetFile.getPath
+  override def localPath(schemeCtx: SchemeContext): String = parseConfig(schemeCtx.path) match {
+    case FileConfig(_, _, targetFile) => "file:" + targetFile.getPath
+    case PhonyConfig(_, _) => s"phony:${schemeCtx.scheme}:${schemeCtx.path}"
   }
 
   override def dependsOn(schemeCtx: SchemeContext): TargetRefs = {
@@ -27,32 +69,41 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
 
   override def resolve(schemeCtx: SchemeContext, targetContext: TargetContext) = {
     val config = parseConfig(schemeCtx.path)
-    val file = config.targetFile
 
-    targetContext.fileDependencies match {
-      case Seq(zipFile) =>
-        if (!file.exists || file.lastModified < zipFile.lastModified) try {
-          Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)))
-          try {
-            file.setLastModified(System.currentTimeMillis)
-          } catch {
-            case e: Exception =>
-              project.log.log(LogLevel.Warn, s"""Could not change lastModified time of extracted file "${file.getPath}".""", e)
-          }
-        } catch {
-          case e: FileNotFoundException =>
-            val ex = new ExecutionFailedException(s"""Could not resolve "${targetContext.name}" to "${file}".
+    config match {
+      case config: FileConfig =>
+        val file = config.targetFile
+
+        targetContext.fileDependencies match {
+          case Seq(zipFile) =>
+            if (!file.exists || file.lastModified < zipFile.lastModified) try {
+              Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)))
+              try {
+                file.setLastModified(System.currentTimeMillis)
+              } catch {
+                case e: Exception =>
+                  project.log.log(LogLevel.Warn, s"""Could not change lastModified time of extracted file "${file.getPath}".""", e)
+              }
+            } catch {
+              case e: FileNotFoundException =>
+                val ex = new ExecutionFailedException(s"""Could not resolve "${targetContext.name}" to "${file}".
 ${e.getMessage}""", e)
-            ex.buildScript = Some(project.projectFile)
-            throw ex
+                ex.buildScript = Some(project.projectFile)
+                throw ex
+            }
+          case x =>
+            // something wrong
+            throw new IllegalStateException("Expected exactly one zip file as dependency, but got: " + x)
         }
-      case x =>
-        // something wrong
-        throw new IllegalStateException("Expected exactly one zip file as dependency, but got: " + x)
+
+      case config: PhonyConfig =>
+        throw new NotImplementedError("Pattern-based extractors are currently not supported in ZipSchemeHandler.")
     }
   }
 
-  case class Config(fileInArchive: String, archive: String, targetFile: File)
+  sealed trait Config { def archive: String }
+  case class FileConfig(fileInArchive: String, override val archive: String, targetFile: File) extends Config
+  case class PhonyConfig(override val archive: String, pattern: String) extends Config
 
   def parseConfig(path: String): Config = {
     val syntax = "archive=archivePath;file=fileInArchive"
@@ -91,7 +142,7 @@ ${e.getMessage}""", e)
       case None => Path.normalize(new File(file), new File(baseDir, fileBaseLocation))
     }
 
-    Config(fileInArchive = file, archive = archive, targetFile = targetFile)
+    FileConfig(fileInArchive = file, archive = archive, targetFile = targetFile)
   }
 
   def zipFile(config: Config): File = {
