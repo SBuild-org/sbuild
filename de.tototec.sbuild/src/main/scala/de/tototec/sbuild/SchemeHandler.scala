@@ -17,6 +17,10 @@ trait SchemeHandler {
  * Register a SchemeHandler under a scheme qualifier into the current project.
  */
 object SchemeHandler {
+  /**
+   * @param scheme The scheme of the target.
+   * @param path The given target name without the scheme. 
+   */
   case class SchemeContext(scheme: String, path: String)
 
   def apply(scheme: String, handler: SchemeHandler)(implicit project: Project) =
