@@ -101,11 +101,11 @@ ${e.getMessage}""", e)
     }
   }
 
-  sealed trait Config { def archive: String }
-  case class FileConfig(fileInArchive: String, override val archive: String, targetFile: File) extends Config
-  case class PhonyConfig(override val archive: String, pattern: String) extends Config
+  private[this] sealed trait Config { def archive: String }
+  private[this] case class FileConfig(fileInArchive: String, override val archive: String, targetFile: File) extends Config
+  private[this] case class PhonyConfig(override val archive: String, pattern: String) extends Config
 
-  def parseConfig(path: String): Config = {
+  private[this] def parseConfig(path: String): Config = {
     val syntax = "archive=archivePath;file=fileInArchive"
 
     val pairs = path.split(";").map { part =>
@@ -145,7 +145,7 @@ ${e.getMessage}""", e)
     FileConfig(fileInArchive = file, archive = archive, targetFile = targetFile)
   }
 
-  def zipFile(config: Config): File = {
+  private[this] def zipFile(config: Config): File = {
     val targetRef = TargetRef(config.archive)(project)
     val target = project.findTarget(targetRef, searchInAllProjects = true) match {
       case Some(t) => t
