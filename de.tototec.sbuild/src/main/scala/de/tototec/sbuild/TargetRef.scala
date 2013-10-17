@@ -43,7 +43,7 @@ class TargetRef(val ref: String)(implicit project: Project) {
     case _ => name
   }
 
-  override def toString = name
+  override def toString = ref
 
   protected[sbuild] def targetProject: Option[Project] =
     if (explicitProject == None || project.projectFile == explicitProject.get)
@@ -113,6 +113,6 @@ class TargetRef(val ref: String)(implicit project: Project) {
       baseUri.relativize(absFile.toURI).getPath
     }
   }
-  
+
 }
 

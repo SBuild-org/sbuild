@@ -52,7 +52,7 @@ class TargetRefs private (val targetRefGroups: Seq[Seq[TargetRef]]) {
   def ~~(string: String)(implicit project: Project): TargetRefs = ~~(TargetRefs.fromString(string))
   def ~~(target: Target): TargetRefs = ~~(TargetRefs.fromTarget(target))
 
-  override def toString: String = targetRefGroups.map { _.map(_.name).mkString(" ~ ") }.mkString(" ~~ ")
+  override def toString: String = targetRefGroups.map { _.mkString(" ~ ") }.mkString(" ~~ ")
 
   /**
    * Get the files, this TargetRefs is referencing or producing, if any.
