@@ -48,13 +48,12 @@ object Logger {
       try {
         val loggerFactory = delegatedLoadingOfLoggerFactory
         cachedLoggerFactory = Some(loggerFactory)
-        loggerFactory
+        loggerFactory(classTag[T].runtimeClass.getName)
       } catch {
-        case e: NoClassDefFoundError => noOpLoggerFactory
+        case e: NoClassDefFoundError => 
+          cachedLoggerFactory = Some(noOpLoggerFactory)
+          noOpLogger
       }
-
-      // retry, now initialized
-      apply[T]
   }
 }
 
