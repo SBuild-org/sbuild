@@ -1,5 +1,8 @@
 package de.tototec.sbuild
 
+import scala.reflect.ClassTag
+import scala.reflect.classTag
+
 trait Logger extends Serializable {
   def error(msg: => String, throwable: Throwable = null)
   def warn(msg: => String, throwable: Throwable = null)
@@ -9,24 +12,31 @@ trait Logger extends Serializable {
 }
 
 object Logger {
-  import scala.reflect.ClassTag
-  import scala.reflect.classTag
-  import scala.util.Success
-  import scala.util.Try
-  import java.lang.reflect.Method
 
   private[this] var cachedLoggerFactory: Option[String => Logger] = None
+
+  private[this] lazy val noOpLogger = new Logger {
+    override def error(msg: => String, throwable: Throwable) {}
+    override def warn(msg: => String, throwable: Throwable) {}
+    override def info(msg: => String, throwable: Throwable) {}
+    override def debug(msg: => String, throwable: Throwable) {}
+    override def trace(msg: => String, throwable: Throwable) {}
+  }
+  private[this] lazy val noOpLoggerFactory: String => Logger = _ => noOpLogger
+
   def apply[T: ClassTag]: Logger = cachedLoggerFactory match {
+
     case Some(loggerFactory) => loggerFactory(classTag[T].runtimeClass.getName)
+
     case None =>
       // try to load SLF4J
       def delegatedLoadingOfLoggerFactory: String => Logger = {
-        import org.slf4j.LoggerFactory
-        LoggerFactory.getILoggerFactory()
+        // trigger loading of class, risking a NoClassDefFounError
+        org.slf4j.LoggerFactory.getILoggerFactory()
 
         // if we are here, loading the LoggerFactory was successful
         loggedClass => new Logger {
-          private[this] val underlying = LoggerFactory.getLogger(loggedClass)
+          private[this] val underlying = org.slf4j.LoggerFactory.getLogger(loggedClass)
           override def error(msg: => String, throwable: Throwable) = if (underlying.isErrorEnabled) underlying.error(msg, throwable)
           override def warn(msg: => String, throwable: Throwable) = if (underlying.isWarnEnabled) underlying.warn(msg, throwable)
           override def info(msg: => String, throwable: Throwable) = if (underlying.isInfoEnabled) underlying.info(msg, throwable)
@@ -35,55 +45,16 @@ object Logger {
         }
       }
 
-      val loggerFactory = try {
-        delegatedLoadingOfLoggerFactory
+      try {
+        val loggerFactory = delegatedLoadingOfLoggerFactory
+        cachedLoggerFactory = Some(loggerFactory)
+        loggerFactory
       } catch {
-        case e: NoClassDefFoundError =>
-          _: String => new Logger {
-            override def error(msg: => String, throwable: Throwable) {}
-            override def warn(msg: => String, throwable: Throwable) {}
-            override def info(msg: => String, throwable: Throwable) {}
-            override def debug(msg: => String, throwable: Throwable) {}
-            override def trace(msg: => String, throwable: Throwable) {}
-          }
+        case e: NoClassDefFoundError => noOpLoggerFactory
       }
-
-      cachedLoggerFactory = Some(loggerFactory)
 
       // retry, now initialized
       apply[T]
   }
 }
 
-trait SBuildLogger {
-  def log(logLevel: LogLevel, msg: => String, cause: Throwable = null)
-}
-
-trait LogLevel
-object LogLevel {
-  case object Never extends LogLevel
-  case object Info extends LogLevel
-  case object Debug extends LogLevel
-  case object Warn extends LogLevel
-  case object Error extends LogLevel
-  val all: Set[LogLevel] = Set(Error, Warn, Info, Debug)
-  val debug: Set[LogLevel] = Set(Error, Warn, Info, Debug)
-  val info: Set[LogLevel] = Set(Error, Warn, Info)
-  val warn: Set[LogLevel] = Set(Error, Warn)
-  val error: Set[LogLevel] = Set(Error)
-}
-
-object SBuildNoneLogger extends SBuildLogger {
-  override def log(logLevel: LogLevel, msg: => String, cause: Throwable = null) {}
-}
-
-class SBuildConsoleLogger(enabledLogLevels: Set[LogLevel]) extends SBuildLogger {
-  def this(enabledLogLevels: LogLevel*) = this(enabledLogLevels.toSet)
-  override def log(logLevel: LogLevel, msg: => String, cause: Throwable = null) =
-    if (enabledLogLevels.contains(logLevel)) {
-      Console.println(msg)
-      if (cause != null) {
-        cause.printStackTrace(Console.out)
-      }
-    }
-}
