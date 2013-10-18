@@ -61,7 +61,7 @@ object SBuildVersion {
   }
 
   Target("phony:compile").cacheable dependsOn SBuildConfig.compilerPath ~ compileCp ~ versionScalaFile ~
-      "scan:src/main/scala" ~ "scan:src/main/java" exec {
+      "scan:src/main/scala;regex=.+\\.scala" ~ "scan:src/main/java;regex=.+\\.java" exec {
 
     val output = "target/classes"
 
@@ -69,14 +69,14 @@ object SBuildVersion {
     addons.scala.Scalac(
       compilerClasspath = SBuildConfig.compilerPath.files,
       classpath = compileCp.files,
-      sources = "scan:src/main/scala".files ++ "scan:src/main/java".files ++ versionScalaFile.files,
+      sources = "scan:src/main/scala;regex=.+\\.scala".files ++ "scan:src/main/java;regex=.+\\.java".files ++ versionScalaFile.files,
       destDir = Path(output),
       unchecked = true, deprecation = true, debugInfo = "vars"
     )
 
     // compile java files
     addons.java.Javac(
-      sources = "scan:src/main/java".files,
+      sources = "scan:src/main/java;regex=.+\\.java".files,
       destDir = Path(output),
       classpath = compileCp.files,
       source = "1.6",
