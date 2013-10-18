@@ -4,6 +4,12 @@ SBuild trunk:
 * ZipSchemeHandler: When an to-be-extracted resource already exists, but has
   an older modification date than the zip file, re-extract it and set the
   modification date accordingly.
+* The cmdline shortcuts support is now able to also match hyphen-delimited
+  target names, e.g. "uS" would match "update-site".
+* ScalaTest: Allow configuration of more than one reporter. Added new
+  parameters: graphicalOutputSettings, standardOutputSettings, 
+  standardErrorSettings, outputFile, outputFileSettings, xmlOutputDir,
+  reporterClass, additionalScalaTestArgs. Deprecated parameter: reporter.
 
 SBuild 0.6.0 - 2013-09-19:
 
