@@ -15,7 +15,7 @@ class SBuild(implicit _project: Project) {
   val compileCp =
     SBuildConfig.scalaLibrary ~
     SBuildConfig.jansi ~
-    "mvn:org.slf4j:slf4j-api:1.7.5" // optional
+    SBuildConfig.slf4jApi // optional
 
 
   val testCp = compileCp ~
