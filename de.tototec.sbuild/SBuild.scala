@@ -4,7 +4,8 @@ import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
 @version("0.4.0")
-@include("../SBuildConfig.scala")
+@include("../SBuildConfig.scala",
+  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/scalatest/ScalaTest.scala")
 @classpath("mvn:org.apache.ant:ant:1.8.4")
 class SBuild(implicit _project: Project) {
 
@@ -14,13 +15,11 @@ class SBuild(implicit _project: Project) {
 
   val compileCp =
     SBuildConfig.scalaLibrary ~
-    SBuildConfig.jansi ~
-    SBuildConfig.slf4jApi // optional
-
+      SBuildConfig.jansi ~
+      SBuildConfig.slf4jApi // optional
 
   val testCp = compileCp ~
-      s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:1.9.1" ~
-      SBuildConfig.scalaActors
+    s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:1.9.2"
 
   ExportDependencies("eclipse.classpath", testCp)
 
@@ -61,29 +60,29 @@ object SBuildVersion {
   }
 
   Target("phony:compile").cacheable dependsOn SBuildConfig.compilerPath ~ compileCp ~ versionScalaFile ~
-      "scan:src/main/scala;regex=.+\\.scala" ~ "scan:src/main/java;regex=.+\\.java" exec {
+    "scan:src/main/scala;regex=.+\\.scala" ~ "scan:src/main/java;regex=.+\\.java" exec {
 
-    val output = "target/classes"
+      val output = "target/classes"
 
-    // compile scala files
-    addons.scala.Scalac(
-      compilerClasspath = SBuildConfig.compilerPath.files,
-      classpath = compileCp.files,
-      sources = "scan:src/main/scala;regex=.+\\.scala".files ++ "scan:src/main/java;regex=.+\\.java".files ++ versionScalaFile.files,
-      destDir = Path(output),
-      unchecked = true, deprecation = true, debugInfo = "vars"
-    )
+      // compile scala files
+      addons.scala.Scalac(
+        compilerClasspath = SBuildConfig.compilerPath.files,
+        classpath = compileCp.files,
+        sources = "scan:src/main/scala;regex=.+\\.scala".files ++ "scan:src/main/java;regex=.+\\.java".files ++ versionScalaFile.files,
+        destDir = Path(output),
+        unchecked = true, deprecation = true, debugInfo = "vars"
+      )
 
-    // compile java files
-    addons.java.Javac(
-      sources = "scan:src/main/java;regex=.+\\.java".files,
-      destDir = Path(output),
-      classpath = compileCp.files,
-      source = "1.6",
-      target = "1.6",
-      debugInfo = "all"
-    )
-  }
+      // compile java files
+      addons.java.Javac(
+        sources = "scan:src/main/java;regex=.+\\.java".files,
+        destDir = Path(output),
+        classpath = compileCp.files,
+        source = "1.6",
+        target = "1.6",
+        debugInfo = "all"
+      )
+    }
 
   Target(jar) dependsOn "compile" ~ "scan:src/main/resources" ~ "LICENSE.txt" exec { ctx: TargetContext =>
     new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes")) {
@@ -116,7 +115,9 @@ object SBuildVersion {
     addons.scalatest.ScalaTest(
       classpath = testCp.files ++ jar.files,
       runPath = Seq("target/test-classes"),
-      reporter = "oF",
+      // reporter = "oF",
+      standardOutputSettings = "FD",
+      xmlOutputDir = Path("target/test-output"),
       fork = true)
   }
 

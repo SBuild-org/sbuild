@@ -56,7 +56,7 @@ class SBuild(implicit _project: Project) {
 
   Target("phony:all") dependsOn modules.map(m => m("all")) ~ distZip help "Build all"
 
-  Target("phony:test") dependsOn ("de.tototec.sbuild::test") help "Run all tests"
+  Target("phony:test") dependsOn "de.tototec.sbuild::test" ~ "de.tototec.sbuild.runner::test"
 
   Target("phony:scaladoc") dependsOn
     "de.tototec.sbuild::scaladoc" ~

@@ -4,7 +4,8 @@ import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
 @version("0.4.0")
-@include("../SBuildConfig.scala")
+@include("../SBuildConfig.scala",
+  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/scalatest/ScalaTest.scala")
 @classpath("mvn:org.apache.ant:ant:1.8.4")
 class SBuild(implicit _project: Project) {
 
@@ -14,13 +15,12 @@ class SBuild(implicit _project: Project) {
 
   val compileCp =
     SBuildConfig.scalaLibrary ~
-    SBuildConfig.jansi ~
-    SBuildConfig.cmdOption ~
-    s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar"
+      SBuildConfig.jansi ~
+      SBuildConfig.cmdOption ~
+      s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar"
 
   val testCp = compileCp ~
-      s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:1.9.1" ~
-      SBuildConfig.scalaActors
+    s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:1.9.2"
 
   ExportDependencies("eclipse.classpath", testCp)
 
@@ -31,24 +31,24 @@ class SBuild(implicit _project: Project) {
   }
 
   Target("phony:compile").cacheable dependsOn SBuildConfig.compilerPath ~ compileCp ~
-      "scan:src/main/scala" exec {
+    "scan:src/main/scala" exec {
 
-    val output = "target/classes"
+      val output = "target/classes"
 
-    // compile scala files
-    addons.scala.Scalac(
-      compilerClasspath = SBuildConfig.compilerPath.files,
-      classpath = compileCp.files,
-      sources = "scan:src/main/scala".files,
-      destDir = Path(output),
-      unchecked = true, deprecation = true, debugInfo = "vars"
-    )
+      // compile scala files
+      addons.scala.Scalac(
+        compilerClasspath = SBuildConfig.compilerPath.files,
+        classpath = compileCp.files,
+        sources = "scan:src/main/scala".files,
+        destDir = Path(output),
+        unchecked = true, deprecation = true, debugInfo = "vars"
+      )
 
-  }
+    }
 
   Target(jar) dependsOn "compile" ~ "LICENSE.txt" ~ "scan:src/main/resources" exec { ctx: TargetContext =>
     new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes")) {
-       if (Path("src/main/resources").exists) add(AntFileSet(dir = Path("src/main/resources")))
+      if (Path("src/main/resources").exists) add(AntFileSet(dir = Path("src/main/resources")))
       add(AntFileSet(file = Path("LICENSE.txt")))
     }.execute
   }
@@ -75,7 +75,9 @@ class SBuild(implicit _project: Project) {
     addons.scalatest.ScalaTest(
       classpath = testCp.files ++ jar.files,
       runPath = Seq("target/test-classes"),
-      reporter = "oF",
+      //      reporter = "oF",
+      standardOutputSettings = "FD",
+      xmlOutputDir = Path("target/test-output"),
       fork = true)
   }
 
