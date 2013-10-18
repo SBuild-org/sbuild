@@ -1,10 +1,11 @@
 package de.tototec.sbuild.addons.scalatest
 
-import de.tototec.sbuild.Project
 import java.io.File
 import java.net.URLClassLoader
+
 import de.tototec.sbuild.ExecutionFailedException
 import de.tototec.sbuild.LogLevel
+import de.tototec.sbuild.Project
 import de.tototec.sbuild.addons.support.ForkSupport
 
 /**
@@ -24,7 +25,7 @@ object ScalaTest {
   def apply(
     classpath: Seq[File] = null,
     runPath: Seq[String] = null,
-    reporter: String = null,
+    @deprecated("reporter is deprecated", "0.6.0.9001") reporter: String = null,
     configMap: Map[String, String] = null,
     includes: Seq[String] = null,
     excludes: Seq[String] = null,
@@ -37,7 +38,16 @@ object ScalaTest {
     testNgTests: Seq[String] = null,
     junitTests: Seq[String] = null,
     // since 0.2.0.9000
-    fork: Boolean = false)(implicit project: Project) =
+    fork: Boolean = false,
+    // since 0.6.0.9001
+    graphicalOutputSettings: String = null,
+    standardOutputSettings: String = null,
+    standardErrorSettings: String = null,
+    outputFile: File = null,
+    outputFileSettings: String = null,
+    xmlOutputDir: File = null,
+    reporterClass: String = null,
+    additionalScalaTestArgs: Seq[String] = null)(implicit project: Project) =
     new ScalaTest(
       classpath = classpath,
       runPath = runPath,
@@ -52,7 +62,15 @@ object ScalaTest {
       packagesRecursive = packagesRecursive,
       testNgTests = testNgTests,
       junitTests = junitTests,
-      fork = fork
+      fork = fork,
+      graphicalOutputSettings = graphicalOutputSettings,
+      standardOutputSettings = standardOutputSettings,
+      standardErrorSettings = standardErrorSettings,
+      outputFile = outputFile,
+      outputFileSettings = outputFileSettings,
+      xmlOutputDir = xmlOutputDir,
+      reporterClass = reporterClass,
+      additionalScalaTestArgs = additionalScalaTestArgs
     ).execute
 }
 
@@ -79,7 +97,7 @@ object ScalaTest {
  *   and using a new instance of the custom class loader for each run.
  *   The classes that comprise the test may also be made available on the classpath,
  *   in which case no runpath need be specified.
- * @param reporter
+ * @param reporter configure te reporter.
  * @param configMap
  * @param includes
  * @param excludes
@@ -91,25 +109,37 @@ object ScalaTest {
  * @param testNgTests ''Since 0.1.5.9000.''
  * @param junitTests ''Since 0.1.5.9000.''
  * @param fork ''Since 0.2.0.9000.''
+ * @param additionalScalaTestArgs Additional arguments for the scalatest runner. ''Since 0.6.0.9001.''
  *
  */
 class ScalaTest(
-  var classpath: Seq[File] = null,
-  var runPath: Seq[String] = null,
-  var reporter: String = null,
-  var configMap: Map[String, String] = null,
-  var includes: Seq[String] = null,
-  var excludes: Seq[String] = null,
-  // since 0.1.5.9000
-  var parallel: java.lang.Boolean = null,
-  var threadCount: java.lang.Integer = null,
-  var suites: Seq[String] = null,
-  var packages: Seq[String] = null,
-  var packagesRecursive: Seq[String] = null,
-  var testNgTests: Seq[String] = null,
-  var junitTests: Seq[String] = null,
-  // since 0.2.0.9000
-  var fork: Boolean = false)(implicit project: Project) {
+    var classpath: Seq[File] = null,
+    var runPath: Seq[String] = null,
+    @deprecated("reporter is deprecated", "0.6.0.9001") var reporter: String = null,
+    var configMap: Map[String, String] = null,
+    var includes: Seq[String] = null,
+    var excludes: Seq[String] = null,
+    // since 0.1.5.9000
+    var parallel: java.lang.Boolean = null,
+    var threadCount: java.lang.Integer = null,
+    var suites: Seq[String] = null,
+    var packages: Seq[String] = null,
+    var packagesRecursive: Seq[String] = null,
+    var testNgTests: Seq[String] = null,
+    var junitTests: Seq[String] = null,
+    // since 0.2.0.9000
+    var fork: Boolean = false,
+    // since 0.6.0.9001
+    var graphicalOutputSettings: String = null,
+    var standardOutputSettings: String = null,
+    var standardErrorSettings: String = null,
+    var outputFile: File = null,
+    var outputFileSettings: String = null,
+    var xmlOutputDir: File = null,
+    var reporterClass: String = null,
+    var additionalScalaTestArgs: Seq[String] = null)(implicit project: Project) {
+
+  // private[this] val log = Logger[ScalaTest]
 
   val scalaTestClassName = "org.scalatest.tools.Runner"
 
@@ -135,7 +165,17 @@ class ScalaTest(
 
     var args = Array[String]()
     if (runPath != null) args ++= Array("-p", whiteSpaceSeparated(absoluteRunPath))
-    if (reporter != null) args ++= Array("-" + reporter)
+
+    if (graphicalOutputSettings != null) args ++= Array("-g" + graphicalOutputSettings)
+    if (standardOutputSettings != null) args ++= Array("-o" + standardOutputSettings)
+    if (standardErrorSettings != null) args ++= Array("-e" + standardErrorSettings)
+    if (xmlOutputDir != null) args ++= Array("-u", xmlOutputDir.getPath)
+    if (outputFile != null) args ++= Array("-f" + Option(outputFileSettings).getOrElse(""), outputFile.getPath)
+    if (reporter != null) {
+      // log.warn("Option reporter is depreacated")
+      project.log.log(LogLevel.Warn, "Option reporter is deprecated.")
+      args ++= Array("-" + reporter)
+    }
     if (configMap != null) configMap foreach {
       case (key, value) => args ++= Array("-D" + key + "=" + value)
     }
@@ -150,6 +190,8 @@ class ScalaTest(
     if (packagesRecursive != null && !packagesRecursive.isEmpty) args ++= Array("-w", whiteSpaceSeparated(packagesRecursive))
     if (testNgTests != null && !testNgTests.isEmpty) args ++= Array("-t", whiteSpaceSeparated(testNgTests))
     if (junitTests != null && !junitTests.isEmpty) args ++= Array("-j", whiteSpaceSeparated(junitTests))
+
+    if (additionalScalaTestArgs != null) args ++= additionalScalaTestArgs
 
     project.log.log(LogLevel.Info, "Running ScalaTest...")
 
