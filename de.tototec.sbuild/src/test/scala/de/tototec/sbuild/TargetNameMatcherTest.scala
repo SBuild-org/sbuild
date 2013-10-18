@@ -17,7 +17,15 @@ class TargetNameMatcherTest extends FunSuite {
     ("aBC", "aaa-Bbbb-ccc", true),
     ("aBC", "aaa-bbbbCcc", true),
     ("aBC", "aaaBbbb-Ccc", true),
-    ("aBC", "aaa-bbb-bCccc", false)
+    ("aBC", "aaa-bbb-bCccc", false),
+    
+    ("a", "aaabbbccc", true),
+    ("a", "aaabbbCcc", false),
+    ("a", "aaaa-bbbb", false),
+    ("aB", "aaaa-Bbbb", true),
+    ("aB", "aaaa-BBbb", false),
+    ("aB", "aaaaBBbb", false)
+    
 
   )
 
