@@ -271,9 +271,10 @@ class BuildFileProject(_projectFile: File,
           }
         }
 
+        // try to enhance the not-found result by looking for camelCase matches, if requested so
         localFound match {
           case None if supportCamelCaseShortCuts && Seq(None, Some("phony")).contains(targetRef.explicitProto) =>
-            val matcher = new CamelCaseMatcher(targetRef.name)
+            val matcher = new TargetNameMatcher(targetRef.name)
             val matches = targets.filter(t => t.phony && matcher.matches(TargetRef(t.name)(t.project).nameWithoutProto))
             matches match {
               case Seq() => None
@@ -563,4 +564,5 @@ class ProjectPool(val baseProject: BuildFileProject) {
     if (baseProject != project)
       baseProject.projectDirectory.toURI.relativize(project.projectFile.toURI).getPath
     else project.projectFile.getName
+
 }
