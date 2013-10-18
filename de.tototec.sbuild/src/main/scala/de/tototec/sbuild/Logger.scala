@@ -21,6 +21,7 @@ object Logger {
     override def info(msg: => String, throwable: Throwable) {}
     override def debug(msg: => String, throwable: Throwable) {}
     override def trace(msg: => String, throwable: Throwable) {}
+    override def toString = "Noop Logger"
   }
   private[this] lazy val noOpLoggerFactory: String => Logger = _ => noOpLogger
 
@@ -42,6 +43,7 @@ object Logger {
           override def info(msg: => String, throwable: Throwable) = if (underlying.isInfoEnabled) underlying.info(msg, throwable)
           override def debug(msg: => String, throwable: Throwable) = if (underlying.isDebugEnabled) underlying.debug(msg, throwable)
           override def trace(msg: => String, throwable: Throwable) = if (underlying.isTraceEnabled) underlying.trace(msg, throwable)
+          override def toString = "Slf4j bridge wrapper for: " + loggedClass
         }
       }
 
