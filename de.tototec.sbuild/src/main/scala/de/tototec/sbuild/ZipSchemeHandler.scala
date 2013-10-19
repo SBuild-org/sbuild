@@ -52,6 +52,8 @@ import de.tototec.sbuild.SchemeHandler.SchemeContext
  */
 class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) extends SchemeResolver with SchemeResolverWithDependencies {
 
+  private[this] def log = Logger[ZipSchemeHandler]
+  
   val baseDir: File = _baseDir match {
     case null => Path(".sbuild/unzip")
     case x => x.getAbsoluteFile
@@ -77,12 +79,15 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
         targetContext.fileDependencies match {
           case Seq(zipFile) =>
             if (!file.exists || file.lastModified < zipFile.lastModified) try {
-              Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)))
+              Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)), project.monitor)
               try {
                 file.setLastModified(System.currentTimeMillis)
               } catch {
                 case e: Exception =>
-                  project.log.log(LogLevel.Warn, s"""Could not change lastModified time of extracted file "${file.getPath}".""", e)
+                  val msg = s"""Could not change lastModified time of extracted file "${file.getPath}"."""
+                  log.warn(msg, e)
+                  project.monitor.warn(s"""Could not change lastModified time of extracted file "${file.getPath}".""")
+                  project.monitor.showStackTrace(CmdlineMonitor.Verbose, e)
               }
             } catch {
               case e: FileNotFoundException =>

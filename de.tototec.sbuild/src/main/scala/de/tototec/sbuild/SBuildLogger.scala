@@ -1,5 +1,6 @@
 package de.tototec.sbuild
 
+
 trait SBuildLogger {
   def log(logLevel: LogLevel, msg: => String, cause: Throwable = null)
 }

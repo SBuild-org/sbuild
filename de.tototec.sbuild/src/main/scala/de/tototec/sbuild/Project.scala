@@ -8,7 +8,8 @@ trait ProjectBase {
   def projectDirectory: File
   def projectFile: File
   protected[sbuild] def baseProject: Option[Project]
-  protected[sbuild] val log: SBuildLogger
+  // protected[sbuild] val log: SBuildLogger
+  protected[sbuild] val monitor: CmdlineMonitor
   /**
    * Find an explicitly registered target.
    *

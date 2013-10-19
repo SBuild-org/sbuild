@@ -98,7 +98,7 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
 
     val targetRef = TargetRef(dep)
 
-    lazy val targetExecutor = new TargetExecutor(project, project.log)
+    lazy val targetExecutor = new TargetExecutor(project.monitor)
 
     project.determineRequestedTarget(targetRef, searchInAllProjects = true, supportCamelCaseShortCuts = false) match {
 

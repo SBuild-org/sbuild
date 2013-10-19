@@ -9,6 +9,8 @@ import de.tototec.sbuild.Util
 import de.tototec.sbuild.Path
 import de.tototec.sbuild.addons.support.ForkSupport
 import java.lang.reflect.Method
+import de.tototec.sbuild.Logger
+import de.tototec.sbuild.CmdlineMonitor
 
 /**
  * Java Compiler Addon.
@@ -61,7 +63,7 @@ object Javac {
 /**
  * Java Compiler addon.
  *
- * The compiler can be configured via constructor parameter or `var`s. 
+ * The compiler can be configured via constructor parameter or `var`s.
  * To actually start the compilation use [[Javac#execute]].
  *
  * To easily configure and execute the compiler in one go, see [[Javac$#apply]].
@@ -92,20 +94,22 @@ object Javac {
  */
 
 class Javac(
-  var compilerClasspath: Seq[File] = null,
-  var classpath: Seq[File] = null,
-  var sources: Seq[File] = null,
-  var srcDir: File = null,
-  var srcDirs: Seq[File] = null,
-  var destDir: File = null,
-  var encoding: String = "UTF-8",
-  var deprecation: java.lang.Boolean = null,
-  var verbose: java.lang.Boolean = null,
-  var source: String = null,
-  var target: String = null,
-  var debugInfo: String = null,
-  var fork: Boolean = false,
-  var additionalJavacArgs: Seq[String] = null)(implicit project: Project) {
+    var compilerClasspath: Seq[File] = null,
+    var classpath: Seq[File] = null,
+    var sources: Seq[File] = null,
+    var srcDir: File = null,
+    var srcDirs: Seq[File] = null,
+    var destDir: File = null,
+    var encoding: String = "UTF-8",
+    var deprecation: java.lang.Boolean = null,
+    var verbose: java.lang.Boolean = null,
+    var source: String = null,
+    var target: String = null,
+    var debugInfo: String = null,
+    var fork: Boolean = false,
+    var additionalJavacArgs: Seq[String] = null)(implicit project: Project) {
+
+  private[this] val log = Logger[Javac]
 
   val javacClassName = "com.sun.tools.javac.Main"
 
@@ -130,13 +134,13 @@ class Javac(
    * Execute the Java compiler.
    */
   def execute {
-    project.log.log(LogLevel.Debug, "About to execute " + this)
+    log.debug("About to execute " + this)
 
     var args = Array[String]()
 
     if (classpath != null) {
       val cPath = ForkSupport.pathAsArg(classpath)
-      project.log.log(LogLevel.Debug, "Using classpath: " + cPath)
+      log.debug("Using classpath: " + cPath)
       args ++= Array("-classpath", cPath)
     }
 
@@ -164,19 +168,19 @@ class Javac(
     val sourceFiles: Seq[File] =
       (if (sources == null) Seq() else sources) ++
         allSrcDirs.flatMap { dir =>
-          project.log.log(LogLevel.Debug, "Search files in dir: " + dir)
+          log.debug("Search files in dir: " + dir)
           val files = Util.recursiveListFiles(dir, """.*\.java$""".r)
-          project.log.log(LogLevel.Debug, "Found files: " + files.mkString(", "))
+          log.debug("Found files: " + files.mkString(", "))
           files
         }
 
     if (!sourceFiles.isEmpty) {
       val absSourceFiles = sourceFiles.map(f => f.getAbsolutePath)
-      project.log.log(LogLevel.Debug, "Found source files: " + absSourceFiles.mkString(", "))
+      log.debug("Found source files: " + absSourceFiles.mkString(", "))
       args ++= absSourceFiles
     }
 
-    project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} Java source files to ${destDir}")
+    project.monitor.info(CmdlineMonitor.Default, s"Compiling ${sourceFiles.size} Java source files to ${destDir}")
 
     if (destDir != null && !sourceFiles.isEmpty) destDir.mkdirs
 
@@ -208,7 +212,7 @@ class Javac(
         classOf[Javac].getClassLoader
       case cp =>
         val cl = new URLClassLoader(cp.map { f => f.toURI().toURL() }.toArray, classOf[Javac].getClassLoader)
-        project.log.log(LogLevel.Debug, "Using addional compiler classpath: " + cl.getURLs().mkString(", "))
+        log.debug("Using addional compiler classpath: " + cl.getURLs().mkString(", "))
         cl
     }
 

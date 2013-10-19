@@ -72,9 +72,9 @@ class MvnSchemeHandler(
       var result: Option[Throwable] = None
       repos.takeWhile { repo =>
         val url = repo + "/" + constructMvnPath(schemeCtx.path)
-        result = Util.download(url, target.getPath, project.log, Some(userAgent))
+        result = Util.download(url, target.getPath, project.monitor, Some(userAgent))
         val failed = result.isDefined || !target.exists
-        if (failed) project.log.log(LogLevel.Info, "Download failed.")
+        if (failed) project.monitor.info(CmdlineMonitor.Default, "Download failed.")
         failed
       }
       result match {

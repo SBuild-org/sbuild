@@ -9,5 +9,5 @@ trait ProjectReader {
    * If a projectPool is given, the newly created project will be added to that pool.
    *
    */
-  def readAndCreateProject(projectFile: File, properties: Map[String, String], projectPool: Option[ProjectPool], log: Option[SBuildLogger]): Project
+  def readAndCreateProject(projectFile: File, properties: Map[String, String], projectPool: Option[ProjectPool], monitor: Option[CmdlineMonitor]): Project
 }

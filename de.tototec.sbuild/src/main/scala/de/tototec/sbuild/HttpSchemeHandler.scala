@@ -22,7 +22,7 @@ class HttpSchemeHandler(downloadDir: File = null,
     with SchemeResolver {
 
   override def resolve(schemeCtx: SchemeContext, targetContext: TargetContext) = {
-    val lastModified = download(schemeCtx.path, project.log)
+    val lastModified = download(schemeCtx.path, project.monitor)
     targetContext.targetLastModified = lastModified
   }
 
@@ -47,7 +47,7 @@ class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = 
   /**
    * @return <code>true</code>, if the file was already up-to-date
    */
-  def download(path: String, log: SBuildLogger): Long = {
+  def download(path: String, monitor: CmdlineMonitor): Long = {
     val target = localFile(path)
     if (online) {
       if (!forceDownload && target.exists) {
@@ -55,7 +55,7 @@ class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = 
       } else {
         val url = this.url(path)
         //        println("Downloading " + url + "...")
-        Util.download(url.toString, target.getPath, log, Some(userAgent)) match {
+        Util.download(url.toString, target.getPath, monitor, Some(userAgent)) match {
           case Some(e) => throw e
           case _ => target.lastModified
         }

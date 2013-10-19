@@ -1,23 +1,19 @@
 package de.tototec.sbuild.addons.scala
 
+import java.io.BufferedOutputStream
 import java.io.File
-import java.net.URLClassLoader
-import de.tototec.sbuild.Project
-import de.tototec.sbuild.LogLevel
-import de.tototec.sbuild.ExecutionFailedException
-import de.tototec.sbuild.Util
-import de.tototec.sbuild.Path
-import de.tototec.sbuild.TargetRefs
-import de.tototec.sbuild.TargetRefs._
-import java.io.InputStream
-import java.io.OutputStream
-import de.tototec.sbuild.addons.support.ForkSupport
-import de.tototec.sbuild.ProjectConfigurationException
-import de.tototec.sbuild.LogLevel
-import java.io.PrintWriter
 import java.io.FileOutputStream
 import java.io.PrintStream
-import java.io.BufferedOutputStream
+import java.net.URLClassLoader
+
+import de.tototec.sbuild.CmdlineMonitor
+import de.tototec.sbuild.ExecutionFailedException
+import de.tototec.sbuild.Logger
+import de.tototec.sbuild.Project
+import de.tototec.sbuild.TargetRefs
+import de.tototec.sbuild.TargetRefs.fromString
+import de.tototec.sbuild.Util
+import de.tototec.sbuild.addons.support.ForkSupport
 
 /**
  * Companion object for [[Scalac]], the Scala Compiler Addon.
@@ -75,9 +71,9 @@ object Scalac {
 
   @deprecated("Binary compatibility placeholder. Please use another apply method.", "0.4.0.9000")
   def apply(compilerClasspath: Seq[File], classpath: Seq[File], srcDir: File, srcDirs: Seq[File], destDir: File,
-    encoding: String, unchecked: java.lang.Boolean, deprecation: java.lang.Boolean, verbose: java.lang.Boolean,
-    target: String, debugInfo: String, fork: Boolean, additionalScalacArgs: Seq[String],
-    sources: Seq[File])(implicit project: Project): Unit =
+            encoding: String, unchecked: java.lang.Boolean, deprecation: java.lang.Boolean, verbose: java.lang.Boolean,
+            target: String, debugInfo: String, fork: Boolean, additionalScalacArgs: Seq[String],
+            sources: Seq[File])(implicit project: Project): Unit =
     apply(compilerClasspath = compilerClasspath, classpath = classpath,
       srcDir = srcDir, srcDirs = srcDirs, destDir = destDir, encoding = encoding, unchecked = unchecked,
       deprecation = deprecation, verbose = verbose, target = target, debugInfo = debugInfo, fork = fork,
@@ -92,7 +88,7 @@ object Scalac {
         s"mvn:org.scala-lang:scala-compiler:${scalaVersion}" ~
         s"mvn:org.scala-lang:scala-reflect:${scalaVersion}"
     case _ =>
-      project.log.log(LogLevel.Warn, "Unsupported Scala version specified: " + scalaVersion + ". Returning only a guessed compiler classpath")
+      project.monitor.warn(CmdlineMonitor.Default, "Unsupported Scala version specified: " + scalaVersion + ". Returning only a guessed compiler classpath")
       s"mvn:org.scala-lang:scala-library:${scalaVersion}" ~
         s"mvn:org.scala-lang:scala-compiler:${scalaVersion}" ~
         s"mvn:org.scala-lang:scala-reflect:${scalaVersion}"
@@ -195,35 +191,38 @@ object Scalac {
  *
  */
 class Scalac(
-  var compilerClasspath: Seq[File] = null,
-  var classpath: Seq[File] = null,
-  var srcDir: File = null,
-  var srcDirs: Seq[File] = null,
-  var destDir: File = null,
-  var encoding: String = "UTF-8",
-  var unchecked: java.lang.Boolean = null,
-  var deprecation: java.lang.Boolean = null,
-  var verbose: java.lang.Boolean = null,
-  var target: String = null,
-  var debugInfo: String = null,
-  var fork: Boolean = false,
-  var additionalScalacArgs: Seq[String] = null,
-  // since 0.3.2.9002
-  var sources: Seq[File] = null,
-  // since 0.4.0.9000
-  var useArgsFile: java.lang.Boolean = null,
-  var jvmArgs: Seq[String] = null,
-  var sourcePath: File = null)(implicit project: Project) {
+    var compilerClasspath: Seq[File] = null,
+    var classpath: Seq[File] = null,
+    var srcDir: File = null,
+    var srcDirs: Seq[File] = null,
+    var destDir: File = null,
+    var encoding: String = "UTF-8",
+    var unchecked: java.lang.Boolean = null,
+    var deprecation: java.lang.Boolean = null,
+    var verbose: java.lang.Boolean = null,
+    var target: String = null,
+    var debugInfo: String = null,
+    var fork: Boolean = false,
+    var additionalScalacArgs: Seq[String] = null,
+    // since 0.3.2.9002
+    var sources: Seq[File] = null,
+    // since 0.4.0.9000
+    var useArgsFile: java.lang.Boolean = null,
+    var jvmArgs: Seq[String] = null,
+    var sourcePath: File = null)(implicit project: Project) {
 
   @deprecated("Binary compatibility placeholder. Please use the primary constructor.", "0.4.0.9000")
   def this(compilerClasspath: Seq[File], classpath: Seq[File], srcDir: File, srcDirs: Seq[File], destDir: File,
-    encoding: String, unchecked: java.lang.Boolean, deprecation: java.lang.Boolean, verbose: java.lang.Boolean,
-    target: String, debugInfo: String, fork: Boolean, additionalScalacArgs: Seq[String],
-    sources: Seq[File])(implicit project: Project) =
+           encoding: String, unchecked: java.lang.Boolean, deprecation: java.lang.Boolean, verbose: java.lang.Boolean,
+           target: String, debugInfo: String, fork: Boolean, additionalScalacArgs: Seq[String],
+           sources: Seq[File])(implicit project: Project) =
     this(compilerClasspath = compilerClasspath, classpath = classpath, srcDir = srcDir, srcDirs = srcDirs,
       destDir = destDir, encoding = encoding, unchecked = unchecked, deprecation = deprecation, verbose = verbose,
       target = target, debugInfo = debugInfo, fork = fork, additionalScalacArgs = additionalScalacArgs, sources = sources,
       useArgsFile = null)
+
+  private[this] val log = Logger[Scalac]
+  private[this] def monitor = project.monitor
 
   private val scalacClassName = "scala.tools.nsc.Main"
 
@@ -251,7 +250,7 @@ class Scalac(
    * Execute the Scala compiler.
    */
   def execute {
-    project.log.log(LogLevel.Debug, "About to execute " + this)
+    log.debug("About to execute " + this)
 
     require(compilerClasspath != null && !compilerClasspath.isEmpty, "No compiler classpath set.")
 
@@ -259,7 +258,7 @@ class Scalac(
 
     if (classpath != null) {
       val cPath = ForkSupport.pathAsArg(classpath)
-      project.log.log(LogLevel.Debug, "Using classpath: " + cPath)
+      monitor.info(CmdlineMonitor.Verbose, "Using classpath: " + cPath)
       args ++= Seq("-classpath", cPath)
     }
 
@@ -285,21 +284,21 @@ class Scalac(
     val sourceFiles: Seq[File] =
       (if (sources == null) Seq() else sources) ++
         allSrcDirs.flatMap { dir =>
-          project.log.log(LogLevel.Debug, "Search files in dir: " + dir)
+          log.debug("Search files in dir: " + dir)
           val files = Util.recursiveListFiles(dir, """.*\.(java|scala)$""".r)
-          project.log.log(LogLevel.Debug, "Found files: " + files.mkString(", "))
+          log.debug("Found files: " + files.mkString(", "))
           files
         }
 
     if (!sourceFiles.isEmpty) {
       val absSourceFiles = sourceFiles.map(f => f.getAbsolutePath)
-      project.log.log(LogLevel.Debug, "Found source files: " + absSourceFiles.mkString(", "))
+      log.debug("Found source files: " + absSourceFiles.mkString(", "))
       // sorting is not required, but will produce more reliable builds,
       // e.g. for scalac compiler order of source files IS relevant.
       args ++= absSourceFiles.sorted
     }
 
-    project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} Scala source files to ${destDir}")
+    monitor.info(CmdlineMonitor.Default, s"Compiling ${sourceFiles.size} Scala source files to ${destDir}")
 
     if (destDir != null && !sourceFiles.isEmpty) destDir.mkdirs
 
@@ -338,7 +337,7 @@ class Scalac(
   protected def compileInternal(args: Array[String]): Int = {
 
     val compilerClassLoader = new URLClassLoader(compilerClasspath.map { f => f.toURI().toURL() }.toArray, classOf[Scalac].getClassLoader)
-    project.log.log(LogLevel.Debug, "Using addional compiler classpath: " + compilerClassLoader.getURLs().mkString(", "))
+    log.debug("Using addional compiler classpath: " + compilerClassLoader.getURLs().mkString(", "))
 
     val arrayInstance = java.lang.reflect.Array.newInstance(classOf[String], args.size)
     0.to(args.size - 1).foreach { i =>
@@ -349,7 +348,7 @@ class Scalac(
     val compilerClass = compilerClassLoader.loadClass(scalacClassName)
     //    project.log.log(LogLevel.Debug, "Methods: " + compilerClass.getMethods.mkString("\n  "))
     val compilerMethod = compilerClass.getMethod("process", Array(arrayClass): _*)
-    project.log.log(LogLevel.Debug, "Executing Scala Compiler with args: " + args.mkString(" "))
+    log.debug("Executing Scala Compiler with args: " + args.mkString(" "))
 
     compilerMethod.invoke(null, arrayInstance)
 

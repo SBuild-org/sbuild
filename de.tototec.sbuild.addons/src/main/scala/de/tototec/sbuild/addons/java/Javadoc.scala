@@ -2,13 +2,14 @@ package de.tototec.sbuild.addons.java
 
 import java.io.File
 import java.net.URLClassLoader
-import de.tototec.sbuild.Project
-import de.tototec.sbuild.LogLevel
+
+import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExecutionFailedException
-import de.tototec.sbuild.Util
+import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Path
+import de.tototec.sbuild.Project
+import de.tototec.sbuild.Util
 import de.tototec.sbuild.addons.support.ForkSupport
-import java.lang.reflect.Method
 
 /**
  * Javadoc Generator Addon.
@@ -80,7 +81,7 @@ object Javadoc {
  * @param encoding The encoding of the source files.
  * @param verbose Output messages about what the generator is doing.
  * @param source Provide source compatibility with specified release.
- * @param debugInfo If specified generate debugging info. 
+ * @param debugInfo If specified generate debugging info.
  *   Supported values: none, lines, vars, source, all.
  * @param fork Run the generator in a separate process (if `true`).
  * @param additionalJavacArgs Additional arguments directly passed to the Javadoc generator.
@@ -89,18 +90,20 @@ object Javadoc {
  */
 
 class Javadoc(
-  var javadocClasspath: Seq[File] = null,
-  var classpath: Seq[File] = null,
-  var sources: Seq[File] = null,
-  var srcDir: File = null,
-  var srcDirs: Seq[File] = null,
-  var destDir: File = null,
-  var encoding: String = "UTF-8",
-  var verbose: java.lang.Boolean = null,
-  var source: String = null,
-  var debugInfo: String = null,
-  var fork: Boolean = false,
-  var additionalJavadocArgs: Seq[String] = null)(implicit project: Project) {
+    var javadocClasspath: Seq[File] = null,
+    var classpath: Seq[File] = null,
+    var sources: Seq[File] = null,
+    var srcDir: File = null,
+    var srcDirs: Seq[File] = null,
+    var destDir: File = null,
+    var encoding: String = "UTF-8",
+    var verbose: java.lang.Boolean = null,
+    var source: String = null,
+    var debugInfo: String = null,
+    var fork: Boolean = false,
+    var additionalJavadocArgs: Seq[String] = null)(implicit project: Project) {
+
+  private[this] val log = Logger[Javadoc]
 
   val javadocClassName = "com.sun.tools.javadoc.Main"
 
@@ -123,13 +126,13 @@ class Javadoc(
    * Execute the Javadoc generator.
    */
   def execute {
-    project.log.log(LogLevel.Debug, "About to execute " + this)
+    log.debug("About to execute " + this)
 
     var args = Array[String]()
 
     if (classpath != null) {
       val cPath = ForkSupport.pathAsArg(classpath)
-      project.log.log(LogLevel.Debug, "Using classpath: " + cPath)
+      log.debug("Using classpath: " + cPath)
       args ++= Array("-classpath", cPath)
     }
 
@@ -155,19 +158,19 @@ class Javadoc(
     val sourceFiles: Seq[File] =
       (if (sources == null) Seq() else sources) ++
         allSrcDirs.flatMap { dir =>
-          project.log.log(LogLevel.Debug, "Search files in dir: " + dir)
+          log.debug("Search files in dir: " + dir)
           val files = Util.recursiveListFiles(dir, """.*\.java$""".r)
-          project.log.log(LogLevel.Debug, "Found files: " + files.mkString(", "))
+          log.debug("Found files: " + files.mkString(", "))
           files
         }
 
     if (!sourceFiles.isEmpty) {
       val absSourceFiles = sourceFiles.map(f => f.getAbsolutePath)
-      project.log.log(LogLevel.Debug, "Found source files: " + absSourceFiles.mkString(", "))
+      log.debug("Found source files: " + absSourceFiles.mkString(", "))
       args ++= absSourceFiles
     }
 
-    project.log.log(LogLevel.Info, s"Compiling ${sourceFiles.size} source files to ${destDir}")
+    project.monitor.info(CmdlineMonitor.Default, s"Compiling ${sourceFiles.size} source files to ${destDir}")
 
     if (destDir != null && !sourceFiles.isEmpty) destDir.mkdirs
 
@@ -199,7 +202,7 @@ class Javadoc(
         classOf[Javac].getClassLoader
       case cp =>
         val cl = new URLClassLoader(cp.map { f => f.toURI().toURL() }.toArray, classOf[Javac].getClassLoader)
-        project.log.log(LogLevel.Debug, "Using addional javadoc classpath: " + cl.getURLs().mkString(", "))
+        log.debug("Using addional javadoc classpath: " + cl.getURLs().mkString(", "))
         cl
     }
 

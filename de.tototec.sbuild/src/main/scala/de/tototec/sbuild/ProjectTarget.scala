@@ -36,7 +36,7 @@ class ProjectTarget private[sbuild] (override val name: String,
   override def exec(execution: => Any): Target = exec((_: TargetContext) => execution)
   override def exec(execution: TargetContext => Any): Target = {
     if (_exec != null) {
-      project.log.log(LogLevel.Warn, s"Warning: Reassignment of exec block for target ${name} in project file ${project.projectFile}")
+      project.monitor.warn(CmdlineMonitor.Default, s"Reassignment of exec block for target ${name} in project file ${project.projectFile}")
       execReplaced = true
     }
     // always non-transparent, but in case we override a transparent scheme handler here
@@ -55,7 +55,7 @@ class ProjectTarget private[sbuild] (override val name: String,
 
   override def toString() =
     getClass.getSimpleName +
-      "(" + name + "=>" + file + (if (phony) "[phony]" else "") +
+      "(" + name + "=>" + formatRelativeToBaseProject + (if (phony) "[phony]" else "") +
       ",dependsOn=" + prereqs +
       ",exec=" + (_exec match {
         case null => "non"
@@ -116,11 +116,11 @@ class ProjectTarget private[sbuild] (override val name: String,
   }
   override def hashCode: Int = Seq(name, file, phony, project).foldLeft(1) { (prev, h) => 41 * prev + h.hashCode }
 
-  def formatRelativeTo(baseProject: Project): String =
+  override def formatRelativeTo(baseProject: Project): String =
     (if (project != baseProject) {
       baseProject.projectDirectory.toURI.relativize(project.projectFile.toURI).getPath + "::"
     } else "") + TargetRef(this).nameWithoutStandardProto
 
-  def formatRelativeToBaseProject: String = formatRelativeTo(project.baseProject.getOrElse(project))
+  override def formatRelativeToBaseProject: String = formatRelativeTo(project.baseProject.getOrElse(project))
 
 }

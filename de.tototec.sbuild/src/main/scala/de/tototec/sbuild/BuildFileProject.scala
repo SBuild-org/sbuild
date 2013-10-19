@@ -15,7 +15,9 @@ class BuildFileProject(_projectFile: File,
                        _projectReader: ProjectReader = null,
                        _projectPool: Option[ProjectPool] = None,
                        typesToIncludedFilesProperties: Option[File] = None,
-                       override val log: SBuildLogger = SBuildNoneLogger) extends Project {
+                       override val monitor: CmdlineMonitor = NoopCmdlineMonitor) extends Project {
+
+  private[this] val log = Logger[BuildFileProject]
 
   private val projectReader: Option[ProjectReader] = Option(_projectReader)
 
@@ -82,7 +84,7 @@ class BuildFileProject(_projectFile: File,
 
     val projectAlreadyIncludedInProject = modules.find(p => p.projectFile == newProjectFile)
     projectAlreadyIncludedInProject.map { p =>
-      log.log(LogLevel.Warn, s"Warning: Module ${projectPool.formatProjectFileRelativeToBase(p)} is specified multiple times in project ${projectPool.formatProjectFileRelativeToBase(this)}")
+      monitor.warn(s"Module ${projectPool.formatProjectFileRelativeToBase(p)} is specified multiple times in project ${projectPool.formatProjectFileRelativeToBase(this)}")
     }
 
     val projectAlreadyIncludedInPool = projectPool.projects.find(p => p.projectFile == newProjectFile)
@@ -97,7 +99,7 @@ class BuildFileProject(_projectFile: File,
               throw ex
 
             case Some(reader) =>
-              reader.readAndCreateProject(newProjectFile, properties, Some(projectPool), Some(log))
+              reader.readAndCreateProject(newProjectFile, properties, Some(projectPool), Some(monitor))
           }
       }
 
@@ -279,10 +281,10 @@ class BuildFileProject(_projectFile: File,
             matches match {
               case Seq() => None
               case Seq(foundTarget) =>
-                log.log(LogLevel.Debug, s"""Resolved shortcut camel case request "${targetRef}" to target "${foundTarget.formatRelativeTo(originalRequestedProject)}".""")
+                monitor.info(CmdlineMonitor.Verbose, s"""Resolved shortcut camel case request "${targetRef}" to target "${foundTarget.formatRelativeTo(originalRequestedProject)}".""")
                 Some(foundTarget)
               case multiMatch =>
-                log.log(LogLevel.Debug, s"""Ambiguous match for request "${targetRef}". Candidates: """ + multiMatch.map(_.formatRelativeTo(originalRequestedProject)).mkString(", "))
+                monitor.info(CmdlineMonitor.Verbose, s"""Ambiguous match for request "${targetRef}". Candidates: """ + multiMatch.map(_.formatRelativeTo(originalRequestedProject)).mkString(", "))
                 // ambiguous match, found more that one
                 // Todo: think about replace Option by Try, to communicate better reason why nothing was found
                 None
@@ -346,7 +348,7 @@ class BuildFileProject(_projectFile: File,
           val schemeContext = SchemeContext(proto, targetRef.nameWithoutProto)
           val handlerOutput = handler.localPath(schemeContext)
           val expandedTargetRef = TargetRef(handlerOutput)(this)
-          log.log(LogLevel.Debug, s"""About to expand scheme handler "${proto}" from "${targetRef}" to "${expandedTargetRef}"""")
+          log.debug(s"""About to expand scheme handler "${proto}" from "${targetRef}" to "${expandedTargetRef}"""")
 
           // the recusive call!
           val uTF = uniqueTargetFile(expandedTargetRef)
@@ -378,7 +380,7 @@ class BuildFileProject(_projectFile: File,
 
                 override def resolve(schemeContext: SchemeContext, targetContext: TargetContext) = {
                   val unwrappedPath = this.unwrappedScheme(schemeContext)
-                  log.log(LogLevel.Debug, s"""About to resolve "${schemeContext}" by calling undelying scheme handler's resolve with path "${unwrappedPath}""")
+                  log.debug(s"""About to resolve "${schemeContext}" by calling undelying scheme handler's resolve with path "${unwrappedPath}""")
                   secondaryResolver.resolve(unwrappedPath, targetContext)
                 }
 
@@ -441,7 +443,10 @@ class BuildFileProject(_projectFile: File,
 
   override def registerSchemeHandler(scheme: String, handler: SchemeHandler) {
     schemeHandlers.get(scheme).map {
-      _ => log.log(LogLevel.Info, s"""Replacing scheme handler "${scheme}" for project "${projectFile}".""")
+      _ =>
+        val msg = s"""Replacing scheme handler "${scheme}" for project "${projectFile}"."""
+        log.info(msg)
+        monitor.info(CmdlineMonitor.Default, msg)
     }
     schemeHandlers += ((scheme, handler))
   }
@@ -474,9 +479,9 @@ class BuildFileProject(_projectFile: File,
   private var _properties: Map[String, String] = Map()
   override protected[sbuild] def properties: Map[String, String] = _properties
   override def addProperty(key: String, value: String) = if (_properties.contains(key)) {
-    log.log(LogLevel.Debug, "Ignoring redefinition of property: " + key)
+    monitor.warn(CmdlineMonitor.Verbose, "Ignoring redefinition of property: " + key)
   } else {
-    log.log(LogLevel.Debug, "Defining property: " + key + " with value: " + value)
+    monitor.info(CmdlineMonitor.Verbose, "Defining property: " + key + " with value: " + value)
     _properties += (key -> value)
   }
 
@@ -493,9 +498,9 @@ class BuildFileProject(_projectFile: File,
   override protected[sbuild] def applyPlugins {
     while (!_pluginsToInitLater.isEmpty) {
       val plugin = _pluginsToInitLater.head
-      log.log(LogLevel.Debug, s"""About to initialize plugin "${plugin.getClass()}": ${plugin.toString()}""")
+      log.debug(s"""About to initialize plugin "${plugin.getClass()}": ${plugin.toString()}""")
       plugin.init
-      log.log(LogLevel.Debug, s"""Initialized plugin "${plugin.getClass()}": ${plugin.toString()}""")
+      log.debug(s"""Initialized plugin "${plugin.getClass()}": ${plugin.toString()}""")
       _pluginsToInitLater = _pluginsToInitLater.tail
     }
   }

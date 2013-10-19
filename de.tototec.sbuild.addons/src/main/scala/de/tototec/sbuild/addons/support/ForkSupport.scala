@@ -1,16 +1,19 @@
 package de.tototec.sbuild.addons.support
 
+import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
-import java.io.File
-import de.tototec.sbuild.Project
+
+import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Path
-import de.tototec.sbuild.LogLevel
+import de.tototec.sbuild.Project
 
 /**
  * Provided various support functions for forking of processes.
  */
 object ForkSupport {
+
+  private[this] val log = Logger[ForkSupport.type]
 
   /**
    * Run the system default JVM with the given classpath and arguments.
@@ -59,7 +62,7 @@ object ForkSupport {
    */
   def runAndWait(command: Array[String], interactive: Boolean = false, errorsIntoOutput: Boolean = true, directory: File = new File("."))(implicit project: Project): Int = {
     val pb = new ProcessBuilder(command: _*)
-    project.log.log(LogLevel.Debug, "Run command: " + command.mkString(" "))
+    log.debug("Run command: " + command.mkString(" "))
     pb.directory(Path(directory))
     val p = pb.start
 

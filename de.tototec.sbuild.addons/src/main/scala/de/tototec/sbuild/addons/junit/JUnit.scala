@@ -1,16 +1,17 @@
 package de.tototec.sbuild.addons.junit
 
-import de.tototec.sbuild.ExecutionFailedException
-import java.net.URLClassLoader
 import java.io.File
-import java.util.concurrent.atomic.AtomicInteger
+import java.net.URLClassLoader
+
+import scala.collection.JavaConversions.asScalaBuffer
+
+import de.tototec.sbuild.CmdlineMonitor
+import de.tototec.sbuild.ExecutionFailedException
 import de.tototec.sbuild.Project
-import de.tototec.sbuild.LogLevel
-import scala.collection.JavaConversions._
 
 /**
  * JUnit Addon, to run JUnit-based unit tests with SBuild.
- * 
+ *
  */
 object JUnit {
   /**
@@ -41,13 +42,13 @@ object JUnit {
  * @param classpath The classpath which contains the JUnit runner and the classes containing the test cases.
  * @param classes The fully qualified classes containing the JUnit test cases.
  * @param failOnError Control, whether failed tests should be handled as errors or not.
- *   When not, failed tests will be printed, but the build will continue.   
+ *   When not, failed tests will be printed, but the build will continue.
  *
  */
 class JUnit(
-  var classpath: Seq[File] = null,
-  var classes: Seq[String] = null,
-  val failOnError: Boolean = true)(implicit project: Project) {
+    var classpath: Seq[File] = null,
+    var classes: Seq[String] = null,
+    val failOnError: Boolean = true)(implicit project: Project) {
 
   def execute {
 
@@ -93,13 +94,13 @@ class JUnit(
     val ignoreCountMethod = result.getClass.asInstanceOf[Class[_]].getMethod("getIgnoreCount")
     val ignoreCount: Int = ignoreCountMethod.invoke(result).asInstanceOf[Int]
 
-    project.log.log(LogLevel.Info, "Executed tests: " + runCount + ", Failures: " + failureCount + ", Ignored: " + ignoreCount)
+    project.monitor.info(CmdlineMonitor.Default, "Executed tests: " + runCount + ", Failures: " + failureCount + ", Ignored: " + ignoreCount)
 
     if (!success) {
       val failuresMethod = result.getClass.asInstanceOf[Class[_]].getMethod("getFailures")
       val failures: java.util.List[_] = failuresMethod.invoke(result).asInstanceOf[java.util.List[_]]
 
-      project.log.log(LogLevel.Info, "Failures:\n- " + failures.mkString("\n- "))
+      project.monitor.info(CmdlineMonitor.Default, "Failures:\n- " + failures.mkString("\n- "))
 
       if (failOnError)
         throw new ExecutionFailedException("Some JUnit test failed.")

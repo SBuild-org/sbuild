@@ -7,6 +7,7 @@ import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetRef.fromString
 import de.tototec.sbuild.TargetRefs.fromTarget
 import de.tototec.sbuild.SBuildNoneLogger
+import de.tototec.sbuild.NoopCmdlineMonitor
 
 class ChainCreatorTest extends FunSuite {
 
@@ -19,7 +20,7 @@ class ChainCreatorTest extends FunSuite {
   private val gB = Target("phony:b")
   private val gC = Target("phony:c")
 
-  val targetExecutor = new TargetExecutor(project, SBuildNoneLogger)
+  val targetExecutor = new TargetExecutor(NoopCmdlineMonitor)
   
   test("build chain test 1") {
     assert(Seq(g1) === targetExecutor.preorderedDependenciesForest(Seq(g1)).flatMap(_.linearized).map(_.target))

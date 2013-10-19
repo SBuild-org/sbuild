@@ -7,17 +7,14 @@ import java.io.FileReader
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import java.util.Properties
-
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsScalaMapConverter
-
 import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.Ansi.Color.CYAN
 import org.fusesource.jansi.Ansi.Color.GREEN
 import org.fusesource.jansi.Ansi.Color.RED
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole
-
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdlineParserException
@@ -42,6 +39,10 @@ import de.tototec.sbuild.execute.ExecutedTarget
 import de.tototec.sbuild.execute.InMemoryTransientTargetCache
 import de.tototec.sbuild.execute.LoggingTransientTargetCache
 import de.tototec.sbuild.execute.TargetExecutor
+import de.tototec.sbuild.Logger
+import de.tototec.sbuild.OutputStreamCmdlineMonitor
+import de.tototec.sbuild.OutputStreamCmdlineMonitor
+import de.tototec.sbuild.CmdlineMonitor
 
 object SBuildRunner extends SBuildRunner {
 
@@ -61,9 +62,11 @@ object SBuildRunner extends SBuildRunner {
  */
 class SBuildRunner {
 
+  private[this] val log = Logger[SBuildRunner]
+
   private[runner] var verbose = false
 
-  private[this] var log: SBuildLogger = new SBuildConsoleLogger(LogLevel.info)
+  private[this] var sbuildMonitor: CmdlineMonitor = new OutputStreamCmdlineMonitor(Console.out, CmdlineMonitor.Default)
 
   //  private val persistentTargetCache = new PersistentTargetCache()
 
@@ -128,22 +131,24 @@ class SBuildRunner {
    * @return A sequence of pairs of problematic target and a error message.
    */
   def checkTargets(projects: Seq[Project])(implicit baseProject: Project): Seq[(Target, String)] = {
+    log.debug("About to check targets of project: " + projects.map(_.projectFile))
 
-    val cache = new TargetExecutor.DependencyCache(baseProject)
+    val cache = new TargetExecutor.DependencyCache()
 
     val targetsToCheck = projects.flatMap { p =>
       p.targets
     }
+    log.debug("targets to check: " + targetsToCheck.map(_.formatRelativeToBaseProject))
     // Console.println("About to check targets: "+targetsToCheck.mkString(", "))
     var errors: Seq[(Target, String)] = Seq()
     targetsToCheck.foreach { target =>
-      log.log(LogLevel.Info, "Checking target: " + target.formatRelativeTo(baseProject))
+      sbuildMonitor.info(CmdlineMonitor.Default, "Checking target: " + target.formatRelativeToBaseProject)
       try {
         cache.fillTreeRecursive(target, Nil)
-        log.log(LogLevel.Info, "  \t" + fOk("OK"))
+        sbuildMonitor.info(CmdlineMonitor.Default, "  \t" + fOk("OK"))
       } catch {
         case e: SBuildException =>
-          log.log(LogLevel.Info, "  \t" + fError("FAILED: " + e.getMessage))
+          sbuildMonitor.info(CmdlineMonitor.Default, "  \t" + fError("FAILED: " + e.getMessage))
           errors ++= Seq(target -> e.getMessage)
       }
     }
@@ -162,39 +167,41 @@ class SBuildRunner {
     if (evict.isEmpty && !cacheable.isEmpty) {
       val msg = s"""Project ${formatProject(project)}" contains ${cacheable.size} cacheable target, but does not declare any target with "evictCache"."""
       if (printWarning)
-        project.log.log(LogLevel.Warn, msg)
+        project.monitor.info(msg)
       Some(msg)
     } else None
   }
 
   private[this] def errorOutput(e: Throwable, msg: String = null) = {
-    log.log(LogLevel.Error, "")
+    sbuildMonitor.info("")
 
     if (msg != null)
-      log.log(LogLevel.Error, fError(msg).toString)
+      sbuildMonitor.info(fError(msg).toString)
 
     if (e.isInstanceOf[BuildScriptAware] && e.asInstanceOf[BuildScriptAware].buildScript.isDefined)
-      log.log(LogLevel.Error, fError("Project: ").toString + fErrorEmph(e.asInstanceOf[BuildScriptAware].buildScript.get.getPath).toString)
+      sbuildMonitor.info(fError("Project: ").toString + fErrorEmph(e.asInstanceOf[BuildScriptAware].buildScript.get.getPath).toString)
 
     if (e.isInstanceOf[TargetAware] && e.asInstanceOf[TargetAware].targetName.isDefined)
-      log.log(LogLevel.Error, fError("Target:  ").toString + fErrorEmph(e.asInstanceOf[TargetAware].targetName.get).toString)
+      sbuildMonitor.info(fError("Target:  ").toString + fErrorEmph(e.asInstanceOf[TargetAware].targetName.get).toString)
 
-    log.log(LogLevel.Error, fError("Details: " + e.getLocalizedMessage).toString)
+    sbuildMonitor.info(fError("Details: " + e.getLocalizedMessage).toString)
 
     if (e.getCause() != null && e.getCause().isInstanceOf[InvocationTargetException] && e.getCause().getCause() != null)
-      log.log(LogLevel.Error, fError("Reflective invokation message: " + e.getCause().getCause().getLocalizedMessage()).toString())
+      sbuildMonitor.info(fError("Reflective invokation message: " + e.getCause().getCause().getLocalizedMessage()).toString())
   }
 
   private[this] def readAndApplyGlobal(config: Config) {
     val rcFile = new File(System.getProperty("user.home"), ".sbuildrc")
-    if (!rcFile.exists()) log.log(LogLevel.Debug, "No global settings file found: " + rcFile)
+    if (!rcFile.exists()) sbuildMonitor.info(CmdlineMonitor.Verbose, "No global settings file found: " + rcFile)
     else {
-      log.log(LogLevel.Debug, "About to read global settings file: " + rcFile)
+      sbuildMonitor.info(CmdlineMonitor.Verbose, "About to read global settings file: " + rcFile)
       val props = new Properties()
       try {
         props.load(new BufferedReader(new FileReader(rcFile)))
       } catch {
-        case e: Exception => log.log(LogLevel.Error, s"""Could not read settings file "${rcFile.getPath}".""", e)
+        case e: Exception =>
+          sbuildMonitor.error(s"""Could not read settings file "${rcFile.getPath}".""")
+          sbuildMonitor.showStackTrace(CmdlineMonitor.Verbose, e)
       }
 
       def readSetting(key: String, applyFunction: String => Unit) = try {
@@ -203,7 +210,9 @@ class SBuildRunner {
           case value => applyFunction(value)
         }
       } catch {
-        case e: Exception => log.log(LogLevel.Error, s"""Could not read setting "${key}" from settings file "${rcFile.getPath}".""", e)
+        case e: Exception =>
+          sbuildMonitor.error(s"""Could not read setting "${key}" from settings file "${rcFile.getPath}".""")
+          sbuildMonitor.showStackTrace(CmdlineMonitor.Verbose, e)
       }
 
       readSetting("jobs", jobCount => if (config.parallelJobs.isEmpty) config.parallelJobs = Some(jobCount.toInt))
@@ -265,7 +274,7 @@ class SBuildRunner {
           var success = true
           val stateDir = new File(dir, ".sbuild")
           if (stateDir.exists && stateDir.isDirectory) {
-            log.log(LogLevel.Info, "Deleting " + stateDir.getPath())
+            sbuildMonitor.info(CmdlineMonitor.Default, "Deleting " + stateDir.getPath())
             success = Util.delete(stateDir) && success
           }
           if (recursive) {
@@ -329,8 +338,8 @@ class SBuildRunner {
 
     SBuildRunner.verbose = config.verbose
     if (verbose) {
-      log = new SBuildConsoleLogger(LogLevel.debug)
-      Util.log = log
+      sbuildMonitor = new OutputStreamCmdlineMonitor(Console.out, CmdlineMonitor.Verbose)
+      Util.monitor = sbuildMonitor
     }
 
     val projectFile = new File(config.buildfile)
@@ -340,10 +349,10 @@ class SBuildRunner {
       return 0
     }
 
-    log.log(LogLevel.Info, "Initializing project...")
+    sbuildMonitor.info(CmdlineMonitor.Default, "Initializing project...")
     val fileLocker = new FileLocker()
-    val projectReader: ProjectReader = new SimpleProjectReader(classpathConfig, log, clean = config.clean, fileLocker)
-    val project = projectReader.readAndCreateProject(projectFile, config.defines.asScala.toMap, None, Some(log)).asInstanceOf[BuildFileProject]
+    val projectReader: ProjectReader = new SimpleProjectReader(classpathConfig, sbuildMonitor, clean = config.clean, fileLocker)
+    val project = projectReader.readAndCreateProject(projectFile, config.defines.asScala.toMap, None, Some(sbuildMonitor)).asInstanceOf[BuildFileProject]
 
     val additionalProjects = config.additionalBuildfiles.map { buildfile =>
       project.findModule(buildfile) match {
@@ -362,15 +371,15 @@ class SBuildRunner {
     // Now, that we loaded all projects, we can release some resources. 
     ProjectScript.dropCaches
 
-    log.log(LogLevel.Debug, "Targets: \n" + project.targets.mkString("\n"))
+    log.debug("Targets: \n" + project.targets.mkString("\n"))
 
     /**
      * Format all non-implicit targets of a project.
      * If the project is not the main/entry project, to project name will included in the formatted name.
      */
-    def formatTargetsOf(project: Project, baseProject: Project): String = {
+    def formatTargetsOf(project: Project): String = {
       project.targets.sortBy(_.name).map { t =>
-        t.formatRelativeTo(baseProject) + " \t" + (t.help match {
+        t.formatRelativeToBaseProject + " \t" + (t.help match {
           case null => ""
           case s: String => s
         })
@@ -384,17 +393,17 @@ class SBuildRunner {
       } else {
         project :: additionalProjects.toList
       }
-      val out = projectsToList.sortWith(projectSorter(project) _).map { p => formatTargetsOf(p, project) }
-      log.log(LogLevel.Info, out.mkString("\n\n"))
+      val out = projectsToList.sortWith(projectSorter(project) _).map { p => formatTargetsOf(p) }
+      sbuildMonitor.info(CmdlineMonitor.Default, out.mkString("\n\n"))
       // early exit
       return 0
     }
 
     if (config.listModules) {
       val moduleNames = project.projectPool.projects.sortWith(projectSorter(project) _).map {
-        p => formatProject(p)(project)
+        p => formatProject(p)
       }
-      log.log(LogLevel.Info, moduleNames.mkString("\n"))
+      sbuildMonitor.info(CmdlineMonitor.Default, moduleNames.mkString("\n"))
       return 0
     }
 
@@ -408,7 +417,7 @@ class SBuildRunner {
 
     // The dependencyTree will be populated by the treePrinter, in case it was requested on commandline
 
-    class DependencyTree(baseProject: Project) {
+    class DependencyTree() {
       private var dependencyTree = List[(Int, Target)]()
 
       def addNode(depth: Int, node: Target): Unit = dependencyTree = (depth -> node) :: dependencyTree
@@ -420,12 +429,12 @@ class SBuildRunner {
           case (depth, target) =>
 
             var prefix = if (lastDepth > depth && depth > 0) {
-              List.fill(depth - 1)("  ").mkString + "  (" + lastShown(depth - 1).formatRelativeTo(baseProject) + ")\n"
+              List.fill(depth - 1)("  ").mkString + "  (" + lastShown(depth - 1).formatRelativeToBaseProject + ")\n"
             } else ""
 
             lastDepth = depth
             lastShown += (depth -> target)
-            val line = prefix + List.fill(depth)("  ").mkString + "  " + target.formatRelativeTo(baseProject)
+            val line = prefix + List.fill(depth)("  ").mkString + "  " + target.formatRelativeToBaseProject
 
             line
         }
@@ -434,24 +443,24 @@ class SBuildRunner {
     }
 
     val depTree =
-      if (config.showDependencyTree) Some(new DependencyTree(project))
+      if (config.showDependencyTree) Some(new DependencyTree())
       else None
 
     val treePrinter: Option[(Int, Target) => Unit] = depTree.map { t => t.addNode _ }
 
-    val dependencyCache = new TargetExecutor.DependencyCache(project)
+    val dependencyCache = new TargetExecutor.DependencyCache()
 
-    val targetExecutor = new TargetExecutor(project, log)
+    val targetExecutor = new TargetExecutor(sbuildMonitor)
 
     // The execution plan (chain) will be evaluated on first need
     lazy val chain: Seq[ExecutedTarget] = {
       if (!targets.isEmpty && !config.noProgress) {
-        log.log(LogLevel.Debug, "Calculating dependency tree...")
+        sbuildMonitor.info(CmdlineMonitor.Verbose, "Calculating dependency tree...")
       }
       val chain = targetExecutor.preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter, dependencyCache = dependencyCache)
-      log.log(LogLevel.Debug, "Target Dependency Cache: " + dependencyCache.cached.map {
-        case (t, d) => "\n  " + t.formatRelativeTo(project) + " -> " + d.flatten.map {
-          dep => dep.formatRelativeTo(project)
+      log.debug("Target Dependency Cache: " + dependencyCache.cached.map {
+        case (t, d) => "\n  " + t.formatRelativeToBaseProject + " -> " + d.flatten.map {
+          dep => dep.formatRelativeToBaseProject
         }.mkString(", ")
       })
       chain
@@ -461,7 +470,7 @@ class SBuildRunner {
       // trigger chain
       chain
       // print output
-      log.log(LogLevel.Info, "Dependency tree:\n" + t.format())
+      log.debug("Dependency tree:\n" + t.format())
       // early exit
       return 0
     }
@@ -475,7 +484,7 @@ class SBuildRunner {
         node.dependencies match {
           case Seq() =>
             line += 1
-            plan = ("  " + line + ". " + node.target.formatRelativeTo(project)) :: plan
+            plan = ("  " + line + ". " + node.target.formatRelativeToBaseProject) :: plan
           case deps =>
             preorderDepthFirst(deps)
         }
@@ -486,11 +495,11 @@ class SBuildRunner {
     }
 
     if (config.showExecutionPlan) {
-      log.log(LogLevel.Info, execPlan(chain))
+      sbuildMonitor.info(CmdlineMonitor.Default, execPlan(chain))
       // early exit
       return 0
     } else {
-      log.log(LogLevel.Debug, execPlan(chain))
+      sbuildMonitor.info(CmdlineMonitor.Verbose, execPlan(chain))
     }
 
     if (config.check || config.checkRecusive) {
@@ -504,10 +513,10 @@ class SBuildRunner {
       val projects = projectsToCheck.sortWith(projectSorter(project) _)
       val errors = checkTargets(projects)(project)
 
-      if (!errors.isEmpty) log.log(LogLevel.Error, s"Found the following ${fError(errors.size.toString)} problems:")
+      if (!errors.isEmpty) sbuildMonitor.info(CmdlineMonitor.Default, s"Found the following ${fError(errors.size.toString)} problems:")
       errors.foreach {
         case (target, message) =>
-          log.log(LogLevel.Error, fError(target.formatRelativeTo(project) + ": " + message).toString)
+          sbuildMonitor.info(CmdlineMonitor.Default, fError(target.formatRelativeToBaseProject + ": " + message).toString)
       }
 
       // also check for possible caching problems
@@ -531,10 +540,10 @@ class SBuildRunner {
         val nextStart = lastRepeatStart + (config.repeatAfterSec * 1000)
         nextStart - System.currentTimeMillis match {
           case msec if msec > 0 =>
-            log.log(LogLevel.Info, s"Repeating execution in ${msec} milliseconds...")
+            sbuildMonitor.info(CmdlineMonitor.Default, s"Repeating execution in ${msec} milliseconds...")
             Thread.sleep(msec)
           case _ =>
-            log.log(LogLevel.Info, s"Repeating execution...")
+            sbuildMonitor.info(CmdlineMonitor.Default, s"Repeating execution...")
         }
       }
       lastRepeatStart = System.currentTimeMillis
@@ -548,7 +557,7 @@ class SBuildRunner {
             case 0 => None
             case _ => None // TODO: this should be a config error
           }
-          log.log(LogLevel.Debug, "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + explicitJobCount.toString)
+          sbuildMonitor.info(CmdlineMonitor.Verbose, "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + explicitJobCount.toString)
           Some(new TargetExecutor.ParallelExecContext(threadCount = explicitJobCount, baseProject = project))
       }
 
@@ -559,22 +568,22 @@ class SBuildRunner {
           else Some(new TargetExecutor.ExecProgress(maxCount = chain.foldLeft(0) { (a, b) => a + b.treeSize }))
 
         if (!targets.isEmpty && !config.noProgress) {
-          log.log(LogLevel.Info, fPercent("[0%]") + " Executing...")
-          log.log(LogLevel.Debug, "Requested targets: " + targets.map(_.formatRelativeTo(project)).mkString(" ~ "))
+          sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[0%]") + " Executing...")
+          sbuildMonitor.info(CmdlineMonitor.Verbose, "Requested targets: " + targets.map(_.formatRelativeToBaseProject).mkString(" ~ "))
         }
 
         targetExecutor.preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
           transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
           treeParallelExecContext = parallelExecContext)
         if (!targets.isEmpty && !config.noProgress) {
-          log.log(LogLevel.Info, fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
+          sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
             " msec, Execution time: " + (System.currentTimeMillis - lastRepeatStart) + " msec")
         }
 
       } catch localExceptionHandler
     }
 
-    log.log(LogLevel.Debug, "Finished")
+    sbuildMonitor.info(CmdlineMonitor.Verbose, "Finished")
     // return with 0, indicating no errors
     0
   }
@@ -593,10 +602,11 @@ class SBuildRunner {
     (requested.asInstanceOf[Seq[Target]], invalid.asInstanceOf[Seq[String]])
   }
 
-  def formatProject(project: Project)(implicit baseProject: Project) =
-    if (baseProject != project)
+  def formatProject(project: Project) = project.baseProject match {
+    case Some(baseProject) =>
       baseProject.projectDirectory.toURI.relativize(project.projectFile.toURI).getPath
-    else project.projectFile.getName
+    case None => project.projectFile.getName
+  }
 
   import org.fusesource.jansi.Ansi._
   import org.fusesource.jansi.Ansi.Color._

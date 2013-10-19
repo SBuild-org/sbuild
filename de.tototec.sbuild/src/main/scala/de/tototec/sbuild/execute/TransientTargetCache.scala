@@ -2,6 +2,7 @@ package de.tototec.sbuild.execute
 
 import de.tototec.sbuild.LogLevel
 import de.tototec.sbuild.Target
+import de.tototec.sbuild.Logger
 
 trait TransientTargetCache {
   def cache(target: Target, executedTarget: ExecutedTarget)
@@ -17,13 +18,16 @@ class InMemoryTransientTargetCache extends TransientTargetCache {
 }
 
 trait LoggingTransientTargetCache extends TransientTargetCache {
+  private[this] val log = Logger[LoggingTransientTargetCache]
+
   abstract override def cache(target: Target, executedTarget: ExecutedTarget): Unit = {
-    target.project.log.log(LogLevel.Debug, "Caching target: " + target)
+    log.debug("Caching target: " + target)
     super.cache(target, executedTarget)
   }
+
   abstract override def get(target: Target): Option[ExecutedTarget] = {
     val t = super.get(target)
-    t.map { found => target.project.log.log(LogLevel.Debug, "Found cached target: " + found) }
+    t.map { found => log.debug("Found cached target: " + found) }
     t
   }
 }

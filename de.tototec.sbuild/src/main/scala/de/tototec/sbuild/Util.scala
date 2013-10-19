@@ -19,18 +19,19 @@ import java.text.DecimalFormat
 
 object Util {
 
-  var log: SBuildLogger = SBuildNoneLogger
+  private[this] val log = Logger[Util.type]
+  var monitor: CmdlineMonitor = NoopCmdlineMonitor
 
   def delete(files: File*): Boolean = {
     var success = true;
     files.map(_ match {
       case f if f.isDirectory => {
         success = delete(f.listFiles: _*) && success
-        log.log(LogLevel.Debug, "Deleting dir: " + f)
+        monitor.info(CmdlineMonitor.Verbose, "Deleting dir: " + f)
         success = f.delete && success
       }
       case f if f.exists => {
-        log.log(LogLevel.Debug, "Deleting file: " + f)
+        monitor.info(CmdlineMonitor.Verbose, "Deleting file: " + f)
         success = f.delete && success
       }
       case _ =>
@@ -38,7 +39,7 @@ object Util {
     success
   }
 
-  def download(url: String, target: String, log: SBuildLogger = log, userAgent: Option[String]): Option[Throwable] = {
+  def download(url: String, target: String, monitor: CmdlineMonitor = monitor, userAgent: Option[String]): Option[Throwable] = {
 
     val retryCount = 5
 
@@ -48,12 +49,12 @@ object Util {
 
       targetFile.exists match {
         case true => { // File already exists
-          log.log(LogLevel.Debug, "File '" + target + "' already downloaded")
+          monitor.info(CmdlineMonitor.Verbose, "File '" + target + "' already downloaded")
           true
         }
         case false => { // File needs download
 
-          log.log(LogLevel.Info, s"Downloading ${url}")
+          monitor.info(CmdlineMonitor.Default, s"Downloading ${url}")
 
           // copy into temp file
 
@@ -104,9 +105,9 @@ object Util {
               def formatLength(length: Long): String = format.format(length / 1024)
 
               def logProgress = if (contentLength > 0) {
-                log.log(LogLevel.Info, s"Downloaded ${formatLength(len)} of ${formatLength(contentLength)} kb (${format.format((len.toDouble * 1000 / contentLength.toDouble).toLong.toDouble / 10)}%) from ${url}")
+                monitor.info(CmdlineMonitor.Default, s"Downloaded ${formatLength(len)} of ${formatLength(contentLength)} kb (${format.format((len.toDouble * 1000 / contentLength.toDouble).toLong.toDouble / 10)}%) from ${url}")
               } else {
-                log.log(LogLevel.Info, s"Downloaded ${formatLength(len)} kb from ${url}")
+                monitor.info(CmdlineMonitor.Default, s"Downloaded ${formatLength(len)} kb from ${url}")
               }
 
               var buffer = new Array[Byte](1024)
@@ -139,10 +140,10 @@ object Util {
                 case l if len == l => // download size is equal to expected size => good
                 case l if len < l =>
                   // stream closed to early
-                  log.log(LogLevel.Info, s"Download stream closed before download was complete from ${url}")
+                  monitor.info(CmdlineMonitor.Default, s"Download stream closed before download was complete from ${url}")
 
                   if (retries < retryCount) {
-                    log.log(LogLevel.Info, s"Resuming download from ${url}")
+                    monitor.info(CmdlineMonitor.Default, s"Resuming download from ${url}")
                     retry = true
                     alreadyLogged = true
                     retries = if (len > lastRetryLen) 0 else (retries + 1)
@@ -198,41 +199,41 @@ object Util {
 
   }
 
-  def recursiveListFilesAbsolute(dir: String, regex: Regex = ".*".r, log: SBuildLogger = SBuildNoneLogger): Array[String] = {
-    recursiveListFiles(new File(dir), regex, log).map(_.getAbsolutePath)
+  def recursiveListFilesAbsolute(dir: String, regex: Regex = ".*".r, monitor: CmdlineMonitor = NoopCmdlineMonitor): Array[String] = {
+    recursiveListFiles(new File(dir), regex, monitor).map(_.getAbsolutePath)
   }
 
   //  def recursiveListFiles(dir: String, regex: Regex = ".*".r): Array[String] = {
   //    recursiveListFiles(new File(dir), regex).map(_.getPath)
   //  }
 
-  def recursiveListFiles(dir: File, regex: Regex = ".*".r, log: SBuildLogger = SBuildNoneLogger): Array[File] = {
+  def recursiveListFiles(dir: File, regex: Regex = ".*".r, monitor: CmdlineMonitor = NoopCmdlineMonitor): Array[File] = {
     dir.listFiles match {
       case allFiles: Array[File] =>
         allFiles.filter { f =>
           val include = f.isFile && regex.findFirstIn(f.getName).isDefined
-          log.log(LogLevel.Debug, (if (include) "including " else "excluding ") + f)
+          monitor.info(CmdlineMonitor.Verbose, (if (include) "including " else "excluding ") + f)
           include
         } ++
-          allFiles.filter(_.isDirectory).flatMap { d => recursiveListFiles(d, regex, log) }
+          allFiles.filter(_.isDirectory).flatMap { d => recursiveListFiles(d, regex, monitor) }
       case null => Array()
     }
   }
 
   def unzip(archive: File, targetDir: File, selectedFiles: String*) {
-    unzip(archive, targetDir, selectedFiles.map(f => (f, null)).toList)
+    unzip(archive, targetDir, selectedFiles.map(f => (f, null)).toList, monitor)
   }
 
-  def unzip(archive: File, targetDir: File, _selectedFiles: List[(String, File)]) {
+  def unzip(archive: File, targetDir: File, _selectedFiles: List[(String, File)], monitor: CmdlineMonitor) {
 
     if (!archive.exists || !archive.isFile) throw new FileNotFoundException("Zip file cannot be found: " + archive);
     targetDir.mkdirs
 
-    log.log(LogLevel.Debug, "Extracting zip archive '" + archive + "' to: " + targetDir)
+    monitor.info(CmdlineMonitor.Verbose, "Extracting zip archive '" + archive + "' to: " + targetDir)
 
     var selectedFiles = _selectedFiles
     val partial = !selectedFiles.isEmpty
-    if (partial) log.log(LogLevel.Debug, "Only extracting some content of zip file")
+    if (partial) log.debug("Only extracting some content of zip file")
 
     try {
       val zipIs = new ZipInputStream(new FileInputStream(archive))
@@ -259,7 +260,7 @@ object Util {
           }
         } else {
           if (zipEntry.isDirectory) {
-            log.log(LogLevel.Debug, "  Creating " + zipEntry.getName);
+            monitor.info(CmdlineMonitor.Verbose, "  Creating " + zipEntry.getName);
             new File(targetDir + "/" + zipEntry.getName).mkdirs
             None
           } else {
@@ -268,7 +269,7 @@ object Util {
         }
 
         if (extractFile.isDefined) {
-          log.log(LogLevel.Debug, "  Extracting " + zipEntry.getName);
+          monitor.info(CmdlineMonitor.Verbose, "  Extracting " + zipEntry.getName);
           val targetFile = extractFile.get
           if (targetFile.exists
             && !targetFile.getParentFile.isDirectory) {

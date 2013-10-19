@@ -8,14 +8,16 @@ import de.tototec.sbuild.execute.TargetExecutor
  */
 object ResolveFiles {
 
+  private[this] val log = Logger[ResolveFiles.type]
+
   def apply(targetRefs: TargetRefs)(implicit project: Project): Seq[File] = {
 
     WithinTargetExecution.get match {
       case null =>
         // ensure, we don't get executed within an target
-        lazy val targetExecutor = new TargetExecutor(project, project.log, logConfig = TargetExecutor.LogConfig(topLevelSkipped = LogLevel.Debug))
+        lazy val targetExecutor = new TargetExecutor(project.monitor, monitorConfig = TargetExecutor.MonitorConfig(topLevelSkipped = CmdlineMonitor.Verbose))
 
-        project.log.log(LogLevel.Debug, "ResolveFiles request: " + targetRefs)
+        log.debug("ResolveFiles request: " + targetRefs)
 
         val targetRefFiles = targetRefs.targetRefs.flatMap { targetRef =>
           project.determineRequestedTarget(targetRef, searchInAllProjects = true, supportCamelCaseShortCuts = false) match {
@@ -25,23 +27,23 @@ object ResolveFiles {
               targetRef.explicitProto match {
                 case None | Some("file") if targetRef.explicitProject == None && Path(targetRef.nameWithoutProto).exists =>
                   val fileRef = Path(targetRef.nameWithoutProto)
-                  project.log.log(LogLevel.Debug, "Resolved to a local file reference: " + fileRef)
+                  log.debug("Resolved to a local file reference: " + fileRef)
                   Seq(fileRef)
                 case _ =>
                   throw new TargetNotFoundException(s"""Could not found target with name "${targetRef}" in project ${project.projectFile}.""")
               }
 
             case Some(target) =>
-              project.log.log(LogLevel.Debug, "About to resolve target: " + target)
+              log.debug("About to resolve target: " + target)
               val executedTarget = targetExecutor.preorderedDependenciesTree(curTarget = target)
 
-              project.log.log(LogLevel.Debug, "Resolved target '" + target + "' to: " + executedTarget)
+              project.monitor.info(CmdlineMonitor.Verbose, "Resolved target '" + target + "' to: " + executedTarget)
               executedTarget.targetContext.targetFiles
 
           }
         }
 
-        project.log.log(LogLevel.Debug, "Resolved files:\n  - " + targetRefFiles.mkString("\n  - "))
+        log.debug("Resolved files:\n  - " + targetRefFiles.mkString("\n  - "))
 
         targetRefFiles
 

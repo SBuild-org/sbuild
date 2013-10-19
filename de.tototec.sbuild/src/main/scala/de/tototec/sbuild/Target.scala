@@ -76,6 +76,11 @@ trait Target {
    *  @since 0.5.0.9002
    */
   def formatRelativeTo(baseProject: Project): String
+  /**
+   *  A formatted textual representation of this target relative to the base project.
+   *  @since 0.6.0.9001
+   */
+  def formatRelativeToBaseProject: String
 }
 
 object Target {

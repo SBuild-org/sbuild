@@ -1,19 +1,12 @@
 package de.tototec.sbuild.execute
 
-import java.io.File
-
-import scala.collection.JavaConverters._
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.concurrent.Lock
 import scala.concurrent.forkjoin.ForkJoinPool
-
-import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.Ansi.Color.CYAN
 import org.fusesource.jansi.Ansi.Color.GREEN
 import org.fusesource.jansi.Ansi.Color.RED
 import org.fusesource.jansi.Ansi.ansi
-
-import de.tototec.sbuild.BuildScriptAware
 import de.tototec.sbuild.ExecutionFailedException
 import de.tototec.sbuild.LogLevel
 import de.tototec.sbuild.Project
@@ -23,17 +16,20 @@ import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetAware
 import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.TargetContextImpl
-import de.tototec.sbuild.TargetRef.fromString
 import de.tototec.sbuild.UnsupportedSchemeException
 import de.tototec.sbuild.WithinTargetExecution
+import de.tototec.sbuild.Logger
+import de.tototec.sbuild.CmdlineMonitor
 
 object TargetExecutor {
 
-  case class LogConfig(
+  private[this] val log = Logger[TargetExecutor.type]
+
+  case class MonitorConfig(
     // showPercent: Boolean = true,
-    executing: LogLevel = LogLevel.Info,
-    topLevelSkipped: LogLevel = LogLevel.Info,
-    subLevelSkipped: LogLevel = LogLevel.Debug // finished: Option[LogLevel] = Some(LogLevel.Debug))
+    executing: CmdlineMonitor.OutputMode = CmdlineMonitor.Default,
+    topLevelSkipped: CmdlineMonitor.OutputMode = CmdlineMonitor.Default,
+    subLevelSkipped: CmdlineMonitor.OutputMode = CmdlineMonitor.Default // finished: Option[LogLevel] = Some(LogLevel.Debug))
     )
 
   //  case class ProcessConfig(parallelJobs: Option[Int] = None)
@@ -48,8 +44,9 @@ object TargetExecutor {
    *
    * It is assumed, that the involved projects are completely initialized and no new target will appear after this cache is active.
    */
-  class DependencyCache(baseProject: Project) {
-    private implicit val _baseProject = baseProject
+  class DependencyCache() {
+
+    private[this] val log = Logger[DependencyCache]
 
     private var depTrees: Map[Target, Seq[Seq[Target]]] = Map()
 
@@ -67,33 +64,43 @@ object TargetExecutor {
      * @throws ProjectConfigurationException If cycles are detected.
      * @throws UnsupportedSchemeException If an unsupported scheme was used in any of the targets.
      */
-    def targetDeps(target: Target, dependencyTrace: List[Target] = Nil): Seq[Seq[Target]] = synchronized {
-      // check for cycles
-      dependencyTrace.find(dep => dep == target).map { cycle =>
-        val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + cycle.formatRelativeTo(baseProject) +
-          ". The dependency chain: " + (target :: dependencyTrace).reverse.map(_.formatRelativeTo(baseProject)).mkString(" -> "))
-        ex.buildScript = Some(cycle.project.projectFile)
-        throw ex
+    def targetDeps(target: Target, dependencyTrace: List[Target] = Nil): Seq[Seq[Target]] = {
+      dependencyTrace match {
+        case Nil => // nothing to check
+        case dependencyTrace =>
+          log.trace("Checking for dependency cycles: " + target.formatRelativeToBaseProject)
+          // check for cycles
+          dependencyTrace.find(dep => dep == target).map { cycle =>
+            val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + cycle.formatRelativeToBaseProject +
+              ". The dependency chain: " + (target :: dependencyTrace).reverse.map(_.formatRelativeToBaseProject).mkString(" -> "))
+            ex.buildScript = Some(cycle.project.projectFile)
+            throw ex
+          }
       }
 
-      depTrees.get(target) match {
-        case Some(deps) => deps
-        case None =>
-          try {
-            val deps = target.project.prerequisitesGrouped(target = target, searchInAllProjects = true)
-            depTrees += (target -> deps)
+      synchronized {
+        depTrees.get(target) match {
+          case Some(deps) =>
+            log.trace("Reusing cached dependencies of: " + target.formatRelativeToBaseProject)
             deps
-          } catch {
-            case e: UnsupportedSchemeException =>
-              val ex = new UnsupportedSchemeException("Unsupported Scheme in dependencies of target: " +
-                target.formatRelativeTo(baseProject) + ". " + e.getMessage)
-              ex.buildScript = e.buildScript
-              ex.targetName = Some(target.formatRelativeTo(baseProject))
-              throw ex
-            case e: TargetAware if e.targetName == None =>
-              e.targetName = Some(target.formatRelativeTo(baseProject))
-              throw e
-          }
+          case None =>
+            try {
+              val deps = target.project.prerequisitesGrouped(target = target, searchInAllProjects = true)
+              log.debug("Evaluated dependencies of: " + target.formatRelativeToBaseProject + " to: " + deps.map(_.map(_.formatRelativeToBaseProject)) + " base project: " + target.project.baseProject)
+              depTrees += (target -> deps)
+              deps
+            } catch {
+              case e: UnsupportedSchemeException =>
+                val ex = new UnsupportedSchemeException("Unsupported Scheme in dependencies of target: " +
+                  target.formatRelativeToBaseProject + ". " + e.getMessage)
+                ex.buildScript = e.buildScript
+                ex.targetName = Some(target.formatRelativeToBaseProject)
+                throw ex
+              case e: TargetAware if e.targetName == None =>
+                e.targetName = Some(target.formatRelativeToBaseProject)
+                throw e
+            }
+        }
       }
     }
 
@@ -105,7 +112,8 @@ object TargetExecutor {
      * @throws ProjectConfigurationException If cycles are detected.
      * @throws UnsupportedSchemeException If an unsupported scheme was used in any of the targets.
      */
-    def fillTreeRecursive(target: Target, parents: List[Target] = Nil): Unit = synchronized {
+    def fillTreeRecursive(target: Target, parents: List[Target] = Nil): Unit = {
+      log.trace("About to fill dependency tree recusivly for target: " + target.formatRelativeToBaseProject)
       targetDeps(target, parents).foreach { group =>
         group.foreach { dep =>
           fillTreeRecursive(dep, target :: parents)
@@ -153,7 +161,7 @@ object TargetExecutor {
 
     def lock(target: Target): Unit = {
       val lock = getLock(target)
-      if (!lock.available) target.project.log.log(LogLevel.Debug, s"Waiting for target: ${target.formatRelativeTo(baseProject)}")
+      if (!lock.available) target.project.monitor.info(s"Waiting for target: ${target.formatRelativeTo(baseProject)}")
       lock.acquire
     }
 
@@ -163,13 +171,13 @@ object TargetExecutor {
 
 }
 
-class TargetExecutor(baseProject: Project,
-                     log: SBuildLogger,
+class TargetExecutor(monitor: CmdlineMonitor,
                      persistentTargetCache: PersistentTargetCache = new PersistentTargetCache(),
-                     logConfig: TargetExecutor.LogConfig = TargetExecutor.LogConfig() // processConfig: TargetExecutor.ProcessConfig = TargetExecutor.ProcessConfig()
+                     monitorConfig: TargetExecutor.MonitorConfig = TargetExecutor.MonitorConfig() // processConfig: TargetExecutor.ProcessConfig = TargetExecutor.ProcessConfig()
                      ) {
 
-  private implicit val _baseProject = baseProject
+  private[this] val log = Logger[TargetExecutor]
+
   import TargetExecutor._
 
   /**
@@ -184,7 +192,7 @@ class TargetExecutor(baseProject: Project,
                                    dependencyTrace: List[Target] = List(),
                                    depth: Int = 0,
                                    treePrinter: Option[(Int, Target) => Unit] = None,
-                                   dependencyCache: DependencyCache = new DependencyCache(baseProject),
+                                   dependencyCache: DependencyCache = new DependencyCache(),
                                    transientTargetCache: Option[TransientTargetCache] = None,
                                    treeParallelExecContext: Option[ParallelExecContext] = None): Seq[ExecutedTarget] =
     request.map { req =>
@@ -214,14 +222,14 @@ class TargetExecutor(baseProject: Project,
                                  dependencyTrace: List[Target] = Nil,
                                  depth: Int = 0,
                                  treePrinter: Option[(Int, Target) => Unit] = None,
-                                 dependencyCache: DependencyCache = new DependencyCache(baseProject),
+                                 dependencyCache: DependencyCache = new DependencyCache(),
                                  transientTargetCache: Option[TransientTargetCache] = None,
                                  parallelExecContext: Option[ParallelExecContext] = None): ExecutedTarget = {
 
     def inner: ExecutedTarget = {
 
-      val log = curTarget.project.log
-      val curTargetFormatted = curTarget.formatRelativeTo(baseProject)
+      //      val monitor = curTarget.project.monitor
+      val curTargetFormatted = curTarget.formatRelativeToBaseProject
 
       treePrinter match {
         case Some(printFunc) => printFunc(depth, curTarget)
@@ -237,8 +245,8 @@ class TargetExecutor(baseProject: Project,
 
       val dependencies: Seq[Seq[Target]] = dependencyCache.targetDeps(curTarget, dependencyTrace)
 
-      log.log(LogLevel.Debug, "Dependencies of " + curTargetFormatted + ": " +
-        (if (dependencies.isEmpty) "<none>" else dependencies.map(_.map(_.formatRelativeTo(baseProject)).mkString(" ~ ")).mkString(" ~~ ")))
+      log.debug("Dependencies of " + curTargetFormatted + ": " +
+        (if (dependencies.isEmpty) "<none>" else dependencies.map(_.map(_.formatRelativeToBaseProject).mkString(" ~ ")).mkString(" ~~ ")))
 
       val executedDependencies: Seq[ExecutedTarget] = parallelExecContext match {
         case None =>
@@ -276,7 +284,7 @@ class TargetExecutor(baseProject: Project,
             }
 
             result.seq.toSeq
-            
+
           }.flatten
       }
 
@@ -289,7 +297,7 @@ class TargetExecutor(baseProject: Project,
             _prefix += "  "
             _prefix
           }
-          x.map { "\n" + prefix + _.formatRelativeTo(baseProject) }.mkString
+          x.map { "\n" + prefix + _.formatRelativeToBaseProject }.mkString
       }
 
       case class ExecBag(ctx: TargetContext, wasUpToDate: Boolean)
@@ -315,21 +323,21 @@ class TargetExecutor(baseProject: Project,
       } else {
         // not skipped execution, determine if dependencies were up-to-date
 
-        log.log(LogLevel.Debug, "===> Current execution: " + curTargetFormatted +
+        log.debug("===> Current execution: " + curTargetFormatted +
           " -> requested by: " + trace + " <===")
 
-        log.log(LogLevel.Debug, "Executed dependency count: " + executedDependencies.size);
+        log.debug("Executed dependency count: " + executedDependencies.size);
 
         lazy val depsLastModified: Long = dependenciesLastModified(executedDependencies)
         val ctx = new TargetContextImpl(curTarget, depsLastModified, executedDependencies.map(_.targetContext))
         if (!executedDependencies.isEmpty)
-          log.log(LogLevel.Debug, s"Dependencies have last modified value '${depsLastModified}': " + executedDependencies.map(_.target.formatRelativeTo(baseProject)).mkString(","))
+          log.debug(s"Dependencies have last modified value '${depsLastModified}': " + executedDependencies.map(_.target.formatRelativeToBaseProject).mkString(","))
 
         val needsToRun: Boolean = curTarget.targetFile match {
           case Some(file) =>
             // file target
             if (!file.exists) {
-              curTarget.project.log.log(LogLevel.Debug, s"""Target file "${file}" does not exists.""")
+              log.debug(s"""Target file "${file}" does not exists.""")
               true
             } else {
               val fileLastModified = file.lastModified
@@ -337,10 +345,10 @@ class TargetExecutor(baseProject: Project,
                 // On Linux, Oracle JVM always reports only seconds file time stamp,
                 // even if file system supports more fine grained time stamps (e.g. ext4 supports nanoseconds)
                 // So, it can happen, that files we just wrote seems to be older than targets, which reported "NOW" as their lastModified.
-                curTarget.project.log.log(LogLevel.Debug, s"""Target file "${file}" is older (${fileLastModified}) then dependencies (${depsLastModified}).""")
+                log.debug(s"""Target file "${file}" is older (${fileLastModified}) then dependencies (${depsLastModified}).""")
                 val diff = depsLastModified - fileLastModified
                 if (diff < 1000 && fileLastModified % 1000 == 0 && System.getProperty("os.name").toLowerCase.contains("linux")) {
-                  curTarget.project.log.log(LogLevel.Debug, s"""Assuming up-to-dateness. Target file "${file}" is only ${diff} msec older, which might be caused by files system limitations or Oracle Java limitations (e.g. for ext4).""")
+                  log.debug(s"""Assuming up-to-dateness. Target file "${file}" is only ${diff} msec older, which might be caused by files system limitations or Oracle Java limitations (e.g. for ext4).""")
                   false
                 } else true
 
@@ -351,7 +359,7 @@ class TargetExecutor(baseProject: Project,
             ctx.targetLastModified = depsLastModified
             val files = ctx.fileDependencies
             if (!files.isEmpty) {
-              log.log(LogLevel.Debug, s"Attaching ${files.size} files of dependencies to empty phony target.")
+              log.debug(s"Attaching ${files.size} files of dependencies to empty phony target.")
               ctx.attachFileWithoutLastModifiedCheck(files)
             }
             false
@@ -359,23 +367,23 @@ class TargetExecutor(baseProject: Project,
           case None =>
             // ensure, that the persistent state gets erased, whenever a non-cacheble phony target runs
             curTarget.evictsCache.map { cacheName =>
-              curTarget.project.log.log(LogLevel.Debug,
-                s"""Target "${curTargetFormatted}" will evict the target state cache with name "${cacheName}" now.""")
+              log.debug(s"""Target "${curTargetFormatted}" will evict the target state cache with name "${cacheName}" now.""")
               persistentTargetCache.dropCacheState(curTarget.project, cacheName)
             }
             // phony target, have to run it always. Any laziness is up to it implementation
-            curTarget.project.log.log(LogLevel.Debug, s"""Target "${curTargetFormatted}" is phony and needs to run (if not cached).""")
+            log.debug(s"""Target "${curTargetFormatted}" is phony and needs to run (if not cached).""")
             true
         }
 
         if (!needsToRun)
-          log.log(LogLevel.Debug, s"""Target "${curTargetFormatted}" does not need to run.""")
+          log.debug(s"""Target "${curTargetFormatted}" does not need to run.""")
 
         val progressPrefix = calcProgressPrefix
 
         val wasUpToDate: Boolean = if (!needsToRun) {
-          val level = if (dependencyTrace.isEmpty) logConfig.topLevelSkipped else logConfig.subLevelSkipped
-          log.log(level, progressPrefix + "Skipping target:  " + colorTarget(curTargetFormatted))
+          val level = if (dependencyTrace.isEmpty) monitorConfig.topLevelSkipped else monitorConfig.subLevelSkipped
+          monitor.info(level, progressPrefix + "Skipping target:  " + colorTarget(curTargetFormatted))
+          log.debug("Skipping target: " + curTargetFormatted)
           true
         } else { // needsToRun
           curTarget.action match {
@@ -387,8 +395,8 @@ class TargetExecutor(baseProject: Project,
                 ex.targetName = Some(curTarget.name)
                 throw ex
               }
-              log.log(LogLevel.Debug, progressPrefix + "Skipping target:  " + colorTarget(curTargetFormatted))
-              log.log(LogLevel.Debug, "Nothing to execute (no action defined) for target: " + curTargetFormatted)
+              monitor.info(CmdlineMonitor.Verbose, progressPrefix + "Skipping target:  " + colorTarget(curTargetFormatted))
+              log.debug("Skipping target execution (no action defined): " + curTargetFormatted)
               true
             case exec =>
               WithinTargetExecution.set(new WithinTargetExecution {
@@ -404,7 +412,7 @@ class TargetExecutor(baseProject: Project,
 
                 val wasUpToDate: Boolean = cachedState match {
                   case Some(cache) =>
-                    log.log(LogLevel.Debug, progressPrefix + "Skipping cached target: " + colorTarget(curTargetFormatted))
+                    monitor.info(CmdlineMonitor.Verbose, progressPrefix + "Skipping cached target: " + colorTarget(curTargetFormatted))
                     ctx.start
                     ctx.targetLastModified = cachedState.get.targetLastModified
                     ctx.attachFileWithoutLastModifiedCheck(cache.attachedFiles)
@@ -413,15 +421,15 @@ class TargetExecutor(baseProject: Project,
 
                   case None =>
                     if (!curTarget.isSideeffectFree) transientTargetCache.map(_.evict)
-                    val level = if (curTarget.isTransparentExec) LogLevel.Debug else logConfig.executing
-                    log.log(level, progressPrefix + "Executing target: " + colorTarget(curTargetFormatted))
-                    log.log(LogLevel.Debug, "Target: " + curTarget)
+                    val level = if (curTarget.isTransparentExec) CmdlineMonitor.Verbose else monitorConfig.executing
+                    monitor.info(level, progressPrefix + "Executing target: " + colorTarget(curTargetFormatted))
+                    log.debug("Executing Target: " + curTargetFormatted)
                     if (curTarget.help != null && curTarget.help.trim != "")
-                      log.log(level, progressPrefix + curTarget.help)
+                      monitor.info(level, progressPrefix + curTarget.help)
                     ctx.start
                     exec.apply(ctx)
                     ctx.end
-                    log.log(LogLevel.Debug, s"Executed target '${curTargetFormatted}' in ${ctx.execDurationMSec} msec")
+                    log.debug(s"Executed target '${curTargetFormatted}' in ${ctx.execDurationMSec} msec")
 
                     // update persistent cache
                     if (curTarget.isCacheable) persistentTargetCache.writeCachedState(ctx)
@@ -431,14 +439,14 @@ class TargetExecutor(baseProject: Project,
 
                 ctx.targetLastModified match {
                   case Some(lm) =>
-                    log.log(LogLevel.Debug, s"The context of target '${curTargetFormatted}' reports a last modified value of '${lm}'.")
+                    log.debug(s"The context of target '${curTargetFormatted}' reports a last modified value of '${lm}'.")
                   case _ =>
                 }
 
                 ctx.attachedFiles match {
                   case Seq() =>
                   case files =>
-                    log.log(LogLevel.Debug, s"The context of target '${curTargetFormatted}' has ${files.size} attached files")
+                    log.debug(s"The context of target '${curTargetFormatted}' has ${files.size} attached files")
                 }
 
                 wasUpToDate
@@ -446,19 +454,23 @@ class TargetExecutor(baseProject: Project,
               } catch {
                 case e: TargetAware =>
                   ctx.end
+                  log.debug("Caught an exception while executing target: " + curTargetFormatted, e)
                   if (e.targetName.isEmpty)
                     e.targetName = Some(curTargetFormatted)
-                  log.log(LogLevel.Debug, s"Execution of target '${curTargetFormatted}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}", e)
+                  monitor.info(CmdlineMonitor.Verbose, s"Execution of target '${curTargetFormatted}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}")
+                  monitor.showStackTrace(CmdlineMonitor.Verbose, e)
                   throw e
                 case e: Throwable =>
                   ctx.end
+                  log.debug("Caught an exception while executing target: " + curTargetFormatted, e)
                   val ex = new ExecutionFailedException(
                     s"Execution of target ${curTargetFormatted} failed with an exception: ${e.getClass.getName}.\n${e.getMessage}",
                     e,
                     s"Execution of target ${curTargetFormatted} failed with an exception: ${e.getClass.getName}.\n${e.getLocalizedMessage}")
                   ex.buildScript = Some(curTarget.project.projectFile)
-                  ex.targetName = Some(curTarget.formatRelativeTo(baseProject))
-                  log.log(LogLevel.Debug, s"Execution of target '${curTargetFormatted}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}", e)
+                  ex.targetName = Some(curTarget.formatRelativeToBaseProject)
+                  monitor.info(CmdlineMonitor.Verbose, s"Execution of target '${curTargetFormatted}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
+                  monitor.showStackTrace(CmdlineMonitor.Verbose, e)
                   throw ex
               } finally {
                 WithinTargetExecution.remove
@@ -473,7 +485,7 @@ class TargetExecutor(baseProject: Project,
       // when parallel, print some finish message
       if (!execBag.wasUpToDate && parallelExecContext.isDefined && !execBag.ctx.target.isTransparentExec) {
         val finishedPrefix = calcProgressPrefix
-        log.log(LogLevel.Info, finishedPrefix + "Finished target: " + colorTarget(curTarget.formatRelativeTo(baseProject)) + " after " + execBag.ctx.execDurationMSec + " msec")
+        monitor.info(CmdlineMonitor.Default, finishedPrefix + "Finished target: " + colorTarget(curTarget.formatRelativeToBaseProject) + " after " + execBag.ctx.execDurationMSec + " msec")
       }
 
       val executedTarget = new ExecutedTarget(targetContext = execBag.ctx, dependencies = executedDependencies)
@@ -493,7 +505,7 @@ class TargetExecutor(baseProject: Project,
           inner
         } catch {
           case e: Throwable =>
-            log.log(LogLevel.Debug, "Catched an exception in parallel executed targets.", e)
+            log.debug("Catched an exception in parallel executed targets.", e)
             val firstError = parCtx.getFirstError(e)
             // we need to stop the complete ForkJoinPool
             parCtx.pool.shutdownNow()
@@ -516,7 +528,9 @@ class TargetExecutor(baseProject: Project,
     dependencies.foreach { dep =>
       dep.target.targetFile match {
         case Some(file) if !file.exists =>
-          log.log(LogLevel.Info, s"""The file "${file}" created by dependency "${dep.target.formatRelativeTo(baseProject)}" does no longer exists.""")
+          def msg = s"""The file "${file}" created by dependency "${dep.target.formatRelativeToBaseProject}" does no longer exists."""
+          log.warn(msg)
+          monitor.warn(msg)
           updateLastModified(now)
         case Some(file) =>
           // file target and file exists, so we use its last modified

@@ -3,8 +3,9 @@ package de.tototec.sbuild.addons.scalatest
 import java.io.File
 import java.net.URLClassLoader
 
+import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExecutionFailedException
-import de.tototec.sbuild.LogLevel
+import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.addons.support.ForkSupport
 
@@ -139,7 +140,7 @@ class ScalaTest(
     var reporterClass: String = null,
     var additionalScalaTestArgs: Seq[String] = null)(implicit project: Project) {
 
-  // private[this] val log = Logger[ScalaTest]
+  private[this] val log = Logger[ScalaTest]
 
   val scalaTestClassName = "org.scalatest.tools.Runner"
 
@@ -172,8 +173,8 @@ class ScalaTest(
     if (xmlOutputDir != null) args ++= Array("-u", xmlOutputDir.getPath)
     if (outputFile != null) args ++= Array("-f" + Option(outputFileSettings).getOrElse(""), outputFile.getPath)
     if (reporter != null) {
-      // log.warn("Option reporter is depreacated")
-      project.log.log(LogLevel.Warn, "Option reporter is deprecated.")
+      log.warn("Option reporter is depreacated")
+      project.monitor.warn(CmdlineMonitor.Default, "Option reporter is deprecated.")
       args ++= Array("-" + reporter)
     }
     if (configMap != null) configMap foreach {
@@ -193,7 +194,7 @@ class ScalaTest(
 
     if (additionalScalaTestArgs != null) args ++= additionalScalaTestArgs
 
-    project.log.log(LogLevel.Info, "Running ScalaTest...")
+    project.monitor.info(CmdlineMonitor.Default, "Running ScalaTest...")
 
     val retVal = if (fork) {
       ForkSupport.runJavaAndWait(classpath, Array(scalaTestClassName) ++ args)
@@ -229,7 +230,7 @@ class ScalaTest(
           throw new ExecutionFailedException("org.scalatest.tools.Runner was not found on the classpath.\nPlease add it to the 'classpath' attribute or the SBuild classapth.")
       }
 
-      project.log.log(LogLevel.Debug, "Running ScalaTest with\n  classpath: " + (cl match {
+      log.debug("Running ScalaTest with\n  classpath: " + (cl match {
         case cp: URLClassLoader => cp.getURLs.mkString(", ")
         case x => "SBuild classpath"
       }) + "\n  args: " + args.mkString(", "))

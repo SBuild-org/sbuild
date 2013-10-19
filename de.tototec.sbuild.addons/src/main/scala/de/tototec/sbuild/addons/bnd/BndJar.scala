@@ -2,9 +2,9 @@ package de.tototec.sbuild.addons.bnd
 
 import java.io.File
 import java.net.URLClassLoader
+
+import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Project
-import de.tototec.sbuild.LogLevel
-import de.tototec.sbuild.LogLevel
 
 /**
  * Companion object for [[BndJar]], which creates OSGi bundles.
@@ -21,9 +21,9 @@ object BndJar {
    *
    */
   def apply(bndClasspath: Seq[File] = null,
-    classpath: Seq[File] = null,
-    props: Map[String, String] = null,
-    destFile: File = null)(implicit project: Project) =
+            classpath: Seq[File] = null,
+            props: Map[String, String] = null,
+            destFile: File = null)(implicit project: Project) =
     new BndJar(
       bndClasspath = bndClasspath,
       classpath = classpath,
@@ -77,10 +77,12 @@ object BndJar {
  *
  */
 class BndJar(
-  var bndClasspath: Seq[File] = null,
-  var classpath: Seq[File] = null,
-  var props: Map[String, String] = null,
-  var destFile: File = null)(implicit project: Project) {
+    var bndClasspath: Seq[File] = null,
+    var classpath: Seq[File] = null,
+    var props: Map[String, String] = null,
+    var destFile: File = null)(implicit project: Project) {
+
+  private[this] val log = Logger[BndJar]
 
   def execute {
 
@@ -88,7 +90,7 @@ class BndJar(
       case null => classOf[BndJar].getClassLoader
       case cp =>
         val cl = new URLClassLoader(cp.map { f => f.toURI().toURL() }.toArray, classOf[BndJar].getClassLoader)
-        project.log.log(LogLevel.Debug, "Using addional bnd classpath: " + cl.getURLs().mkString(", "))
+        log.debug("Using addional bnd classpath: " + cl.getURLs().mkString(", "))
         cl
     }
 
@@ -101,7 +103,7 @@ class BndJar(
     } catch {
       case e: ClassNotFoundException =>
         val builderClassName = "aQute.bnd.osgi.Builder"
-        project.log.log(LogLevel.Debug, s"""Could not found class "${e.getMessage}". Trying new package name (since 2.0.0) "aQute.bnd.ogsi".""")
+        log.debug(s"""Could not found class "${e.getMessage}". Trying new package name (since 2.0.0) "aQute.bnd.ogsi".""")
         val builderClass = bndClassLoader.loadClass(builderClassName)
         val jarClassName = "aQute.bnd.osgi.Jar"
         val jarClass = bndClassLoader.loadClass(jarClassName)
@@ -127,11 +129,11 @@ class BndJar(
 
     val writeMethod = jarClass.getMethod("write", classOf[File])
 
-    if(!destFile.isAbsolute()) destFile = destFile.getAbsoluteFile()
-    
+    if (!destFile.isAbsolute()) destFile = destFile.getAbsoluteFile()
+
     val parentDir = destFile.getParentFile()
     if (parentDir != null && !parentDir.exists()) {
-      project.log.log(LogLevel.Debug, "Create directory: " + parentDir)
+      log.debug("Create directory: " + parentDir)
       parentDir.mkdirs()
     }
 

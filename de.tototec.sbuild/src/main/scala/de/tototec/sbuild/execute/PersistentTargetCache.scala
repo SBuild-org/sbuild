@@ -4,18 +4,19 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 import java.security.MessageDigest
-
 import scala.io.Source
 import scala.util.Try
-
 import de.tototec.sbuild.LogLevel
 import de.tototec.sbuild.Path
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.TargetContextImpl
 import de.tototec.sbuild.Util
+import de.tototec.sbuild.Logger
 
 class PersistentTargetCache {
+
+  private[this] val log = Logger[PersistentTargetCache]
 
   case class CachedState(targetLastModified: Long, attachedFiles: Seq[File])
 
@@ -33,11 +34,11 @@ class PersistentTargetCache {
   def loadOrDropCachedState(ctx: TargetContext): Option[CachedState] = synchronized {
     // TODO check same lastModified of fileDependencies, 
 
-    ctx.project.log.log(LogLevel.Debug, "Checking execution state of target: " + ctx.name)
+    log.debug("Checking execution state of target: " + ctx.name)
 
     val stateFile = cacheStateFile(ctx.project, ctx.name)
     if (!stateFile.exists) {
-      ctx.project.log.log(LogLevel.Debug, s"""No execution state file for target "${ctx.name}" exists.""")
+      log.debug("No previous execution state file found for target: " + ctx.name)
       return None
     }
 
@@ -50,7 +51,7 @@ class PersistentTargetCache {
 
     val source = Source.fromFile(stateFile)
     def closeAndDrop(reason: => String) {
-      ctx.project.log.log(LogLevel.Debug, s"""Execution state file for target "${ctx.name}" exists, but is not up-to-date. Reason: ${reason}""")
+      log.debug(s"""Execution state file for target "${ctx.name}" exists, but is not up-to-date. Reason: ${reason}""")
       source.close
       stateFile.delete
     }
@@ -81,7 +82,7 @@ class PersistentTargetCache {
             cachedTargetLastModified = Try(line.toLong).toOption
 
           case unknownMode =>
-            ctx.project.log.log(LogLevel.Warn, s"""Unexpected file format detected in file "${stateFile}". Dropping cached state of target "${ctx.name}".""")
+            log.warn(s"""Unexpected file format detected in file "${stateFile}". Dropping cached state of target "${ctx.name}".""")
             closeAndDrop("Unknown mode: " + unknownMode)
             return None
         }
@@ -154,7 +155,7 @@ class PersistentTargetCache {
     } finally {
       writer.close
     }
-    ctx.project.log.log(LogLevel.Debug, s"""Wrote execution cache state file for target "${cacheName}" to ${stateFile}.""")
+    log.debug(s"""Wrote execution cache state file for target "${cacheName}" to ${stateFile}.""")
 
   }
 

@@ -2,13 +2,14 @@ package de.tototec.sbuild.addons.scala
 
 import java.io.File
 import java.net.URLClassLoader
-import de.tototec.sbuild.Project
-import de.tototec.sbuild.LogLevel
+
+import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExecutionFailedException
-import de.tototec.sbuild.Util
-import de.tototec.sbuild.Path
-import de.tototec.sbuild.addons.support.ForkSupport
+import de.tototec.sbuild.Logger
+import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.Util
+import de.tototec.sbuild.addons.support.ForkSupport
 
 object Scaladoc {
 
@@ -16,7 +17,7 @@ object Scaladoc {
    * Run the scaladoc generator.
    *
    * @since 0.4.0
-   * 
+   *
    * @param scaladocClasspath  Classpath used to load the scaladoc generator.
    * @param sources Sources, to generate the scaladoc for.
    */
@@ -68,7 +69,7 @@ object Scaladoc {
 
 /**
  * Generate Scaladoc.
- * 
+ *
  * @since 0.4.0
  *
  * @param scaladocClasspath  Classpath used to load the scaladoc generator.
@@ -76,26 +77,29 @@ object Scaladoc {
  *
  */
 class Scaladoc(
-  var scaladocClasspath: Seq[File] = null,
-  var sources: Seq[File] = null,
-  var srcDir: File = null,
-  var srcDirs: Seq[File] = null,
-  var destDir: File = null,
-  var classpath: Seq[File] = null,
-  var encoding: String = null,
-  var unchecked: java.lang.Boolean = null,
-  var deprecation: java.lang.Boolean = null,
-  var verbose: java.lang.Boolean = null,
-  var implicits: java.lang.Boolean = null,
-  var docTitle: String = null,
-  var windowTitle: String = null,
-  var docVersion: String = null,
-  var docFooter: String = null,
-  var rawOutput: java.lang.Boolean = null,
-  var styleSheet: File = null,
-  var sourceUrl: String = null,
-  var fork: Boolean = false,
-  var additionalScaladocArgs: Seq[String] = null)(implicit project: Project) {
+    var scaladocClasspath: Seq[File] = null,
+    var sources: Seq[File] = null,
+    var srcDir: File = null,
+    var srcDirs: Seq[File] = null,
+    var destDir: File = null,
+    var classpath: Seq[File] = null,
+    var encoding: String = null,
+    var unchecked: java.lang.Boolean = null,
+    var deprecation: java.lang.Boolean = null,
+    var verbose: java.lang.Boolean = null,
+    var implicits: java.lang.Boolean = null,
+    var docTitle: String = null,
+    var windowTitle: String = null,
+    var docVersion: String = null,
+    var docFooter: String = null,
+    var rawOutput: java.lang.Boolean = null,
+    var styleSheet: File = null,
+    var sourceUrl: String = null,
+    var fork: Boolean = false,
+    var additionalScaladocArgs: Seq[String] = null)(implicit project: Project) {
+
+  private[this] val log = Logger[Scaladoc]
+  private[this] def monitor = project.monitor
 
   val scaladocClassName = "scala.tools.nsc.ScalaDoc"
 
@@ -123,7 +127,7 @@ class Scaladoc(
     ")"
 
   def execute {
-    project.log.log(LogLevel.Debug, "About to execute " + this)
+    log.debug("About to execute " + this)
 
     require(scaladocClasspath != null && !scaladocClasspath.isEmpty, "No scaladoc classpath set.")
 
@@ -131,7 +135,7 @@ class Scaladoc(
 
     if (classpath != null) {
       val cPath = ForkSupport.pathAsArg(classpath)
-      project.log.log(LogLevel.Debug, "Using classpath: " + cPath)
+      log.debug("Using classpath: " + cPath)
       args ++= Array("-classpath", cPath)
     }
 
@@ -164,15 +168,15 @@ class Scaladoc(
     val sourceFiles: Seq[File] =
       (if (sources == null) Seq() else sources) ++
         allSrcDirs.flatMap { dir =>
-          project.log.log(LogLevel.Debug, "Search files in dir: " + dir)
+          log.debug("Search files in dir: " + dir)
           val files = Util.recursiveListFiles(dir, """.*\.(java|scala)$""".r)
-          project.log.log(LogLevel.Debug, "Found files: " + files.mkString(", "))
+          log.debug("Found files: " + files.mkString(", "))
           files
         }
 
     if (!sourceFiles.isEmpty) {
       val absSourceFiles = sourceFiles.map(f => f.getAbsolutePath)
-      project.log.log(LogLevel.Debug, "Found source files: " + absSourceFiles.mkString(", "))
+      log.debug("Found source files: " + absSourceFiles.mkString(", "))
       args ++= absSourceFiles
     } else {
       val ex = new ProjectConfigurationException("No source files given.")
@@ -180,7 +184,7 @@ class Scaladoc(
       throw ex
     }
 
-    project.log.log(LogLevel.Info, s"Generating Scaladoc for ${sourceFiles.size} source files to ${destDir}")
+    monitor.info(CmdlineMonitor.Default, s"Generating Scaladoc for ${sourceFiles.size} source files to ${destDir}")
 
     if (destDir != null && !sourceFiles.isEmpty) destDir.mkdirs
 
@@ -201,14 +205,14 @@ class Scaladoc(
 
   def generateInternal(args: Array[String]): Int = {
     val scaladocClassLoader = new URLClassLoader(scaladocClasspath.map { f => f.toURI().toURL() }.toArray, classOf[Scalac].getClassLoader)
-    project.log.log(LogLevel.Debug, "Using addional scaladoc classpath: " + scaladocClassLoader.getURLs().mkString(", "))
+    log.debug("Using addional scaladoc classpath: " + scaladocClassLoader.getURLs().mkString(", "))
 
     val scaladocClass = scaladocClassLoader.loadClass(scaladocClassName)
     val scaladocObjectClass = scaladocClassLoader.loadClass(scaladocClassName + "$")
     val scaladocObjectInstance = scaladocObjectClass.getField("MODULE$").get(scaladocClass)
 
     val processMethod = scaladocClass.getMethod("process", Array(args.getClass): _*)
-    project.log.log(LogLevel.Debug, "Executing Scaladoc with args: " + args.mkString(" "))
+    log.debug("Executing Scaladoc with args: " + args.mkString(" "))
 
     val success = processMethod.invoke(scaladocObjectInstance, args).asInstanceOf[Boolean]
     if (success) 0 else 1

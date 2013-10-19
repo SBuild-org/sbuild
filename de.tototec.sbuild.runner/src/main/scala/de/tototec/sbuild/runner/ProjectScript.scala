@@ -16,6 +16,7 @@ import de.tototec.sbuild.SBuildException
 import de.tototec.sbuild.SBuildLogger
 import de.tototec.sbuild.SBuildVersion
 import de.tototec.sbuild.Util
+import de.tototec.sbuild.Logger
 import de.tototec.sbuild.LogLevel
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.TargetRef
@@ -36,65 +37,11 @@ import de.tototec.sbuild.execute.InMemoryTransientTargetCache
 import de.tototec.sbuild.BuildfileCompilationException
 import de.tototec.sbuild.SBuildException
 import scala.collection.LinearSeq
+import de.tototec.sbuild.CmdlineMonitor
 
 object ProjectScript {
 
   val InfoFileName = "sbuild.info.xml"
-
-  def cutSimpleComment(str: String): String = {
-    var index = str.indexOf("//")
-    while (index >= 0) {
-      // found a comment candidate
-      val substring = str.substring(0, index)
-      if (substring.length > 0 && substring.endsWith("\\")) {
-        // detected escaped comment, ignore this one
-        index = str.indexOf("//", index + 1)
-      } else {
-        // check, that we were not inside of a string
-        val DoubleQuote = """[^\\](\\)*"""".r
-        val doubleQuoteCount = DoubleQuote.findAllIn(substring).size
-        if ((doubleQuoteCount % 2) == 0) {
-          // a real comment, remove this one
-          return substring
-        } else {
-          // detected comment in quote
-          index = str.indexOf("//", index + 1)
-        }
-      }
-    }
-    str
-  }
-
-  def unescapeStrings(str: String): String = {
-
-    // http://www.java-blog-buch.de/0304-escape-sequenzen/
-    @tailrec
-    def unescape(seen: List[Char], str: List[Char]): List[Char] = str match {
-      case '\\' :: xs => xs match {
-        case '\\' :: ys => unescape('\\' :: seen, ys) // backslash
-        case 'b' :: ys => unescape('\b' :: seen, ys) // backspace
-        case 'n' :: ys => unescape('\n' :: seen, ys) // newline
-        case 'r' :: ys => unescape('\r' :: seen, ys) // carriage return
-        case 't' :: ys => unescape('\t' :: seen, ys) // tab
-        case 'f' :: ys => unescape('\f' :: seen, ys) // formfeed
-        case ''' :: ys => unescape('\'' :: seen, ys) // single quote
-        case '"' :: ys => unescape('\"' :: seen, ys) // double quote
-        case 'u' :: a :: b :: c :: d :: ys => unescape(Seq(a, b, c, d).toString.toInt.toChar :: seen, ys) // unicode
-        case a :: b :: c :: ys if a.isDigit && b.isDigit && c.isDigit && Seq(a, b, c).toString.toInt <= 377 =>
-          unescape(Integer.parseInt(Seq(a, b, c).toString, 8).toChar :: seen, ys) // octal with 3 digits
-        case a :: b :: ys if a.isDigit && b.isDigit =>
-          unescape(Integer.parseInt(Seq(a, b).toString, 8).toChar :: seen, ys)
-        case a :: ys if a.isDigit =>
-          unescape(Integer.parseInt(a.toString, 8).toChar :: seen, ys)
-        case a :: _ => throw new ParseException(s"""Cannot parse escape sequence "\\$a".""", -1) // error
-        case Nil => throw new ParseException("""Cannot parse unclosed escape sequence at end of string.""", -1) // error
-      }
-      case Nil => seen
-      case x :: xs => unescape(x :: seen, xs)
-    }
-
-    unescape(Nil, str.toList).reverse.mkString
-  }
 
   case class CachedScalaCompiler(compilerClass: Class[_], compilerMethod: Method, reporterMethod: Method)
   case class CachedExtendedScalaCompiler(compilerClass: Class[_], compilerMethod: Method, reporterMethod: Method, outputMethod: Method, clearOutputMethod: Method)
@@ -118,23 +65,27 @@ class ProjectScript(_scriptFile: File,
                     additionalProjectClasspath: Array[String],
                     compilerPluginJars: Array[String],
                     noFsc: Boolean,
-                    log: SBuildLogger,
+                    monitor: CmdlineMonitor,
                     fileLocker: FileLocker) {
+
+  private[this] val log = Logger[ProjectScript]
 
   import ProjectScript._
 
+  private[this] val annotationReader = new AnnotationReader()
+
   def this(scriptFile: File,
            classpathConfig: ClasspathConfig,
-           log: SBuildLogger,
+           monitor: CmdlineMonitor,
            fileLocker: FileLocker) {
-    this(scriptFile,
-      classpathConfig.sbuildClasspath,
-      classpathConfig.compileClasspath,
-      classpathConfig.projectClasspath,
-      classpathConfig.compilerPluginJars,
-      classpathConfig.noFsc,
-      log,
-      fileLocker)
+    this(_scriptFile = scriptFile,
+      sbuildClasspath = classpathConfig.sbuildClasspath,
+      compileClasspath = classpathConfig.compileClasspath,
+      additionalProjectClasspath = classpathConfig.projectClasspath,
+      compilerPluginJars = classpathConfig.compilerPluginJars,
+      noFsc = classpathConfig.noFsc,
+      monitor = monitor,
+      fileLocker = fileLocker)
   }
 
   private[this] val scriptFile: File = Path.normalize(_scriptFile)
@@ -147,7 +98,7 @@ class ProjectScript(_scriptFile: File,
   private[this] val scriptBaseName = scriptFile.getName.endsWith(".scala") match {
     case true => scriptFile.getName.substring(0, scriptFile.getName.length - 6)
     case false =>
-      log.log(LogLevel.Debug, "Scriptfile name does not end in '.scala'")
+      log.debug("Scriptfile name does not end in '.scala'")
       scriptFile.getName
   }
   private[this] lazy val targetBaseDir: File = new File(scriptFile.getParentFile, buildTargetDir)
@@ -179,7 +130,7 @@ class ProjectScript(_scriptFile: File,
     // Now we create an iterator which utilizes the already lazy and potentially cached stream
     def buildScriptIterator = sourceStream.iterator
 
-    val version = readAnnotationWithSingleAttribute(buildScriptIterator, "version", "value")
+    val version = annotationReader.findFirstAnnotationSingleValue(buildScriptIterator, "version", "value")
     val osgiVersion = OSGiVersion.parseVersion(version)
     if (osgiVersion.compareTo(new OSGiVersion(SBuildVersion.osgiVersion)) > 0) {
       throw new SBuildException("The buildscript '" + scriptFile + "' requires at least SBuild version: " + version)
@@ -203,9 +154,9 @@ class ProjectScript(_scriptFile: File,
             timeoutMsec = 30000,
             processInformation = s"SBuild ${SBuildVersion.osgiVersion} for project file: ${scriptFile}",
             onFirstWait = () =>
-              log.log(LogLevel.Info, "Waiting for another SBuild process to release the build file: " + scriptFile),
+              monitor.info(CmdlineMonitor.Default, "Waiting for another SBuild process to release the build file: " + scriptFile),
             onDeleteOrphanLock = () =>
-              log.log(LogLevel.Debug, "Deleting orphan lock file: " + lockFile)
+              log.debug("Deleting orphan lock file: " + lockFile)
           ) match {
               case Right(fileLock) => try {
                 // println("Compiling build script " + scriptFile + "...")
@@ -276,7 +227,7 @@ class ProjectScript(_scriptFile: File,
           }
       } catch {
         case e: Exception =>
-          log.log(LogLevel.Debug, "Could not evaluate up-to-date state of included files.", e)
+          log.debug("Could not evaluate up-to-date state of included files.", e)
           false
       }
 
@@ -293,76 +244,10 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  def readAnnotationWithVarargAttribute(buildScript: => Iterator[String], annoName: String, valueName: String, singleArg: Boolean = false): Array[String] = {
-    var inAnno = false
-    var skipRest = false
-    val it = buildScript
-    var annoLine = ""
-    while (!skipRest && it.hasNext) {
-      var line = cutSimpleComment(it.next).trim
-
-      if (inAnno) {
-        if (line.endsWith(")")) {
-          skipRest = true
-          line = line.substring(0, line.length - 1).trim
-        }
-        annoLine = annoLine + " " + line
-      }
-      if (line.startsWith("@" + annoName + "(")) {
-        line = line.substring(annoName.length + 2).trim
-        if (line.endsWith(")")) {
-          line = line.substring(0, line.length - 1).trim
-          skipRest = true
-        }
-        inAnno = true
-        annoLine = line
-      }
-    }
-
-    annoLine = annoLine.trim
-
-    if (annoLine.length > 0) {
-      if (annoLine.startsWith(valueName)) {
-        annoLine = annoLine.substring(valueName.length).trim
-        if (annoLine.startsWith("=")) {
-          annoLine = annoLine.substring(1).trim
-        } else {
-          throw new RuntimeException("Expected a '=' sign but got a '" + annoLine(0) + "'")
-        }
-      }
-
-      val annoItems =
-        if (singleArg) Array(annoLine)
-        else
-          annoLine.split(",")
-
-      // TODO: also support triple-quotes
-      val finalAnnoItems = annoItems map { item => item.trim } map { item =>
-        if (item.startsWith("\"") && item.endsWith("\"")) {
-          unescapeStrings(item.substring(1, item.length - 1))
-        } else {
-          throw new RuntimeException("Unexpection token found: " + item)
-        }
-      }
-
-      finalAnnoItems
-    } else {
-      Array()
-    }
-  }
-
-  protected def readAnnotationWithSingleAttribute(buildScript: => Iterator[String], annoName: String, valueName: String): String = {
-    readAnnotationWithVarargAttribute(buildScript, annoName, valueName, true) match {
-      case Array() => ""
-      case Array(value) => value
-      case _ => throw new RuntimeException("Unexpected annotation syntax detected. Expected single arg annotation @" + annoName)
-    }
-  }
-
   protected def readIncludeFiles(project: Project, buildScript: => Iterator[String]): Map[String, Seq[File]] = {
-    log.log(LogLevel.Debug, "About to find include files.")
-    val cp = readAnnotationWithVarargAttribute(buildScript, annoName = "include", valueName = "value")
-    log.log(LogLevel.Debug, if (cp.isEmpty) "No includes files specified." else s"Using ${cp.size} included files:\n - ${cp.mkString("\n - ")}")
+    log.debug("About to find include files.")
+    val cp = annotationReader.findFirstAnnotationWithVarArgValue(buildScript, annoName = "include", varArgValueName = "value").map(_.values).getOrElse(Array())
+    log.debug(if (cp.isEmpty) "No includes files specified." else s"Using ${cp.size} included files:\n - ${cp.mkString("\n - ")}")
 
     // TODO: specific error message, when fetch or download fails
     resolveViaProject(cp, project, "@include entry")
@@ -375,15 +260,16 @@ class ProjectScript(_scriptFile: File,
 
     class RequirementsResolver extends BuildFileProject(
       _projectFile = project.projectFile,
-      log = new SBuildLogger {
-        override def log(logLevel: LogLevel, msg: => String, cause: Throwable = null) {
-          //          val level = logLevel match {
-          //            case LogLevel.Info => LogLevel.Debug
-          //            case x => x
-          //          }
-          project.log.log(logLevel, "RequirementsResolver: " + msg, cause)
-        }
-      }
+      monitor = project.monitor
+    //      new SBuildLogger {
+    //        override def log(logLevel: LogLevel, msg: => String, cause: Throwable = null) {
+    //          //          val level = logLevel match {
+    //          //            case LogLevel.Info => LogLevel.Debug
+    //          //            case x => x
+    //          //          }
+    //          project.log.log(logLevel, "RequirementsResolver: " + msg, cause)
+    //        }
+    //      }
     )
     implicit val p: Project = new RequirementsResolver
 
@@ -403,35 +289,33 @@ class ProjectScript(_scriptFile: File,
       case Some(target) =>
 
         val targetExecutor = new TargetExecutor(
-          baseProject = project,
-          log = project.log,
-          logConfig = TargetExecutor.LogConfig(
-            executing = LogLevel.Debug,
-            topLevelSkipped = LogLevel.Debug
+          monitor = project.monitor,
+          monitorConfig = TargetExecutor.MonitorConfig(
+            executing = CmdlineMonitor.Verbose,
+            topLevelSkipped = CmdlineMonitor.Verbose
           )
         )
 
         // TODO: progress
-        val executedTarget =
-          targetExecutor.preorderedDependenciesTree(
-            curTarget = target,
-            transientTargetCache = Some(new InMemoryTransientTargetCache())
-          )
+        val executedTarget = targetExecutor.preorderedDependenciesTree(
+          curTarget = target,
+          transientTargetCache = Some(new InMemoryTransientTargetCache())
+        )
         executedTarget.targetContext.targetFiles
     }
   }
 
   protected def readAdditionalClasspath(project: Project, buildScript: => Iterator[String]): Array[String] = {
-    log.log(LogLevel.Debug, "About to find additional classpath entries.")
-    val cp = readAnnotationWithVarargAttribute(buildScript, annoName = "classpath", valueName = "value")
-    log.log(LogLevel.Debug, "Using additional classpath entries: " + cp.mkString(", "))
+    log.debug("About to find additional classpath entries.")
+    val cp = annotationReader.findFirstAnnotationWithVarArgValue(buildScript, annoName = "classpath", varArgValueName = "value").map(_.values).getOrElse(Array())
+    log.debug("Using additional classpath entries: " + cp.mkString(", "))
     resolveViaProject(cp, project, "@classpath entry").flatMap { case (key, value) => value }.map { _.getPath }.toArray
   }
 
   protected def useExistingCompiled(project: Project, classpath: Array[String], className: String): Any = {
-    log.log(LogLevel.Debug, "Loading compiled version of build script: " + scriptFile)
+    log.debug("Loading compiled version of build script: " + scriptFile)
     val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
-    log.log(LogLevel.Debug, "CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
+    log.debug("CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
     val clazz: Class[_] = cl.loadClass(className)
     val ctr = clazz.getConstructor(classOf[Project])
     val scriptInstance = ctr.newInstance(project)
@@ -450,7 +334,7 @@ class ProjectScript(_scriptFile: File,
   protected def newCompile(classpath: Array[String], includes: Map[String, Seq[File]], printReason: Option[String] = None): String = {
     cleanScala()
     targetDir.mkdirs
-    log.log(LogLevel.Info,
+    monitor.info(CmdlineMonitor.Default,
       (printReason match {
         case None => ""
         case Some(r) => r + ": "
@@ -466,7 +350,7 @@ class ProjectScript(_scriptFile: File,
       case _ => ("SBuild", targetClassFile("SBuild"))
     }
 
-    log.log(LogLevel.Debug, "Writing info file: " + infoFile)
+    log.debug("Writing info file: " + infoFile)
     val info = <sbuild>
                  <sourceSize>{ scriptFile.length }</sourceSize>
                  <sourceLastModified>{ scriptFile.lastModified }</sourceLastModified>
@@ -478,7 +362,7 @@ class ProjectScript(_scriptFile: File,
                    {
                      includes.map {
                        case (key, value) =>
-                         log.log(LogLevel.Debug, s"""@include("${key}") resolved to ${value.size} files: ${value.mkString(", ")}""")
+                         log.debug(s"""@include("${key}") resolved to ${value.size} files: ${value.mkString(", ")}""")
                          value.map { file =>
                            <include>
                              <path>{ file.getPath }</path>
@@ -511,7 +395,7 @@ class ProjectScript(_scriptFile: File,
       (includes.flatMap { case (name, files) => files }.map { _.getPath })
 
     lazy val lazyCompilerClassloader = {
-      log.log(LogLevel.Debug, "Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
+      log.debug("Using additional classpath for scala compiler: " + compileClasspath.mkString(", "))
       new URLClassLoader(compileClasspath.map { f => new File(f).toURI.toURL }, getClass.getClassLoader)
     }
 
@@ -520,7 +404,7 @@ class ProjectScript(_scriptFile: File,
       //      import scala.tools.nsc.StandardCompileClient
       //      val compileClient = new StandardCompileClient
       val compileMethod = compileClient.asInstanceOf[Object].getClass.getMethod("process", Array(classOf[Array[String]]): _*)
-      log.log(LogLevel.Debug, "Executing CompileClient with args: " + params.mkString(" "))
+      log.debug("Executing CompileClient with args: " + params.mkString(" "))
       val retVal = compileMethod.invoke(compileClient, params).asInstanceOf[Boolean]
       if (!retVal) throw new BuildfileCompilationException("Could not compile build file " + scriptFile.getAbsolutePath + " with CompileClient. See compiler output.")
     }
@@ -532,7 +416,7 @@ class ProjectScript(_scriptFile: File,
 
         val cachedCompiler = ProjectScript.cachedExtendedScalaCompiler match {
           case Some(cached) =>
-            log.log(LogLevel.Debug, "Reusing cached compiler instance.")
+            log.debug("Reusing cached compiler instance.")
             cached
           case None =>
             val compiler = lazyCompilerClassloader.loadClass("de.tototec.sbuild.scriptcompiler.ScriptCompiler")
@@ -542,12 +426,12 @@ class ProjectScript(_scriptFile: File,
             val outputMethod = compiler.getMethod("getRecordedOutput")
             val clearOutputMethod = compiler.getMethod("clearRecordedOutput")
             val cache = CachedExtendedScalaCompiler(compiler, compilerMethod, reporterMethod, outputMethod, clearOutputMethod)
-            log.log(LogLevel.Debug, "Caching compiler for later use.")
+            log.debug("Caching compiler for later use.")
             ProjectScript.cachedExtendedScalaCompiler = Some(cache)
             cache
         }
 
-        log.log(LogLevel.Debug, "Executing Scala Compile with args: " + params.mkString(" "))
+        log.debug("Executing Scala Compile with args: " + params.mkString(" "))
         val compilerInstance = cachedCompiler.compilerClass.getConstructor().newInstance()
 
         cachedCompiler.compilerMethod.invoke(compilerInstance, params)
@@ -564,19 +448,19 @@ class ProjectScript(_scriptFile: File,
       } else {
         val cachedCompiler = ProjectScript.cachedScalaCompiler match {
           case Some(cached) =>
-            log.log(LogLevel.Debug, "Reusing cached compiler instance.")
+            log.debug("Reusing cached compiler instance.")
             cached
           case None =>
             val compiler = lazyCompilerClassloader.loadClass("scala.tools.nsc.Main")
             val compilerMethod = compiler.getMethod("process", Array(classOf[Array[String]]): _*)
             val reporterMethod = compiler.getMethod("reporter")
             val cache = CachedScalaCompiler(compiler, compilerMethod, reporterMethod)
-            log.log(LogLevel.Debug, "Caching compiler for later use.")
+            log.debug("Caching compiler for later use.")
             ProjectScript.cachedScalaCompiler = Some(cache)
             cache
         }
 
-        log.log(LogLevel.Debug, "Executing Scala Compile with args: " + params.mkString(" "))
+        log.debug("Executing Scala Compile with args: " + params.mkString(" "))
         cachedCompiler.compilerMethod.invoke(null, params)
         val reporter = cachedCompiler.reporterMethod.invoke(null)
         val hasErrorsMethod = reporter.asInstanceOf[Object].getClass.getMethod("hasErrors")
@@ -593,7 +477,7 @@ class ProjectScript(_scriptFile: File,
       } catch {
         case e: SBuildException => throw e
         case e: Exception =>
-          log.log(LogLevel.Debug, "Compilation with CompileClient failed. trying non-distributed Scala compiler.")
+          log.debug("Compilation with CompileClient failed. trying non-distributed Scala compiler.")
           compileWithoutFsc
       }
     }
