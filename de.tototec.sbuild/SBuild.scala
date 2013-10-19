@@ -4,8 +4,7 @@ import de.tototec.sbuild.ant.tasks._
 import de.tototec.sbuild.TargetRefs._
 
 @version("0.4.0")
-@include("../SBuildConfig.scala",
-  "../de.tototec.sbuild.addons/src/main/scala/de/tototec/sbuild/addons/scalatest/ScalaTest.scala")
+@include("../SBuildConfig.scala")
 @classpath("mvn:org.apache.ant:ant:1.8.4")
 class SBuild(implicit _project: Project) {
 
@@ -112,13 +111,19 @@ object SBuildVersion {
   }
 
   Target("phony:test") dependsOn testCp ~ jar ~ "testCompile" exec {
-    addons.scalatest.ScalaTest(
+    //    addons.scalatest.ScalaTest(
+    //      classpath = testCp.files ++ jar.files,
+    //      runPath = Seq("target/test-classes"),
+    //      reporter = "oF",
+    //      // FIXME: reenable, when we can use >= SBuild 0.6.0.9001
+    //      //      standardOutputSettings = "FD",
+    //      //      xmlOutputDir = Path("target/test-output"),
+    //      fork = true)
+
+    addons.support.ForkSupport.runJavaAndWait(
       classpath = testCp.files ++ jar.files,
-      runPath = Seq("target/test-classes"),
-      // reporter = "oF",
-      standardOutputSettings = "FD",
-      xmlOutputDir = Path("target/test-output"),
-      fork = true)
+      arguments = Array("org.scalatest.tools.runner", "-p", "target/test-classes", "-oF", "-u", "target/test-output")
+    )
   }
 
   Target("phony:scaladoc").cacheable dependsOn SBuildConfig.compilerPath ~ compileCp ~ "scan:src/main/scala" ~ versionScalaFile exec {

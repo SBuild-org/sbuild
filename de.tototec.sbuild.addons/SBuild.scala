@@ -3,10 +3,8 @@ import de.tototec.sbuild.TargetRefs._
 import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 
-@version("0.4.0")
-@include("../SBuildConfig.scala",
-  "src/main/scala/de/tototec/sbuild/addons/java/Javadoc.scala"
-)
+@version("0.5.0")
+@include("../SBuildConfig.scala")
 @classpath("mvn:org.apache.ant:ant:1.8.4",
   "mvn:org.unix4j:unix4j-base:0.3",
   "mvn:org.unix4j:unix4j-command:0.3"
