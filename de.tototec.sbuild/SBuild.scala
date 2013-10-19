@@ -18,7 +18,7 @@ class SBuild(implicit _project: Project) {
       SBuildConfig.slf4jApi // optional
 
   val testCp = compileCp ~
-    s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:1.9.2"
+    s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.0.RC2"
 
   ExportDependencies("eclipse.classpath", testCp)
 
@@ -122,7 +122,7 @@ object SBuildVersion {
 
     addons.support.ForkSupport.runJavaAndWait(
       classpath = testCp.files ++ jar.files,
-      arguments = Array("org.scalatest.tools.runner", "-p", "target/test-classes", "-oF", "-u", "target/test-output")
+      arguments = Array("org.scalatest.tools.Runner", "-p", Path("target/test-classes").getPath, "-oF", "-u", Path("target/test-output").getPath)
     )
   }
 
