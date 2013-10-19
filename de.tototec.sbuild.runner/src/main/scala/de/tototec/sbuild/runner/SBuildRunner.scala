@@ -32,9 +32,7 @@ import de.tototec.sbuild.OutputStreamCmdlineMonitor
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.ProjectReader
-import de.tototec.sbuild.SBuildConsoleLogger
 import de.tototec.sbuild.SBuildException
-import de.tototec.sbuild.SBuildLogger
 import de.tototec.sbuild.SBuildVersion
 import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetAware

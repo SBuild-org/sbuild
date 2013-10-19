@@ -13,11 +13,9 @@ import de.tototec.sbuild.Path
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ResolveResult
 import de.tototec.sbuild.SBuildException
-import de.tototec.sbuild.SBuildLogger
 import de.tototec.sbuild.SBuildVersion
 import de.tototec.sbuild.Util
 import de.tototec.sbuild.Logger
-import de.tototec.sbuild.LogLevel
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.TargetRef
 import de.tototec.sbuild.TargetNotFoundException

@@ -4,15 +4,16 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 import java.security.MessageDigest
+
 import scala.io.Source
 import scala.util.Try
-import de.tototec.sbuild.LogLevel
+
+import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Path
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.TargetContextImpl
 import de.tototec.sbuild.Util
-import de.tototec.sbuild.Logger
 
 class PersistentTargetCache {
 

@@ -4,8 +4,6 @@ import de.tototec.sbuild.Project
 import java.io.File
 import java.lang.reflect.InvocationTargetException
 import de.tototec.sbuild.ProjectReader
-import de.tototec.sbuild.SBuildLogger
-import de.tototec.sbuild.SBuildNoneLogger
 import de.tototec.sbuild.BuildFileProject
 import de.tototec.sbuild.ProjectPool
 import de.tototec.sbuild.CmdlineMonitor

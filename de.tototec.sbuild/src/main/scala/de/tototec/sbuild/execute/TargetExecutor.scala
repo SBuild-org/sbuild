@@ -3,23 +3,23 @@ package de.tototec.sbuild.execute
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.concurrent.Lock
 import scala.concurrent.forkjoin.ForkJoinPool
+
 import org.fusesource.jansi.Ansi.Color.CYAN
 import org.fusesource.jansi.Ansi.Color.GREEN
 import org.fusesource.jansi.Ansi.Color.RED
 import org.fusesource.jansi.Ansi.ansi
+
+import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExecutionFailedException
-import de.tototec.sbuild.LogLevel
+import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
-import de.tototec.sbuild.SBuildLogger
 import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetAware
 import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.TargetContextImpl
 import de.tototec.sbuild.UnsupportedSchemeException
 import de.tototec.sbuild.WithinTargetExecution
-import de.tototec.sbuild.Logger
-import de.tototec.sbuild.CmdlineMonitor
 
 object TargetExecutor {
 
