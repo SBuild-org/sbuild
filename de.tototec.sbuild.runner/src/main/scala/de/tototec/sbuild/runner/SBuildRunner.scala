@@ -7,22 +7,28 @@ import java.io.FileReader
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import java.util.Properties
+
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsScalaMapConverter
+
 import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.Ansi.Color.CYAN
 import org.fusesource.jansi.Ansi.Color.GREEN
 import org.fusesource.jansi.Ansi.Color.RED
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole
+
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdlineParserException
 import de.tototec.sbuild.BuildFileProject
 import de.tototec.sbuild.BuildScriptAware
+import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExecutionFailedException
 import de.tototec.sbuild.InvalidApiUsageException
-import de.tototec.sbuild.LogLevel
+import de.tototec.sbuild.Logger
+import de.tototec.sbuild.OutputStreamCmdlineMonitor
+import de.tototec.sbuild.OutputStreamCmdlineMonitor
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.ProjectReader
@@ -39,10 +45,6 @@ import de.tototec.sbuild.execute.ExecutedTarget
 import de.tototec.sbuild.execute.InMemoryTransientTargetCache
 import de.tototec.sbuild.execute.LoggingTransientTargetCache
 import de.tototec.sbuild.execute.TargetExecutor
-import de.tototec.sbuild.Logger
-import de.tototec.sbuild.OutputStreamCmdlineMonitor
-import de.tototec.sbuild.OutputStreamCmdlineMonitor
-import de.tototec.sbuild.CmdlineMonitor
 
 object SBuildRunner extends SBuildRunner {
 
@@ -64,7 +66,7 @@ class SBuildRunner {
 
   private[this] val log = Logger[SBuildRunner]
 
-  private[runner] var verbose = false
+  private var verbose = false
 
   private[this] var sbuildMonitor: CmdlineMonitor = new OutputStreamCmdlineMonitor(Console.out, CmdlineMonitor.Default)
 
@@ -336,11 +338,9 @@ class SBuildRunner {
 
   def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis): Int = {
 
-    SBuildRunner.verbose = config.verbose
-    if (verbose) {
-      sbuildMonitor = new OutputStreamCmdlineMonitor(Console.out, CmdlineMonitor.Verbose)
-      Util.monitor = sbuildMonitor
-    }
+    SBuildRunner.verbose = config.verbosity == CmdlineMonitor.Verbose
+    sbuildMonitor = new OutputStreamCmdlineMonitor(Console.out, config.verbosity)
+    Util.monitor = sbuildMonitor
 
     val projectFile = new File(config.buildfile)
 
@@ -454,7 +454,7 @@ class SBuildRunner {
 
     // The execution plan (chain) will be evaluated on first need
     lazy val chain: Seq[ExecutedTarget] = {
-      if (!targets.isEmpty && !config.noProgress) {
+      if (!targets.isEmpty) {
         sbuildMonitor.info(CmdlineMonitor.Verbose, "Calculating dependency tree...")
       }
       val chain = targetExecutor.preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter, dependencyCache = dependencyCache)
@@ -564,10 +564,10 @@ class SBuildRunner {
       try {
         // force evaluation of lazy val chain, if required, and switch afterwards from bootstrap to execution time benchmarking.
         val execProgress =
-          if (config.noProgress) None
+          if (config.verbosity == CmdlineMonitor.Quiet) None
           else Some(new TargetExecutor.ExecProgress(maxCount = chain.foldLeft(0) { (a, b) => a + b.treeSize }))
 
-        if (!targets.isEmpty && !config.noProgress) {
+        if (!targets.isEmpty) {
           sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[0%]") + " Executing...")
           sbuildMonitor.info(CmdlineMonitor.Verbose, "Requested targets: " + targets.map(_.formatRelativeToBaseProject).mkString(" ~ "))
         }
@@ -575,7 +575,7 @@ class SBuildRunner {
         targetExecutor.preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
           transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
           treeParallelExecContext = parallelExecContext)
-        if (!targets.isEmpty && !config.noProgress) {
+        if (!targets.isEmpty) {
           sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
             " msec, Execution time: " + (System.currentTimeMillis - lastRepeatStart) + " msec")
         }

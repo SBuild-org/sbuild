@@ -1,6 +1,7 @@
 package de.tototec.sbuild.runner
 
 import de.tototec.cmdoption.CmdOption
+import de.tototec.sbuild.CmdlineMonitor
 
 class Config {
   @CmdOption(names = Array("--buildfile", "-f"), args = Array("FILE"),
@@ -14,8 +15,10 @@ class Config {
   }
   var additionalBuildfiles: Seq[String] = Seq()
 
+  var verbosity: CmdlineMonitor.OutputMode = CmdlineMonitor.Default
+
   @CmdOption(names = Array("--verbose", "-v"), description = "Be verbose when running.")
-  var verbose = false
+  def setVerbose { verbosity = CmdlineMonitor.Verbose }
 
   @CmdOption(names = Array("--list-targets", "-l"),
     description = "Show a list of targets defined in the current buildfile.")
@@ -57,7 +60,7 @@ class Config {
   var showDependencyTree = false
 
   @CmdOption(names = Array("-q", "--quiet", "--no-progress"), description = "Quiet mode. Don't show progress messages with progress in percent. (This will speed up SBuild initialization.)")
-  var noProgress = false
+  def setQuiet { verbosity = CmdlineMonitor.Quiet }
 
   @CmdOption(names = Array("--check"),
     description = "Check targets for cycles and missing scheme handlers.")
