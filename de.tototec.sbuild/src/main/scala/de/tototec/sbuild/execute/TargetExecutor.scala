@@ -29,7 +29,7 @@ object TargetExecutor {
     // showPercent: Boolean = true,
     executing: CmdlineMonitor.OutputMode = CmdlineMonitor.Default,
     topLevelSkipped: CmdlineMonitor.OutputMode = CmdlineMonitor.Default,
-    subLevelSkipped: CmdlineMonitor.OutputMode = CmdlineMonitor.Default // finished: Option[LogLevel] = Some(LogLevel.Debug))
+    subLevelSkipped: CmdlineMonitor.OutputMode = CmdlineMonitor.Verbose // finished: Option[LogLevel] = Some(LogLevel.Debug))
     )
 
   //  case class ProcessConfig(parallelJobs: Option[Int] = None)
@@ -132,13 +132,19 @@ object TargetExecutor {
   class ParallelExecContext(val threadCount: Option[Int] = None, val baseProject: Project) {
     private[this] var _locks: Map[Target, Lock] = Map().withDefault { _ => new Lock() }
 
-    val pool = threadCount match {
+    /**
+     * The used ForkJoinPool, which will use the configured (`threadCount`) amount of threads.
+     */
+    val pool: ForkJoinPool = threadCount match {
       case None => new ForkJoinPool()
       case Some(threads) => new ForkJoinPool(threads)
     }
 
     def taskSupport = new ForkJoinTaskSupport(pool)
 
+    /**
+     * The first error caught in any of the managed threads.
+     */
     private[this] var _firstError: Option[Throwable] = None
     def getFirstError(currentError: Throwable): Throwable = synchronized {
       _firstError match {
@@ -149,19 +155,22 @@ object TargetExecutor {
       }
     }
 
+    /**
+     * The Lock associated with the given target.
+     */
     private[this] def getLock(target: Target): Lock = synchronized {
       _locks.get(target) match {
-        case Some(l) => l
+        case Some(lock) => lock
         case None =>
-          val l = new Lock()
-          _locks += (target -> l)
-          l
+          val lock = new Lock()
+          _locks += (target -> lock)
+          lock
       }
     }
 
     def lock(target: Target): Unit = {
       val lock = getLock(target)
-      if (!lock.available) target.project.monitor.info(s"Waiting for target: ${target.formatRelativeTo(baseProject)}")
+      if (!lock.available) log.debug(s"Waiting for target: ${target.formatRelativeTo(baseProject)}")
       lock.acquire
     }
 
