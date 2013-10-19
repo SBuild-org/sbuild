@@ -199,23 +199,23 @@ object Util {
 
   }
 
-  def recursiveListFilesAbsolute(dir: String, regex: Regex = ".*".r, monitor: CmdlineMonitor = NoopCmdlineMonitor): Array[String] = {
-    recursiveListFiles(new File(dir), regex, monitor).map(_.getAbsolutePath)
+  def recursiveListFilesAbsolute(dir: String, regex: Regex = ".*".r): Array[String] = {
+    recursiveListFiles(new File(dir), regex).map(_.getAbsolutePath)
   }
 
   //  def recursiveListFiles(dir: String, regex: Regex = ".*".r): Array[String] = {
   //    recursiveListFiles(new File(dir), regex).map(_.getPath)
   //  }
 
-  def recursiveListFiles(dir: File, regex: Regex = ".*".r, monitor: CmdlineMonitor = NoopCmdlineMonitor): Array[File] = {
+  def recursiveListFiles(dir: File, regex: Regex = ".*".r): Array[File] = {
     dir.listFiles match {
       case allFiles: Array[File] =>
         allFiles.filter { f =>
           val include = f.isFile && regex.findFirstIn(f.getName).isDefined
-          monitor.info(CmdlineMonitor.Verbose, (if (include) "including " else "excluding ") + f)
+          log.debug((if (include) "including " else "excluding ") + f)
           include
         } ++
-          allFiles.filter(_.isDirectory).flatMap { d => recursiveListFiles(d, regex, monitor) }
+          allFiles.filter(_.isDirectory).flatMap { d => recursiveListFiles(d, regex) }
       case null => Array()
     }
   }
