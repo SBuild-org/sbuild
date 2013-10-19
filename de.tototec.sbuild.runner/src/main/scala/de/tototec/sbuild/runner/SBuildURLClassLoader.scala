@@ -2,14 +2,14 @@ package de.tototec.sbuild.runner
 
 import java.net.URLClassLoader
 import java.net.URL
-import de.tototec.sbuild.SBuildConsoleLogger
-import de.tototec.sbuild.LogLevel
-import de.tototec.sbuild.SBuildLogger
+import de.tototec.sbuild.Logger
 
 /**
  * An URL classloader that allows to add additional URLs after construction.
  */
-class SBuildURLClassLoader(urls: Array[URL], parent: ClassLoader, log: SBuildLogger) extends URLClassLoader(urls, parent) {
+class SBuildURLClassLoader(urls: Array[URL], parent: ClassLoader) extends URLClassLoader(urls, parent) {
+
+  private[this] val log = Logger[SBuildURLClassLoader]
 
   //    println("urls: " + urls.mkString(","))
 
@@ -19,7 +19,7 @@ class SBuildURLClassLoader(urls: Array[URL], parent: ClassLoader, log: SBuildLog
       case c: Class[_] => c
       case _ =>
         if (className.startsWith("scala.tools.ant.")) {
-          log.log(LogLevel.Debug, "Force loading of scala ant support class '" + className + "' from project classpath, even if they are bundled with the compiler and therefore available in SBuildRunner classpath.")
+          log.debug("Force loading of scala ant support class '" + className + "' from project classpath, even if they are bundled with the compiler and therefore available in SBuildRunner classpath.")
           findClass(className)
         } else {
           super.loadClass(className, resolve)
@@ -45,7 +45,7 @@ class SBuildURLClassLoader(urls: Array[URL], parent: ClassLoader, log: SBuildLog
   //  }
 
   override def addURL(url: URL) {
-    log.log(LogLevel.Debug, "About to add an URL: " + url)
+    log.debug("About to add an URL: " + url)
     super.addURL(url)
   }
 
