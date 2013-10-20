@@ -493,12 +493,13 @@ class SBuildRunner {
     }
 
     if (config.showExecutionPlan) {
-      sbuildMonitor.info(CmdlineMonitor.Default, execPlan(chain))
+      sbuildMonitor.info(execPlan(chain))
       // early exit
       return 0
-    } else {
-      sbuildMonitor.info(CmdlineMonitor.Verbose, execPlan(chain))
+      //    } else {
+      //      sbuildMonitor.info(CmdlineMonitor.Verbose, execPlan(chain))
     }
+    log.debug(execPlan(chain))
 
     if (config.check || config.checkRecusive) {
 

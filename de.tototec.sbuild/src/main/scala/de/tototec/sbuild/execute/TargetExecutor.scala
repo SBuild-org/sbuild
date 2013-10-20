@@ -427,6 +427,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
                 val wasUpToDate: Boolean = cachedState match {
                   case Some(cache) =>
                     monitor.info(CmdlineMonitor.Verbose, progressPrefix + "Skipping cached target: " + colorTarget(curTargetFormatted))
+                    log.debug("Skipping cached target: " + colorTarget(curTargetFormatted))
                     ctx.start
                     ctx.targetLastModified = cachedState.get.targetLastModified
                     ctx.attachFileWithoutLastModifiedCheck(cache.attachedFiles)

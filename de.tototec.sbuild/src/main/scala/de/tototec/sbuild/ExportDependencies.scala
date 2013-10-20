@@ -19,6 +19,8 @@ package de.tototec.sbuild
  */
 object ExportDependencies {
 
+  private[this] val log = Logger[ExportDependencies.type]
+
   /**
    * Export dependencies to be consumed by other tools, e.g. an IDE.
    *
@@ -34,6 +36,7 @@ object ExportDependencies {
         dep.name +
         "]]></dep>"
 
+    log.debug("About to export dependencies under the property \"" + exportName + "\" in project: " + project.projectFile + ". Dependencies: " + dependencies)
     project.addProperty(exportName, dependencies.targetRefs.map(depAsXml(_)).mkString("<deps>", "", "</deps>"))
   }
 
