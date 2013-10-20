@@ -106,9 +106,16 @@ class TargetContextImpl(
     _targetLastModified match {
       case Some(previous) => Some(math.max(previous, targetLastModified))
       case None if targetLastModified > 0 =>
+        val now = System.currentTimeMillis
         // record this lastModified
         // and also consider lastModified of attached files
-        val lm = _attachedFiles.foldLeft(targetLastModified)((l, r) => math.max(l, r.lastModified))
+        val lm = _attachedFiles.foldLeft(targetLastModified) { (lm, file) =>
+          if (file.lastModified > now) {
+            // TODO: consider an offset of about 3 seconds (as Make does)
+            target.project.monitor.warn(s"""Modification time of file "${file}" is in the future.""")
+          }
+          math.max(lm, file.lastModified)
+        }
         Some(lm)
       case _ => None
     }
@@ -122,6 +129,11 @@ class TargetContextImpl(
     attachFileWithoutLastModifiedCheck(Seq(file))
     // If we have already a set lastModified, than update it now
     if (targetLastModified.isDefined) {
+      val now = System.currentTimeMillis
+      if (file.lastModified > now) {
+        // TODO: consider an offset of about 3 seconds (as Make does)
+        target.project.monitor.warn(s"""Modification time of file "${file}" is in the future.""")
+      }
       targetLastModified = file.lastModified
     }
   }

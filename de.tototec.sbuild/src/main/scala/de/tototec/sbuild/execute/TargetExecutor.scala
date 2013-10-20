@@ -350,6 +350,11 @@ class TargetExecutor(monitor: CmdlineMonitor,
               true
             } else {
               val fileLastModified = file.lastModified
+              val now = System.currentTimeMillis
+              if (fileLastModified > now) {
+                // TODO: consider an offset of about 3 seconds (as Make does)
+                monitor.warn(s"""Modification time of file "${file}" is in the future. Up-to-date checks may be incorrect.""")
+              }
               if (fileLastModified < depsLastModified) {
                 // On Linux, Oracle JVM always reports only seconds file time stamp,
                 // even if file system supports more fine grained time stamps (e.g. ext4 supports nanoseconds)
@@ -527,36 +532,42 @@ class TargetExecutor(monitor: CmdlineMonitor,
   }
 
   def dependenciesLastModified(dependencies: Seq[ExecutedTarget]): Long = {
-    var lastModified: Long = 0
-    def updateLastModified(lm: Long) {
-      lastModified = math.max(lastModified, lm)
-    }
+    val now = System.currentTimeMillis
 
-    def now = System.currentTimeMillis
+    // TODO: consider optimization: escape calculation immediately after we reach NOW
 
-    dependencies.foreach { dep =>
-      dep.target.targetFile match {
+    dependencies.foldLeft(0L) { (prevLastModified, dep) =>
+      val modifiedAt: Long = dep.target.targetFile match {
         case Some(file) if !file.exists =>
           def msg = s"""The file "${file}" created by dependency "${dep.target.formatRelativeToBaseProject}" does no longer exists."""
           log.warn(msg)
           monitor.warn(msg)
-          updateLastModified(now)
+          now
         case Some(file) =>
           // file target and file exists, so we use its last modified
-          updateLastModified(file.lastModified)
+          val lm = file.lastModified
+          if (lm > now) {
+            // TODO: consider an offset of about 3 seconds (as Make does)
+            monitor.warn(s"""Modification time of file "${file}" is in the future. Up-to-date checks may be incorrect.""")
+          }
+          lm
         case None =>
           // phony target, so we ask its target context 
           dep.targetContext.targetLastModified match {
             case Some(lm) =>
               // context has an associated last modified, which we will use
-              updateLastModified(lm)
+              if (lm > now) {
+                // TODO: consider an offset of about 3 seconds (as Make does)
+                monitor.warn(s"""Reported modification time of target "${dep.targetContext.target.formatRelativeToBaseProject}" is in the future. Up-to-date checks may be incorrect.""")
+              }
+              lm
             case None =>
               // target context does not know something, so we fall back to a last modified of NOW
-              updateLastModified(now)
+              now
           }
       }
+      math.max(prevLastModified, modifiedAt)
     }
-    lastModified
   }
 
   import org.fusesource.jansi.Ansi._
