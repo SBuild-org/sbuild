@@ -48,7 +48,7 @@ class SBuild(implicit _project: Project) {
 
   val sbuildRunnerClass = "de.tototec.sbuild.runner.SBuildRunner"
   val sbuildRunnerLibs = scalaLibrary ~ cmdOption ~ jansi ~ binJar ~ runnerJar
-  val sbuildRunnerDebugLibs = sbuildRunnerLibs ~ SBuildConfig.slf4jApi ~ SBuildConfig.logbackCore ~ SBuildConfig.logbackClassic
+  val sbuildRunnerDebugLibs = sbuildRunnerLibs ~ SBuildConfig.slf4jApi ~ SBuildConfig.logbackCore ~ SBuildConfig.logbackClassic ~ SBuildConfig.jclOverSlf4j ~ SBuildConfig.log4jOverSlf4j
 
   Target("phony:clean").evictCache dependsOn modules.map(m => m("clean")) exec {
     AntDelete(dir = Path("target"))
@@ -72,15 +72,15 @@ class SBuild(implicit _project: Project) {
   }
 
   Target("phony:createDistDir") dependsOn "copyJars" ~ classpathProperties ~
-      s"${distDir}/bin/sbuild" ~ s"${distDir}/bin/sbuild.bat" ~ 
-      s"${distDir}/bin/sbuild-debug" ~ s"${distDir}/bin/sbuild-debug.bat" ~ 
+      s"${distDir}/bin/sbuild" ~ s"${distDir}/bin/sbuild.bat" ~
+      s"${distDir}/bin/sbuild-debug" ~ s"${distDir}/bin/sbuild-debug.bat" ~
       "ChangeLog.txt" ~ "LICENSE.txt" ~ "logback-debug.xml" exec {
     AntCopy(file = "LICENSE.txt".files.head, toDir = Path(distDir + "/doc"))
     AntCopy(file = "ChangeLog.txt".files.head, toDir = Path(distDir + "/doc"))
     AntCopy(file = "logback-debug.xml".files.head, toDir = Path(distDir + "/lib"))
   }
 
-  Target("phony:copyJars").cacheable dependsOn cmdOption ~ SBuildConfig.compilerPath ~ 
+  Target("phony:copyJars").cacheable dependsOn cmdOption ~ SBuildConfig.compilerPath ~
       binJar ~ runnerJar ~ antJar ~ addonsJar ~ compilerPluginJar ~ scriptCompilerJar ~ jansi ~
       sbuildRunnerDebugLibs exec { ctx: TargetContext =>
     ctx.fileDependencies.distinct.foreach { file =>
@@ -115,7 +115,7 @@ class SBuild(implicit _project: Project) {
   def formatClasspathUnix(sbuildRunnerLibs: Seq[File]) = sbuildRunnerLibs.map("${SBUILD_HOME}/lib/" + _.getName).mkString(":")
   def formatClasspathWin(sbuildRunnerLibs: Seq[File]) = sbuildRunnerLibs.map("%SBUILD_HOME%\\lib\\" + _.getName).mkString(";")
 
-  def sbuildSh(sbuildRunnerLibs: Seq[File], javaOptions: String) = 
+  def sbuildSh(sbuildRunnerLibs: Seq[File], javaOptions: String) =
     ("""|#!/bin/sh
       |
       |# Determime SBUILD_HOME (adapted from maven)
@@ -263,7 +263,7 @@ class SBuild(implicit _project: Project) {
 
   Target(distDir + "/bin/sbuild-debug") dependsOn _project.projectFile ~ sbuildRunnerDebugLibs exec { ctx: TargetContext =>
     AntEcho(
-      file = ctx.targetFile.get, 
+      file = ctx.targetFile.get,
       message = sbuildSh(sbuildRunnerDebugLibs.files, javaOptions + " -Dlogback.configurationFile=${SBUILD_HOME}/lib/logback-debug.xml")
     )
     AntChmod(file = ctx.targetFile.get, perm = "+x")
@@ -275,7 +275,7 @@ class SBuild(implicit _project: Project) {
 
   Target(distDir + "/bin/sbuild-debug.bat") dependsOn _project.projectFile ~ sbuildRunnerDebugLibs exec { ctx: TargetContext =>
     AntEcho(
-      file = ctx.targetFile.get, 
+      file = ctx.targetFile.get,
       message = sbuildBat(sbuildRunnerDebugLibs.files, javaOptions + " -Dlogback.configurationFile=%SBUILD_HOME%\\lib\\logback-debug.xml"))
   }
 

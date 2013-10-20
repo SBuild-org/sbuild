@@ -19,13 +19,14 @@ object SBuildConfig {
   def scalaLibrary = s"mvn:org.scala-lang:scala-library:${scalaVersion}"
   def scalaCompiler = s"mvn:org.scala-lang:scala-compiler:${scalaVersion}"
   def scalaReflect = s"mvn:org.scala-lang:scala-reflect:${scalaVersion}"
-  def scalaActors = s"mvn:org.scala-lang:scala-actors:${scalaVersion}"
 
   def compilerPath(implicit project: Project) =
     scalaLibrary ~ scalaCompiler ~ scalaReflect
 
   val slf4jApi = "mvn:org.slf4j:slf4j-api:1.7.5"
-  val logbackCore = "mvn:ch.qos.logback:logback-core:1.0.9"
-  val logbackClassic = "mvn:ch.qos.logback:logback-classic:1.0.9"
+  val jclOverSlf4j = "mvn:org.slf4j:jcl-over-slf4j:1.7.5"
+  val log4jOverSlf4j = "mvn:org.slf4j:log4j-over-slf4j:1.7.5"
+  val logbackCore = "mvn:ch.qos.logback:logback-core:1.0.13"
+  val logbackClassic = "mvn:ch.qos.logback:logback-classic:1.0.13"
 
 }
