@@ -99,7 +99,8 @@ class BuildFileProject(_projectFile: File,
               throw ex
 
             case Some(reader) =>
-              reader.readAndCreateProject(newProjectFile, properties, Some(projectPool), Some(monitor))
+              val newProperties = if (copyProperties) properties else Map[String, String]()
+              reader.readAndCreateProject(newProjectFile, newProperties, Some(projectPool), Some(monitor))
           }
       }
 
@@ -479,9 +480,10 @@ class BuildFileProject(_projectFile: File,
   private var _properties: Map[String, String] = Map()
   override protected[sbuild] def properties: Map[String, String] = _properties
   override def addProperty(key: String, value: String) = if (_properties.contains(key)) {
-    monitor.warn(CmdlineMonitor.Verbose, "Ignoring redefinition of property: " + key)
+    log.warn("Ignoring redefinition of property: " + key)
+    monitor.warn(CmdlineMonitor.Default, "Ignoring redefinition of property: " + key)
   } else {
-    monitor.info(CmdlineMonitor.Verbose, "Defining property: " + key + " with value: " + value)
+    log.info("Defining property: " + key + " with value: " + value)
     _properties += (key -> value)
   }
 
