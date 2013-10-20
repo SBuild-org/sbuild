@@ -1,23 +1,27 @@
 package de.tototec.sbuild.experimental.reflect
 
+import java.io.File
 import java.lang.reflect.Field
 import java.lang.reflect.Method
-import java.io.File
-import scala.util.Try
+
 import scala.util.Success
+import scala.util.Try
+
+import de.tototec.sbuild.Logger
+import de.tototec.sbuild.Project
+import de.tototec.sbuild.SchemeHandler.SchemeContext
 import de.tototec.sbuild.SchemeResolverWithDependencies
 import de.tototec.sbuild.TargetContext
-import de.tototec.sbuild.Project
 import de.tototec.sbuild.TargetNotFoundException
 import de.tototec.sbuild.TargetRef
 import de.tototec.sbuild.TargetRefs
-import de.tototec.sbuild.LogLevel
-import de.tototec.sbuild.SchemeHandler.SchemeContext
 
 /**
  * Access to build script variables of type [[TargetRefs]], [[TargetRef]], [[java.io.File]], [[java.lang.String]] as targets.
  */
 class DefSchemeHandler(scriptInstance: Any)(implicit _project: Project) extends SchemeResolverWithDependencies {
+
+  private[this] val log = Logger[DefSchemeHandler]
 
   override def localPath(schemeCtx: SchemeContext): String = s"phony:${schemeCtx.scheme}:${schemeCtx.path}"
 
@@ -25,7 +29,7 @@ class DefSchemeHandler(scriptInstance: Any)(implicit _project: Project) extends 
 
   override def dependsOn(schemeCtx: SchemeContext): TargetRefs = {
     val access = Try(scriptInstance.getClass.getMethod(schemeCtx.path)).orElse(Try(scriptInstance.getClass.getField(schemeCtx.path)))
-    _project.log.log(LogLevel.Debug, "Accessor for \"" + schemeCtx.path + "\" is: " + access)
+    log.debug("Accessor for \"" + schemeCtx.path + "\" is: " + access)
     val value = access match {
       case Success(field: Field) => field.get(scriptInstance)
       case Success(method: Method) => method.invoke(scriptInstance)
@@ -44,7 +48,7 @@ class DefSchemeHandler(scriptInstance: Any)(implicit _project: Project) extends 
         ex.buildScript = Some(_project.projectFile)
         throw ex
     }
-    _project.log.log(LogLevel.Debug, "Evaluated dependsOn to: " + targetRefs)
+    log.debug("Evaluated dependsOn to: " + targetRefs)
     targetRefs
   }
 
