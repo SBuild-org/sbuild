@@ -14,10 +14,7 @@ import de.tototec.sbuild.SchemeHandler.SchemeContext
  */
 class HttpSchemeHandler(downloadDir: File = null,
                         forceDownload: Boolean = false)(implicit project: Project) extends HttpSchemeHandlerBase(
-  downloadDir match {
-    case null => Path(".sbuild/http")
-    case x => x
-  },
+  Option(downloadDir).getOrElse(Path(".sbuild/http")),
   forceDownload)
     with SchemeResolver {
 

@@ -18,7 +18,7 @@ class ScanSchemeHandler(implicit project: Project)
     with TransparentSchemeResolver
     with SideeffectFreeSchemeResolver {
 
-  override def localPath(schemeCtx: SchemeContext): String = s"phony:${schemeCtx.scheme}:${schemeCtx.path}"
+  override def localPath(schemeCtx: SchemeContext): String = "phony:" + schemeCtx.fullName
 
   override def resolve(schemeCtx: SchemeContext, targetContext: TargetContext): Unit = {
     // Ensure, we always report a last modified, even, if we don't find any file

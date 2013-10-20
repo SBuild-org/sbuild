@@ -19,9 +19,11 @@ trait SchemeHandler {
 object SchemeHandler {
   /**
    * @param scheme The scheme of the target.
-   * @param path The given target name without the scheme. 
+   * @param path The given target name without the scheme.
    */
-  case class SchemeContext(scheme: String, path: String)
+  case class SchemeContext(scheme: String, path: String) {
+    def fullName = scheme + ":" + path
+  }
 
   def apply(scheme: String, handler: SchemeHandler)(implicit project: Project) =
     project.registerSchemeHandler(scheme, handler)

@@ -61,7 +61,7 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
 
   override def localPath(schemeCtx: SchemeContext): String = parseConfig(schemeCtx.path) match {
     case FileConfig(_, _, targetFile) => "file:" + targetFile.getPath
-    case PhonyConfig(_, _) => s"phony:${schemeCtx.scheme}:${schemeCtx.path}"
+    case PhonyConfig(_, _) => "phony:" + schemeCtx.fullName
   }
 
   override def dependsOn(schemeCtx: SchemeContext): TargetRefs = {
