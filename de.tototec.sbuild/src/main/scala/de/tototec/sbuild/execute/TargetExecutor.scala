@@ -342,12 +342,14 @@ class TargetExecutor(monitor: CmdlineMonitor,
         if (!executedDependencies.isEmpty)
           log.debug(s"Dependencies have last modified value '${depsLastModified}': " + executedDependencies.map(_.target.formatRelativeToBaseProject).mkString(","))
 
-        val needsToRun: Boolean = curTarget.targetFile match {
+        case class NeedsToRun(needsToRun: Boolean, lastModifiedTime: Long = 0)
+
+        val needsToRun: NeedsToRun = curTarget.targetFile match {
           case Some(file) =>
             // file target
             if (!file.exists) {
               log.debug(s"""Target file "${file}" does not exists.""")
-              true
+              NeedsToRun(true)
             } else {
               val fileLastModified = file.lastModified
               val now = System.currentTimeMillis
@@ -359,14 +361,14 @@ class TargetExecutor(monitor: CmdlineMonitor,
                 // On Linux, Oracle JVM always reports only seconds file time stamp,
                 // even if file system supports more fine grained time stamps (e.g. ext4 supports nanoseconds)
                 // So, it can happen, that files we just wrote seems to be older than targets, which reported "NOW" as their lastModified.
-                log.debug(s"""Target file "${file}" is older (${fileLastModified}) then dependencies (${depsLastModified}).""")
+                log.debug(s"""Target file "${file}" is older (${fileLastModified}) than dependencies (${depsLastModified}).""")
                 val diff = depsLastModified - fileLastModified
                 if (diff < 1000 && fileLastModified % 1000 == 0 && System.getProperty("os.name").toLowerCase.contains("linux")) {
                   log.debug(s"""Assuming up-to-dateness. Target file "${file}" is only ${diff} msec older, which might be caused by files system limitations or Oracle Java limitations (e.g. for ext4).""")
-                  false
-                } else true
+                  NeedsToRun(false, fileLastModified)
+                } else NeedsToRun(true, fileLastModified)
 
-              } else false
+              } else NeedsToRun(false, fileLastModified)
             }
           case None if curTarget.action == null =>
             // phony target but just a collector of dependencies
@@ -376,7 +378,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
               log.debug(s"Attaching ${files.size} files of dependencies to empty phony target.")
               ctx.attachFileWithoutLastModifiedCheck(files)
             }
-            false
+            NeedsToRun(false)
 
           case None =>
             // ensure, that the persistent state gets erased, whenever a non-cacheble phony target runs
@@ -386,15 +388,15 @@ class TargetExecutor(monitor: CmdlineMonitor,
             }
             // phony target, have to run it always. Any laziness is up to it implementation
             log.debug(s"""Target "${curTargetFormatted}" is phony and needs to run (if not cached).""")
-            true
+            NeedsToRun(true)
         }
 
-        if (!needsToRun)
+        if (!needsToRun.needsToRun)
           log.debug(s"""Target "${curTargetFormatted}" does not need to run.""")
 
         val progressPrefix = calcProgressPrefix
 
-        val wasUpToDate: Boolean = if (!needsToRun) {
+        val wasUpToDate: Boolean = if (!needsToRun.needsToRun) {
           val level = if (dependencyTrace.isEmpty) monitorConfig.topLevelSkipped else monitorConfig.subLevelSkipped
           monitor.info(level, progressPrefix + "Skipping target:  " + colorTarget(curTargetFormatted))
           log.debug("Skipping target: " + curTargetFormatted)
@@ -463,6 +465,15 @@ class TargetExecutor(monitor: CmdlineMonitor,
                   case files =>
                     log.debug(s"The context of target '${curTargetFormatted}' has ${files.size} attached files")
                 }
+
+                if (!curTarget.phony && needsToRun.lastModifiedTime > 0)
+                  curTarget.targetFile.
+                    find(f => f.lastModified == needsToRun.lastModifiedTime).
+                    map { file =>
+                      val msg = s"Outcome of target ${curTargetFormatted} looks out-of-date, as the timestamp hasn't changed."
+                      monitor.warn(CmdlineMonitor.Default, msg)
+                      log.warn(msg)
+                    }
 
                 wasUpToDate
 
