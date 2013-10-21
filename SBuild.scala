@@ -67,6 +67,8 @@ class SBuild(implicit _project: Project) {
     "de.tototec.sbuild.experimental::scaladoc"
 //    "de.tototec.sbuild.plugins::scaladoc"
 
+  Target("phony:dist") dependsOn distZip
+
   Target(distZip) dependsOn "createDistDir" exec { ctx: TargetContext =>
     AntZip(destFile = ctx.targetFile.get, baseDir = Path("target"), includes = distName + "/**")
   }
