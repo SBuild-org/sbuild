@@ -36,6 +36,7 @@ import de.tototec.sbuild.BuildfileCompilationException
 import de.tototec.sbuild.SBuildException
 import scala.collection.LinearSeq
 import de.tototec.sbuild.CmdlineMonitor
+import de.tototec.sbuild.OutputStreamCmdlineMonitor
 
 object ProjectScript {
 
@@ -251,27 +252,18 @@ class ProjectScript(_scriptFile: File,
     resolveViaProject(cp, project, "@include entry")
   }
 
-  protected def resolveViaProject(targets: Seq[String], project: Project, purposeOfEntry: String): Map[String, Seq[File]] =
-    targets.map(t => (t -> resolveViaProject(t, project, purposeOfEntry))).toMap
+  protected def resolveViaProject(targets: Seq[String], project: Project, purposeOfEntry: String): Map[String, Seq[File]] = {
+    val resolveMonitor = new OutputStreamCmdlineMonitor(Console.out, mode = project.monitor.mode, messagePrefix = "(resolve " + purposeOfEntry + ") ")
+    class RequirementsResolver extends BuildFileProject(_projectFile = project.projectFile, monitor = resolveMonitor)
+    val initProject: Project = new RequirementsResolver
 
-  protected def resolveViaProject(target: String, project: Project, purposeOfEntry: String): Seq[File] = {
+    targets.map(t => (t -> resolveViaInitProject(t, initProject, purposeOfEntry))).toMap
+  }
 
-    class RequirementsResolver extends BuildFileProject(
-      _projectFile = project.projectFile,
-      monitor = project.monitor
-    //      new SBuildLogger {
-    //        override def log(logLevel: LogLevel, msg: => String, cause: Throwable = null) {
-    //          //          val level = logLevel match {
-    //          //            case LogLevel.Info => LogLevel.Debug
-    //          //            case x => x
-    //          //          }
-    //          project.log.log(logLevel, "RequirementsResolver: " + msg, cause)
-    //        }
-    //      }
-    )
-    implicit val p: Project = new RequirementsResolver
+  protected def resolveViaInitProject(target: String, project: Project, purposeOfEntry: String): Seq[File] = {
+    implicit val p: Project = project
 
-    p.determineRequestedTarget(targetRef = TargetRef(target), searchInAllProjects = true, supportCamelCaseShortCuts = false) match {
+    project.determineRequestedTarget(targetRef = TargetRef(target), searchInAllProjects = true, supportCamelCaseShortCuts = false) match {
 
       case None =>
         // not found

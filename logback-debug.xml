@@ -14,4 +14,7 @@
 
   <logger name="de.tototec" level="TRACE" />
   <logger name="de.tototec.sbuild.execute.TargetExecutor$DependencyCache" level="INFO" />
+  <logger name="de.tototec.sbuild.OutputStreamCmdlineMonitor" level="DEBUG" />
+  <logger name="de.tototec.sbuild.NoopCmdlineMonitor" level="DEBUG" />
+
 </configuration>
