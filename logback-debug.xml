@@ -16,5 +16,10 @@
   <logger name="de.tototec.sbuild.execute.TargetExecutor$DependencyCache" level="INFO" />
   <logger name="de.tototec.sbuild.OutputStreamCmdlineMonitor" level="DEBUG" />
   <logger name="de.tototec.sbuild.NoopCmdlineMonitor" level="DEBUG" />
+  <logger name="de.tototec.sbuild.runner.ProjectScript" level="DEBUG" />
+  <logger name="de.tototec.sbuild.execute.TargetExecutor" level="DEBUG" />
+  <logger name="de.tototec.sbuild.BuildFileProject" level="DEBUG" />
+  <logger name="de.tototec.sbuild.ExportDependencies" level="DEBUG" />
+  <logger name="de.tototec.sbuild.runner.SBuildRunner" level="DEBUG" />
 
 </configuration>
