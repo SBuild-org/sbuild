@@ -520,10 +520,8 @@ class SBuildRunner {
       sbuildMonitor.info(execPlan(lazyDryRunChain))
       // early exit
       return 0
-      //    } else {
-      //      sbuildMonitor.info(CmdlineMonitor.Verbose, execPlan(chain))
     }
-    log.debug(execPlan(lazyDryRunChain))
+    log.trace(execPlan(lazyDryRunChain))
 
     val bootstrapTime = System.currentTimeMillis - bootstrapStart
 
@@ -557,7 +555,7 @@ class SBuildRunner {
             case _ => None // TODO: this should be a config error
           }
           sbuildMonitor.info(CmdlineMonitor.Verbose, "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + explicitJobCount.toString)
-          Some(new TargetExecutor.ParallelExecContext(threadCount = explicitJobCount, baseProject = project))
+          Some(new TargetExecutor.ParallelExecContext(threadCount = explicitJobCount))
       }
 
       try {

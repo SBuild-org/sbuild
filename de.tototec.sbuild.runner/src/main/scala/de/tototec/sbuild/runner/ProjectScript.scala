@@ -37,6 +37,10 @@ import de.tototec.sbuild.SBuildException
 import scala.collection.LinearSeq
 import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.OutputStreamCmdlineMonitor
+import de.tototec.sbuild.Target
+import de.tototec.sbuild.execute.ExecutedTarget
+import de.tototec.sbuild.BuildFileProject
+import de.tototec.sbuild.execute.TargetExecutor.ParallelExecContext
 
 object ProjectScript {
 
@@ -135,6 +139,7 @@ class ProjectScript(_scriptFile: File,
       throw new SBuildException("The buildscript '" + scriptFile + "' requires at least SBuild version: " + version)
     }
 
+    // TODO unify both lookups and resolve in one step (in parallel)
     val addCp: Array[String] = readAdditionalClasspath(project, buildScriptIterator) ++ additionalProjectClasspath
 
     val includes: Map[String, Seq[File]] = readIncludeFiles(project, buildScriptIterator)
@@ -249,63 +254,63 @@ class ProjectScript(_scriptFile: File,
     log.debug(if (cp.isEmpty) "No includes files specified." else s"Using ${cp.size} included files:\n - ${cp.mkString("\n - ")}")
 
     // TODO: specific error message, when fetch or download fails
-    resolveViaProject(cp, project, "@include entry")
+    resolveViaProject(cp, project, "@include")
   }
 
   protected def resolveViaProject(targets: Seq[String], project: Project, purposeOfEntry: String): Map[String, Seq[File]] = {
+    if (targets.isEmpty) return Map()
+
+    // We want to use a customized monitor
     val resolveMonitor = new OutputStreamCmdlineMonitor(Console.out, mode = project.monitor.mode, messagePrefix = "(resolve " + purposeOfEntry + ") ")
-    class RequirementsResolver extends BuildFileProject(_projectFile = project.projectFile, monitor = resolveMonitor)
-    val initProject: Project = new RequirementsResolver
 
-    targets.map(t => (t -> resolveViaInitProject(t, initProject, purposeOfEntry))).toMap
-  }
+    // We want to use a dedicated project in the init phase
+    class ProjectInitProject extends BuildFileProject(_projectFile = project.projectFile, monitor = resolveMonitor)
+    implicit val initProject: Project = new ProjectInitProject
 
-  protected def resolveViaInitProject(target: String, project: Project, purposeOfEntry: String): Seq[File] = {
-    implicit val p: Project = project
-
-    project.determineRequestedTarget(targetRef = TargetRef(target), searchInAllProjects = true, supportCamelCaseShortCuts = false) match {
-
-      case None =>
-        // not found
-        // if an existing file, then proceed.
-        val targetRef = TargetRef.fromString(target)
-        targetRef.explicitProto match {
-          case None | Some("file") if targetRef.explicitProject == None && Path(targetRef.nameWithoutProto).exists =>
-            return Seq(Path(targetRef.nameWithoutProto))
-          case _ =>
-            throw new TargetNotFoundException(s"""Could not found ${purposeOfEntry} "${target}" in project ${scriptFile}.""")
-        }
-
-      case Some(target) =>
-
-        val targetExecutor = new TargetExecutor(
-          monitor = project.monitor,
-          monitorConfig = TargetExecutor.MonitorConfig(
-            executing = CmdlineMonitor.Verbose,
-            topLevelSkipped = CmdlineMonitor.Verbose
-          )
-        )
-
-        // TODO: progress
-        val executedTarget = targetExecutor.preorderedDependenciesTree(
-          curTarget = target,
-          transientTargetCache = Some(new InMemoryTransientTargetCache())
-        )
-        executedTarget.targetContext.targetFiles
+    val resolverTargetSuffix = project match {
+      case p: BuildFileProject => p.projectPool.formatProjectFileRelativeToBase(project)
+      case _ => scriptFile
     }
+
+    val resolverTarget = Target("phony:" + purposeOfEntry + " " + resolverTargetSuffix) dependsOn targets.map(TargetRef(_))
+
+    val targetExecutor = new TargetExecutor(
+      monitor = initProject.monitor,
+      monitorConfig = TargetExecutor.MonitorConfig(
+        executing = CmdlineMonitor.Verbose,
+        topLevelSkipped = CmdlineMonitor.Verbose
+      ))
+
+    val dryRun: ExecutedTarget = targetExecutor.preorderedDependenciesTree(
+      curTarget = resolverTarget,
+      transientTargetCache = Some(new InMemoryTransientTargetCache()),
+      skipExec = true
+    )
+
+    val execProgress = new TargetExecutor.ExecProgress(maxCount = dryRun.treeSize)
+
+    val executedResolverTarget = targetExecutor.preorderedDependenciesTree(
+      curTarget = resolverTarget,
+      transientTargetCache = Some(new InMemoryTransientTargetCache()),
+      execProgress = Some(execProgress),
+      parallelExecContext = Some(new TargetExecutor.ParallelExecContext())
+    )
+
+    executedResolverTarget.dependencies.map { t => t.targetContext.target.name -> t.targetContext.targetFiles }.toMap
+
   }
 
   protected def readAdditionalClasspath(project: Project, buildScript: => Iterator[String]): Array[String] = {
     log.debug("About to find additional classpath entries.")
     val cp = annotationReader.findFirstAnnotationWithVarArgValue(buildScript, annoName = "classpath", varArgValueName = "value").map(_.values).getOrElse(Array())
     log.debug("Using additional classpath entries: " + cp.mkString(", "))
-    resolveViaProject(cp, project, "@classpath entry").flatMap { case (key, value) => value }.map { _.getPath }.toArray
+    resolveViaProject(cp, project, "@classpath").flatMap { case (key, value) => value }.map { _.getPath }.toArray
   }
 
   protected def useExistingCompiled(project: Project, classpath: Array[String], className: String): Any = {
     log.debug("Loading compiled version of build script: " + scriptFile)
     val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
-    log.debug("CLassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(", "))
+    log.debug("ClassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(",\n  "))
     val clazz: Class[_] = cl.loadClass(className)
     val ctr = clazz.getConstructor(classOf[Project])
     val scriptInstance = ctr.newInstance(project)

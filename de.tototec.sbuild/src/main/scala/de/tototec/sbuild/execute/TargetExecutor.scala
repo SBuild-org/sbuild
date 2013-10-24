@@ -23,8 +23,6 @@ import de.tototec.sbuild.WithinTargetExecution
 
 object TargetExecutor {
 
-  private[this] val log = Logger[TargetExecutor.type]
-
   case class MonitorConfig(
     // showPercent: Boolean = true,
     executing: CmdlineMonitor.OutputMode = CmdlineMonitor.Default,
@@ -45,7 +43,6 @@ object TargetExecutor {
    * It is assumed, that the involved projects are completely initialized and no new target will appear after this cache is active.
    */
   class DependencyCache() {
-
     private[this] val log = Logger[DependencyCache]
 
     private var depTrees: Map[Target, Seq[Seq[Target]]] = Map()
@@ -129,7 +126,9 @@ object TargetExecutor {
    * @param threadCount If Some(count), the count of threads to be used.
    *   If None, then it defaults to the count of processor cores.
    */
-  class ParallelExecContext(val threadCount: Option[Int] = None, val baseProject: Project) {
+  class ParallelExecContext(val threadCount: Option[Int] = None) {
+    private[this] val log = Logger[ParallelExecContext]
+
     private[this] var _locks: Map[Target, Lock] = Map().withDefault { _ => new Lock() }
 
     /**
@@ -149,9 +148,12 @@ object TargetExecutor {
     def getFirstError(currentError: Throwable): Throwable = synchronized {
       _firstError match {
         case None =>
+          log.debug("Storing FIRST error in thread pool", currentError)
           _firstError = Some(currentError)
           currentError
-        case Some(e) => e
+        case Some(e) =>
+          log.debug("Dropping succeeding error in thread pool", e)
+          e
       }
     }
 
@@ -170,8 +172,9 @@ object TargetExecutor {
 
     def lock(target: Target): Unit = {
       val lock = getLock(target)
-      if (!lock.available) log.debug(s"Waiting for target: ${target.formatRelativeTo(baseProject)}")
+      if (!lock.available) log.trace(s"Waiting for target: ${target.formatRelativeToBaseProject}")
       lock.acquire
+      log.debug(s"Lock acquired for target: ${target.formatRelativeToBaseProject}")
     }
 
     def unlock(target: Target): Unit = getLock(target).release
@@ -254,32 +257,14 @@ class TargetExecutor(monitor: CmdlineMonitor,
 
       val dependencies: Seq[Seq[Target]] = dependencyCache.targetDeps(curTarget, dependencyTrace)
 
-      log.debug("Dependencies of " + curTargetFormatted + ": " +
-        (if (dependencies.isEmpty) "<none>" else dependencies.map(_.map(_.formatRelativeToBaseProject).mkString(" ~ ")).mkString(" ~~ ")))
+      val executedDependencies = if (dependencies.isEmpty) Seq()
+      else {
+        log.trace("Processing dependencies of target: " + curTargetFormatted + " which are: " +
+          dependencies.map(_.map(_.formatRelativeToBaseProject).mkString(" ~ ")).mkString(" ~~ "))
 
-      val executedDependencies: Seq[ExecutedTarget] = parallelExecContext match {
-        case None =>
-          dependencies.flatten.map { dep =>
-            preorderedDependenciesTree(
-              curTarget = dep,
-              execProgress = execProgress,
-              skipExec = skipExec,
-              dependencyTrace = curTarget :: dependencyTrace,
-              depth = depth + 1,
-              treePrinter = treePrinter,
-              dependencyCache = dependencyCache,
-              transientTargetCache = transientTargetCache,
-              parallelExecContext = parallelExecContext)
-          }
-        case Some(parCtx) =>
-
-          dependencies.map { group =>
-
-            // val parDeps = collection.parallel.mutable.ParArray(dependencies: _*)
-            val parDeps = collection.parallel.immutable.ParVector(group: _*)
-            parDeps.tasksupport = parCtx.taskSupport
-
-            val result = parDeps.map { dep =>
+        val executedDependencies: Seq[ExecutedTarget] = parallelExecContext match {
+          case None =>
+            dependencies.flatten.map { dep =>
               preorderedDependenciesTree(
                 curTarget = dep,
                 execProgress = execProgress,
@@ -291,10 +276,34 @@ class TargetExecutor(monitor: CmdlineMonitor,
                 transientTargetCache = transientTargetCache,
                 parallelExecContext = parallelExecContext)
             }
+          case Some(parCtx) =>
 
-            result.seq.toSeq
+            dependencies.map { group =>
 
-          }.flatten
+              // val parDeps = collection.parallel.mutable.ParArray(dependencies: _*)
+              val parDeps = collection.parallel.immutable.ParVector(group: _*)
+              parDeps.tasksupport = parCtx.taskSupport
+
+              val result = parDeps.map { dep =>
+                preorderedDependenciesTree(
+                  curTarget = dep,
+                  execProgress = execProgress,
+                  skipExec = skipExec,
+                  dependencyTrace = curTarget :: dependencyTrace,
+                  depth = depth + 1,
+                  treePrinter = treePrinter,
+                  dependencyCache = dependencyCache,
+                  transientTargetCache = transientTargetCache,
+                  parallelExecContext = parallelExecContext)
+              }
+
+              result.seq.toSeq
+
+            }.flatten
+        }
+
+        log.trace("Processing of dependencies finished for target: " + curTargetFormatted)
+        executedDependencies
       }
 
       // print dep-tree
