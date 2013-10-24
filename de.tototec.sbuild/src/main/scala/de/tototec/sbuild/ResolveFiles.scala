@@ -5,6 +5,8 @@ import de.tototec.sbuild.execute.TargetExecutor
 
 /**
  * EXPERIMENTAL API - Resolve TargetRefs.
+ * 
+ * This API may be removed in later versions in favour of plugins.
  */
 object ResolveFiles {
 
