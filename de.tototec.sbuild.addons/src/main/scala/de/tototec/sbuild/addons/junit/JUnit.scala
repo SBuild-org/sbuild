@@ -75,7 +75,7 @@ class JUnit(
       cl.loadClass("org.junit.runner.JUnitCore")
     } catch {
       case e: ClassNotFoundException =>
-        throw new ExecutionFailedException("org.junit.runner.JUnitCore was not found on the classpath.\nPlease add it to the 'classpath' attribute or the SBuild classapth.")
+        throw new ExecutionFailedException("org.junit.runner.JUnitCore was not found on the classpath.\nPlease add it to the 'classpath' attribute or the SBuild classpath.")
     }
     val junit = junitClass.newInstance
 

@@ -227,7 +227,7 @@ class ScalaTest(
         cl.loadClass(scalaTestClassName)
       } catch {
         case e: ClassNotFoundException =>
-          throw new ExecutionFailedException("org.scalatest.tools.Runner was not found on the classpath.\nPlease add it to the 'classpath' attribute or the SBuild classapth.")
+          throw new ExecutionFailedException("org.scalatest.tools.Runner was not found on the classpath.\nPlease add it to the 'classpath' attribute or the SBuild classpath.")
       }
 
       log.debug("Running ScalaTest with\n  classpath: " + (cl match {
