@@ -87,25 +87,27 @@ class SBuildRunner {
         text
 
       case _ =>
-        val className = if (projectFile.getName.endsWith(".scala")) {
-          projectFile.getName.substring(0, projectFile.getName.length - 6)
-        } else { projectFile.getName }
+        val className = projectFile.getName match {
+          case name if name.endsWith(".scala") && name.head.isUpper =>
+            name.substring(0, projectFile.getName.length - 6)
+          case _ => "SBuild"
+        }
 
         s"""|import de.tototec.sbuild._
-          |import de.tototec.sbuild.TargetRefs._
-          |import de.tototec.sbuild.ant._
-          |import de.tototec.sbuild.ant.tasks._
-          |
-          |@version("${SBuildVersion.osgiVersion}")
-          |@classpath("mvn:org.apache.ant:ant:1.8.4")
-          |class ${className}(implicit _project: Project) {
-          |
-          |  Target("phony:hello") help "Say hello" exec {
-          |    AntEcho(message = "Hello!")
-          |  }
-          |
-          |}
-          |""".stripMargin
+            |
+            |@version("${SBuildVersion.osgiVersion}")
+            |class ${className}(implicit _project: Project) {
+            |
+            |  Target("phony:clean") exec {
+            |    Path("target").deleteRecursive
+            |  }
+            |
+            |  Target("phony:hello") help "Greet me" exec {
+            |    println("Hello you")
+            |  }
+            |
+            |}
+            |""".stripMargin
     }
 
     val outStream = new PrintStream(new FileOutputStream(projectFile))
@@ -379,7 +381,7 @@ class SBuildRunner {
 
     /**
      * Format all non-implicit targets of a project.
-     * If the project is not the main/entry project, to project name will included in the formatted name.
+     * If the project is not the main/entry project, to project name will be included in the formatted name.
      */
     def formatTargetsOf(project: Project): String = {
       project.targets.sortBy(_.name).map { t =>
