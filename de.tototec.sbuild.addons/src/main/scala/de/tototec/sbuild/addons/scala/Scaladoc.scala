@@ -3,12 +3,14 @@ package de.tototec.sbuild.addons.scala
 import java.io.File
 import java.net.URLClassLoader
 
+import scala.Array.canBuildFrom
+
 import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExecutionFailedException
 import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
-import de.tototec.sbuild.Util
+import de.tototec.sbuild.RichFile
 import de.tototec.sbuild.addons.support.ForkSupport
 
 object Scaladoc {
@@ -169,7 +171,7 @@ class Scaladoc(
       (if (sources == null) Seq() else sources) ++
         allSrcDirs.flatMap { dir =>
           log.debug("Search files in dir: " + dir)
-          val files = Util.recursiveListFiles(dir, """.*\.(java|scala)$""".r)
+          val files = RichFile.listFilesRecursive(dir, """.*\.(java|scala)$""".r)
           log.debug("Found files: " + files.mkString(", "))
           files
         }

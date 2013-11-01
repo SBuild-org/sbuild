@@ -12,8 +12,8 @@ import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.TargetRefs
 import de.tototec.sbuild.TargetRefs.fromString
-import de.tototec.sbuild.Util
 import de.tototec.sbuild.addons.support.ForkSupport
+import de.tototec.sbuild.RichFile._
 
 /**
  * Companion object for [[Scalac]], the Scala Compiler Addon.
@@ -285,7 +285,7 @@ class Scalac(
       (if (sources == null) Seq() else sources) ++
         allSrcDirs.flatMap { dir =>
           log.debug("Search files in dir: " + dir)
-          val files = Util.recursiveListFiles(dir, """.*\.(java|scala)$""".r)
+          val files = dir.listFilesRecursive(""".*\.(java|scala)$""".r)
           log.debug("Found files: " + files.mkString(", "))
           files
         }
@@ -317,7 +317,7 @@ class Scalac(
       if (fork) compileExternal(finalArgs)
       else compileInternal(finalArgs.toArray[String])
 
-    argsFile.map { Util.delete(_) }
+    argsFile.map { _.deleteRecursive }
 
     if (result != 0) {
       val ex = new ExecutionFailedException("Compile Errors. See compiler output.")
