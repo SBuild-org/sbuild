@@ -9,7 +9,6 @@ import scala.collection.JavaConverters.asScalaSetConverter
 import scala.reflect.ClassTag
 
 import de.tototec.sbuild.SchemeHandler.SchemeContext
-import de.tototec.sbuild.TargetRefs.fromSeq
 
 class BuildFileProject(_projectFile: File,
                        _projectReader: ProjectReader = null,
