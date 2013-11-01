@@ -2,7 +2,11 @@ package de.tototec.sbuild
 
 import java.io.File
 import java.io.FileNotFoundException
+
+import scala.Array.canBuildFrom
+
 import de.tototec.sbuild.SchemeHandler.SchemeContext
+import de.tototec.sbuild.internal.{Util => InternalUtil}
 
 object MavenSupport {
   object MavenGav {
@@ -72,7 +76,7 @@ class MvnSchemeHandler(
       var result: Option[Throwable] = None
       repos.takeWhile { repo =>
         val url = repo + "/" + constructMvnPath(schemeCtx.path)
-        result = Util.download(url, target.getPath, project.monitor, Some(userAgent))
+        result = InternalUtil.download(url, target.getPath, project.monitor, Some(userAgent))
         val failed = result.isDefined || !target.exists
         if (failed) project.monitor.info(CmdlineMonitor.Default, "Download failed.")
         failed

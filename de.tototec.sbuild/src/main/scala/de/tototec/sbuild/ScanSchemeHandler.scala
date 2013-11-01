@@ -2,6 +2,7 @@ package de.tototec.sbuild
 
 import java.io.File
 import de.tototec.sbuild.SchemeHandler.SchemeContext
+import de.tototec.sbuild.internal.{Util => InternalUtil}
 
 /**
  * Scans a directory for files, recursiv.
@@ -41,7 +42,7 @@ class ScanSchemeHandler(implicit project: Project)
         throw ex
     }
 
-    Util.recursiveListFiles(dir, regex)
+    InternalUtil.recursiveListFiles(dir, regex)
   }
 
 }

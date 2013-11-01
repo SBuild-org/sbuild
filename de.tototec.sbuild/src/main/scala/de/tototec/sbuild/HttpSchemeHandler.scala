@@ -1,9 +1,11 @@
 package de.tototec.sbuild
 
 import java.io.File
-import java.net.URL
 import java.io.FileNotFoundException
+import java.net.URL
+
 import de.tototec.sbuild.SchemeHandler.SchemeContext
+import de.tototec.sbuild.internal.{Util => InternalUtil}
 
 /**
  * An HTTP-Scheme handler, that will download the given URI into a directory preserving the URI as path.
@@ -52,7 +54,7 @@ class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = 
       } else {
         val url = this.url(path)
         //        println("Downloading " + url + "...")
-        Util.download(url.toString, target.getPath, monitor, Some(userAgent)) match {
+        InternalUtil.download(url.toString, target.getPath, monitor, Some(userAgent)) match {
           case Some(e) => throw e
           case _ => target.lastModified
         }

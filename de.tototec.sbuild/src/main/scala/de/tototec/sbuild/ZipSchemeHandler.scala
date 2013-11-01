@@ -1,9 +1,13 @@
 package de.tototec.sbuild
 
 import java.io.File
-import java.security.MessageDigest
 import java.io.FileNotFoundException
+import java.security.MessageDigest
+
+import scala.Array.canBuildFrom
+
 import de.tototec.sbuild.SchemeHandler.SchemeContext
+import de.tototec.sbuild.internal.{Util => InternalUtil}
 
 /**
  * The SchemeHandler to extract resources from a ZIP resource.
@@ -79,7 +83,7 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
         targetContext.fileDependencies match {
           case Seq(zipFile) =>
             if (!file.exists || file.lastModified < zipFile.lastModified) try {
-              Util.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)), project.monitor)
+              InternalUtil.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)), project.monitor)
               try {
                 file.setLastModified(System.currentTimeMillis)
               } catch {
