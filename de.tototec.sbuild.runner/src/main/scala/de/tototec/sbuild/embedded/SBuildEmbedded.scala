@@ -53,12 +53,12 @@ class SBuildEmbedded(sbuildHomeDir: File) {
 
   }
 
-  /**
-   * Return the lastModified time stamp of the project and its dependencies.
-   */
-  def lastModified(projectFile: File): Long = {
-    0L
-  }
+  //  /**
+  //   * Return the lastModified time stamp of the project and its dependencies.
+  //   */
+  //  def lastModified(projectFile: File): Long = {
+  //    0L
+  //  }
 
   /**
    * @throws de.tototec.sbuild.BuildscriptCompileException If the buildfile could not be compiled.
@@ -71,6 +71,10 @@ class SBuildEmbedded(sbuildHomeDir: File) {
 
 trait EmbeddedResolver {
 
+  //  import EmbeddedResolver._
+  //
+  //  def listTargets: Seq[ListedTarget]
+
   def exportedDependencies(exportName: String): Seq[String]
 
   /**
@@ -79,7 +83,21 @@ trait EmbeddedResolver {
   def resolve(dep: String, progressMonitor: ProgressMonitor): Try[Seq[File]]
 }
 
+object EmbeddedResolver {
+
+  //  case class ListedTarget(name: String)
+
+}
+
 class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
+  //
+  //  import EmbeddedResolver._
+  //  
+  //  override def listTargets: Seq[ListedTarget] = {
+  //    project.targets.map { target =>
+  //      ListedTarget(name = target.name)
+  //    }
+  //  }
 
   override def exportedDependencies(exportName: String): Seq[String] = {
     val depsXmlString = project.properties.getOrElse(exportName, "<deps></deps>")
