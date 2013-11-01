@@ -5,25 +5,19 @@ import de.tototec.sbuild.TargetRefs._
 import java.io.File
 
 @version("0.4.0")
-@include("SBuildConfig.scala")
-@classpath(
-  "mvn:org.apache.ant:ant:1.8.4"
-)
+@include("../SBuildConfig.scala")
+@classpath("mvn:org.apache.ant:ant:1.8.4")
 class SBuild(implicit _project: Project) {
 
-  import SBuildConfig.{sbuildVersion, sbuildOsgiVersion, scalaVersion, cmdOption, jansi}
+  import SBuildConfig._
 
-  val scalaLibrary = s"mvn:org.scala-lang:scala-library:${scalaVersion}"
-  val scalaCompiler = s"mvn:org.scala-lang:scala-compiler:${scalaVersion}"
-  val scalaReflect = s"mvn:org.scala-lang:scala-reflect:${scalaVersion}"
-
-  val binJar = s"de.tototec.sbuild/target/de.tototec.sbuild-${sbuildVersion}.jar"
-  val runnerJar = s"de.tototec.sbuild.runner/target/de.tototec.sbuild.runner-${sbuildVersion}.jar"
-  val antJar = s"de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-${sbuildVersion}.jar"
-  val addonsJar = s"de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-${sbuildVersion}.jar"
-  val pluginsJar = s"de.tototec.sbuild.plugins/target/de.tototec.sbuild.plugins-${sbuildVersion}.jar"
-  val scriptCompilerJar = s"de.tototec.sbuild.scriptcompiler/target/de.tototec.sbuild.scriptcompiler-${sbuildVersion}.jar"
-  val compilerPluginJar = s"de.tototec.sbuild.compilerplugin/target/de.tototec.sbuild.compilerplugin-${sbuildVersion}.jar"
+  val binJar = s"../de.tototec.sbuild/target/de.tototec.sbuild-${sbuildVersion}.jar"
+  val runnerJar = s"../de.tototec.sbuild.runner/target/de.tototec.sbuild.runner-${sbuildVersion}.jar"
+  val antJar = s"../de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-${sbuildVersion}.jar"
+  val addonsJar = s"../de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-${sbuildVersion}.jar"
+  val pluginsJar = s"../de.tototec.sbuild.plugins/target/de.tototec.sbuild.plugins-${sbuildVersion}.jar"
+  val scriptCompilerJar = s"../de.tototec.sbuild.scriptcompiler/target/de.tototec.sbuild.scriptcompiler-${sbuildVersion}.jar"
+  val compilerPluginJar = s"../de.tototec.sbuild.compilerplugin/target/de.tototec.sbuild.compilerplugin-${sbuildVersion}.jar"
 
   val distName = s"sbuild-${sbuildVersion}"
   val distDir = "target/" + distName
@@ -32,41 +26,17 @@ class SBuild(implicit _project: Project) {
 
   val classpathProperties = distDir + "/lib/classpath.properties"
 
-  val modules = Modules(
-    "de.tototec.sbuild",
-    "de.tototec.sbuild.runner",
-    "de.tototec.sbuild.ant",
-    "de.tototec.sbuild.addons",
-    "de.tototec.sbuild.scriptcompiler",
-    "de.tototec.sbuild.compilerplugin",
-    "de.tototec.sbuild.plugins",
-    "de.tototec.sbuild.experimental",
-    "sbuild-dist",
-    "doc"
-  )
-
   val javaOptions = "-XX:MaxPermSize=256m"
 
   val sbuildRunnerClass = "de.tototec.sbuild.runner.SBuildRunner"
   val sbuildRunnerLibs = scalaLibrary ~ cmdOption ~ jansi ~ binJar ~ runnerJar
   val sbuildRunnerDebugLibs = sbuildRunnerLibs ~ SBuildConfig.slf4jApi ~ SBuildConfig.logbackCore ~ SBuildConfig.logbackClassic ~ SBuildConfig.jclOverSlf4j ~ SBuildConfig.log4jOverSlf4j
 
-  Target("phony:clean").evictCache dependsOn modules.map(m => m("clean")) exec {
+  Target("phony:clean").evictCache exec {
     AntDelete(dir = Path("target"))
-  } help "Clean all"
+  }
 
-  Target("phony:all") dependsOn modules.map(m => m("all")) ~ distZip help "Build all"
-
-  Target("phony:test") dependsOn "de.tototec.sbuild::test" ~ "de.tototec.sbuild.runner::test"
-
-  Target("phony:scaladoc") dependsOn
-    "de.tototec.sbuild::scaladoc" ~
-    "de.tototec.sbuild.runner::scaladoc" ~
-    "de.tototec.sbuild.ant::scaladoc" ~
-    "de.tototec.sbuild.addons::scaladoc" ~
-    "de.tototec.sbuild.compilerplugin::scaladoc" ~
-    "de.tototec.sbuild.experimental::scaladoc"
-//    "de.tototec.sbuild.plugins::scaladoc"
+  Target("phony:all") dependsOn distZip
 
   Target("phony:dist") dependsOn distZip
 
@@ -77,9 +47,9 @@ class SBuild(implicit _project: Project) {
   Target("phony:createDistDir") dependsOn "copyJars" ~ classpathProperties ~
       s"${distDir}/bin/sbuild" ~ s"${distDir}/bin/sbuild.bat" ~
       s"${distDir}/bin/sbuild-debug" ~ s"${distDir}/bin/sbuild-debug.bat" ~
-      "ChangeLog.txt" ~ "LICENSE.txt" ~ "logback-debug.xml" exec {
-    AntCopy(file = "LICENSE.txt".files.head, toDir = Path(distDir + "/doc"))
-    AntCopy(file = "ChangeLog.txt".files.head, toDir = Path(distDir + "/doc"))
+      "../ChangeLog.txt" ~ "../LICENSE.txt" ~ "logback-debug.xml" exec {
+    AntCopy(file = "../LICENSE.txt".files.head, toDir = Path(distDir + "/doc"))
+    AntCopy(file = "../ChangeLog.txt".files.head, toDir = Path(distDir + "/doc"))
     AntCopy(file = "logback-debug.xml".files.head, toDir = Path(distDir + "/lib"))
   }
 
@@ -104,8 +74,10 @@ class SBuild(implicit _project: Project) {
       |sbuildClasspath = de.tototec.sbuild-${sbuildVersion}.jar
       |# compileClasspath - Used to load the compiler to compile the buildfile in initialization phase
       |compileClasspath = ${scalaCompiler.files.head.getName}:${scalaReflect.files.head.getName}:${scriptCompilerJar.files.head.getName}
-      |# projectClasspath - Used to compile and load the buildfiles
-      |projectClasspath = ${scalaLibrary.files.head.getName}:${antJar.files.head.getName}:${addonsJar.files.head.getName}
+      |# projectCompileClasspath - Used to compile the buildfiles
+      |projectCompileClasspath = ${scalaLibrary.files.head.getName}:${antJar.files.head.getName}:${addonsJar.files.head.getName}
+      |# projectRuntimeClasspath - Used to load the buildfiles
+      |projectRuntimeClasspath = ${antJar.files.head.getName}:${addonsJar.files.head.getName}
       |# embeddedClasspath - Used to load the SBuild embedded API and all its dependencies, e.g. from IDE's
       |embeddedClasspath = ${binJar.files.head.getName}:${runnerJar.files.head.getName}:${cmdOption.files.head.getName}:${jansi.files.head.getName}
       |# compilerPluginJar - Used by the build file compiler to load the compiler plugin which extracts additional infos
