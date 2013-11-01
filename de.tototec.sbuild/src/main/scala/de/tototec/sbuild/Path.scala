@@ -10,37 +10,39 @@ import scala.reflect.ClassTag
  */
 object Path {
 
-  // since SBuild 0.4.0.9002
-  def apply[T: ClassTag](path: String, paths: String*)(implicit project: Project): File =
-    Path[T](new File(path), paths: _*)
+  // implicit def fileToFileWithFileSupport(file: File): File with FileSupport = new File(file.getPath) with FileSupport
 
-  def apply(path: String, paths: String*)(implicit project: Project): File =
-    Path(new File(path), paths: _*)
+  // since SBuild 0.4.0.9002
+  def apply[T: ClassTag](path: String, paths: String*)(implicit project: Project): File with FileSupport =
+    Path[T](new File(path) with FileSupport, paths: _*)
+
+  def apply(path: String, paths: String*)(implicit project: Project): File with FileSupport =
+    Path(new File(path) with FileSupport, paths: _*)
 
   // since SBuild 0.5.0.9004
-  def apply[T: ClassTag](path: File, paths: String*)(implicit project: Project): File = {
+  def apply[T: ClassTag](path: File, paths: String*)(implicit project: Project): File with FileSupport = {
     val baseDir = project.includeDirOf[T]
     val file = normalize(path, baseDir)
     if (paths.isEmpty) {
       file
     } else {
-      paths.foldLeft(file)((f, e) => new File(f, e))
+      paths.foldLeft(file)((f, e) => new File(f, e) with FileSupport)
     }
   }
 
   // since SBuild 0.5.0.9004
-  def apply(path: File, paths: String*)(implicit project: Project): File = {
+  def apply(path: File, paths: String*)(implicit project: Project): File with FileSupport = {
     val file = normalize(path, project.projectDirectory)
     if (paths.isEmpty) {
       file
     } else {
-      paths.foldLeft(file)((f, e) => new File(f, e))
+      paths.foldLeft(file)((f, e) => new File(f, e) with FileSupport)
     }
   }
 
-  def normalize(path: File, baseDir: File = new File(".")): File = {
+  def normalize(path: File, baseDir: File = new File(".")): File with FileSupport = {
     val absFile = if (path.isAbsolute) path else new File(baseDir, path.getPath)
-    new File(absFile.toURI.normalize)
+    new File(absFile.toURI.normalize) with FileSupport
   }
 
 }
@@ -48,12 +50,12 @@ object Path {
 // since SBuild 0.3.1.9000
 @deprecated("Use Paths instead.", "0.4.0.9002")
 object Pathes {
-  def apply(paths: Seq[String])(implicit project: Project): Seq[File] =
+  def apply(paths: Seq[String])(implicit project: Project): Seq[File with FileSupport] =
     paths.map(path => Path(path))
 }
 
 // since SBuild 0.4.0.9002
 object Paths {
-  def apply(paths: Seq[String])(implicit project: Project): Seq[File] =
+  def apply(paths: Seq[String])(implicit project: Project): Seq[File with FileSupport] =
     paths.map(path => Path(path))
 }
