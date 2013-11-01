@@ -213,15 +213,15 @@ class Util {
   }
 
   def recursiveListFilesAbsolute(dir: String, regex: Regex = ".*".r): Array[String] = {
-    RichFile.recursiveFiles(new File(dir), regex).map(_.getAbsolutePath)
+    RichFile.listFilesRecursive(new File(dir), regex).map(_.getAbsolutePath)
   }
 
   //  def recursiveListFiles(dir: String, regex: Regex = ".*".r): Array[String] = {
   //    recursiveListFiles(new File(dir), regex).map(_.getPath)
   //  }
 
-  @deprecated("Use RichFile.recursiveFiles instead", "0.6.0.9002")
-  def recursiveListFiles(dir: File, regex: Regex = ".*".r): Array[File] = RichFile.recursiveFiles(dir, regex)
+  @deprecated("Use RichFile.listFilesRecursive instead", "0.6.0.9002")
+  def recursiveListFiles(dir: File, regex: Regex = ".*".r): Array[File] = RichFile.listFilesRecursive(dir, regex)
 
   def unzip(archive: File, targetDir: File, selectedFiles: String*) {
     unzip(archive, targetDir, selectedFiles.map(f => (f, null)).toList, monitor)

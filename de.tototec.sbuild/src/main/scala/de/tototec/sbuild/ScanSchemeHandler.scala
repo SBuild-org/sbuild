@@ -42,7 +42,7 @@ class ScanSchemeHandler(implicit project: Project)
         throw ex
     }
 
-    RichFile.recursiveFiles(dir, regex)
+    RichFile.listFilesRecursive(dir, regex)
   }
 
 }
