@@ -25,7 +25,6 @@ import de.tototec.sbuild.ExecutionFailedException
 import de.tototec.sbuild.InvalidApiUsageException
 import de.tototec.sbuild.Logger
 import de.tototec.sbuild.OutputStreamCmdlineMonitor
-import de.tototec.sbuild.OutputStreamCmdlineMonitor
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.ProjectReader
@@ -35,12 +34,12 @@ import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetAware
 import de.tototec.sbuild.TargetNotFoundException
 import de.tototec.sbuild.TargetRef
-import de.tototec.sbuild.Util
 import de.tototec.sbuild.execute.ExecutedTarget
 import de.tototec.sbuild.execute.InMemoryTransientTargetCache
 import de.tototec.sbuild.execute.LoggingTransientTargetCache
 import de.tototec.sbuild.execute.TargetExecutor
 import de.tototec.sbuild.OutputStreamCmdlineMonitor
+import de.tototec.sbuild.RichFile._
 
 object SBuildRunner extends SBuildRunner {
 
@@ -273,7 +272,7 @@ class SBuildRunner {
           val stateDir = new File(dir, ".sbuild")
           if (stateDir.exists && stateDir.isDirectory) {
             sbuildMonitor.info(CmdlineMonitor.Default, "Deleting " + stateDir.getPath())
-            success = Util.delete(stateDir) && success
+            success = stateDir.deleteRecursive && success
           }
           if (recursive) {
             val files = dir.listFiles
@@ -336,7 +335,6 @@ class SBuildRunner {
 
     SBuildRunner.verbose = config.verbosity == CmdlineMonitor.Verbose
     sbuildMonitor = new OutputStreamCmdlineMonitor(Console.out, config.verbosity)
-    Util.monitor = sbuildMonitor
 
     val projectFile = new File(config.buildfile)
 
@@ -474,17 +472,38 @@ class SBuildRunner {
 
     val targetExecutor = new TargetExecutor(sbuildMonitor)
 
+    val parallelExecContext = config.parallelJobs.flatMap {
+      case 1 => None
+      case jobCount =>
+        // Multiple jobs
+        val explicitJobCount = jobCount match {
+          case x if x > 1 => Some(x)
+          case 0 => None
+          case _ => None // TODO: this should be a config error
+        }
+        sbuildMonitor.info(CmdlineMonitor.Verbose,
+          "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + explicitJobCount.toString)
+        Some(new TargetExecutor.ParallelExecContext(threadCount = explicitJobCount))
+    }
+
     // The execution plan (chain) will be evaluated on first need
     lazy val lazyDryRunChain: Seq[ExecutedTarget] = {
       if (!targets.isEmpty) {
         sbuildMonitor.info(CmdlineMonitor.Verbose, "Calculating dependency tree...")
       }
-      val chain = targetExecutor.preorderedDependenciesForest(targets, skipExec = true, treePrinter = treePrinter, dependencyCache = dependencyCache)
+      val chain = targetExecutor.preorderedDependenciesForest(
+        targets,
+        skipExec = true,
+        treePrinter = treePrinter,
+        dependencyCache = dependencyCache
+      // treeParallelExecContext = parallelExecContext
+      )
       log.debug("Target Dependency Cache: " + dependencyCache.cached.map {
         case (t, d) => "\n  " + t.formatRelativeToBaseProject + " -> " + d.flatten.map {
           dep => dep.formatRelativeToBaseProject
         }.mkString(", ")
       })
+      log.debug("Finished creating lazyDryRunChain")
       chain
     }
 
@@ -524,6 +543,7 @@ class SBuildRunner {
     log.trace(execPlan(lazyDryRunChain))
 
     val bootstrapTime = System.currentTimeMillis - bootstrapStart
+    log.debug("Bootstrap time in milliseconds: " + bootstrapTime)
 
     val localExceptionHandler: PartialFunction[Throwable, Int] =
       if (config.repeatAfterSec > 0) exceptionHandler(rethrowInVerboseMode = false)
@@ -544,19 +564,6 @@ class SBuildRunner {
         }
       }
       lastRepeatStart = System.currentTimeMillis
-
-      val parallelExecContext = config.parallelJobs.flatMap {
-        case 1 => None
-        case jobCount =>
-          // Multiple jobs
-          val explicitJobCount = jobCount match {
-            case x if x > 1 => Some(x)
-            case 0 => None
-            case _ => None // TODO: this should be a config error
-          }
-          sbuildMonitor.info(CmdlineMonitor.Verbose, "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + explicitJobCount.toString)
-          Some(new TargetExecutor.ParallelExecContext(threadCount = explicitJobCount))
-      }
 
       try {
         // force evaluation of lazy val chain, if required, and switch afterwards from bootstrap to execution time benchmarking.
