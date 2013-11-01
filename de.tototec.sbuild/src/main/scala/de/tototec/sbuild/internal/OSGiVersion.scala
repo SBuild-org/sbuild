@@ -1,8 +1,7 @@
-package de.tototec.sbuild
+package de.tototec.sbuild.internal
 
 import java.util.StringTokenizer
 
-@deprecated("Use internal.OSGiVersion instead", "0.6.0.9002")
 object OSGiVersion {
 
   private val SEPARATOR = "."
@@ -45,7 +44,6 @@ object OSGiVersion {
  * `OSGiVersion` objects are immutable.
  *
  */
-@deprecated("Use internal.OSGiVersion instead", "0.6.0.9002")
 class OSGiVersion() extends Comparable[OSGiVersion] {
 
   private var _major: Int = 0
