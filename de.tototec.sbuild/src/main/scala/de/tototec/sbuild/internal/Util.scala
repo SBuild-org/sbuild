@@ -2,7 +2,6 @@ package de.tototec.sbuild.internal
 
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
@@ -10,20 +9,21 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
-import java.io.RandomAccessFile
 import java.net.URL
+import java.text.DecimalFormat
 import java.util.zip.ZipInputStream
+
 import scala.Array.canBuildFrom
 import scala.util.matching.Regex
-import java.text.DecimalFormat
-import de.tototec.sbuild.SBuildException
-import de.tototec.sbuild.NoopCmdlineMonitor
+
 import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.Logger
+import de.tototec.sbuild.NoopCmdlineMonitor
+import de.tototec.sbuild.SBuildException
 
-object Util extends UtilClass 
+object Util extends Util
 
-class UtilClass {
+class Util {
 
   private[this] val log = Logger[Util.type]
   var monitor: CmdlineMonitor = NoopCmdlineMonitor
