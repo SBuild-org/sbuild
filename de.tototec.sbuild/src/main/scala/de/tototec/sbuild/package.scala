@@ -53,5 +53,7 @@ package de.tototec
  *
  */
 package object sbuild extends TargetRefsImplicits {
-  
+
+  implicit def toRichFile(file: java.io.File): RichFile = new RichFile(file)
+
 }

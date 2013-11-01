@@ -11,9 +11,9 @@ import scala.util.Try
 import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Path
 import de.tototec.sbuild.Project
+import de.tototec.sbuild.RichFile
 import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.TargetContextImpl
-import de.tototec.sbuild.internal.Util
 
 class PersistentTargetCache {
 
@@ -163,10 +163,10 @@ class PersistentTargetCache {
   def dropCacheState(project: Project, cacheName: String): Unit = synchronized {
     cacheName match {
       case "*" | "" => dropAllCacheState(project)
-      case cache => Util.delete(cacheStateFile(project, cacheName))
+      case cache => RichFile.deleteRecursive(cacheStateFile(project, cacheName))
     }
   }
 
-  def dropAllCacheState(project: Project): Unit = synchronized { Util.delete(cacheStateDir(project)) }
+  def dropAllCacheState(project: Project): Unit = synchronized { RichFile.deleteRecursive(cacheStateDir(project)) }
 
 }

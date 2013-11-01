@@ -19,6 +19,7 @@ import scala.util.matching.Regex
 import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.Logger
 import de.tototec.sbuild.NoopCmdlineMonitor
+import de.tototec.sbuild.RichFile
 import de.tototec.sbuild.SBuildException
 
 object Util extends Util
@@ -26,10 +27,12 @@ object Util extends Util
 class Util {
 
   private[this] val log = Logger[Util.type]
-  var monitor: CmdlineMonitor = NoopCmdlineMonitor
+  private[sbuild] var monitor: CmdlineMonitor = NoopCmdlineMonitor
 
+  @deprecated("Use RichFile.deleteRecursive instead.", "0.6.0.9002")
   def delete(files: File*): Boolean = delete(None, files: _*)
 
+  @deprecated("Use RichFile.deleteRecursive instead.", "0.6.0.9002")
   def delete(onDelete: Option[File => Unit], files: File*): Boolean = {
     var success = true;
     files.map {
@@ -210,25 +213,15 @@ class Util {
   }
 
   def recursiveListFilesAbsolute(dir: String, regex: Regex = ".*".r): Array[String] = {
-    recursiveListFiles(new File(dir), regex).map(_.getAbsolutePath)
+    RichFile.recursiveFiles(new File(dir), regex).map(_.getAbsolutePath)
   }
 
   //  def recursiveListFiles(dir: String, regex: Regex = ".*".r): Array[String] = {
   //    recursiveListFiles(new File(dir), regex).map(_.getPath)
   //  }
 
-  def recursiveListFiles(dir: File, regex: Regex = ".*".r): Array[File] = {
-    dir.listFiles match {
-      case allFiles: Array[File] =>
-        allFiles.filter { f =>
-          val include = f.isFile && regex.findFirstIn(f.getName).isDefined
-          log.debug((if (include) "including " else "excluding ") + f)
-          include
-        } ++
-          allFiles.filter(_.isDirectory).flatMap { d => recursiveListFiles(d, regex) }
-      case null => Array()
-    }
-  }
+  @deprecated("Use RichFile.recursiveFiles instead", "0.6.0.9002")
+  def recursiveListFiles(dir: File, regex: Regex = ".*".r): Array[File] = RichFile.recursiveFiles(dir, regex)
 
   def unzip(archive: File, targetDir: File, selectedFiles: String*) {
     unzip(archive, targetDir, selectedFiles.map(f => (f, null)).toList, monitor)
