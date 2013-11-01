@@ -2,16 +2,17 @@ package de.tototec.sbuild
 
 import java.io.File
 
-object TargetRefs {
+object TargetRefs extends TargetRefsImplicits {
 
   def apply(targetRefs: TargetRefs): TargetRefs = targetRefs
   def apply(targetRefs: TargetRef*): TargetRefs = new TargetRefs(Seq(targetRefs))
 
-  implicit def fromString(string: String)(implicit project: Project): TargetRefs = TargetRefs(TargetRef(string))
-  implicit def fromFile(file: File)(implicit project: Project): TargetRefs = TargetRefs(TargetRef(file))
-  implicit def fromTargetRef(targetRef: TargetRef): TargetRefs = TargetRefs(targetRef)
-  implicit def fromTarget(target: Target): TargetRefs = TargetRefs(TargetRef(target.name)(target.project))
-  implicit def fromSeq(targetRefs: Seq[TargetRef]): TargetRefs = TargetRefs(targetRefs: _*)
+  implicit def fromString(string: String)(implicit project: Project): TargetRefs = TargetRefs.toTargetRefs_fromString(string)
+  implicit def fromFile(file: File)(implicit project: Project): TargetRefs = TargetRefs.toTargetRefs_fromFile(file)
+  implicit def fromTargetRef(targetRef: TargetRef): TargetRefs = TargetRefs.toTargetRefs_fromTargetRef(targetRef)
+  implicit def fromTarget(target: Target): TargetRefs = TargetRefs.toTargetRefs_fromTarget(target)
+  implicit def fromSeq(targetRefs: Seq[TargetRef]): TargetRefs = TargetRefs.toTargetRefs_fromSeq(targetRefs)
+
 }
 
 class TargetRefs private (val targetRefGroups: Seq[Seq[TargetRef]]) {
@@ -79,3 +80,10 @@ class TargetRefs private (val targetRefGroups: Seq[Seq[TargetRef]]) {
 
 }
 
+trait TargetRefsImplicits {
+  implicit def toTargetRefs_fromString(string: String)(implicit project: Project): TargetRefs = TargetRefs(TargetRef(string))
+  implicit def toTargetRefs_fromFile(file: File)(implicit project: Project): TargetRefs = TargetRefs(TargetRef(file))
+  implicit def toTargetRefs_fromTargetRef(targetRef: TargetRef): TargetRefs = TargetRefs(targetRef)
+  implicit def toTargetRefs_fromTarget(target: Target): TargetRefs = TargetRefs(TargetRef(target.name)(target.project))
+  implicit def toTargetRefs_fromSeq(targetRefs: Seq[TargetRef]): TargetRefs = TargetRefs(targetRefs: _*)
+}
