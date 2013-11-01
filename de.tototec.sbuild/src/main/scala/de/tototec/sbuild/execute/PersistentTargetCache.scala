@@ -13,7 +13,7 @@ import de.tototec.sbuild.Path
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.TargetContextImpl
-import de.tototec.sbuild.Util
+import de.tototec.sbuild.internal.Util
 
 class PersistentTargetCache {
 
