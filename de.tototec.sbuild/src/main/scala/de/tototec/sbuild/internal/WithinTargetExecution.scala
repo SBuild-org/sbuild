@@ -1,4 +1,6 @@
-package de.tototec.sbuild
+package de.tototec.sbuild.internal
+
+import de.tototec.sbuild.TargetContext
 
 trait WithinTargetExecution {
   def targetContext: TargetContext

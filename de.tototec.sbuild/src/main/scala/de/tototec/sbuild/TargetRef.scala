@@ -1,7 +1,8 @@
 package de.tototec.sbuild
 
 import java.io.File
-import java.net.URI
+
+import de.tototec.sbuild.internal.WithinTargetExecution
 
 object TargetRef {
 
@@ -16,7 +17,7 @@ object TargetRef {
 }
 
 class TargetRef(val ref: String)(implicit project: Project) {
-  
+
   private[this] def log = Logger[TargetRef]
 
   val (explicitProject: Option[File], name: String) = ref.split("::", 2) match {

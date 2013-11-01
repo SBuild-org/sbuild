@@ -12,14 +12,13 @@ import org.fusesource.jansi.Ansi.ansi
 import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExecutionFailedException
 import de.tototec.sbuild.Logger
-import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetAware
 import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.TargetContextImpl
 import de.tototec.sbuild.UnsupportedSchemeException
-import de.tototec.sbuild.WithinTargetExecution
+import de.tototec.sbuild.internal.WithinTargetExecution
 
 object TargetExecutor {
 
@@ -520,7 +519,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
       // when parallel, print some finish message
       if (!execBag.wasUpToDate && parallelExecContext.isDefined && !execBag.ctx.target.isTransparentExec) {
         val finishedPrefix = calcProgressPrefix
-        monitor.info(CmdlineMonitor.Default, finishedPrefix + "Finished target: " + colorTarget(curTarget.formatRelativeToBaseProject) + " after " + execBag.ctx.execDurationMSec + " msec")
+        monitor.info(monitorConfig.executing, finishedPrefix + "Finished target: " + colorTarget(curTarget.formatRelativeToBaseProject) + " after " + execBag.ctx.execDurationMSec + " msec")
       }
 
       val executedTarget = new ExecutedTarget(targetContext = execBag.ctx, dependencies = executedDependencies)

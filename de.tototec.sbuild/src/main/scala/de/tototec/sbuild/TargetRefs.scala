@@ -2,6 +2,8 @@ package de.tototec.sbuild
 
 import java.io.File
 
+import de.tototec.sbuild.internal.WithinTargetExecution
+
 object TargetRefs extends TargetRefsImplicits {
 
   def apply(targetRefs: TargetRefs): TargetRefs = targetRefs
