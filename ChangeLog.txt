@@ -10,6 +10,11 @@ SBuild trunk:
   parameters: graphicalOutputSettings, standardOutputSettings, 
   standardErrorSettings, outputFile, outputFileSettings, xmlOutputDir,
   reporterClass, additionalScalaTestArgs. Deprecated parameter: reporter.
+* New TestNG addon
+* The project runtime classpath does include the scala library only once.
+* New RichFile API with contains so filerealted methdod and can be used in
+  implicit conversion.
+* Some API cleanups.
 
 SBuild 0.6.0 - 2013-09-19:
 
