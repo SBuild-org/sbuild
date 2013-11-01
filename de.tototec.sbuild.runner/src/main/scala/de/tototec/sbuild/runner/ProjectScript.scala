@@ -2,45 +2,32 @@ package de.tototec.sbuild.runner
 
 import java.io.File
 import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.io.FileWriter
+import java.lang.reflect.Method
 import java.net.URL
 import java.net.URLClassLoader
+
 import scala.io.BufferedSource
-import de.tototec.sbuild.HttpSchemeHandlerBase
-import de.tototec.sbuild.OSGiVersion
+
+import de.tototec.sbuild.BuildFileProject
+import de.tototec.sbuild.BuildfileCompilationException
+import de.tototec.sbuild.CmdlineMonitor
+import de.tototec.sbuild.ExportDependencies
+import de.tototec.sbuild.Logger
+import de.tototec.sbuild.OutputStreamCmdlineMonitor
 import de.tototec.sbuild.Path
 import de.tototec.sbuild.Project
-import de.tototec.sbuild.ResolveResult
+import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.RichFile.toRichFile
 import de.tototec.sbuild.SBuildException
 import de.tototec.sbuild.SBuildVersion
-import de.tototec.sbuild.Util
-import de.tototec.sbuild.Logger
-import de.tototec.sbuild.ProjectConfigurationException
-import de.tototec.sbuild.TargetRef
-import de.tototec.sbuild.TargetNotFoundException
-import de.tototec.sbuild.ProjectConfigurationException
-import de.tototec.sbuild.ProjectConfigurationException
-import de.tototec.sbuild.WithinTargetExecution
-import de.tototec.sbuild.TargetContextImpl
-import java.lang.reflect.Method
-import de.tototec.sbuild.BuildFileProject
-import scala.util.Try
-import java.text.ParseException
-import scala.annotation.tailrec
-import de.tototec.sbuild.ExportDependencies
-import de.tototec.sbuild.TargetRefs
-import de.tototec.sbuild.execute.TargetExecutor
-import de.tototec.sbuild.execute.InMemoryTransientTargetCache
-import de.tototec.sbuild.BuildfileCompilationException
-import de.tototec.sbuild.SBuildException
-import scala.collection.LinearSeq
-import de.tototec.sbuild.CmdlineMonitor
-import de.tototec.sbuild.OutputStreamCmdlineMonitor
 import de.tototec.sbuild.Target
+import de.tototec.sbuild.TargetRef
+import de.tototec.sbuild.TargetRefs
 import de.tototec.sbuild.execute.ExecutedTarget
-import de.tototec.sbuild.BuildFileProject
-import de.tototec.sbuild.execute.TargetExecutor.ParallelExecContext
+import de.tototec.sbuild.execute.InMemoryTransientTargetCache
+import de.tototec.sbuild.execute.TargetExecutor
+import de.tototec.sbuild.internal.OSGiVersion
 
 object ProjectScript {
 
@@ -65,7 +52,8 @@ object ProjectScript {
 class ProjectScript(_scriptFile: File,
                     sbuildClasspath: Array[String],
                     compileClasspath: Array[String],
-                    additionalProjectClasspath: Array[String],
+                    additionalProjectCompileClasspath: Array[String],
+                    additionalProjectRuntimeClasspath: Array[String],
                     compilerPluginJars: Array[String],
                     noFsc: Boolean,
                     monitor: CmdlineMonitor,
@@ -84,7 +72,8 @@ class ProjectScript(_scriptFile: File,
     this(_scriptFile = scriptFile,
       sbuildClasspath = classpathConfig.sbuildClasspath,
       compileClasspath = classpathConfig.compileClasspath,
-      additionalProjectClasspath = classpathConfig.projectClasspath,
+      additionalProjectCompileClasspath = classpathConfig.projectCompileClasspath,
+      additionalProjectRuntimeClasspath = classpathConfig.projectRuntimeClasspath,
       compilerPluginJars = classpathConfig.compilerPluginJars,
       noFsc = classpathConfig.noFsc,
       monitor = monitor,
@@ -133,25 +122,53 @@ class ProjectScript(_scriptFile: File,
     // Now we create an iterator which utilizes the already lazy and potentially cached stream
     def buildScriptIterator = sourceStream.iterator
 
-    val version = annotationReader.findFirstAnnotationSingleValue(buildScriptIterator, "version", "value")
+    val versionOption = annotationReader.findFirstAnnotationSingleValue(buildScriptIterator, "version", "value")
+    val version = versionOption.getOrElse("")
     val osgiVersion = OSGiVersion.parseVersion(version)
     if (osgiVersion.compareTo(new OSGiVersion(SBuildVersion.osgiVersion)) > 0) {
       throw new SBuildException("The buildscript '" + scriptFile + "' requires at least SBuild version: " + version)
     }
 
-    // TODO unify both lookups and resolve in one step (in parallel)
-    val addCp: Array[String] = readAdditionalClasspath(project, buildScriptIterator) ++ additionalProjectClasspath
+    log.debug("About to find additional classpath entries for: " + scriptFile)
+    val cpEntries = annotationReader.
+      findFirstAnnotationWithVarArgValue(buildScriptIterator, annoName = "classpath", varArgValueName = "value").
+      map(_.values).getOrElse(Array())
+    if (!cpEntries.isEmpty) {
+      log.debug(scriptFile + " contains @classpath annotation: " + cpEntries.mkString("@classpath(", ",\n  ", ")"))
+    }
 
-    val includes: Map[String, Seq[File]] = readIncludeFiles(project, buildScriptIterator)
+    log.debug("About to find include files for: " + scriptFile)
+    val includeEntires = annotationReader.
+      findFirstAnnotationWithVarArgValue(buildScriptIterator, annoName = "include", varArgValueName = "value").
+      map(_.values).getOrElse(Array())
+    if (!includeEntires.isEmpty) {
+      log.debug(scriptFile + " contains @include annotation: " + includeEntires.mkString("@include(", ",\n  ", ")"))
+    }
+
+    //    val toResolve = cpEntries.toSeq ++ includeEntires.toSeq
+    val resolvedFiles = {
+      val ts = System.currentTimeMillis
+      val resolvedFiles = resolveViaProject(project, cpEntries, includeEntires)
+      log.debug("Resolving project prerequisites took " + (System.currentTimeMillis - ts) + " milliseconds")
+      resolvedFiles
+    }
+
+    val additionalClasspath = resolvedFiles.classpath.map(_.getPath).toArray
+    val includes = resolvedFiles.includes
+
+    val addCompileCp: Array[String] = additionalClasspath ++ additionalProjectCompileClasspath
+    val addRuntimeCp: Array[String] = additionalClasspath ++ additionalProjectRuntimeClasspath
 
     // TODO: also check additional classpath entries 
 
     def compileWhenNecessary(checkLock: Boolean): String =
       checkInfoFileUpToDate(includes) match {
-        case LastRunInfo(true, className, _) => className
+        case LastRunInfo(true, className, _) =>
+          log.debug("Using previously compiled and up-to-date build class: " + className)
+          className
         case LastRunInfo(_, _, reason) if !checkLock =>
-          // println("Compiling build script " + scriptFile + "...")
-          newCompile(sbuildClasspath ++ addCp, includes, reason)
+          log.debug("Compiling build script " + scriptFile + " is necessary. Reason: " + reason)
+          newCompile(sbuildClasspath ++ addCompileCp, includes, reason)
         case LastRunInfo(_, _, reason) =>
           fileLocker.acquire(
             file = lockFile,
@@ -163,12 +180,14 @@ class ProjectScript(_scriptFile: File,
               log.debug("Deleting orphan lock file: " + lockFile)
           ) match {
               case Right(fileLock) => try {
-                // println("Compiling build script " + scriptFile + "...")
+                log.debug("Acquired lock for script file: " + scriptFile)
                 compileWhenNecessary(false)
               } finally {
+                log.debug("Releasing lock for script file: " + scriptFile)
                 fileLock.release
               }
               case Left(reason) => {
+                log.error("Could not acquire lock for script file: " + scriptFile + ". Reason. " + reason)
                 throw new BuildfileCompilationException("Buildfile compilation is locked by another process: " + reason)
               }
             }
@@ -183,7 +202,7 @@ class ProjectScript(_scriptFile: File,
       ExportDependencies("sbuild.project.includes", TargetRefs.fromSeq(includedFiles))
     }
 
-    useExistingCompiled(project, addCp, buildClassName)
+    useExistingCompiled(project, addRuntimeCp, buildClassName)
   } catch {
     case e: SBuildException =>
       e.buildScript = Some(project.projectFile)
@@ -248,20 +267,22 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  protected def readIncludeFiles(project: Project, buildScript: => Iterator[String]): Map[String, Seq[File]] = {
-    log.debug("About to find include files.")
-    val cp = annotationReader.findFirstAnnotationWithVarArgValue(buildScript, annoName = "include", varArgValueName = "value").map(_.values).getOrElse(Array())
-    log.debug(if (cp.isEmpty) "No includes files specified." else s"Using ${cp.size} included files:\n - ${cp.mkString("\n - ")}")
+  //  protected def readIncludeFiles(project: Project, buildScript: => Iterator[String]): Map[String, Seq[File]] = {
+  //    log.debug("About to find include files.")
+  //    val cp = annotationReader.findFirstAnnotationWithVarArgValue(buildScript, annoName = "include", varArgValueName = "value").map(_.values).getOrElse(Array())
+  //    log.debug(if (cp.isEmpty) "No includes files specified." else s"Using ${cp.size} included files:\n - ${cp.mkString("\n - ")}")
+  //
+  //    // TODO: specific error message, when fetch or download fails
+  //    resolveViaProject(cp, project, "@include")
+  //  }
 
-    // TODO: specific error message, when fetch or download fails
-    resolveViaProject(cp, project, "@include")
-  }
+  case class ResolvedPrerequisites(classpath: Seq[File], includes: Map[String, Seq[File]])
 
-  protected def resolveViaProject(targets: Seq[String], project: Project, purposeOfEntry: String): Map[String, Seq[File]] = {
-    if (targets.isEmpty) return Map()
+  protected def resolveViaProject(project: Project, classpathTargets: Seq[String], includeTargets: Seq[String]): ResolvedPrerequisites = {
+    if (classpathTargets.isEmpty && includeTargets.isEmpty) return ResolvedPrerequisites(Seq(), Map())
 
     // We want to use a customized monitor
-    val resolveMonitor = new OutputStreamCmdlineMonitor(Console.out, mode = project.monitor.mode, messagePrefix = "(resolve " + purposeOfEntry + ") ")
+    val resolveMonitor = new OutputStreamCmdlineMonitor(Console.out, mode = project.monitor.mode, messagePrefix = "(init) ")
 
     // We want to use a dedicated project in the init phase
     class ProjectInitProject extends BuildFileProject(_projectFile = project.projectFile, monitor = resolveMonitor)
@@ -272,7 +293,16 @@ class ProjectScript(_scriptFile: File,
       case _ => scriptFile
     }
 
-    val resolverTarget = Target("phony:" + purposeOfEntry + " " + resolverTargetSuffix) dependsOn targets.map(TargetRef(_))
+    val cpDep = classpathTargets.map(TargetRef(_)) match {
+      case Seq() => Seq()
+      case deps => Seq(TargetRef(Target("phony:@classpath " + resolverTargetSuffix) dependsOn deps))
+    }
+    val includeDep = includeTargets.map(TargetRef(_)) match {
+      case Seq() => Seq()
+      case deps => Seq(TargetRef(Target("phony:@include " + resolverTargetSuffix) dependsOn deps))
+    }
+
+    val resolverTarget = Target("phony:@init") dependsOn cpDep ++ includeDep
 
     val targetExecutor = new TargetExecutor(
       monitor = initProject.monitor,
@@ -287,25 +317,38 @@ class ProjectScript(_scriptFile: File,
       skipExec = true
     )
 
-    val execProgress = new TargetExecutor.ExecProgress(maxCount = dryRun.treeSize)
+    val execProgressOption = Some(new TargetExecutor.ExecProgress(maxCount = dryRun.treeSize))
 
     val executedResolverTarget = targetExecutor.preorderedDependenciesTree(
       curTarget = resolverTarget,
       transientTargetCache = Some(new InMemoryTransientTargetCache()),
-      execProgress = Some(execProgress),
-      parallelExecContext = Some(new TargetExecutor.ParallelExecContext())
+      execProgress = execProgressOption,
+      parallelExecContext = Some(new TargetExecutor.ParallelExecContext(threadCount = None))
     )
 
-    executedResolverTarget.dependencies.map { t => t.targetContext.target.name -> t.targetContext.targetFiles }.toMap
+    val resolvedFiles = executedResolverTarget.dependencies.flatMap { cpOrIncludeT =>
+      cpOrIncludeT.dependencies.map { t =>
+        t.targetContext.target.name -> t.targetContext.targetFiles
+      }
+    }.toMap
 
+    val additionalClasspath = resolvedFiles.filterKeys(k => classpathTargets.contains(k)).values.flatten.toSeq
+    if (!additionalClasspath.isEmpty) log.debug("Resolved @classpath to: " + additionalClasspath.mkString(":"))
+
+    val includes = resolvedFiles.filterKeys(k => includeTargets.contains(k))
+    if (!includes.isEmpty) log.debug("Resolved @include to: " + includes)
+
+    ResolvedPrerequisites(additionalClasspath, includes)
+
+    //    resolvedFiles
   }
 
-  protected def readAdditionalClasspath(project: Project, buildScript: => Iterator[String]): Array[String] = {
-    log.debug("About to find additional classpath entries.")
-    val cp = annotationReader.findFirstAnnotationWithVarArgValue(buildScript, annoName = "classpath", varArgValueName = "value").map(_.values).getOrElse(Array())
-    log.debug("Using additional classpath entries: " + cp.mkString(", "))
-    resolveViaProject(cp, project, "@classpath").flatMap { case (key, value) => value }.map { _.getPath }.toArray
-  }
+  //  protected def readAdditionalClasspath(project: Project, buildScript: => Iterator[String]): Array[String] = {
+  //    log.debug("About to find additional classpath entries.")
+  //    val cp = annotationReader.findFirstAnnotationWithVarArgValue(buildScript, annoName = "classpath", varArgValueName = "value").map(_.values).getOrElse(Array())
+  //    log.debug("Using additional classpath entries: " + cp.mkString(", "))
+  //    resolveViaProject(cp, project, "@classpath").flatMap { case (key, value) => value }.map { _.getPath }.toArray
+  //  }
 
   protected def useExistingCompiled(project: Project, classpath: Array[String], className: String): Any = {
     log.debug("Loading compiled version of build script: " + scriptFile)
@@ -319,11 +362,14 @@ class ProjectScript(_scriptFile: File,
     scriptInstance
   }
 
-  def clean() {
-    Util.delete(targetBaseDir)
+  def clean(): Unit = if (targetBaseDir.exists) {
+    monitor.info(CmdlineMonitor.Verbose, "Deleting dir_ " + targetBaseDir)
+    targetBaseDir.deleteRecursive
   }
-  def cleanScala() {
-    Util.delete(targetDir)
+
+  def cleanScala(): Unit = if(targetDir.exists) {
+    monitor.info(CmdlineMonitor.Verbose, "Deleting dir_ " + targetDir)
+    targetDir.deleteRecursive
   }
 
   protected def newCompile(classpath: Array[String], includes: Map[String, Seq[File]], printReason: Option[String] = None): String = {
@@ -411,7 +457,7 @@ class ProjectScript(_scriptFile: File,
 
         val cachedCompiler = ProjectScript.cachedExtendedScalaCompiler match {
           case Some(cached) =>
-            log.debug("Reusing cached compiler instance.")
+            log.debug("Reusing cached extended compiler instance.")
             cached
           case None =>
             val compiler = lazyCompilerClassloader.loadClass("de.tototec.sbuild.scriptcompiler.ScriptCompiler")
@@ -421,7 +467,7 @@ class ProjectScript(_scriptFile: File,
             val outputMethod = compiler.getMethod("getRecordedOutput")
             val clearOutputMethod = compiler.getMethod("clearRecordedOutput")
             val cache = CachedExtendedScalaCompiler(compiler, compilerMethod, reporterMethod, outputMethod, clearOutputMethod)
-            log.debug("Caching compiler for later use.")
+            log.debug("Caching extended compiler for later use.")
             ProjectScript.cachedExtendedScalaCompiler = Some(cache)
             cache
         }
@@ -431,8 +477,7 @@ class ProjectScript(_scriptFile: File,
 
         cachedCompiler.compilerMethod.invoke(compilerInstance, params)
         val reporter = cachedCompiler.reporterMethod.invoke(compilerInstance)
-        val hasErrorsMethod = reporter.asInstanceOf[Object].getClass.getMethod("hasErrors")
-        val hasErrors = hasErrorsMethod.invoke(reporter).asInstanceOf[Boolean]
+        val hasErrors = reporter.asInstanceOf[{ def hasErrors(): Boolean }].hasErrors
         if (hasErrors) {
           val output = cachedCompiler.outputMethod.invoke(compilerInstance).asInstanceOf[Seq[String]]
           cachedCompiler.clearOutputMethod.invoke(compilerInstance)
@@ -458,8 +503,7 @@ class ProjectScript(_scriptFile: File,
         log.debug("Executing Scala Compile with args: " + params.mkString(" "))
         cachedCompiler.compilerMethod.invoke(null, params)
         val reporter = cachedCompiler.reporterMethod.invoke(null)
-        val hasErrorsMethod = reporter.asInstanceOf[Object].getClass.getMethod("hasErrors")
-        val hasErrors = hasErrorsMethod.invoke(reporter).asInstanceOf[Boolean]
+        val hasErrors = reporter.asInstanceOf[{ def hasErrors(): Boolean }].hasErrors
         if (hasErrors) throw new BuildfileCompilationException("Could not compile build file " + scriptFile.getAbsolutePath + " with scala compiler. See compiler output.")
       }
     }

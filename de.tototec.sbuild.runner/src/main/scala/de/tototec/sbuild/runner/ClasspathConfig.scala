@@ -38,12 +38,20 @@ class ClasspathConfig {
   var compileClasspath: Array[String] = Array()
 
   // Add to the classpath used to load the project script
-  @CmdOption(names = Array("--project-cp", "--additional-project-cp"), args = Array("CLASSPATH"), hidden = true)
-  def projectClasspath_=(classpath: String): Unit = projectClasspath = classpath match {
+  @CmdOption(names = Array("--project-compile-cp", "--additional-project-compile-cp"), args = Array("CLASSPATH"), hidden = true)
+  def projectCompileClasspath_=(classpath: String): Unit = projectCompileClasspath = classpath match {
     case null => Array[String]()
     case x => x.split(";|:")
   }
-  var projectClasspath: Array[String] = Array()
+  var projectCompileClasspath: Array[String] = Array()
+
+    // Add to the classpath used to load the project script
+  @CmdOption(names = Array("--project-runtime-cp", "--additional-project-runtime-cp"), args = Array("CLASSPATH"), hidden = true)
+  def projectRuntmeClasspath_=(classpath: String): Unit = projectRuntimeClasspath = classpath match {
+    case null => Array[String]()
+    case x => x.split(";|:")
+  }
+  var projectRuntimeClasspath: Array[String] = Array()
 
   @CmdOption(names = Array("--compiler-plugin-jar"), args = Array("JAR"), hidden = true)
   def compilerPluginJars_=(jars: String): Unit = compilerPluginJars = jars match {
@@ -61,7 +69,8 @@ class ClasspathConfig {
   def validate: Boolean = {
     sbuildClasspath.forall { new File(_).exists } &&
       compileClasspath.forall { new File(_).exists } &&
-      projectClasspath.forall { new File(_).exists } &&
+      projectCompileClasspath.forall { new File(_).exists } &&
+      projectRuntimeClasspath.forall { new File(_).exists } &&
       compilerPluginJars.forall { new File(_).exists }
   }
 
@@ -87,7 +96,8 @@ class ClasspathConfig {
 
     sbuildClasspath = splitAndPrepend(properties.getProperty("sbuildClasspath"))
     compileClasspath = splitAndPrepend(properties.getProperty("compileClasspath"))
-    projectClasspath = splitAndPrepend(properties.getProperty("projectClasspath"))
+    projectCompileClasspath = splitAndPrepend(properties.getProperty("projectCompileClasspath"))
+    projectRuntimeClasspath = splitAndPrepend(properties.getProperty("projectRuntimeClasspath"))
     compilerPluginJars = splitAndPrepend(properties.getProperty("compilerPluginJar"))
   }
 

@@ -65,10 +65,10 @@ class AnnotationReader {
   def findFirstAnnotationWithVarArgValue(buildScript: => Iterator[String], annoName: String, varArgValueName: String): Option[SingleVarArgAnnotation] =
     findFirstAnnotationWithVarArgValue(buildScript, annoName, varArgValueName, false)
 
-  def findFirstAnnotationSingleValue(buildScript: => Iterator[String], annoName: String, valueName: String): String = {
+  def findFirstAnnotationSingleValue(buildScript: => Iterator[String], annoName: String, valueName: String): Option[String] = {
     findFirstAnnotationWithVarArgValue(buildScript, annoName, valueName, singleArg = true) match {
-      case None => ""
-      case Some(SingleVarArgAnnotation(_, _, Array(value))) => value
+      case None => None
+      case Some(SingleVarArgAnnotation(_, _, Array(value))) => Some(value)
       case _ => throw new RuntimeException("Unexpected annotation syntax detected. Expected single arg annotation @" + annoName)
     }
   }
