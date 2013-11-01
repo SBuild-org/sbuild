@@ -269,25 +269,24 @@ class SBuildRunner {
       }
 
       if (config.justClean || config.justCleanRecursive) {
-        def cleanStateDir(dir: File, recursive: Boolean): Boolean = {
-          var success = true
+        def cleanStateDir(dir: File, recursive: Boolean) {
           val stateDir = new File(dir, ".sbuild")
           if (stateDir.exists && stateDir.isDirectory) {
             sbuildMonitor.info(CmdlineMonitor.Default, "Deleting " + stateDir.getPath())
-            success = stateDir.deleteRecursive && success
+            stateDir.deleteRecursive
           }
           if (recursive) {
             val files = dir.listFiles
             if (files != null) files.map { file =>
               if (file.isDirectory) {
-                success = cleanStateDir(file, recursive) && success
+                cleanStateDir(file, recursive)
               }
             }
           }
-          success
         }
         val baseDir = new File(new File(".").getAbsoluteFile.toURI.normalize)
-        if (cleanStateDir(baseDir, config.justCleanRecursive)) return 0 else return 1
+        cleanStateDir(baseDir, config.justCleanRecursive)
+        return 0
       }
 
       run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)

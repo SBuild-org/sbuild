@@ -9,21 +9,25 @@ object RichFile {
 
   private[this] val log = Logger[RichFile.type]
 
-  def deleteRecursive(files: File*): Boolean = {
-    var success = true;
-    files.map {
-      case f if f.isDirectory => {
-        success = deleteRecursive(f.listFiles: _*) && success
-        log.debug("Deleting dir: " + f)
-        success = f.delete && success
-      }
-      case f if f.exists => {
-        log.debug("Deleting file: " + f)
-        success = f.delete && success
-      }
+  def deleteFile(file: File): Unit = {
+    log.debug(s"Deleting ${if (file.isDirectory) "dir" else "file"}: ${file}")
+    file.delete match {
+      case false if file.exists =>
+        throw new RuntimeException(s"Could not delete ${if (file.isDirectory) "dir" else "file"}: ${file}")
       case _ =>
     }
-    success
+  }
+
+  def deleteFiles(files: File*): Unit = files.map(f => (f.delete, f)).filter {
+    case (success, file) => !success || file.exists
+  } match {
+    case Seq() =>
+    case x => throw new RuntimeException("Could not delete files: " + x.mkString(", "))
+  }
+
+  def deleteRecursive(files: File*): Unit = files.map { f =>
+    if (f.isDirectory) deleteRecursive(f.listFiles: _*)
+    deleteFile(f)
   }
 
   def listFilesRecursive(dir: File, fileNameRegex: Regex = ".*".r): Array[File] = {
@@ -43,7 +47,8 @@ object RichFile {
 
 class RichFile(val file: File) {
 
-  def deleteRecursive: Boolean = RichFile.deleteRecursive(file)
+  def deleteFile: Unit = RichFile.deleteFile(file)
+  def deleteRecursive: Unit = RichFile.deleteRecursive(file)
 
   def listFilesRecursive: Array[File] = RichFile.listFilesRecursive(file, ".*".r)
   def listFilesRecursive(fileNameRegex: Regex): Array[File] = RichFile.listFilesRecursive(file, fileNameRegex)
