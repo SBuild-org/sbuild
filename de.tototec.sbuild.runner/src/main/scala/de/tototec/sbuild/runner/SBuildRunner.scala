@@ -349,9 +349,14 @@ class SBuildRunner {
       if (outputAndExit) CmdlineMonitor.Verbose else CmdlineMonitor.Default,
       "Initializing project...")
 
-    val fileLocker = new FileLocker()
-    val projectReader: ProjectReader = new SimpleProjectReader(classpathConfig, sbuildMonitor, clean = config.clean, fileLocker)
-    val project = projectReader.readAndCreateProject(projectFile, config.defines.asScala.toMap, None, Some(sbuildMonitor)).asInstanceOf[BuildFileProject]
+    val projectReader: ProjectReader = new SimpleProjectReader(
+      classpathConfig = classpathConfig,
+      monitor = sbuildMonitor,
+      clean = config.clean,
+      fileLocker = new FileLocker(),
+      initialProperties = config.defines.asScala.toMap
+    )
+    val project = projectReader.readAndCreateProject(projectFile, Map(), None, Some(sbuildMonitor)).asInstanceOf[BuildFileProject]
 
     val additionalProjects = config.additionalBuildfiles.map { buildfile =>
       project.findModule(buildfile) match {

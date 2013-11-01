@@ -13,7 +13,8 @@ class SimpleProjectReader(
   classpathConfig: ClasspathConfig,
   monitor: CmdlineMonitor = NoopCmdlineMonitor,
   clean: Boolean = false,
-  fileLocker: FileLocker)
+  fileLocker: FileLocker,
+  initialProperties: Map[String, String] = Map())
     extends ProjectReader {
 
   override def readAndCreateProject(projectFile: File, properties: Map[String, String], projectPool: Option[ProjectPool], monitor: Option[CmdlineMonitor]): Project = {
@@ -24,6 +25,9 @@ class SimpleProjectReader(
 
     val project = new BuildFileProject(projectFile, this, projectPool, Some(script.typesToIncludedFilesPropertiesFile), monitor = monitor.getOrElse(this.monitor))
 
+    initialProperties.foreach {
+      case (key, value) => project.addProperty(key, value)
+    }
     properties.foreach {
       case (key, value) => project.addProperty(key, value)
     }
