@@ -6,7 +6,6 @@ import de.tototec.sbuild.test.TestSupport
 class TargetRefTest extends FunSuite {
 
   implicit val project = TestSupport.createMainProject
-  import TargetRefs._
 
   private[this] var count = 0
   def testToString(expected: String, targetRefs: TargetRefs) = {
