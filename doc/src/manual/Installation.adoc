@@ -1,0 +1,85 @@
+= Installation
+:revversion: svn
+:SBuildVersion: {revversion}
+
+
+== Requirements
+
+SBuild requires an working Java 6 Runtime. All other dependencies are bundled within the SBuild distribution ZIP file.
+
+== Download
+
+You can download the latest stable SBuild distribution from the http://sbuild.tototec.de/sbuild/projects/sbuild/files[download page].
+
+== Installation 
+
+SBuild runs under all major operating systems, that have a Java 6 Runtime environment.
+
+=== Linux
+
+You should check, if your Linux distribution provides ready to install packages for SBuild, 
+if so, you may want to install them in the specific way of your Linux distribution.
+For Gentoo Linux, you can find an https://lepetitfou.dyndns.org/svn/gentoo/lefous_portage_overlay/dev-java/sbuild-bin/[ebuild for SBuild] 
+in http://lepetitfou.dyndns.org/redmine/projects/lefousportageoverlay[lefous portage overlay].
+
+If you used the installation procedure of you Linux distribution you were done here, else continue.
+
+Unpack the ZIP file content into a directory of your choice, e.g. +"/opt/sbuild-{SBuildVersion}"+.
+
+Make sure, the expanded file +"/opt/sbuild-{SBuildVersion}/bin/sbuild"+ is executable, e.g. with +chmod -x /opt/sbuild-{SBuildVersion}/bin/sbuild+.
+
+Add the binary directory (e.g. +"/opt/sbuild-{SBuildVersion}/bin/"+) to your search path: +PATH=/opt/sbuild-{SBuildVersion}/bin:$PATH+
+
+
+=== Windows
+
+Unpack the ZIP file content into an directory of your choice, e.g. +"C:\Program Files\sbuild-{SBuildVersion}"+.
+After unpacking, you should see the sub directories +"bin"+, +"lib"+ and +"doc"+.
+
+Add the environment variable +SBUILD_HOME+ with the value of that directory, e.g. +SBUILD_HOME=C:\Program Files\sbuild-{SBuildVersion}+
+
+Add the path of the +"bin"+ directory to the +PATH+ variable: +PATH=%SBUILD_HOME%\bin:%PATH%+
+
+[CAUTION]
+.Special Notes for Cygwin Users
+====
+If running sbuild under cygwin, you may see the following error message:
+
+----
+$ sbuild all
+java.lang.NoClassDefFoundError: de/tototec/sbuild/runner/SBuildRunner
+Caused by: java.lang.ClassNotFoundException: de.tototec.sbuild.runner.SBuildRunner
+        at java.net.URLClassLoader$1.run(Unknown Source)
+        at java.security.AccessController.doPrivileged(Native Method)
+        at java.net.URLClassLoader.findClass(Unknown Source)
+        at java.lang.ClassLoader.loadClass(Unknown Source)
+        at sun.misc.Launcher$AppClassLoader.loadClass(Unknown Source)
+        at java.lang.ClassLoader.loadClass(Unknown Source)
+Could not find the main class: de.tototec.sbuild.runner.SBuildRunner.  Program will exit.
+Exception in thread "main"
+----
+
+This is because cygwin does not execute the +sbuild.bat+ file but the +sbuild+ shell script. You may either call +sbuild.bat+ directly, or delete the +PATH/bin/sbuild+ file.
+====
+
+
+
+== Check the installation
+
+Open an new terminal window and execute the command: +sbuild --version+
+
+You should see something like this:
+
+----
+$ sbuild --version
+SBuild 0.6.0.9002 (c) 2011 - 2013, ToToTec GbR, Tobias Roeser
+----
+
+
+Congratulations, you have successfully finished your SBuild installation.
+
+== Troubleshooting
+
+If you went into trouble, you may want to search the https://sbuild.tototec.de/sbuild/projects/sbuild/boards[fourms] or create a new thread.
+If you found a bug please https://sbuild.tototec.de/sbuild/projects/sbuild/issues[check, if there is already a ticket] for it or https://sbuild.tototec.de/sbuild/projects/sbuild/issues/new[create a new ticket].
+

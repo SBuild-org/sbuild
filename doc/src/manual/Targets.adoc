@@ -1,0 +1,99 @@
+= Targets in depth
+:revversion: svn
+:SBuildVersion: {revversion}
+
+A *target* is a named unit of work within a project. 
+
+Targets consists of the following parts:
+
+- A *unique name* - The target name.
+- An *execution block* - A block of Scala code, that will be executed when the target needs to run. 
+- Additional *dependencies* - References to other targets, which must be checked for up-to-dateness and will be executed before this target is run (if not up-to-date).
+- A *self description* - A description that will be displayed, e.g. by the +--list-targets+ command line option.
+
+== The Target Name
+
+[source,scala]
+----
+targetname ::= ( <project> '::' )? ( scheme ':' )? <name>
+scheme     ::= 'file' | 'phony' | <scheme>
+----
+
+The target name must be unique and consists of the following parts: 
+
+- A target *name* - The name of the target.
+- A target *scheme* - A scheme describing the "meaning" of the target name. The default built-in scheme is +"file"+, indicating, 
+that the target name references a file on the local file system. 
+Another built-in scheme is the +"phony"+ scheme. Other schemes can be registered with +SchemeHandler+.
+- A *project* reference - A optional reference to another SBuild project, where the target is defined. 
+This is only allowed in a +dependsOn+-block, but not in a +Target+-definition, as +Target+-definitions belong always to the current project.
+
+
+When the target scheme *+"file"+* is used, the target name describes a resource in the file system, relative to the project directory. 
+SBuild can check if a file target need to run at all based on the existence and the last modified time stamp of that file resource.  
+
+Targets with the *+"phony"+* scheme do not refer to a file system resource, but describe some kind of "action". 
+As SBuild can not associate a phony target to a concrete file system resource, up-to-dateness of phony targets can not be automatically evaluated. Therefore, without additional information, phony targets need always to be executed. 
+But SBuild provides further mechanism to evaluate up-to-dateness of phony targets through the +TargetContext+ (TODO: ref to TargetContext).
+
+
+== Target Definition
+
+You can create a new target with +Target(name)+, where name is the target name (without the optional project reference). 
+If the name does not specify a target scheme, +"file"+ is assumed.
+
+Here you see the (simplified) API of +Target+. 
+
+[source,scala]
+----
+object Target {
+  /** Create a new target. */
+  def apply(targetName: String)(implicit project: Project): Target
+}
+
+trait Target {
+  /* A dependencies to this target. */
+  def dependsOn(targetRefs: TargetRefs): Target
+  /* The code that produces the target. */
+  def exec(exec: => Unit): Target
+  /* The code that produces the target. */
+  def exec(exec: TargetContext => Unit): Target
+  /* A self description of this target. */
+  def help(help: String): Target
+}
+----
+
+
+== Dependencies
+
+Each Target may depend on other targets. 
+SBuild will always check if a target needs to run by checking the up-to-dateness of the target itself and all of its dependencies.
+As dependencies are just target names, they may refer to files or other targets.
+
+== Execution Block
+
+When SBuild detects, that a target needs to run, the execution block will be executed. 
+For file targets, the execution block has to contain instruction, how to produce the target.
+
+The execution block is defined as a function +TargetContext => Unit+. 
+For convenience, +Target.exec+ accepts also a so called 'by-name' argument +=> Unit+.
+
+
+== Target Context
+
+Inside an execution block you have access to the current target execution context which provided access to various context 
+information about the current target and its execution. 
+It is also possible to interact and provide additional information, that SBuild will use and consider in its execution.
+
+Through the target context you can:
+- Get the name of the target.
+- Get all files produced by direct dependencies of this target (including attached files).
+- Set a "lastModified" timestamp, to tell SBuild how up-to-date this target actually is. 
+This is especially useful for phony targets, as SBuild is not able to evaluate the up-to-dateness of phony targets. 
+Therefore SBuild has to assume, that phony targets were never up-to-date, which results in a possibly rebuild of all targets
+in the dependency chain. 
+By telling SBuild how up-to-date a phony target is, SBuild will propagate this information up in the dependency chain
+and will possibly be able to skip other already up-to-date targets.
+- Attach additional files to the current target, so that this target is effectively able to produce more that one file.
+Direct depending target will be able to access those attached files.
+

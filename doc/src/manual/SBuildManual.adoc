@@ -1,0 +1,182 @@
+= SBuild Reference
+Tobias Roeser <le.petit.fou@web.de>
+:SBuildVersion: {revversion}
+:revversion: svn
+
+
+== Introduction
+
+TBD
+
+=== Declarative vs. Imperative Build Systems
+
+TBD
+
+// SBuild is an primarily a imperative build system. But as SBuild is also a build DSL, declarative builds can be based on top of SBuild.
+
+:leveloffset: 1
+include::Installation.adoc[]
+:leveloffset: 0
+
+== Example
+
+TBD
+
+== Core concepts
+
+=== The Buildfile
+
+SBuild's single entry point is the *Buildfile*. There are no other sources of configuration for the current project besides
+the buildfile itself and those resources which are referenced from the buildfile (e.g. with +@include+).
+// TODO: add a refernce to @classpath, @include etc
+
+The Buildfile is an ordinary Scala source file and must contain a class with the same name as the buildfile or with the name +SBuild+. 
+This class must have a constructor with one parameter of type +de.tototec.sbuild.Project+. 
+The parameter is the reference to the current SBuild project and is used by most of SBuild's DSL as an implicit paramater. 
+Because of that, is is convenient to declare the project as implicit parameter.
+
+Here is a minimal SBuild buildfile:
+
+[source, scala]
+----
+import de.tototec.sbuild._
+
+class SBuild(implicit _project: Project)
+----
+
+NOTE: It is a best practice to store Scala source files in UTF-8 encoding. 
+
+Because SBuild buildfiles are ordinary Scala source files, it is possible to view and edit them with any text editor but also with more
+advanced editors or IDEs, to gain support for e.g. syntax highlighting or code completion.
+
+The buildfile from above does not gain us much in its simples form. So, its time to add some targets.
+
+=== Targets
+
+A *target* is a named unit of work within a project. 
+A target has a name and typically, but not necessarily, some dependencies and an execution block. 
+
+Here you see a minimal buildfile with one target.
+
+[source,scala]
+----
+import de.tototec.sbuild._
+import de.tototec.sbuild.TargetRefs._
+
+class SBuild(implicit _project: Project) {
+
+  Target("phony:hello-world") dependsOn "AUTHORS.txt" exec {
+    import scala.io.Source
+    println("Hello World. I was written by: " + Source.fromFile("AUTHORS.txt".files.head).getLines.mkString(", "))
+  }
+
+}
+----
+
+That target +"hello-world"+ has one prerequisite +"AUTHORS.txt"+. 
+As there is no other target +"AUTHORS.txt"+, the default scheme +"file"+ is applied, which means, 
++"hello-world"+ depends on the file +"AUTHORS.txt"+ in the project directory.
+
+As there is no such file, SBuild will detect it, when it tries to run the +"hello-world"+ target.
+
+----
+$ sbuild hello-world
+Initializing project...
+Compiling build script: /tmp/SBuild.scala...
+[0%] Executing...
+[0%] Executing target: AUTHORS.txt
+
+SBuild detected a failure in the project configuration or the build scripts.
+Project: /tmp/SBuild.scala
+Target:  AUTHORS.txt
+Details: Don't know how to build prerequisite: AUTHORS.txt
+----
+
+Now, we have two options to solve the issue: 1) Create the file manually or 2) tell SBuild, how to create that file.
+
+The later one could look like this:
+
+[source,scala]
+----
+import de.tototec.sbuild._
+import de.tototec.sbuild.TargetRefs._
+import de.tototec.sbuild.ant._
+import de.tototec.sbuild.ant.tasks._
+
+@classpath("mvn:org.apache.ant:ant:1.8.4")
+class SBuild(implicit _project: Project) {
+
+  Target("phony:hello-world") dependsOn "AUTHORS.txt" exec {
+    import scala.io.Source
+    println("Hello World. I was written by: " + Source.fromFile("AUTHORS.txt".files.head).getLines.mkString(", "))
+  }
+
+  Target("AUTHORS.txt") exec {
+    AntEcho(message = "John Doe", file = Path("AUTHORS.txt"))
+  }
+
+}
+----
+
+We added a new target +"AUTHORS.txt"+ and used the Ant Echo task to write the name "John Doe" into the file. 
+Therefore, we needed to add the Ant JAR to the classpath and import SBuild's Ant support packages.
+
+Executing SBuild again, will give use the following output:
+
+----
+$ sbuild hello-world
+Initializing project...
+Compiling build script: /tmp/SBuild.scala...
+[0%] Executing...
+[0%] Executing target: AUTHORS.txt
+[50%] Finished target: AUTHORS.txt after 36 msec
+[50%] Executing target: hello-world
+Hello World. I was written by: John Doe
+[100%] Finished target: hello-world after 2 msec
+[100%] Execution finished. SBuild init time: 3514 msec, Execution time: 92 msec
+----
+
+Voilà, this time SBuild succeeded.
+
+If you repead the last command, you may notice a difference in the output:
+
+----
+$ sbuild hello-world
+Initializing project...
+[0%] Executing...
+[50%] Executing target: hello-world
+Hello World. I was written by: John Doe
+[100%] Finished target: hello-world after 7 msec
+[100%] Execution finished. SBuild init time: 253 msec, Execution time: 73 msec
+----
+
+The line +"Compiling build script: /tmp/SBuild.scala..."+ is missing. This is because, this time, the buildfile was not changed and SBuild did not need to re-compile it.
+
+Also, this time, SBuild didn't told us, that it executed the +AUTHORS.txt+ target. This is because the +"AUTHORS.txt"+ file already existed and thus SBuild considered that target as already up-to-date. 
+
+
+:leveloffset: 2
+include::Targets.adoc[]
+:leveloffset: 0
+
+
+=== Dependencies
+
+TBD
+
+:leveloffset: 2
+include::SchemeHandlers.adoc[]
+:leveloffset: 0
+
+== Target Execution
+
+TBD
+
+=== Parallel Execution
+
+TBD
+
+=== Sequential Dependencies
+
+TBD
+
