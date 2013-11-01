@@ -61,7 +61,6 @@ Here you see a minimal buildfile with one target.
 [source,scala]
 ----
 import de.tototec.sbuild._
-import de.tototec.sbuild.TargetRefs._
 
 class SBuild(implicit _project: Project) {
 
@@ -99,7 +98,6 @@ The later one could look like this:
 [source,scala]
 ----
 import de.tototec.sbuild._
-import de.tototec.sbuild.TargetRefs._
 import de.tototec.sbuild.ant._
 import de.tototec.sbuild.ant.tasks._
 
