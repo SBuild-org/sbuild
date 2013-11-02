@@ -1,10 +1,14 @@
 package de.tototec.sbuild.execute
 
 import java.io.File
+
 import org.scalatest.FunSuite
-import de.tototec.sbuild.BuildFileProject
-import de.tototec.sbuild.Target
+
 import de.tototec.sbuild.NoopCmdlineMonitor
+import de.tototec.sbuild.Target
+import de.tototec.sbuild.TargetRef.fromString
+import de.tototec.sbuild.TargetRefs.fromTarget
+import de.tototec.sbuild.internal.BuildFileProject
 
 class ChainCreatorTest extends FunSuite {
 

@@ -1,14 +1,41 @@
-package de.tototec.sbuild
+package de.tototec.sbuild.internal
 
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.util.Properties
-
 import scala.collection.JavaConverters.asScalaSetConverter
 import scala.reflect.ClassTag
-
 import de.tototec.sbuild.SchemeHandler.SchemeContext
+import de.tototec.sbuild.UnsupportedSchemeException
+import de.tototec.sbuild.SBuildException
+import de.tototec.sbuild.TargetNameMatcher
+import de.tototec.sbuild.ProjectReader
+import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.SchemeResolverWithDependencies
+import de.tototec.sbuild.TargetContext
+import de.tototec.sbuild.NoopCmdlineMonitor
+import de.tototec.sbuild.SchemeResolver
+import de.tototec.sbuild.ProjectTarget
+import de.tototec.sbuild.UniqueTargetFile
+import de.tototec.sbuild.Project
+import de.tototec.sbuild.TargetNotFoundException
+import de.tototec.sbuild.TargetRef
+import de.tototec.sbuild.TargetRefs
+import de.tototec.sbuild.Target
+import de.tototec.sbuild.Path
+import de.tototec.sbuild.Logger
+import de.tototec.sbuild.ExperimentalPlugin
+import de.tototec.sbuild.CmdlineMonitor
+import de.tototec.sbuild.SchemeHandler
+import de.tototec.sbuild.ZipSchemeHandler
+import de.tototec.sbuild.SideeffectFreeSchemeResolver
+import de.tototec.sbuild.MvnSchemeHandler
+import de.tototec.sbuild.TransparentSchemeResolver
+import de.tototec.sbuild.ScanSchemeHandler
+import de.tototec.sbuild.HttpSchemeHandler
+import de.tototec.sbuild.MapperSchemeHandler
+import de.tototec.sbuild.ProjectPool
 
 class BuildFileProject(_projectFile: File,
                        _projectReader: ProjectReader = null,
@@ -67,10 +94,9 @@ class BuildFileProject(_projectFile: File,
       throw ex
     }
 
-    val newProjectFile = if (newProjectDirOrFile.isFile) {
-      newProjectDirOrFile
-    } else {
-      new File(newProjectDirOrFile, "SBuild.scala")
+    val newProjectFile = newProjectDirOrFile match {
+      case x if x.isFile => newProjectDirOrFile
+      case x => new File(x, "SBuild.scala")
     }
 
     if (!newProjectFile.exists) {
@@ -211,7 +237,7 @@ class BuildFileProject(_projectFile: File,
             val ex = new TargetNotFoundException("Could not find target: " + targetRef + ". Unknown project: " + pFile)
             ex.buildScript = Some(projectFile)
             throw ex
-          case Some(p) => p.internalFindTarget(targetRef, searchInAllProjects = false, includeImplicit, supportCamelCaseShortCuts, originalRequestedProject = this) match {
+          case Some(p: BuildFileProject) => p.internalFindTarget(targetRef, searchInAllProjects = false, includeImplicit, supportCamelCaseShortCuts, originalRequestedProject = this) match {
             case None if targetRef.explicitNonStandardProto.isDefined =>
               None
             case None =>
@@ -220,6 +246,11 @@ class BuildFileProject(_projectFile: File,
               throw ex
             case x => x
           }
+          case Some(p) =>
+            log.warn("Cannot search target in other project " + p.projectFile + " as it is not a BuildFileProject")
+            val ex = new TargetNotFoundException("Could not find target: " + targetRef + ". Unsupported project: " + pFile)
+            ex.buildScript = Some(projectFile)
+            throw ex
         }
       case None =>
         // handle in this project
@@ -232,18 +263,19 @@ class BuildFileProject(_projectFile: File,
             // If nothing was found and the target in question is a file target and searchInAllProjects was requested, then search in other projects
             case None if searchInAllProjects && !phony =>
               // search in other projects
-              val allCandidates = projectPool.projects.map { otherProj =>
-                if (otherProj == this) {
-                  None
-                } else {
-                  otherProj.targetMap.get(file) match {
-                    // If the found one is phony, it is not a perfect match
-                    case Some(t) if t.phony => None
-                    case Some(t) if t.isImplicit && !includeImplicit => None
-                    case x => x
-                  }
+              val allCandidates = projectPool.projects.map {
+                case otherProj if otherProj == this => None
+                case otherProj: BuildFileProject => otherProj.targetMap.get(file) match {
+                  // If the found one is phony, it is not a perfect match
+                  case Some(t) if t.phony => None
+                  case Some(t) if t.isImplicit && !includeImplicit => None
+                  case x => x
                 }
+                case otherProject =>
+                  log.warn("Cannot search target in other project " + otherProject.projectFile + " as it is not a BuildFileProject")
+                  None
               }
+
               val candidates = allCandidates.filter(_.isDefined)
               candidates.size match {
                 case 0 => None
@@ -555,20 +587,3 @@ class BuildFileProject(_projectFile: File,
 
 }
 
-class ProjectPool(val baseProject: BuildFileProject) {
-  private var _projects: Map[File, BuildFileProject] = Map()
-  addProject(baseProject)
-
-  def addProject(project: BuildFileProject) {
-    _projects += (project.projectFile -> project)
-  }
-
-  def projects: Seq[BuildFileProject] = _projects.values.toSeq
-  def propjectMap: Map[File, BuildFileProject] = _projects
-
-  def formatProjectFileRelativeToBase(project: Project): String =
-    if (baseProject != project)
-      baseProject.projectDirectory.toURI.relativize(project.projectFile.toURI).getPath
-    else project.projectFile.getName
-
-}

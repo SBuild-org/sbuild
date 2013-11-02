@@ -3,6 +3,7 @@ package de.tototec.sbuild
 import org.scalatest.FunSuite
 import java.io.File
 import de.tototec.sbuild.SchemeHandler.SchemeContext
+import de.tototec.sbuild.internal.BuildFileProject
 
 class ZipSchemeHandlerTest extends FunSuite {
 
