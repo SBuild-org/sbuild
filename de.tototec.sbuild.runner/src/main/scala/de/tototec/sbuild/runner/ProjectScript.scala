@@ -7,9 +7,9 @@ import java.lang.reflect.Method
 import java.net.URL
 import java.net.URLClassLoader
 
+import scala.Array.canBuildFrom
 import scala.io.BufferedSource
 
-import de.tototec.sbuild.BuildFileProject
 import de.tototec.sbuild.BuildfileCompilationException
 import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExportDependencies
@@ -23,10 +23,13 @@ import de.tototec.sbuild.SBuildException
 import de.tototec.sbuild.SBuildVersion
 import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetRef
+import de.tototec.sbuild.TargetRef.fromString
 import de.tototec.sbuild.TargetRefs
+import de.tototec.sbuild.TargetRefs.fromSeq
 import de.tototec.sbuild.execute.ExecutedTarget
 import de.tototec.sbuild.execute.InMemoryTransientTargetCache
 import de.tototec.sbuild.execute.TargetExecutor
+import de.tototec.sbuild.internal.BuildFileProject
 import de.tototec.sbuild.internal.OSGiVersion
 
 object ProjectScript {

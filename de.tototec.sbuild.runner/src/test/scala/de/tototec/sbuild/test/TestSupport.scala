@@ -2,11 +2,10 @@ package de.tototec.sbuild.test
 
 import java.io.File
 import de.tototec.sbuild.Project
-import de.tototec.sbuild.BuildFileProject
 import java.io.FileOutputStream
 import java.io.BufferedOutputStream
 import java.io.PrintStream
-import de.tototec.sbuild.BuildFileProject
+import de.tototec.sbuild.internal.BuildFileProject
 
 object TestSupport {
 

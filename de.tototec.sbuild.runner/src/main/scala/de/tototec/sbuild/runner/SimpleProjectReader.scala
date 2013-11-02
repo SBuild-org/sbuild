@@ -1,12 +1,12 @@
 package de.tototec.sbuild.runner
 
-import de.tototec.sbuild.Project
 import java.io.File
 import java.lang.reflect.InvocationTargetException
-import de.tototec.sbuild.ProjectReader
-import de.tototec.sbuild.BuildFileProject
-import de.tototec.sbuild.ProjectPool
 import de.tototec.sbuild.CmdlineMonitor
+import de.tototec.sbuild.Project
+import de.tototec.sbuild.ProjectPool
+import de.tototec.sbuild.ProjectReader
+import de.tototec.sbuild.internal.BuildFileProject
 import de.tototec.sbuild.NoopCmdlineMonitor
 
 class SimpleProjectReader(

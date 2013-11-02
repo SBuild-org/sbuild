@@ -10,7 +10,7 @@ import org.scalatest.FreeSpec
 import scala.util.Failure
 import de.tototec.sbuild.ProjectConfigurationException
 import java.io.FileNotFoundException
-import de.tototec.sbuild.BuildFileProject
+import de.tototec.sbuild.internal.BuildFileProject
 
 class TestProjectEmbeddedResolver extends FreeSpec {
 

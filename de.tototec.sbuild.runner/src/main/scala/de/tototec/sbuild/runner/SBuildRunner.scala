@@ -18,7 +18,6 @@ import org.fusesource.jansi.AnsiConsole
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdlineParserException
-import de.tototec.sbuild.BuildFileProject
 import de.tototec.sbuild.BuildScriptAware
 import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExecutionFailedException
@@ -38,6 +37,7 @@ import de.tototec.sbuild.execute.ExecutedTarget
 import de.tototec.sbuild.execute.InMemoryTransientTargetCache
 import de.tototec.sbuild.execute.LoggingTransientTargetCache
 import de.tototec.sbuild.execute.TargetExecutor
+import de.tototec.sbuild.internal.BuildFileProject
 import de.tototec.sbuild.OutputStreamCmdlineMonitor
 import de.tototec.sbuild.RichFile._
 

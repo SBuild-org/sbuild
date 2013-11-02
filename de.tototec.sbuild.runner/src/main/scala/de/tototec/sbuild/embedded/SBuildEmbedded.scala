@@ -1,26 +1,19 @@
 package de.tototec.sbuild.embedded
 
 import java.io.File
-import de.tototec.sbuild.Project
-import de.tototec.sbuild.BuildFileProject
-import de.tototec.sbuild.TargetRef
-import de.tototec.sbuild.TargetRefs
-import de.tototec.sbuild.runner.Config
-import de.tototec.sbuild.runner.ClasspathConfig
-import de.tototec.sbuild.runner.SimpleProjectReader
-import de.tototec.sbuild.ProjectReader
-import scala.collection.JavaConverters._
+import java.util.Properties
+import scala.collection.JavaConverters.propertiesAsScalaMapConverter
+import scala.util.Try
 import scala.xml.XML
 import de.tototec.sbuild.Path
-import de.tototec.sbuild.SBuildException
-import de.tototec.sbuild.Target
-import java.util.Properties
-import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.Project
 import de.tototec.sbuild.TargetNotFoundException
-import scala.util.Try
-import scala.util.Failure
+import de.tototec.sbuild.TargetRef
 import de.tototec.sbuild.execute.TargetExecutor
+import de.tototec.sbuild.runner.ClasspathConfig
 import de.tototec.sbuild.runner.FileLocker
+import de.tototec.sbuild.runner.SimpleProjectReader
+import de.tototec.sbuild.ProjectReader
 
 object SBuildEmbedded {
   private[embedded] def debug(msg: => String) = Console.println(msg)
