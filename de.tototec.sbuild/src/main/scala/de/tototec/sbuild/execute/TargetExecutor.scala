@@ -31,9 +31,18 @@ object TargetExecutor {
 
   //  case class ProcessConfig(parallelJobs: Option[Int] = None)
 
+  /**
+   * Track the current progress.
+   */
   class ExecProgress(val maxCount: Int, private[this] var _currentNr: Int = 1) {
     def currentNr = _currentNr
     def addToCurrentNr(addToCurrentNr: Int): Unit = synchronized { _currentNr += addToCurrentNr }
+    def format: String = if (_currentNr > 0 && maxCount > 0) {
+      val p = (_currentNr - 1) * 100 / maxCount
+      fPercent("[" + math.min(100, math.max(0, p)) + "%] ").toString
+    } else {
+      fPercent("[" + _currentNr + "/" + maxCount + "] ").toString
+    }
   }
 
   /**
@@ -180,6 +189,25 @@ object TargetExecutor {
 
   }
 
+  import org.fusesource.jansi.Ansi._
+  import org.fusesource.jansi.Ansi.Color._
+
+  // It seems, under windows bright colors are not displayed correctly
+  private val isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+
+  private def fPercent(text: => String) =
+    if (isWindows) ansi.fg(CYAN).a(text).reset
+    else ansi.fgBright(CYAN).a(text).reset
+  private def fTarget(text: => String) = ansi.fg(GREEN).a(text).reset
+  private def fMainTarget(text: => String) = ansi.fg(GREEN).bold.a(text).reset
+  private def fOk(text: => String) = ansi.fgBright(GREEN).a(text).reset
+  private def fError(text: => String) =
+    if (isWindows) ansi.fg(RED).a(text).reset
+    else ansi.fgBright(RED).a(text).reset
+  private def fErrorEmph(text: => String) =
+    if (isWindows) ansi.fg(RED).bold.a(text).reset
+    else ansi.fgBright(RED).bold.a(text).reset
+
 }
 
 class TargetExecutor(monitor: CmdlineMonitor,
@@ -320,15 +348,8 @@ class TargetExecutor(monitor: CmdlineMonitor,
       case class ExecBag(ctx: TargetContext, wasUpToDate: Boolean)
 
       def calcProgressPrefix = execProgress match {
-        case Some(state) =>
-          val progress = (state.currentNr, state.maxCount) match {
-            case (c, m) if (c > 0 && m > 0) =>
-              val p = (c - 1) * 100 / m
-              fPercent("[" + math.min(100, math.max(0, p)) + "%] ")
-            case (c, m) => "[" + c + "/" + m + "] "
-          }
-          progress
-        case _ => ""
+        case Some(state) => state.format
+        case None => ""
       }
       val colorTarget = if (dependencyTrace.isEmpty) { fMainTarget _ } else { fTarget _ }
 
@@ -589,25 +610,6 @@ class TargetExecutor(monitor: CmdlineMonitor,
       math.max(prevLastModified, modifiedAt)
     }
   }
-
-  import org.fusesource.jansi.Ansi._
-  import org.fusesource.jansi.Ansi.Color._
-
-  // It seems, under windows bright colors are not displayed correctly
-  val isWindows = System.getProperty("os.name").toLowerCase().contains("win")
-
-  def fPercent(text: => String) =
-    if (isWindows) ansi.fg(CYAN).a(text).reset
-    else ansi.fgBright(CYAN).a(text).reset
-  def fTarget(text: => String) = ansi.fg(GREEN).a(text).reset
-  def fMainTarget(text: => String) = ansi.fg(GREEN).bold.a(text).reset
-  def fOk(text: => String) = ansi.fgBright(GREEN).a(text).reset
-  def fError(text: => String) =
-    if (isWindows) ansi.fg(RED).a(text).reset
-    else ansi.fgBright(RED).a(text).reset
-  def fErrorEmph(text: => String) =
-    if (isWindows) ansi.fg(RED).bold.a(text).reset
-    else ansi.fgBright(RED).bold.a(text).reset
 
 }
 
