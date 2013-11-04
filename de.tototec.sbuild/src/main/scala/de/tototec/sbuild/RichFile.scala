@@ -53,5 +53,9 @@ class RichFile(val file: File) {
   def listFilesRecursive: Array[File] = RichFile.listFilesRecursive(file, ".*".r)
   def listFilesRecursive(fileNameRegex: Regex): Array[File] = RichFile.listFilesRecursive(file, fileNameRegex)
 
+  def pathRelativeTo(baseDir: File): Option[String] = (baseDir, file) match {
+    case (b, f) if b.isAbsolute && f.isAbsolute => Some(baseDir.toURI.relativize(f.toURI).getPath)
+    case _ => None
+  }
 }
 
