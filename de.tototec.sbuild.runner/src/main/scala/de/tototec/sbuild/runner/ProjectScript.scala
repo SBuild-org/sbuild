@@ -6,10 +6,8 @@ import java.io.FileWriter
 import java.lang.reflect.Method
 import java.net.URL
 import java.net.URLClassLoader
-
 import scala.Array.canBuildFrom
 import scala.io.BufferedSource
-
 import de.tototec.sbuild.BuildfileCompilationException
 import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExportDependencies
@@ -31,6 +29,7 @@ import de.tototec.sbuild.execute.InMemoryTransientTargetCache
 import de.tototec.sbuild.execute.TargetExecutor
 import de.tototec.sbuild.internal.BuildFileProject
 import de.tototec.sbuild.internal.OSGiVersion
+import de.tototec.sbuild.execute.ParallelExecContext
 
 object ProjectScript {
 
@@ -326,7 +325,7 @@ class ProjectScript(_scriptFile: File,
       curTarget = resolverTarget,
       transientTargetCache = Some(new InMemoryTransientTargetCache()),
       execProgress = execProgressOption,
-      parallelExecContext = Some(new TargetExecutor.ParallelExecContext(threadCount = None))
+      parallelExecContext = Some(new ParallelExecContext(threadCount = None))
     )
 
     val resolvedFiles = executedResolverTarget.dependencies.flatMap { cpOrIncludeT =>

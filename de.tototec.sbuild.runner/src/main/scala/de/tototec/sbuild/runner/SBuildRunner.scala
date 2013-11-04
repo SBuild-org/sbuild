@@ -40,6 +40,7 @@ import de.tototec.sbuild.execute.TargetExecutor
 import de.tototec.sbuild.internal.BuildFileProject
 import de.tototec.sbuild.OutputStreamCmdlineMonitor
 import de.tototec.sbuild.RichFile._
+import de.tototec.sbuild.execute.ParallelExecContext
 
 object SBuildRunner extends SBuildRunner {
 
@@ -489,7 +490,7 @@ class SBuildRunner {
         }
         sbuildMonitor.info(CmdlineMonitor.Verbose,
           "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + explicitJobCount.toString)
-        Some(new TargetExecutor.ParallelExecContext(threadCount = explicitJobCount))
+        Some(new ParallelExecContext(threadCount = explicitJobCount))
     }
 
     // The execution plan (chain) will be evaluated on first need
