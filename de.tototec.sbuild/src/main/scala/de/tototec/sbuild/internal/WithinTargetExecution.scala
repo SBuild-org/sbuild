@@ -1,6 +1,8 @@
 package de.tototec.sbuild.internal
 
 import de.tototec.sbuild.TargetContext
+import de.tototec.sbuild.InvalidApiUsageException
+import de.tototec.sbuild.Project
 
 trait WithinTargetExecution {
   def targetContext: TargetContext
@@ -10,4 +12,21 @@ trait WithinTargetExecution {
 object WithinTargetExecution extends ThreadLocal[WithinTargetExecution] {
   private[sbuild] override def remove: Unit = super.remove
   private[sbuild] override def set(withinTargetExecution: WithinTargetExecution): Unit = super.set(withinTargetExecution)
+
+  /**
+   * To use a WithinTargetExecution, one should use this method.
+   */
+  private[sbuild] def safeWithinTargetExecution[T](callingMethodName: String, project: Option[Project] = None)(doWith: WithinTargetExecution => T): T =
+    get match {
+      case null =>
+        val ex = InvalidApiUsageException.localized("'{0}' can only be used inside an exec block of a target.", callingMethodName)
+        ex.buildScript = project.map(_.projectFile)
+        throw ex
+
+      case withinExecution => doWith(withinExecution)
+    }
+
+  //  private[sbuild] def safeTargetContext(callingMethodName: String, project: Option[Project] = None): TargetContext =
+  //    safeWithinTargetExecution(callingMethodName, project)(_.targetContext)
+
 }
