@@ -60,24 +60,15 @@ class TargetRefs private (val targetRefGroups: Seq[Seq[TargetRef]]) {
   /**
    * Get the files, this TargetRefs is referencing or producing, if any.
    */
-  def files: Seq[File] = {
-    WithinTargetExecution.get match {
-      case null =>
-        val ex = InvalidApiUsageException.localized("'TargetRefs.files' can only be used inside an exec block of a target.")
-        throw ex
-      case _ =>
-        targetRefs.flatMap(tr => tr.files)
-    }
+  def files: Seq[File] = WithinTargetExecution.safeWithinTargetExecution("TargetRefs.files") {
+    withinTargetExec =>
+      targetRefs.flatMap(tr => tr.files)
   }
 
-  def filesRelativeTo(baseDir: File): Seq[String] = {
-    WithinTargetExecution.get match {
-      case null =>
-        val ex = InvalidApiUsageException.localized("'TargetRefs.filesRelativeTo' can only be used inside an exec block of a target.")
-        throw ex
-      case _ =>
-        targetRefs.flatMap(tr => tr.filesRelativeTo(baseDir))
-    }
+  @deprecated("When this kind of utility function is required, RichFile should provide it.", "0.6.0.9002")
+  def filesRelativeTo(baseDir: File): Seq[String] = WithinTargetExecution.safeWithinTargetExecution("TargetRefs.filesRelativeTo") {
+    withinTargetExec =>
+      targetRefs.flatMap(tr => tr.filesRelativeTo(baseDir))
   }
 
 }

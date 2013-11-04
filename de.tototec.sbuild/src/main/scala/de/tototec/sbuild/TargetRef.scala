@@ -68,13 +68,8 @@ class TargetRef(val ref: String)(implicit project: Project) {
    * Should only call from inside an execution block of a target.
    */
   def files: Seq[File] = {
-    WithinTargetExecution.get match {
-      case null =>
-        val ex = InvalidApiUsageException.localized("'TargetRef.files' can only be used inside an exec block of a target.")
-        ex.buildScript = Some(project.projectFile)
-        throw ex
-
-      case withCtx =>
+    WithinTargetExecution.safeWithinTargetExecution("TargetRef.files", Some(project)) {
+      withinTargetExec =>
         // Find the TargetContext of the already executed dependency, that matches this TargetRef
 
         // as all dependencies were already executed,
@@ -87,19 +82,19 @@ class TargetRef(val ref: String)(implicit project: Project) {
             // No target found, so this TargetRef can not be part of the dependencies 
             val ex = ProjectConfigurationException.localized("'TargetRef.files' is used for dependency \"{0}\", that is not declared with 'dependsOn'.", this.toString)
             ex.buildScript = Some(project.projectFile)
-            ex.targetName = Some(withCtx.targetContext.name)
+            ex.targetName = Some(withinTargetExec.targetContext.name)
             throw ex
 
           case Some(referencedTarget) =>
             // search the associated TargetContext for that target
 
-            withCtx.directDepsTargetContexts.find { ctx => ctx.target == referencedTarget } match {
+            withinTargetExec.directDepsTargetContexts.find { ctx => ctx.target == referencedTarget } match {
               case None =>
                 // No target context found, so this TargetRef can not be part of the dependencies 
-                log.debug("referencedTarget = " + referencedTarget + "\ndirectDepsTargetContexts = " + withCtx.directDepsTargetContexts.mkString(",\n  "))
+                log.debug("referencedTarget = " + referencedTarget + "\ndirectDepsTargetContexts = " + withinTargetExec.directDepsTargetContexts.mkString(",\n  "))
                 val ex = ProjectConfigurationException.localized("'TargetRef.files' is used for dependency \"{0}\", that is not declared with 'dependsOn'.", this.toString)
                 ex.buildScript = Some(project.projectFile)
-                ex.targetName = Some(withCtx.targetContext.name)
+                ex.targetName = Some(withinTargetExec.targetContext.name)
                 throw ex
 
               case Some(foundDepCtx) =>
@@ -109,6 +104,7 @@ class TargetRef(val ref: String)(implicit project: Project) {
     }
   }
 
+  @deprecated("When this kind of utility function is required, RichFile should provide it.", "0.6.0.9002")
   def filesRelativeTo(baseDir: File): Seq[String] = {
     val baseUri = baseDir.toURI()
     files.map { f =>
