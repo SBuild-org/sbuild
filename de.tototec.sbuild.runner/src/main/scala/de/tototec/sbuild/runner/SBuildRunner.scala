@@ -596,9 +596,13 @@ class SBuildRunner {
             case _ =>
               sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[100%]") + fError(" Execution failed. SBuild init time: " + bootstrapTime +
                 " msec, Execution time: " + (System.currentTimeMillis - lastRepeatStart) + " msec").toString)
-              val ex = ExecutionFailedException.localized("Some targets failed: {0}", keepGoing.toSeq.flatMap(_.failedTargets).map {
-                case (t, ex) => t.formatRelativeToBaseProject + ": " + ex.getLocalizedMessage()
-              }.mkString("\n  ", "\n  ", ""))
+              val ex = ExecutionFailedException.localized(
+                "Some targets failed or were skipped because of unsatisfied dependencies: {0}{1}",
+                keepGoing.toSeq.flatMap(_.failedTargets).map {
+                  case (t, ex) => "\n  FAILED  " + t.formatRelativeToBaseProject + ": " + ex.getLocalizedMessage()
+                }.mkString,
+                keepGoing.toSeq.flatMap(_.skippedTargets).map("\n  SKIPPED " + _.formatRelativeToBaseProject).mkString
+              )
               throw ex
             //                sbuildMonitor.error(CmdlineMonitor.Default, "The following targets failed:" +
 

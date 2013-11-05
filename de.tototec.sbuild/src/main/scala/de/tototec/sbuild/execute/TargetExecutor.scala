@@ -18,6 +18,7 @@ import de.tototec.sbuild.TargetContextImpl
 import de.tototec.sbuild.UnsupportedSchemeException
 import de.tototec.sbuild.internal.WithinTargetExecution
 import scala.collection.immutable.HashSet
+import scala.collection.immutable.SortedSet
 
 object TargetExecutor {
 
@@ -129,11 +130,21 @@ object TargetExecutor {
 
   class KeepGoing() {
     private[this] val log = Logger[KeepGoing]
+
     private[this] var _failedTargets: Seq[(Target, Throwable)] = Seq()
+    private[this] var _skippedTargets: Seq[Target] = Seq()
+
     def hasFailed(target: Target): Boolean = _failedTargets.exists { case (t, _) => t.eq(target) }
     def getError(target: Target): Option[Throwable] = _failedTargets.find { case (t, _) => t.eq(target) }.map(_._2)
+
+    def hasSkipped(target: Target): Boolean = _skippedTargets.exists(_.eq(target))
+
     def markFailed(target: Target, error: Throwable): Unit = synchronized { _failedTargets ++= Seq(target -> error) }
+    def markSkipped(target: Target) = _skippedTargets.find(_.eq(target)).getOrElse(synchronized { _skippedTargets ++= Seq(target) })
+
     def failedTargets: Seq[(Target, Throwable)] = _failedTargets
+    def skippedTargets: Seq[Target] = _skippedTargets
+
   }
 
   import org.fusesource.jansi.Ansi._
@@ -320,9 +331,9 @@ class TargetExecutor(monitor: CmdlineMonitor,
           }
           someDepsFailed
         } else false
-        val failedEarlier = keepGoing match {
-          case Some(kg) => kg.hasFailed(curTarget)
-          case _ => false
+        val (failedEarlier, skippedEarlier) = keepGoing match {
+          case Some(kg) => (kg.hasFailed(curTarget), kg.hasSkipped(curTarget))
+          case None => (false, false)
         }
 
         log.debug("===> Current execution: " + curTargetFormatted +
@@ -330,14 +341,14 @@ class TargetExecutor(monitor: CmdlineMonitor,
 
         log.debug("Executed dependency count: " + executedDependencies.size);
 
-        lazy val depsLastModified: Long = if (failedEarlier || someDepsFailed) 0 else dependenciesLastModified(executedDependencies)
+        lazy val depsLastModified: Long = if (failedEarlier || someDepsFailed || skippedEarlier) 0 else dependenciesLastModified(executedDependencies)
         val ctx = new TargetContextImpl(curTarget, depsLastModified, executedDependencies.map(_.targetContext))
         if (!executedDependencies.isEmpty)
           log.debug(s"Dependencies have last modified value '${depsLastModified}': " + executedDependencies.map(_.target.formatRelativeToBaseProject).mkString(","))
 
         case class NeedsToRun(needsToRun: Boolean, lastModifiedTime: Long = 0)
 
-        val needsToRun: NeedsToRun = if (failedEarlier || someDepsFailed) NeedsToRun(false) else curTarget.targetFile match {
+        val needsToRun: NeedsToRun = if (failedEarlier || someDepsFailed || skippedEarlier) NeedsToRun(false) else curTarget.targetFile match {
           case Some(file) =>
             // file target
             if (!file.exists) {
@@ -387,20 +398,18 @@ class TargetExecutor(monitor: CmdlineMonitor,
         if (!needsToRun.needsToRun)
           log.debug(s"""Target "${curTargetFormatted}" does not need to run.""")
 
-        val resultState: ExecutedTarget.ResultState = if (failedEarlier) {
-          log.debug("Skipping failed target: " + curTargetFormatted)
-          ExecutedTarget.SkippedFailedEarlier
-        } else if (someDepsFailed) {
-          log.debug("Skipping target: " + curTargetFormatted)
-          ExecutedTarget.SkippedDependenciesFailed
-        } else if (!needsToRun.needsToRun) {
-          log.debug("Skipping target: " + curTargetFormatted)
-          ExecutedTarget.SkippedUpToDate
-        } else { // needsToRun
-          curTarget.action match {
+        val resultState: ExecutedTarget.ResultState =
+          if (failedEarlier) ExecutedTarget.SkippedFailedEarlier
+          else if (skippedEarlier) ExecutedTarget.SkippedDependenciesFailed
+          else if (someDepsFailed) {
+            keepGoing.map(_.markSkipped(curTarget))
+            ExecutedTarget.SkippedDependenciesFailed
+          } else if (!needsToRun.needsToRun) ExecutedTarget.SkippedUpToDate
+          else curTarget.action match {
             case null =>
               // Additional sanity check
-              if (!curTarget.phony) {
+              if (curTarget.phony) ExecutedTarget.SkippedEmptyExec
+              else {
                 val ex = new ProjectConfigurationException(s"""Target "${curTarget.name}" has no defined execution. Don't know how to create or update file "${curTarget.file}".""")
                 ex.buildScript = Some(curTarget.project.projectFile)
                 ex.targetName = Some(curTarget.name)
@@ -410,9 +419,6 @@ class TargetExecutor(monitor: CmdlineMonitor,
                     kg.markFailed(curTarget, ex)
                     ExecutedTarget.Failed
                 }
-              } else {
-                log.debug("Skipping target execution (no action defined): " + curTargetFormatted)
-                ExecutedTarget.SkippedEmptyExec
               }
             case exec =>
               WithinTargetExecution.set(new WithinTargetExecution {
@@ -428,7 +434,6 @@ class TargetExecutor(monitor: CmdlineMonitor,
 
                 val resultState: ExecutedTarget.ResultState = cachedState match {
                   case Some(cache) =>
-                    log.debug("Skipping cached target: " + colorTarget(curTargetFormatted))
                     ctx.start
                     ctx.targetLastModified = cachedState.get.targetLastModified
                     ctx.attachFileWithoutLastModifiedCheck(cache.attachedFiles)
@@ -446,7 +451,6 @@ class TargetExecutor(monitor: CmdlineMonitor,
                     ctx.start
                     exec.apply(ctx)
                     ctx.end
-                    log.debug(s"Executed target '${curTargetFormatted}' in ${ctx.execDurationMSec} msec")
 
                     // update persistent cache
                     if (curTarget.isCacheable) persistentTargetCache.writeCachedState(ctx)
@@ -455,25 +459,21 @@ class TargetExecutor(monitor: CmdlineMonitor,
                 }
 
                 ctx.targetLastModified match {
-                  case Some(lm) =>
-                    log.debug(s"The context of target '${curTargetFormatted}' reports a last modified value of '${lm}'.")
-                  case _ =>
+                  case Some(lm) => log.debug(s"The context of target '${curTargetFormatted}' reports a last modified value of '${lm}'.")
+                  case None =>
                 }
 
                 ctx.attachedFiles match {
                   case Seq() =>
-                  case files =>
-                    log.debug(s"The context of target '${curTargetFormatted}' has ${files.size} attached files")
+                  case files => log.debug(s"The context of target '${curTargetFormatted}' has ${files.size} attached files")
                 }
 
                 if (!curTarget.phony && needsToRun.lastModifiedTime > 0)
-                  curTarget.targetFile.
-                    find(f => f.lastModified == needsToRun.lastModifiedTime).
-                    map { file =>
-                      val msg = s"Outcome of target ${curTargetFormatted} looks out-of-date, as the timestamp hasn't changed."
-                      monitor.warn(CmdlineMonitor.Default, msg)
-                      log.warn(msg)
-                    }
+                  curTarget.targetFile.find(f => f.lastModified == needsToRun.lastModifiedTime).map { file =>
+                    val msg = s"Outcome of target ${curTargetFormatted} looks out-of-date, as the timestamp hasn't changed."
+                    monitor.warn(CmdlineMonitor.Default, msg)
+                    log.warn(msg)
+                  }
 
                 resultState
 
@@ -520,13 +520,14 @@ class TargetExecutor(monitor: CmdlineMonitor,
                 WithinTargetExecution.remove
               }
           }
-        }
 
         log.trace("Result state: " + resultState + " for target " + curTargetFormatted)
         ExecBag(ctx, resultState)
       }
 
       execProgress.map(_.addToCurrentNr(1))
+
+      log.debug("Target: " + curTargetFormatted + " => " + execBag.resultState + " after + " + execBag.ctx.execDurationMSec + " msec")
 
       if (!skipExec) {
         def skipLevel = if (dependencyTrace.isEmpty) monitorConfig.topLevelSkipped else monitorConfig.subLevelSkipped
