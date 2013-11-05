@@ -573,11 +573,12 @@ class SBuildRunner {
       }
       lastRepeatStart = System.currentTimeMillis
 
+      // TODO: evaluate lazyDryRunChain in parallel and update the progress onSuccess.
       try {
         // force evaluation of lazy val chain, if required, and switch afterwards from bootstrap to execution time benchmarking.
         val execProgress =
           if (config.verbosity == CmdlineMonitor.Quiet) None
-          else Some(new TargetExecutor.ExecProgress(maxCount = lazyDryRunChain.foldLeft(0) { (a, b) => a + b.treeSize }))
+          else Some(new TargetExecutor.MutableExecProgress(maxCount = lazyDryRunChain.foldLeft(0) { (a, b) => a + b.treeSize }))
 
         val keepGoing = if (config.keepGoing) Some(new TargetExecutor.KeepGoing()) else None
 

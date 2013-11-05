@@ -319,7 +319,7 @@ class ProjectScript(_scriptFile: File,
       skipExec = true
     )
 
-    val execProgressOption = Some(new TargetExecutor.ExecProgress(maxCount = dryRun.treeSize))
+    val execProgressOption = Some(new TargetExecutor.MutableExecProgress(maxCount = dryRun.treeSize))
 
     val executedResolverTarget = targetExecutor.preorderedDependenciesTree(
       curTarget = resolverTarget,

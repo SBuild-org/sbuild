@@ -34,14 +34,21 @@ object TargetExecutor {
   /**
    * Track the current progress.
    */
-  class ExecProgress(val maxCount: Int, private[this] var _currentNr: Int = 1) {
+  trait ExecProgress {
+    def addToCurrentNr(addToCurrentNr: Int)
+    //    def currentNr: Int
+    def format: String
+  }
+  
+  class MutableExecProgress(private[this] var maxCount: Int, private[this] var _currentNr: Int = 1) extends ExecProgress {
     def currentNr = _currentNr
-    def addToCurrentNr(addToCurrentNr: Int): Unit = synchronized { _currentNr += addToCurrentNr }
-    def format: String = if (_currentNr > 0 && maxCount > 0) {
+    override def addToCurrentNr(addToCurrentNr: Int): Unit = synchronized { _currentNr += addToCurrentNr }
+    override def format: String = if (_currentNr > 0 && maxCount > 0) {
       val p = (_currentNr - 1) * 100 / maxCount
       fPercent("[" + math.min(100, math.max(0, p)) + "%] ").toString
     } else {
-      fPercent("[" + _currentNr + "/" + maxCount + "] ").toString
+      // fPercent("[" + _currentNr + "/" + maxCount + "] ").toString
+      fPercent("[??] ").toString
     }
   }
 
@@ -534,25 +541,30 @@ class TargetExecutor(monitor: CmdlineMonitor,
         def execDurationMSec = execBag.ctx.execDurationMSec
 
         execBag.resultState match {
-          case ExecutedTarget.SkippedDependenciesFailed =>
-            monitor.info(skipLevel, calcProgressPrefix + fError("Skipped unsatisfied target: ") + colorTarget(curTarget.formatRelativeToBaseProject))
-          case ExecutedTarget.SkippedFailedEarlier =>
-            monitor.info(skipLevel, calcProgressPrefix + fError("Skipped perviously failed target: ") + colorTarget(curTarget.formatRelativeToBaseProject))
-          case ExecutedTarget.SkippedUpToDate =>
-            monitor.info(skipLevel, calcProgressPrefix + "Skipped target: " + colorTarget(curTargetFormatted))
-          case ExecutedTarget.SkippedEmptyExec =>
-            monitor.info(CmdlineMonitor.Verbose, calcProgressPrefix + "Skipped empty target: " + colorTarget(curTargetFormatted))
-          case ExecutedTarget.SkippedPersistentCachedUpToDate =>
-            monitor.info(CmdlineMonitor.Verbose, calcProgressPrefix + "Skipped cached target: " + colorTarget(curTargetFormatted))
-
-          case ExecutedTarget.Failed =>
-            monitor.info(monitorConfig.executing, calcProgressPrefix + fError("Failed target: ") + colorTarget(curTarget.formatRelativeToBaseProject) + fError(" after " + execDurationMSec + " msec"))
-
           case ExecutedTarget.Success =>
             if (parallelExecContext.isDefined && !curTarget.isTransparentExec) {
               // when parallel, print some finish message
-              monitor.info(monitorConfig.executing, calcProgressPrefix + "Finished target: " + colorTarget(curTarget.formatRelativeToBaseProject) + " after " + execDurationMSec + " msec")
+              monitor.info(monitorConfig.executing, calcProgressPrefix + "Finished target: " + colorTarget(curTargetFormatted) + " after " + execDurationMSec + " msec")
             }
+
+          case ExecutedTarget.Failed =>
+            monitor.info(monitorConfig.executing, calcProgressPrefix + fError("Failed target: ") + colorTarget(curTargetFormatted) + fError(" after " + execDurationMSec + " msec"))
+
+          case ExecutedTarget.SkippedDependenciesFailed =>
+            monitor.info(skipLevel, calcProgressPrefix + fError("Skipped unsatisfied target: ") + colorTarget(curTargetFormatted))
+          case ExecutedTarget.SkippedFailedEarlier =>
+            monitor.info(skipLevel, calcProgressPrefix + fError("Skipped perviously failed target: ") + colorTarget(curTargetFormatted))
+
+          case t if t.successful && dependencyTrace.isEmpty => // not top level skipped
+            monitor.info(monitorConfig.topLevelSkipped, calcProgressPrefix + "Finished target: " + colorTarget(curTargetFormatted))
+
+          case ExecutedTarget.SkippedUpToDate =>
+            monitor.info(skipLevel, calcProgressPrefix + "Skipped target: " + colorTarget(curTargetFormatted))
+          case ExecutedTarget.SkippedEmptyExec =>
+            monitor.info(skipLevel, calcProgressPrefix + "Skipped empty target: " + colorTarget(curTargetFormatted))
+          case ExecutedTarget.SkippedPersistentCachedUpToDate =>
+            monitor.info(skipLevel, calcProgressPrefix + "Skipped cached target: " + colorTarget(curTargetFormatted))
+
         }
       }
 
