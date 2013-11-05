@@ -41,6 +41,7 @@ import de.tototec.sbuild.internal.BuildFileProject
 import de.tototec.sbuild.OutputStreamCmdlineMonitor
 import de.tototec.sbuild.RichFile._
 import de.tototec.sbuild.execute.ParallelExecContext
+import de.tototec.sbuild.execute.TransientTargetCache
 
 object SBuildRunner extends SBuildRunner {
 
@@ -503,7 +504,7 @@ class SBuildRunner {
         skipExec = true,
         treePrinter = treePrinter,
         dependencyCache = dependencyCache
-      // treeParallelExecContext = parallelExecContext
+      //        treeParallelExecContext = parallelExecContext
       )
       log.debug("Target Dependency Cache: " + dependencyCache.cached.map {
         case (t, d) => "\n  " + t.formatRelativeToBaseProject + " -> " + d.flatten.map {
@@ -578,23 +579,37 @@ class SBuildRunner {
           if (config.verbosity == CmdlineMonitor.Quiet) None
           else Some(new TargetExecutor.ExecProgress(maxCount = lazyDryRunChain.foldLeft(0) { (a, b) => a + b.treeSize }))
 
+        val keepGoing = if (config.keepGoing) Some(new TargetExecutor.KeepGoing()) else None
+
         if (!targets.isEmpty) {
           sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[0%]") + " Executing...")
           sbuildMonitor.info(CmdlineMonitor.Verbose, "Requested targets: " + targets.map(_.formatRelativeToBaseProject).mkString(" ~ "))
-        }
 
-        targetExecutor.preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
-          transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
-          treeParallelExecContext = parallelExecContext)
-        if (!targets.isEmpty) {
-          sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
-            " msec, Execution time: " + (System.currentTimeMillis - lastRepeatStart) + " msec")
+          val execResult = targetExecutor.preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
+            transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
+            treeParallelExecContext = parallelExecContext, keepGoing = keepGoing)
+
+          execResult.filter(!_.resultState.successful) match {
+            case Seq() =>
+              sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
+                " msec, Execution time: " + (System.currentTimeMillis - lastRepeatStart) + " msec")
+            case _ =>
+              sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[100%]") + fError(" Execution failed. SBuild init time: " + bootstrapTime +
+                " msec, Execution time: " + (System.currentTimeMillis - lastRepeatStart) + " msec").toString)
+              val ex = ExecutionFailedException.localized("Some targets failed: {0}", keepGoing.toSeq.flatMap(_.failedTargets).map {
+                case (t, ex) => t.formatRelativeToBaseProject + ": " + ex.getLocalizedMessage()
+              }.mkString("\n  ", "\n  ", ""))
+              throw ex
+            //                sbuildMonitor.error(CmdlineMonitor.Default, "The following targets failed:" +
+
+          }
+
         }
 
       } catch localExceptionHandler
     }
 
-    sbuildMonitor.info(CmdlineMonitor.Verbose, "Finished")
+    // sbuildMonitor.info(CmdlineMonitor.Verbose, "Finished")
     // return with 0, indicating no errors
     0
   }
