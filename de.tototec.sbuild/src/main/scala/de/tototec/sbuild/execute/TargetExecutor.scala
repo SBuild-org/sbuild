@@ -19,6 +19,8 @@ import de.tototec.sbuild.UnsupportedSchemeException
 import de.tototec.sbuild.internal.WithinTargetExecution
 import scala.collection.immutable.HashSet
 import scala.collection.immutable.SortedSet
+import de.tototec.sbuild.internal.I18n
+import java.text.MessageFormat
 
 object TargetExecutor {
 
@@ -39,7 +41,7 @@ object TargetExecutor {
     //    def currentNr: Int
     def format: String
   }
-  
+
   class MutableExecProgress(private[this] var maxCount: Int, private[this] var _currentNr: Int = 1) extends ExecProgress {
     def currentNr = _currentNr
     override def addToCurrentNr(addToCurrentNr: Int): Unit = synchronized { _currentNr += addToCurrentNr }
@@ -181,6 +183,8 @@ class TargetExecutor(monitor: CmdlineMonitor,
                      ) {
 
   private[this] val log = Logger[TargetExecutor]
+  private[this] val i18n = I18n[TargetExecutor]
+  import i18n._
 
   import TargetExecutor._
 
@@ -366,7 +370,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
               val now = System.currentTimeMillis
               if (fileLastModified > now) {
                 // TODO: consider an offset of about 3 seconds (as Make does)
-                monitor.warn(s"""Modification time of file "${file}" is in the future. Up-to-date checks may be incorrect.""")
+                monitor.warn(tr("Modification time of file \"{0}\" is in the future. Up-to-date checks may be incorrect.", file))
               }
               if (fileLastModified < depsLastModified) {
                 // On Linux, Oracle JVM always reports only seconds file time stamp,
@@ -417,7 +421,8 @@ class TargetExecutor(monitor: CmdlineMonitor,
               // Additional sanity check
               if (curTarget.phony) ExecutedTarget.SkippedEmptyExec
               else {
-                val ex = new ProjectConfigurationException(s"""Target "${curTarget.name}" has no defined execution. Don't know how to create or update file "${curTarget.file}".""")
+                val msg = marktr("Target \"{0}\" has no defined execution. Don't know how to create or update file \"{1}\".")
+                val ex = new ProjectConfigurationException(notr(msg, curTarget.name, curTarget.file), null, tr(msg, curTarget.name, curTarget.file))
                 ex.buildScript = Some(curTarget.project.projectFile)
                 ex.targetName = Some(curTarget.name)
                 keepGoing match {
@@ -451,7 +456,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
                     if (!curTarget.isSideeffectFree) transientTargetCache.map(_.evict)
                     val level = if (curTarget.isTransparentExec) CmdlineMonitor.Verbose else monitorConfig.executing
                     val progressPrefix = calcProgressPrefix
-                    monitor.info(level, progressPrefix + "Executing target: " + colorTarget(curTargetFormatted))
+                    monitor.info(level, progressPrefix + tr("Executing target: ") + colorTarget(curTargetFormatted))
                     log.debug("Executing Target: " + curTargetFormatted)
                     if (curTarget.help != null && curTarget.help.trim != "")
                       monitor.info(level, progressPrefix + curTarget.help)
@@ -477,9 +482,9 @@ class TargetExecutor(monitor: CmdlineMonitor,
 
                 if (!curTarget.phony && needsToRun.lastModifiedTime > 0)
                   curTarget.targetFile.find(f => f.lastModified == needsToRun.lastModifiedTime).map { file =>
-                    val msg = s"Outcome of target ${curTargetFormatted} looks out-of-date, as the timestamp hasn't changed."
-                    monitor.warn(CmdlineMonitor.Default, msg)
-                    log.warn(msg)
+                    val msg = marktr("Outcome of target {0} looks out-of-date, as the timestamp hasn't changed.")
+                    monitor.warn(CmdlineMonitor.Default, tr(msg, curTargetFormatted))
+                    log.warn(notr(msg, curTargetFormatted))
                   }
 
                 resultState
@@ -505,13 +510,13 @@ class TargetExecutor(monitor: CmdlineMonitor,
                 case e: Throwable =>
                   ctx.end
                   log.debug("Caught an exception while executing target: " + curTargetFormatted, e)
+                  val msg = marktr("Execution of target {0} failed with an exception: {1}.\n{2}")
                   val ex = new ExecutionFailedException(
-                    s"Execution of target ${curTargetFormatted} failed with an exception: ${e.getClass.getName}.\n${e.getMessage}",
-                    e,
-                    s"Execution of target ${curTargetFormatted} failed with an exception: ${e.getClass.getName}.\n${e.getLocalizedMessage}")
+                    notr(msg, curTargetFormatted, e.getClass.getName, e.getMessage), e,
+                    tr(msg, curTargetFormatted, e.getClass.getName, e.getLocalizedMessage))
                   ex.buildScript = Some(curTarget.project.projectFile)
                   ex.targetName = Some(curTarget.formatRelativeToBaseProject)
-                  monitor.info(CmdlineMonitor.Verbose, s"Execution of target '${curTargetFormatted}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
+                  monitor.info(CmdlineMonitor.Verbose, tr("Execution of target \"{0}\" aborted after {1} msec with errors: {2}", curTargetFormatted, ctx.execDurationMSec, e.getMessage))
                   monitor.showStackTrace(CmdlineMonitor.Verbose, e)
 
                   keepGoing match {
@@ -544,26 +549,26 @@ class TargetExecutor(monitor: CmdlineMonitor,
           case ExecutedTarget.Success =>
             if (parallelExecContext.isDefined && !curTarget.isTransparentExec) {
               // when parallel, print some finish message
-              monitor.info(monitorConfig.executing, calcProgressPrefix + "Finished target: " + colorTarget(curTargetFormatted) + " after " + execDurationMSec + " msec")
+              monitor.info(monitorConfig.executing, calcProgressPrefix + tr("Finished target: ") + colorTarget(curTargetFormatted) + tr(" after {0} msec", execDurationMSec))
             }
 
           case ExecutedTarget.Failed =>
-            monitor.info(monitorConfig.executing, calcProgressPrefix + fError("Failed target: ") + colorTarget(curTargetFormatted) + fError(" after " + execDurationMSec + " msec"))
+            monitor.info(monitorConfig.executing, calcProgressPrefix + fError(tr("Failed target: ")) + colorTarget(curTargetFormatted) + fError(tr(" after {0} msec", execDurationMSec)))
 
           case ExecutedTarget.SkippedDependenciesFailed =>
-            monitor.info(skipLevel, calcProgressPrefix + fError("Skipped unsatisfied target: ") + colorTarget(curTargetFormatted))
+            monitor.info(skipLevel, calcProgressPrefix + fError(tr("Skipped unsatisfied target: ")) + colorTarget(curTargetFormatted))
           case ExecutedTarget.SkippedFailedEarlier =>
-            monitor.info(skipLevel, calcProgressPrefix + fError("Skipped perviously failed target: ") + colorTarget(curTargetFormatted))
+            monitor.info(skipLevel, calcProgressPrefix + fError(tr("Skipped previously failed target: ")) + colorTarget(curTargetFormatted))
 
           case t if t.successful && dependencyTrace.isEmpty => // not top level skipped
-            monitor.info(monitorConfig.topLevelSkipped, calcProgressPrefix + "Finished target: " + colorTarget(curTargetFormatted))
+            monitor.info(monitorConfig.topLevelSkipped, calcProgressPrefix + tr("Finished target: ") + colorTarget(curTargetFormatted))
 
           case ExecutedTarget.SkippedUpToDate =>
-            monitor.info(skipLevel, calcProgressPrefix + "Skipped target: " + colorTarget(curTargetFormatted))
+            monitor.info(skipLevel, calcProgressPrefix + tr("Skipped target: ") + colorTarget(curTargetFormatted))
           case ExecutedTarget.SkippedEmptyExec =>
-            monitor.info(skipLevel, calcProgressPrefix + "Skipped empty target: " + colorTarget(curTargetFormatted))
+            monitor.info(skipLevel, calcProgressPrefix + tr("Skipped empty target: ") + colorTarget(curTargetFormatted))
           case ExecutedTarget.SkippedPersistentCachedUpToDate =>
-            monitor.info(skipLevel, calcProgressPrefix + "Skipped cached target: " + colorTarget(curTargetFormatted))
+            monitor.info(skipLevel, calcProgressPrefix + tr("Skipped cached target: ") + colorTarget(curTargetFormatted))
 
         }
       }
@@ -615,7 +620,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
           val lm = file.lastModified
           if (lm > now) {
             // TODO: consider an offset of about 3 seconds (as Make does)
-            monitor.warn(s"""Modification time of file "${file}" is in the future. Up-to-date checks may be incorrect.""")
+            monitor.warn(tr("Modification time of file \"{0}\" is in the future. Up-to-date checks may be incorrect.", file))
           }
           lm
         case None =>
@@ -625,7 +630,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
               // context has an associated last modified, which we will use
               if (lm > now) {
                 // TODO: consider an offset of about 3 seconds (as Make does)
-                monitor.warn(s"""Reported modification time of target "${dep.targetContext.target.formatRelativeToBaseProject}" is in the future. Up-to-date checks may be incorrect.""")
+                monitor.warn(tr("Reported modification time of target \"{0}\" is in the future. Up-to-date checks may be incorrect.", dep.targetContext.target.formatRelativeToBaseProject))
               }
               lm
             case None =>
