@@ -52,6 +52,27 @@ trait TargetContext {
 
 }
 
+// TODO: decide, if we want that "magic" access
+///**
+// * Easy access to the [[TargetContext]].
+// * Warning: all methods require to be called inside a Target execution block!
+// */
+//object TargetContext extends TargetContext {
+//  override def name: String = WithinTargetExecution.safeTargetContext("TargetContext.name").name
+//  override protected[sbuild] def target: Target = WithinTargetExecution.safeTargetContext("TargetContext.name").target
+//  override def targetFile: Option[File] = WithinTargetExecution.safeTargetContext("TargetContext.targetFile").targetFile
+//  override def prerequisites: Seq[TargetRef] = WithinTargetExecution.safeTargetContext("TargetContext.prerequisites").prerequisites
+//  override def fileDependencies: Seq[File] = WithinTargetExecution.safeTargetContext("TargetContext.fileDependencies").fileDependencies
+//  override def prerequisitesLastModified: Long = WithinTargetExecution.safeTargetContext("TargetContext.prerequisitesLastModified").prerequisitesLastModified
+//  override def execDurationMSec: Long = WithinTargetExecution.safeTargetContext("TargetContext.execDurationMSec").execDurationMSec
+//  override def targetLastModified: Option[Long] = WithinTargetExecution.safeTargetContext("TargetContext.targetLastModified").targetLastModified
+//  override def targetLastModified_=(targetLastModified: Long) = WithinTargetExecution.safeTargetContext("TargetContext.targetLastModified").targetLastModified_=(targetLastModified)
+//  override def project: Project = WithinTargetExecution.safeTargetContext("TargetContext.project").project
+//  override def attachedFiles: Seq[File] = WithinTargetExecution.safeTargetContext("TargetContext.attachedFiles").attachedFiles
+//  override def attachFile(file: File) = WithinTargetExecution.safeTargetContext("TargetContext.attachFile").attachFile(file)
+//  override def targetFiles: Seq[File] = WithinTargetExecution.safeTargetContext("TargetContext.targetFiles").targetFiles
+//}
+
 class TargetContextImpl(
   override val target: Target,
   override val prerequisitesLastModified: Long,
@@ -69,13 +90,13 @@ class TargetContextImpl(
     case null => startTime = new Date()
     case _ =>
   }
-  private var startTime: Date = _
+  private[this] var startTime: Date = _
 
-  def end = endTime match {
+  def end = _endTime match {
     case null => _endTime = new Date()
     case _ =>
   }
-  private var _endTime: Date = _
+  private[this] var _endTime: Date = _
   private[sbuild] def endTime: Option[Date] = Option(_endTime)
 
   /**
