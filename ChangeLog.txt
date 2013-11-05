@@ -10,11 +10,16 @@ SBuild trunk:
   parameters: graphicalOutputSettings, standardOutputSettings, 
   standardErrorSettings, outputFile, outputFileSettings, xmlOutputDir,
   reporterClass, additionalScalaTestArgs. Deprecated parameter: reporter.
-* New TestNG addon
+* New TestNG addon.
 * The project runtime classpath does include the scala library only once.
 * New RichFile API with contains so filerealted methdod and can be used in
   implicit conversion.
 * Some API cleanups.
+* New --keep-going commandline option to continue to build unaffected targets
+  even if some targets failed. At the end, a summary of all failed and skipped
+  targets is shown. This might be useful e.g. to run all test targets (in a CI
+  server) which otherwise might fail the build to early.
+* Added new parameters "failOnError" and "env" to ForkSupport.runAndWait.
 
 SBuild 0.6.0 - 2013-09-19:
 

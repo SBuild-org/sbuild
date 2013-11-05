@@ -78,11 +78,13 @@ object ForkSupport {
                  interactive: Boolean = false,
                  errorsIntoOutput: Boolean = true,
                  directory: File = new File("."),
-                 failOnError: Boolean = false)(implicit project: Project): Int = {
+                 failOnError: Boolean = false,
+                 env: Map[String, String] = Map())(implicit project: Project): Int = {
     val pb = new ProcessBuilder(command: _*)
     log.debug("Run command: " + command.mkString(" "))
     // if directory is not absolute, Path will make it so, relative to the project directory.
     pb.directory(Path(directory))
+    if (!env.isEmpty) env.foreach { case (k, v) => pb.environment().put(k, v) }
     val p = pb.start
 
     //    val shutdownHook = new Thread("Kill external process shutdown hook") {
