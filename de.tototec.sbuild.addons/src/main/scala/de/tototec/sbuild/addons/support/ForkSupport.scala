@@ -135,7 +135,7 @@ object ForkSupport {
       p.getInputStream.close
     }
 
-    if (failOnError) throw new RuntimeException("Execution of command \"" + command.headOption.getOrElse("") + "\" failed with exit code " + result)
+    if (failOnError && result != 0) throw new RuntimeException("Execution of command \"" + command.headOption.getOrElse("") + "\" failed with exit code " + result)
     result
   }
 
