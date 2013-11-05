@@ -3,12 +3,10 @@ package de.tototec.sbuild.execute
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.concurrent.Lock
 import scala.concurrent.forkjoin.ForkJoinPool
-
 import org.fusesource.jansi.Ansi.Color.CYAN
 import org.fusesource.jansi.Ansi.Color.GREEN
 import org.fusesource.jansi.Ansi.Color.RED
 import org.fusesource.jansi.Ansi.ansi
-
 import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExecutionFailedException
 import de.tototec.sbuild.Logger
@@ -19,6 +17,7 @@ import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.TargetContextImpl
 import de.tototec.sbuild.UnsupportedSchemeException
 import de.tototec.sbuild.internal.WithinTargetExecution
+import scala.collection.immutable.HashSet
 
 object TargetExecutor {
 
@@ -128,7 +127,14 @@ object TargetExecutor {
 
   }
 
- 
+  class KeepGoing() {
+    private[this] val log = Logger[KeepGoing]
+    private[this] var _failedTargets: Seq[(Target, Throwable)] = Seq()
+    def hasFailed(target: Target): Boolean = _failedTargets.exists { case (t, _) => t.eq(target) }
+    def getError(target: Target): Option[Throwable] = _failedTargets.find { case (t, _) => t.eq(target) }.map(_._2)
+    def markFailed(target: Target, error: Throwable): Unit = synchronized { _failedTargets ++= Seq(target -> error) }
+    def failedTargets: Seq[(Target, Throwable)] = _failedTargets
+  }
 
   import org.fusesource.jansi.Ansi._
   import org.fusesource.jansi.Ansi.Color._
@@ -174,7 +180,8 @@ class TargetExecutor(monitor: CmdlineMonitor,
                                    treePrinter: Option[(Int, Target) => Unit] = None,
                                    dependencyCache: DependencyCache = new DependencyCache(),
                                    transientTargetCache: Option[TransientTargetCache] = None,
-                                   treeParallelExecContext: Option[ParallelExecContext] = None): Seq[ExecutedTarget] =
+                                   treeParallelExecContext: Option[ParallelExecContext] = None,
+                                   keepGoing: Option[KeepGoing] = None): Seq[ExecutedTarget] =
     request.map { req =>
       preorderedDependenciesTree(
         curTarget = req,
@@ -185,7 +192,8 @@ class TargetExecutor(monitor: CmdlineMonitor,
         treePrinter = treePrinter,
         dependencyCache = dependencyCache,
         transientTargetCache = transientTargetCache,
-        parallelExecContext = treeParallelExecContext
+        parallelExecContext = treeParallelExecContext,
+        keepGoing = keepGoing
       )
     }
 
@@ -204,11 +212,11 @@ class TargetExecutor(monitor: CmdlineMonitor,
                                  treePrinter: Option[(Int, Target) => Unit] = None,
                                  dependencyCache: DependencyCache = new DependencyCache(),
                                  transientTargetCache: Option[TransientTargetCache] = None,
-                                 parallelExecContext: Option[ParallelExecContext] = None): ExecutedTarget = {
+                                 parallelExecContext: Option[ParallelExecContext] = None,
+                                 keepGoing: Option[KeepGoing] = None): ExecutedTarget = {
 
     def inner: ExecutedTarget = {
 
-      //      val monitor = curTarget.project.monitor
       val curTargetFormatted = curTarget.formatRelativeToBaseProject
 
       treePrinter match {
@@ -225,7 +233,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
 
       val dependencies: Seq[Seq[Target]] = dependencyCache.targetDeps(curTarget, dependencyTrace)
 
-      val executedDependencies = if (dependencies.isEmpty) Seq()
+      val executedDependencies: Seq[ExecutedTarget] = if (dependencies.isEmpty) Seq()
       else {
         log.trace("Processing dependencies of target: " + curTargetFormatted + " which are: " +
           dependencies.map(_.map(_.formatRelativeToBaseProject).mkString(" ~ ")).mkString(" ~~ "))
@@ -242,7 +250,8 @@ class TargetExecutor(monitor: CmdlineMonitor,
                 treePrinter = treePrinter,
                 dependencyCache = dependencyCache,
                 transientTargetCache = transientTargetCache,
-                parallelExecContext = parallelExecContext)
+                parallelExecContext = parallelExecContext,
+                keepGoing = keepGoing)
             }
           case Some(parCtx) =>
 
@@ -262,7 +271,8 @@ class TargetExecutor(monitor: CmdlineMonitor,
                   treePrinter = treePrinter,
                   dependencyCache = dependencyCache,
                   transientTargetCache = transientTargetCache,
-                  parallelExecContext = parallelExecContext)
+                  parallelExecContext = parallelExecContext,
+                  keepGoing = keepGoing)
               }
 
               result.seq.toSeq
@@ -286,7 +296,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
           x.map { "\n" + prefix + _.formatRelativeToBaseProject }.mkString
       }
 
-      case class ExecBag(ctx: TargetContext, wasUpToDate: Boolean)
+      case class ExecBag(ctx: TargetContext, resultState: ExecutedTarget.ResultState)
 
       def calcProgressPrefix = execProgress match {
         case Some(state) => state.format
@@ -297,24 +307,37 @@ class TargetExecutor(monitor: CmdlineMonitor,
       val execBag: ExecBag = if (skipExec) {
         // already known as up-to-date
 
-        ExecBag(new TargetContextImpl(curTarget, 0, Seq()), true)
+        ExecBag(ctx = new TargetContextImpl(curTarget, 0, Seq()), ExecutedTarget.SkippedUpToDate)
 
       } else {
         // not skipped execution, determine if dependencies were up-to-date
+
+        val someDepsFailed = if (keepGoing.isDefined) {
+          log.trace("Check resultState of dependencies: " + executedDependencies.map(d => d.target.formatRelativeToBaseProject + ": " + d.resultState).mkString("\n  ", "\n  ", ""))
+          val someDepsFailed = !executedDependencies.forall(_.resultState.successful)
+          if (someDepsFailed) {
+            log.debug("Keep-going mode: Some dependencies failed earlier, but we continue but skip the current target: " + curTargetFormatted)
+          }
+          someDepsFailed
+        } else false
+        val failedEarlier = keepGoing match {
+          case Some(kg) => kg.hasFailed(curTarget)
+          case _ => false
+        }
 
         log.debug("===> Current execution: " + curTargetFormatted +
           " -> requested by: " + trace + " <===")
 
         log.debug("Executed dependency count: " + executedDependencies.size);
 
-        lazy val depsLastModified: Long = dependenciesLastModified(executedDependencies)
+        lazy val depsLastModified: Long = if (failedEarlier || someDepsFailed) 0 else dependenciesLastModified(executedDependencies)
         val ctx = new TargetContextImpl(curTarget, depsLastModified, executedDependencies.map(_.targetContext))
         if (!executedDependencies.isEmpty)
           log.debug(s"Dependencies have last modified value '${depsLastModified}': " + executedDependencies.map(_.target.formatRelativeToBaseProject).mkString(","))
 
         case class NeedsToRun(needsToRun: Boolean, lastModifiedTime: Long = 0)
 
-        val needsToRun: NeedsToRun = curTarget.targetFile match {
+        val needsToRun: NeedsToRun = if (failedEarlier || someDepsFailed) NeedsToRun(false) else curTarget.targetFile match {
           case Some(file) =>
             // file target
             if (!file.exists) {
@@ -364,13 +387,15 @@ class TargetExecutor(monitor: CmdlineMonitor,
         if (!needsToRun.needsToRun)
           log.debug(s"""Target "${curTargetFormatted}" does not need to run.""")
 
-        val progressPrefix = calcProgressPrefix
-
-        val wasUpToDate: Boolean = if (!needsToRun.needsToRun) {
-          val level = if (dependencyTrace.isEmpty) monitorConfig.topLevelSkipped else monitorConfig.subLevelSkipped
-          monitor.info(level, progressPrefix + "Skipping target:  " + colorTarget(curTargetFormatted))
+        val resultState: ExecutedTarget.ResultState = if (failedEarlier) {
+          log.debug("Skipping failed target: " + curTargetFormatted)
+          ExecutedTarget.SkippedFailedEarlier
+        } else if (someDepsFailed) {
           log.debug("Skipping target: " + curTargetFormatted)
-          true
+          ExecutedTarget.SkippedDependenciesFailed
+        } else if (!needsToRun.needsToRun) {
+          log.debug("Skipping target: " + curTargetFormatted)
+          ExecutedTarget.SkippedUpToDate
         } else { // needsToRun
           curTarget.action match {
             case null =>
@@ -379,11 +404,16 @@ class TargetExecutor(monitor: CmdlineMonitor,
                 val ex = new ProjectConfigurationException(s"""Target "${curTarget.name}" has no defined execution. Don't know how to create or update file "${curTarget.file}".""")
                 ex.buildScript = Some(curTarget.project.projectFile)
                 ex.targetName = Some(curTarget.name)
-                throw ex
+                keepGoing match {
+                  case None => throw ex
+                  case Some(kg) =>
+                    kg.markFailed(curTarget, ex)
+                    ExecutedTarget.Failed
+                }
+              } else {
+                log.debug("Skipping target execution (no action defined): " + curTargetFormatted)
+                ExecutedTarget.SkippedEmptyExec
               }
-              monitor.info(CmdlineMonitor.Verbose, progressPrefix + "Skipping target:  " + colorTarget(curTargetFormatted))
-              log.debug("Skipping target execution (no action defined): " + curTargetFormatted)
-              true
             case exec =>
               WithinTargetExecution.set(new WithinTargetExecution {
                 override def targetContext: TargetContext = ctx
@@ -396,19 +426,19 @@ class TargetExecutor(monitor: CmdlineMonitor,
                   if (curTarget.isCacheable) persistentTargetCache.loadOrDropCachedState(ctx)
                   else None
 
-                val wasUpToDate: Boolean = cachedState match {
+                val resultState: ExecutedTarget.ResultState = cachedState match {
                   case Some(cache) =>
-                    monitor.info(CmdlineMonitor.Verbose, progressPrefix + "Skipping cached target: " + colorTarget(curTargetFormatted))
                     log.debug("Skipping cached target: " + colorTarget(curTargetFormatted))
                     ctx.start
                     ctx.targetLastModified = cachedState.get.targetLastModified
                     ctx.attachFileWithoutLastModifiedCheck(cache.attachedFiles)
                     ctx.end
-                    true
+                    ExecutedTarget.SkippedPersistentCachedUpToDate
 
                   case None =>
                     if (!curTarget.isSideeffectFree) transientTargetCache.map(_.evict)
                     val level = if (curTarget.isTransparentExec) CmdlineMonitor.Verbose else monitorConfig.executing
+                    val progressPrefix = calcProgressPrefix
                     monitor.info(level, progressPrefix + "Executing target: " + colorTarget(curTargetFormatted))
                     log.debug("Executing Target: " + curTargetFormatted)
                     if (curTarget.help != null && curTarget.help.trim != "")
@@ -421,7 +451,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
                     // update persistent cache
                     if (curTarget.isCacheable) persistentTargetCache.writeCachedState(ctx)
 
-                    false
+                    ExecutedTarget.Success
                 }
 
                 ctx.targetLastModified match {
@@ -445,7 +475,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
                       log.warn(msg)
                     }
 
-                wasUpToDate
+                resultState
 
               } catch {
                 case e: TargetAware =>
@@ -455,7 +485,16 @@ class TargetExecutor(monitor: CmdlineMonitor,
                     e.targetName = Some(curTargetFormatted)
                   monitor.info(CmdlineMonitor.Verbose, s"Execution of target '${curTargetFormatted}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}")
                   monitor.showStackTrace(CmdlineMonitor.Verbose, e)
-                  throw e
+
+                  keepGoing match {
+                    case Some(kg) =>
+                      kg.markFailed(curTarget, e)
+                      ExecutedTarget.Failed
+                    case None =>
+                      monitor.info(monitorConfig.executing, calcProgressPrefix + fError("Failed target: ") +
+                        colorTarget(curTarget.formatRelativeToBaseProject) + fError(" after " + ctx.execDurationMSec + " msec"))
+                      throw e
+                  }
                 case e: Throwable =>
                   ctx.end
                   log.debug("Caught an exception while executing target: " + curTargetFormatted, e)
@@ -467,25 +506,58 @@ class TargetExecutor(monitor: CmdlineMonitor,
                   ex.targetName = Some(curTarget.formatRelativeToBaseProject)
                   monitor.info(CmdlineMonitor.Verbose, s"Execution of target '${curTargetFormatted}' aborted after ${ctx.execDurationMSec} msec with errors: ${e.getMessage}")
                   monitor.showStackTrace(CmdlineMonitor.Verbose, e)
-                  throw ex
+
+                  keepGoing match {
+                    case Some(kg) =>
+                      kg.markFailed(curTarget, e)
+                      ExecutedTarget.Failed
+                    case None =>
+                      monitor.info(monitorConfig.executing, calcProgressPrefix + fError("Failed target: ") +
+                        colorTarget(curTarget.formatRelativeToBaseProject) + fError(" after " + ctx.execDurationMSec + " msec"))
+                      throw e
+                  }
               } finally {
                 WithinTargetExecution.remove
               }
           }
         }
 
-        ExecBag(ctx, wasUpToDate)
+        log.trace("Result state: " + resultState + " for target " + curTargetFormatted)
+        ExecBag(ctx, resultState)
       }
 
       execProgress.map(_.addToCurrentNr(1))
-      // when parallel, print some finish message
-      if (!execBag.wasUpToDate && parallelExecContext.isDefined && !execBag.ctx.target.isTransparentExec) {
-        val finishedPrefix = calcProgressPrefix
-        monitor.info(monitorConfig.executing, finishedPrefix + "Finished target: " + colorTarget(curTarget.formatRelativeToBaseProject) + " after " + execBag.ctx.execDurationMSec + " msec")
+
+      if (!skipExec) {
+        def skipLevel = if (dependencyTrace.isEmpty) monitorConfig.topLevelSkipped else monitorConfig.subLevelSkipped
+        def execDurationMSec = execBag.ctx.execDurationMSec
+
+        execBag.resultState match {
+          case ExecutedTarget.SkippedDependenciesFailed =>
+            monitor.info(skipLevel, calcProgressPrefix + fError("Skipped unsatisfied target: ") + colorTarget(curTarget.formatRelativeToBaseProject))
+          case ExecutedTarget.SkippedFailedEarlier =>
+            monitor.info(skipLevel, calcProgressPrefix + fError("Skipped perviously failed target: ") + colorTarget(curTarget.formatRelativeToBaseProject))
+          case ExecutedTarget.SkippedUpToDate =>
+            monitor.info(skipLevel, calcProgressPrefix + "Skipped target: " + colorTarget(curTargetFormatted))
+          case ExecutedTarget.SkippedEmptyExec =>
+            monitor.info(CmdlineMonitor.Verbose, calcProgressPrefix + "Skipped empty target: " + colorTarget(curTargetFormatted))
+          case ExecutedTarget.SkippedPersistentCachedUpToDate =>
+            monitor.info(CmdlineMonitor.Verbose, calcProgressPrefix + "Skipped cached target: " + colorTarget(curTargetFormatted))
+
+          case ExecutedTarget.Failed =>
+            monitor.info(monitorConfig.executing, calcProgressPrefix + fError("Failed target: ") + colorTarget(curTarget.formatRelativeToBaseProject) + fError(" after " + execDurationMSec + " msec"))
+
+          case ExecutedTarget.Success =>
+            if (parallelExecContext.isDefined && !curTarget.isTransparentExec) {
+              // when parallel, print some finish message
+              monitor.info(monitorConfig.executing, calcProgressPrefix + "Finished target: " + colorTarget(curTarget.formatRelativeToBaseProject) + " after " + execDurationMSec + " msec")
+            }
+        }
       }
 
-      val executedTarget = new ExecutedTarget(targetContext = execBag.ctx, dependencies = executedDependencies)
-      if (execBag.wasUpToDate && transientTargetCache.isDefined)
+      val executedTarget = new ExecutedTarget(targetContext = execBag.ctx, dependencies = executedDependencies, resultState = execBag.resultState)
+
+      if (execBag.resultState.successful && transientTargetCache.isDefined)
         transientTargetCache.get.cache(curTarget, executedTarget)
 
       executedTarget
@@ -493,8 +565,8 @@ class TargetExecutor(monitor: CmdlineMonitor,
     }
 
     parallelExecContext match {
-      case None =>
-        inner
+      case None => inner
+
       case Some(parCtx) =>
         parCtx.lock(curTarget)
         try {
