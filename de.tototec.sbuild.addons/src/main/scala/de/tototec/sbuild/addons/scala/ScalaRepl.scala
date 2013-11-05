@@ -42,7 +42,7 @@ class ScalaRepl(
     val replClassName = "scala.tools.nsc.MainGenericRunner"
     var args: Array[String] = Array(replClassName, "-cp", ForkSupport.pathAsArg(loadCp))
 
-    ForkSupport.runJavaAndWait(classpath = javaCp, arguments = args, interactive = true)
+    ForkSupport.runJavaAndWait(classpath = javaCp, arguments = args, interactive = true, failOnError = true)
 
   }
 
