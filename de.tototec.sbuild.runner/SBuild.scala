@@ -45,11 +45,12 @@ class SBuild(implicit _project: Project) {
 
     }
 
-  Target(jar) dependsOn "compile" ~ "LICENSE.txt" ~ "scan:src/main/resources" exec { ctx: TargetContext =>
+  Target(jar) dependsOn "compile" ~ "compile-messages" ~ "LICENSE.txt" ~ "scan:src/main/resources" exec { ctx: TargetContext =>
     new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"),
-      manifestEntries = Map("I18n-Catalog" -> "de.tototec.sbuild.runner.Messages")
+      manifestEntries = Map("I18n-Catalog" -> "de.tototec.sbuild.runner.SBuildMessages")
     ) {
       if (Path("src/main/resources").exists) add(AntFileSet(dir = Path("src/main/resources")))
+      if (Path("target/po-classes").exists) add(AntFileSet(dir = Path("target/po-classes")))
       add(AntFileSet(file = Path("LICENSE.txt")))
     }.execute
   }
@@ -57,7 +58,8 @@ class SBuild(implicit _project: Project) {
   Target(sourcesZip) dependsOn "scan:src/main" ~ "scan:LICENSE.txt" exec { ctx: TargetContext =>
     AntZip(destFile = ctx.targetFile.get, fileSets = Seq(
       AntFileSet(dir = Path("src/main/scala")),
-      // AntFileSet(dir = Path("src/main/resources")),
+      AntFileSet(dir = Path("src/main/resources")),
+      AntFileSet(dir = Path("src/main/po")),
       AntFileSet(file = Path("LICENSE.txt"))
     ))
   }
@@ -100,6 +102,8 @@ class SBuild(implicit _project: Project) {
     )
   }
 
-  new I18n().applyAll
+  val i18n = new I18n()
+  i18n.targetCatalogDir = Path("target/po-classes/de/tototec/sbuild/runner")
+  i18n.applyAll
 
 }

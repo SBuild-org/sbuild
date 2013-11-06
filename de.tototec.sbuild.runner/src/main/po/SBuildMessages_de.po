@@ -54,7 +54,7 @@ msgstr "Details: "
 
 #: de/tototec/sbuild/runner/SBuildRunner.scala:198
 msgid "Reflective invokation message: "
-msgstr ""
+msgstr "Meldung eines reflektiven Aufrufs: "
 
 #: de/tototec/sbuild/runner/SBuildRunner.scala:203
 #, java-format
@@ -103,7 +103,7 @@ msgid ""
 "SBuild failed because an invalid target was requested. For a list of "
 "available targets use --list-targets or --list-targets-recursive. Use --help "
 "for a list of other commandline options."
-msgstr ""
+msgstr "SBuild schlug fehl da ein unbekanntes Target angeforder wurde. Für eine Liste von verfügbaren Targets verwende --list-targets oder --list-targets-recursive. Verwende --help für eine Liste aller Kommandozeilenoptionen."
 
 #: de/tototec/sbuild/runner/SBuildRunner.scala:324
 msgid "SBuild detected a failure in a target execution."
@@ -112,7 +112,7 @@ msgstr "SBuild hat einen Fehler während der Ausführung eines Targets erkannt."
 #: de/tototec/sbuild/runner/SBuildRunner.scala:328
 #, java-format
 msgid "SBuild failed with an unexpected exception ({0})."
-msgstr ""
+msgstr "SBuild ist mit einer unbekannten Exception ({0}) fehlgeschlagen."
 
 #: de/tototec/sbuild/runner/SBuildRunner.scala:360
 msgid "Initializing project..."
@@ -140,19 +140,19 @@ msgstr "Ausführungsplan:"
 
 #: de/tototec/sbuild/runner/SBuildRunner.scala:593
 msgid " Executing..."
-msgstr "Führe aus..."
+msgstr " Führe aus..."
 
 #: de/tototec/sbuild/runner/SBuildRunner.scala:594
 msgid "Requested targets: "
-msgstr "Angegebene Targets: "
+msgstr "Angeforderte Targets: "
 
 #: de/tototec/sbuild/runner/SBuildRunner.scala:603
 #, java-format
 msgid ""
 " Execution finished. SBuild init time: {0} msec, Execution time: {1} msec"
-msgstr "Ausführung beendet. SBuild Init-Zeit: {0} msec, Ausführungszeit: {1} msec"
+msgstr " Ausführung beendet. SBuild Init-Zeit: {0} msec, Ausführungszeit: {1} msec"
 
 #: de/tototec/sbuild/runner/SBuildRunner.scala:607
 #, java-format
 msgid " Execution failed. SBuild init time: {0} msec, Execution time: {1} msec"
-msgstr "Ausführung fehlgeschlagen. SBuild Init-Zeit: {0} msec, Ausführungszeit: {1} msec"
+msgstr " Ausführung fehlgeschlagen. SBuild Init-Zeit: {0} msec, Ausführungszeit: {1} msec"

@@ -35,11 +35,12 @@ object SBuildConfig {
 class I18n()(implicit _project: Project) {
   import java.io.File
 
+  var targetCatalogDir: File = Path("target/po") 
+
   def applyAll {
 
   val msgSources = "src/main/scala"
   val msgCatalog = "target/po/messages.pot"
-  var targetCatalog: File = Path("target/po") 
 
   // val poFiles: Array[File] = Option(Path("src/main/po").listFiles).map(_.filter(f => f.getName.endsWith(".po"))).getOrElse(Array())
 
@@ -69,8 +70,9 @@ class I18n()(implicit _project: Project) {
   
   Target("phony:compile-messages").cacheable dependsOn msgCatalog ~ poFiles exec {
     poFiles.files.foreach { poFile =>
-      val propFile = Path(targetCatalog.getPath, "\\.po$".r.replaceFirstIn(poFile.getName, ".properties"))
-      println("Compiling " + propFile)
+      targetCatalogDir.mkdirs
+      val propFile = Path(targetCatalogDir.getPath, "\\.po$".r.replaceFirstIn(poFile.getName, ".properties"))
+      println("Compiling " + poFile + " to " + propFile)
       AntExec(failOnError = true, executable = "msgmerge",
         args = Array("--output-file", propFile.getPath, "--properties-output", poFile.getPath, msgCatalog.files.head.getPath))
       AntExec(failOnError = false, executable = "msgfmt",

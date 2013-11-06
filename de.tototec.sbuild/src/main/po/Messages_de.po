@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: de.tototec.sbuild\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2013-11-06 13:47+0100\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"PO-Revision-Date: 2013-11-06 15:01+0100\n"
 "Last-Translator: Tobias Roeser <le.petit.fou@web.de>\n"
 "Language-Team: German <>\n"
 "Language: de\n"
@@ -23,31 +23,31 @@ msgstr ""
 msgid ""
 "Modification time of file \"{0}\" is in the future. Up-to-date checks may be "
 "incorrect."
-msgstr ""
+msgstr "Veränderungszeit der Datei \"{0}\" liegt in der Zukunft. Aktualitätsprüfungen könnten nicht korrekt ausfallen."
 
 #: de/tototec/sbuild/execute/TargetExecutor.scala:424
 #, java-format
 msgid ""
 "Target \"{0}\" has no defined execution. Don't know how to create or update "
 "file \"{1}\"."
-msgstr ""
+msgstr "Für Target \"{0}\" wurde kein Exec-Block definiert. Kann Target nicht erzeugen oder aktualisieren."
 
 #: de/tototec/sbuild/execute/TargetExecutor.scala:459
 msgid "Executing target: "
-msgstr "Führe Target aus: "
+msgstr "Verarbeite Target: "
 
 #: de/tototec/sbuild/execute/TargetExecutor.scala:485
 #, java-format
 msgid ""
 "Outcome of target {0} looks out-of-date, as the timestamp hasn't changed."
-msgstr ""
+msgstr "Ergebnis von Target {0} scheint nicht aktuell zu sein, da der Zeitstempel sich nicht geändrt hat."
 
 #: de/tototec/sbuild/execute/TargetExecutor.scala:513
 #, java-format
 msgid ""
 "Execution of target {0} failed with an exception: {1}.\n"
 "{2}"
-msgstr ""
+msgstr "Ausführung von Target {0} schlug mit einer Exception fehl: {1}.\n{2}"
 
 #: de/tototec/sbuild/execute/TargetExecutor.scala:519
 #, java-format
@@ -57,7 +57,7 @@ msgstr ""
 #: de/tototec/sbuild/execute/TargetExecutor.scala:552
 #: de/tototec/sbuild/execute/TargetExecutor.scala:564
 msgid "Finished target: "
-msgstr ""
+msgstr "Target fertiggestellt: "
 
 #: de/tototec/sbuild/execute/TargetExecutor.scala:552
 #: de/tototec/sbuild/execute/TargetExecutor.scala:556
@@ -94,4 +94,4 @@ msgstr "Überspringe zwischengespeichertes Target: "
 msgid ""
 "Reported modification time of target \"{0}\" is in the future. Up-to-date "
 "checks may be incorrect."
-msgstr ""
+msgstr "Berichtete Veränderungszeit von Target \"{0}\" liegt in der Zukunft. Aktualitätsprüfungen könnten nicht korrekt ausfallen."

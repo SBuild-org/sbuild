@@ -42,12 +42,14 @@ import de.tototec.sbuild.OutputStreamCmdlineMonitor
 import de.tototec.sbuild.RichFile._
 import de.tototec.sbuild.execute.ParallelExecContext
 import de.tototec.sbuild.execute.TransientTargetCache
+import de.tototec.sbuild.internal.I18n
 
 object SBuildRunner extends SBuildRunner {
 
   System.setProperty("http.agent", "SBuild/" + SBuildVersion.osgiVersion)
 
   def main(args: Array[String]) {
+
     AnsiConsole.systemInstall
     val retval = run(args)
     AnsiConsole.systemUninstall
@@ -62,6 +64,8 @@ object SBuildRunner extends SBuildRunner {
 class SBuildRunner {
 
   private[this] val log = Logger[SBuildRunner]
+  private[this] val i18n = I18n[SBuildRunner]
+  import i18n._
 
   private var verbose = false
 
@@ -77,7 +81,8 @@ class SBuildRunner {
    */
   def createSBuildStub(projectFile: File, stubDir: File) {
     if (projectFile.exists) {
-      throw new SBuildException("File '" + projectFile.getName + "' already exists. ")
+      val msg = marktr("File '{0}' already exists.")
+      throw new SBuildException(notr(msg, projectFile.getName), null, tr(msg, projectFile.getName))
     }
 
     val sbuildStub = new File(stubDir, projectFile.getName) match {
@@ -143,13 +148,13 @@ class SBuildRunner {
     // Console.println("About to check targets: "+targetsToCheck.mkString(", "))
     var errors: Seq[(Target, String)] = Seq()
     targetsToCheck.foreach { target =>
-      sbuildMonitor.info(CmdlineMonitor.Default, "Checking target: " + target.formatRelativeToBaseProject)
+      sbuildMonitor.info(CmdlineMonitor.Default, tr("Checking target: ") + target.formatRelativeToBaseProject)
       try {
         cache.fillTreeRecursive(target, Nil)
-        sbuildMonitor.info(CmdlineMonitor.Default, "  \t" + fOk("OK"))
+        sbuildMonitor.info(CmdlineMonitor.Default, "  \t" + fOk(tr("OK")))
       } catch {
         case e: SBuildException =>
-          sbuildMonitor.info(CmdlineMonitor.Default, "  \t" + fError("FAILED: " + e.getMessage))
+          sbuildMonitor.info(CmdlineMonitor.Default, "  \t" + fError(tr("FAILED: ") + e.getMessage))
           errors ++= Seq(target -> e.getMessage)
       }
     }
@@ -166,10 +171,10 @@ class SBuildRunner {
     val evict = targets.filter(_.evictsCache.isDefined)
 
     if (evict.isEmpty && !cacheable.isEmpty) {
-      val msg = s"""Project ${formatProject(project)}" contains ${cacheable.size} cacheable target, but does not declare any target with "evictCache"."""
+      val msg = marktr("Project {0} contains {1} cacheable target, but does not declare any target with \"evictCache\".")
       if (printWarning)
-        project.monitor.info(msg)
-      Some(msg)
+        project.monitor.info(tr(msg, formatProject(project), cacheable.size))
+      Some(notr(msg, formatProject(project), cacheable.size))
     } else None
   }
 
@@ -180,28 +185,28 @@ class SBuildRunner {
       sbuildMonitor.info(fError(msg).toString)
 
     if (e.isInstanceOf[BuildScriptAware] && e.asInstanceOf[BuildScriptAware].buildScript.isDefined)
-      sbuildMonitor.info(fError("Project: ").toString + fErrorEmph(e.asInstanceOf[BuildScriptAware].buildScript.get.getPath).toString)
+      sbuildMonitor.info(fError(tr("Project: ")).toString + fErrorEmph(e.asInstanceOf[BuildScriptAware].buildScript.get.getPath).toString)
 
     if (e.isInstanceOf[TargetAware] && e.asInstanceOf[TargetAware].targetName.isDefined)
-      sbuildMonitor.info(fError("Target:  ").toString + fErrorEmph(e.asInstanceOf[TargetAware].targetName.get).toString)
+      sbuildMonitor.info(fError(tr("Target:  ")).toString + fErrorEmph(e.asInstanceOf[TargetAware].targetName.get).toString)
 
-    sbuildMonitor.info(fError("Details: " + e.getLocalizedMessage).toString)
+    sbuildMonitor.info(fError(tr("Details: ") + e.getLocalizedMessage).toString)
 
     if (e.getCause() != null && e.getCause().isInstanceOf[InvocationTargetException] && e.getCause().getCause() != null)
-      sbuildMonitor.info(fError("Reflective invokation message: " + e.getCause().getCause().getLocalizedMessage()).toString())
+      sbuildMonitor.info(fError(tr("Reflective invokation message: ") + e.getCause().getCause().getLocalizedMessage()).toString())
   }
 
   private[this] def readAndApplyGlobal(config: Config) {
     val rcFile = new File(System.getProperty("user.home"), ".sbuildrc")
-    if (!rcFile.exists()) sbuildMonitor.info(CmdlineMonitor.Verbose, "No global settings file found: " + rcFile)
+    if (!rcFile.exists()) sbuildMonitor.info(CmdlineMonitor.Verbose, tr("No global settings file found: {0}", rcFile))
     else {
-      sbuildMonitor.info(CmdlineMonitor.Verbose, "About to read global settings file: " + rcFile)
+      sbuildMonitor.info(CmdlineMonitor.Verbose, tr("About to read global settings file: {0}", rcFile))
       val props = new Properties()
       try {
         props.load(new BufferedReader(new FileReader(rcFile)))
       } catch {
         case e: Exception =>
-          sbuildMonitor.error(s"""Could not read settings file "${rcFile.getPath}".""")
+          sbuildMonitor.error(tr("Could not read settings file \"{0}\"", rcFile.getPath))
           sbuildMonitor.showStackTrace(CmdlineMonitor.Verbose, e)
       }
 
@@ -212,7 +217,7 @@ class SBuildRunner {
         }
       } catch {
         case e: Exception =>
-          sbuildMonitor.error(s"""Could not read setting "${key}" from settings file "${rcFile.getPath}".""")
+          sbuildMonitor.error(tr("Could not read setting \"{0}\" from settings file \"{1}\".", key, rcFile.getPath))
           sbuildMonitor.showStackTrace(CmdlineMonitor.Verbose, e)
       }
 
@@ -274,7 +279,7 @@ class SBuildRunner {
         def cleanStateDir(dir: File, recursive: Boolean) {
           val stateDir = new File(dir, ".sbuild")
           if (stateDir.exists && stateDir.isDirectory) {
-            sbuildMonitor.info(CmdlineMonitor.Default, "Deleting " + stateDir.getPath())
+            sbuildMonitor.info(CmdlineMonitor.Default, tr("Deleting {0}", stateDir.getPath()))
             stateDir.deleteRecursive
           }
           if (recursive) {
@@ -298,27 +303,27 @@ class SBuildRunner {
 
   def exceptionHandler(rethrowInVerboseMode: Boolean): PartialFunction[Throwable, Int] = {
     case e: CmdlineParserException =>
-      errorOutput(e, "SBuild commandline was invalid. Please use --help for supported commandline options.")
+      errorOutput(e, tr("SBuild commandline was invalid. Please use --help for supported commandline options."))
       if (rethrowInVerboseMode && verbose) throw e
       1
     case e: InvalidApiUsageException =>
-      errorOutput(e, "SBuild detected a invalid usage of SBuild API. Please consult the API Refence Documentation at http://sbuild.tototec.de .")
+      errorOutput(e, tr("SBuild detected a invalid usage of SBuild API. Please consult the API Refence Documentation at http://sbuild.tototec.de ."))
       if (rethrowInVerboseMode && verbose) throw e
       1
     case e: ProjectConfigurationException =>
-      errorOutput(e, "SBuild detected a failure in the project configuration or the build scripts.")
+      errorOutput(e, tr("SBuild detected a failure in the project configuration or the build scripts."))
       if (rethrowInVerboseMode && verbose) throw e
       1
     case e: TargetNotFoundException =>
-      errorOutput(e, "SBuild failed because an invalid target was requested. For a list of available targets use --list-targets or --list-targets-recursive. Use --help for a list of other commandline options.")
+      errorOutput(e, tr("SBuild failed because an invalid target was requested. For a list of available targets use --list-targets or --list-targets-recursive. Use --help for a list of other commandline options."))
       if (rethrowInVerboseMode && verbose) throw e
       1
     case e: ExecutionFailedException =>
-      errorOutput(e, "SBuild detected a failure in a target execution.")
+      errorOutput(e, tr("SBuild detected a failure in a target execution."))
       if (rethrowInVerboseMode && verbose) throw e
       1
     case e: Exception =>
-      errorOutput(e, "SBuild failed with an unexpected exception (" + e.getClass.getSimpleName + ").")
+      errorOutput(e, tr("SBuild failed with an unexpected exception ({0}).", e.getClass.getSimpleName))
       if (rethrowInVerboseMode && verbose) throw e
       1
   }
@@ -350,7 +355,7 @@ class SBuildRunner {
 
     sbuildMonitor.info(
       if (outputAndExit) CmdlineMonitor.Verbose else CmdlineMonitor.Default,
-      "Initializing project...")
+      tr("Initializing project..."))
 
     val projectReader: ProjectReader = new SimpleProjectReader(
       classpathConfig = classpathConfig,
@@ -429,7 +434,7 @@ class SBuildRunner {
       val errors = checkTargets(projects)(project)
 
       if (!errors.isEmpty) {
-        sbuildMonitor.info(CmdlineMonitor.Default, s"Found the following ${fError(errors.size.toString)} problems:")
+        sbuildMonitor.info(CmdlineMonitor.Default, tr("Found the following {0} problems:", fError(errors.size.toString)))
         errors.map {
           case (target, message) =>
             sbuildMonitor.info(CmdlineMonitor.Default, fError(target.formatRelativeToBaseProject + ": " + message).toString)
@@ -490,14 +495,14 @@ class SBuildRunner {
           case _ => None // TODO: this should be a config error
         }
         sbuildMonitor.info(CmdlineMonitor.Verbose,
-          "Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): " + explicitJobCount.toString)
+          tr("Enabled parallel processing. Explicit parallel threads (None = nr of cpu cores): {0}", explicitJobCount.toString))
         Some(new ParallelExecContext(threadCount = explicitJobCount))
     }
 
     // The execution plan (chain) will be evaluated on first need
     lazy val lazyDryRunChain: Seq[ExecutedTarget] = {
       if (!targets.isEmpty) {
-        sbuildMonitor.info(CmdlineMonitor.Verbose, "Calculating dependency tree...")
+        sbuildMonitor.info(CmdlineMonitor.Verbose, tr("Calculating dependency tree..."))
       }
       val chain = targetExecutor.preorderedDependenciesForest(
         targets,
@@ -525,9 +530,9 @@ class SBuildRunner {
     }
 
     // Execution plan
-    def execPlan(chain: Seq[ExecutedTarget]) = {
+    def execPlan(chain: Seq[ExecutedTarget]): String = {
       var line = 0
-      var plan: List[String] = "Execution plan:" :: Nil
+      var plan: List[String] = tr("Execution plan:") :: Nil
 
       def preorderDepthFirst(nodes: Seq[ExecutedTarget]): Unit = nodes.foreach { node =>
         node.dependencies match {
@@ -583,8 +588,8 @@ class SBuildRunner {
         val keepGoing = if (config.keepGoing) Some(new TargetExecutor.KeepGoing()) else None
 
         if (!targets.isEmpty) {
-          sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[0%]") + " Executing...")
-          sbuildMonitor.info(CmdlineMonitor.Verbose, "Requested targets: " + targets.map(_.formatRelativeToBaseProject).mkString(" ~ "))
+          sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[0%]") + tr(" Executing..."))
+          sbuildMonitor.info(CmdlineMonitor.Verbose, tr("Requested targets: ") + targets.map(_.formatRelativeToBaseProject).mkString(" ~ "))
 
           val execResult = targetExecutor.preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
             transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
@@ -592,11 +597,13 @@ class SBuildRunner {
 
           execResult.filter(!_.resultState.successful) match {
             case Seq() =>
-              sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[100%]") + " Execution finished. SBuild init time: " + bootstrapTime +
-                " msec, Execution time: " + (System.currentTimeMillis - lastRepeatStart) + " msec")
+              sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[100%]") +
+                tr(" Execution finished. SBuild init time: {0} msec, Execution time: {1} msec",
+                  bootstrapTime, (System.currentTimeMillis - lastRepeatStart)))
             case _ =>
-              sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[100%]") + fError(" Execution failed. SBuild init time: " + bootstrapTime +
-                " msec, Execution time: " + (System.currentTimeMillis - lastRepeatStart) + " msec").toString)
+              sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[100%]") +
+                fError(tr(" Execution failed. SBuild init time: {0} msec, Execution time: {1} msec",
+                  bootstrapTime, (System.currentTimeMillis - lastRepeatStart))).toString)
               val ex = ExecutionFailedException.localized(
                 "Some targets failed or were skipped because of unsatisfied dependencies: {0}{1}",
                 keepGoing.toSeq.flatMap(_.failedTargets).map {
