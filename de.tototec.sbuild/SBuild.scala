@@ -84,7 +84,9 @@ object SBuildVersion {
     }
 
   Target(jar) dependsOn "compile" ~ "scan:src/main/resources" ~ "LICENSE.txt" exec { ctx: TargetContext =>
-    new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes")) {
+    new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"),
+      manifestEntries = Map("I18n-Catalog" -> "de.tototec.sbuild.Messages")    
+    ) {
       if (Path("src/main/resources").exists) add(AntFileSet(dir = Path("src/main/resources")))
       add(AntFileSet(file = Path("LICENSE.txt")))
     }.execute
@@ -137,5 +139,22 @@ object SBuildVersion {
       docTitle = s"SBuild API Reference"
     )
   }
+
+  val scalaStyleCp =
+    s"mvn:org.scalastyle:scalastyle_${SBuildConfig.scalaBinVersion}:0.3.2" ~
+      SBuildConfig.scalaLibrary ~
+      s"mvn:org.scalariform:scalariform_${SBuildConfig.scalaBinVersion}:0.1.4" ~
+      s"mvn:com.github.scopt:scopt_${SBuildConfig.scalaBinVersion}:2.1.0"
+
+  val scalaStyleConf = "http://www.scalastyle.org/scalastyle_config.xml"
+
+  Target("phony:scalaStyle") dependsOn "scan:source/main/scala" ~ scalaStyleConf ~ scalaStyleCp exec {
+    addons.support.ForkSupport.runJavaAndWait(
+      classpath = scalaStyleCp.files,
+      arguments = Array("org.scalastyle.Main", "--config", scalaStyleConf.files.head.getPath, Path("src/main/scala").getPath)
+    )
+  }
+
+  new I18n().applyAll
 
 }

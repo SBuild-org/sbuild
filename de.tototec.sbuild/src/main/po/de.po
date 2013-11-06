@@ -1,0 +1,97 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: de.tototec.sbuild\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2013-11-06 13:47+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Tobias Roeser <le.petit.fou@web.de>\n"
+"Language-Team: German <>\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:373
+#: de/tototec/sbuild/execute/TargetExecutor.scala:623
+#, java-format
+msgid ""
+"Modification time of file \"{0}\" is in the future. Up-to-date checks may be "
+"incorrect."
+msgstr ""
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:424
+#, java-format
+msgid ""
+"Target \"{0}\" has no defined execution. Don't know how to create or update "
+"file \"{1}\"."
+msgstr ""
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:459
+msgid "Executing target: "
+msgstr "Führe Target aus: "
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:485
+#, java-format
+msgid ""
+"Outcome of target {0} looks out-of-date, as the timestamp hasn't changed."
+msgstr ""
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:513
+#, java-format
+msgid ""
+"Execution of target {0} failed with an exception: {1}.\n"
+"{2}"
+msgstr ""
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:519
+#, java-format
+msgid "Execution of target \"{0}\" aborted after {1} msec with errors: {2}"
+msgstr ""
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:552
+#: de/tototec/sbuild/execute/TargetExecutor.scala:564
+msgid "Finished target: "
+msgstr ""
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:552
+#: de/tototec/sbuild/execute/TargetExecutor.scala:556
+#, java-format
+msgid " after {0} msec"
+msgstr " nach {0} msek"
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:556
+msgid "Failed target: "
+msgstr "Target fehlgeschlagen: "
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:559
+msgid "Skipped unsatisfied target: "
+msgstr "Überpringe unerfülltes Target: "
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:561
+msgid "Skipped previously failed target: "
+msgstr "Überspringe früher fehlgschlagenes Target: "
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:567
+msgid "Skipped target: "
+msgstr "Überspringe Target: "
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:569
+msgid "Skipped empty target: "
+msgstr "Überpringe leeres Target: "
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:571
+msgid "Skipped cached target: "
+msgstr "Überspringe zwischengespeichertes Target: "
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:633
+#, java-format
+msgid ""
+"Reported modification time of target \"{0}\" is in the future. Up-to-date "
+"checks may be incorrect."
+msgstr ""

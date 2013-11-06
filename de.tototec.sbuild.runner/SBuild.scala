@@ -46,7 +46,9 @@ class SBuild(implicit _project: Project) {
     }
 
   Target(jar) dependsOn "compile" ~ "LICENSE.txt" ~ "scan:src/main/resources" exec { ctx: TargetContext =>
-    new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes")) {
+    new AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"),
+      manifestEntries = Map("I18n-Catalog" -> "de.tototec.sbuild.runner.Messages")
+    ) {
       if (Path("src/main/resources").exists) add(AntFileSet(dir = Path("src/main/resources")))
       add(AntFileSet(file = Path("LICENSE.txt")))
     }.execute
@@ -97,5 +99,7 @@ class SBuild(implicit _project: Project) {
       docTitle = s"SBuild Runner API Reference"
     )
   }
+
+  new I18n().applyAll
 
 }

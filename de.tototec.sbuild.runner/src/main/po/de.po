@@ -1,0 +1,158 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Tobias Roeser <le.petit.fou@web.de>, 2013.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2013-11-06 13:22+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Tobias Roeser <le.petit.fou@web.de>\n"
+"Language-Team: German <>\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:86
+msgid "File '{0}' already exists."
+msgstr "Datei '{0}' existiert nicht."
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:153
+msgid "Checking target: "
+msgstr "Überprüfe target: "
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:156
+msgid "OK"
+msgstr "OK"
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:159
+msgid "FAILED: "
+msgstr "FEHLER: "
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:176
+#, java-format
+msgid ""
+"Project {0} contains {1} cacheable target, but does not declare any target "
+"with \"evictCache\"."
+msgstr "Project {0} enthält {1} cacheable Targets, aber deklariert kein Target mit \"evictCache\"."
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:190
+msgid "Project: "
+msgstr "Projekt: "
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:193
+msgid "Target:  "
+msgstr "Target: "
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:195
+msgid "Details: "
+msgstr "Details: "
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:198
+msgid "Reflective invokation message: "
+msgstr ""
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:203
+#, java-format
+msgid "No global settings file found: {0}"
+msgstr "Keine globale Settings-Datei gefunden: {0}"
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:205
+#, java-format
+msgid "About to read global settings file: {0}"
+msgstr "Lese globale Settings-Date: {0}"
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:211
+#, java-format
+msgid "Could not read settings file \"{0}\""
+msgstr "Konnte Settings-Datei \"{0}\" nicht lesen"
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:222
+#, java-format
+msgid "Could not read setting \"{0}\" from settings file \"{1}\"."
+msgstr "Konnte Setting \"{0}\" von Settings-Datei \"{1}\" nicht lesen."
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:284
+#, java-format
+msgid "Deleting {0}"
+msgstr "Lösche {0}"
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:308
+msgid ""
+"SBuild commandline was invalid. Please use --help for supported commandline "
+"options."
+msgstr "SBuild Kommandozeile war ungültig. Bitte verwenden sie --help für eine Liste unterstützter Optionen."
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:312
+msgid ""
+"SBuild detected a invalid usage of SBuild API. Please consult the API "
+"Refence Documentation at http://sbuild.tototec.de ."
+msgstr "SBuild hat eine ungültige Verwendung der SBuild API erkannt. Konsultieren sie die API Reference Dokumentation unter http://sbuild.tototec.de ."
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:316
+msgid ""
+"SBuild detected a failure in the project configuration or the build scripts."
+msgstr "SBuild hat einen Fehler in der Projektkonfiguration oder im Build-Skript festgestellt."
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:320
+msgid ""
+"SBuild failed because an invalid target was requested. For a list of "
+"available targets use --list-targets or --list-targets-recursive. Use --help "
+"for a list of other commandline options."
+msgstr ""
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:324
+msgid "SBuild detected a failure in a target execution."
+msgstr "SBuild hat einen Fehler während der Ausführung eines Targets erkannt."
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:328
+#, java-format
+msgid "SBuild failed with an unexpected exception ({0})."
+msgstr ""
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:360
+msgid "Initializing project..."
+msgstr "Initialisiere Projekt..."
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:439
+#, java-format
+msgid "Found the following {0} problems:"
+msgstr "Folgende {0} Probleme wurden gefunden:"
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:500
+#, java-format
+msgid ""
+"Enabled parallel processing. Explicit parallel threads (None = nr of cpu "
+"cores): {0}"
+msgstr "Aktiviere parallele Ausführung. Explizit parallele threads (None = Anzahl der CPU-Kerne): {0}"
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:507
+msgid "Calculating dependency tree..."
+msgstr "Berechne Abhängigkeitsbaum..."
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:537
+msgid "Execution plan:"
+msgstr "Ausführungsplan:"
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:593
+msgid " Executing..."
+msgstr "Führe aus..."
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:594
+msgid "Requested targets: "
+msgstr "Angegebene Targets: "
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:603
+#, java-format
+msgid ""
+" Execution finished. SBuild init time: {0} msec, Execution time: {1} msec"
+msgstr "Ausführung beendet. SBuild Init-Zeit: {0} msec, Ausführungszeit: {1} msec"
+
+#: de/tototec/sbuild/runner/SBuildRunner.scala:607
+#, java-format
+msgid " Execution failed. SBuild init time: {0} msec, Execution time: {1} msec"
+msgstr "Ausführung fehlgeschlagen. SBuild Init-Zeit: {0} msec, Ausführungszeit: {1} msec"

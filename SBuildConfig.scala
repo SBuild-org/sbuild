@@ -33,18 +33,23 @@ object SBuildConfig {
 }
 
 class I18n()(implicit _project: Project) {
+  import java.io.File
 
   def applyAll {
 
   val msgSources = "src/main/scala"
   val msgCatalog = "target/po/messages.pot"
+  var targetCatalog: File = Path("target/po") 
+
+  // val poFiles: Array[File] = Option(Path("src/main/po").listFiles).map(_.filter(f => f.getName.endsWith(".po"))).getOrElse(Array())
 
   Target("phony:xgettext") dependsOn msgCatalog
 
   Target(msgCatalog) dependsOn s"scan:${msgSources}" exec { ctx: TargetContext =>
+    println("Extract messages to " + msgCatalog)
     ctx.targetFile.get.getParentFile.mkdirs
 
-    import java.io.File
+    // We make arguments relative for better po-file output
     val srcDirUri = Path(msgSources).toURI
 
     AntExec(
@@ -59,6 +64,31 @@ class I18n()(implicit _project: Project) {
         s"scan:${msgSources}".files.map(file => srcDirUri.relativize(file.toURI).getPath)
     )
   }
+
+  val poFiles = "scan:src/main/po/;regex=.*\\.po"
+  
+  Target("phony:compile-messages").cacheable dependsOn msgCatalog ~ poFiles exec {
+    poFiles.files.foreach { poFile =>
+      val propFile = Path(targetCatalog.getPath, "\\.po$".r.replaceFirstIn(poFile.getName, ".properties"))
+      println("Compiling " + propFile)
+      AntExec(failOnError = true, executable = "msgmerge",
+        args = Array("--output-file", propFile.getPath, "--properties-output", poFile.getPath, msgCatalog.files.head.getPath))
+      AntExec(failOnError = false, executable = "msgfmt",
+        args = Array("--statistics", "--properties-input", propFile.getPath, "--output-file", "/dev/null") )
+    }
+  } 
+  
+  Target("phony:update-messages") dependsOn msgCatalog ~ poFiles exec {
+    poFiles.files.foreach { poFile =>
+      println("Updating " + poFile)
+      AntExec(failOnError = true, executable = "msgmerge",
+        args = Array("--update", poFile.getPath, msgCatalog.files.head.getPath))
+      AntExec(failOnError = false, executable = "msgfmt",
+        args = Array("--statistics", poFile.getPath, "--output-file", "/dev/null") )
+    }
+  } 
+  
   }
+
 
 }
