@@ -1,8 +1,8 @@
-= SBuild Reference
-Tobias Roeser <le.petit.fou@web.de>
 :SBuildVersion: {revversion}
 :revversion: svn
 
+= SBuild Reference
+Tobias Roeser
 
 == Introduction
 
