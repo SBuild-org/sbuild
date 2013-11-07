@@ -52,7 +52,7 @@ msgstr "Ausführung von Target {0} schlug mit einer Exception fehl: {1}.\n{2}"
 #: de/tototec/sbuild/execute/TargetExecutor.scala:519
 #, java-format
 msgid "Execution of target \"{0}\" aborted after {1} msec with errors: {2}"
-msgstr ""
+msgstr "Ausführung von Target \"{0}\" nach {1} msek mit Fehlern abgebrochen: {2}"
 
 #: de/tototec/sbuild/execute/TargetExecutor.scala:552
 #: de/tototec/sbuild/execute/TargetExecutor.scala:564
