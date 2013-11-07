@@ -18,22 +18,28 @@ _sbuild()
             _filedir
             return 0
             ;;
+        -j|--jobs|--repeat)
+            COMPREPLY=(0 1 2 3 4 5 6 7 8 9)
+            return 0
+            ;;
     esac
 
     $split && return 0
 
     if [[ "$cur" == -* ]]; then
-        COMPREPLY=( $( compgen -W '-D -f -F -h -l -L -q -v\
+        COMPREPLY=( $( compgen -W '-D -f -F -h -j -k -l -L -q -v\
           --additional-buildfile,--buildfile\
           --check --check-recursive --clean --create-stub\
           --define --dependency-tree\
-          --execution-plan --experimental-parallel\
+          --execution-plan\
           --fsc\
           --help\
-          --just-clean --just-clean-recursive\
+          --jobs --just-clean --just-clean-recursive\
+          --keep-going\
           --list-modules --list-targets --list-targets-recursive\
-          --no-color --no-fsc --no-progress\
+          --no-color --no-fsc --no-global --no-progress\
           --quiet\
+          --repeat\
           --verbose --version' -- "$cur" ) )
     else
         # evaluate the given buildfiles, default is "SBuild.scala"
