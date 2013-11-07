@@ -598,32 +598,39 @@ class TargetExecutor(monitor: CmdlineMonitor,
 
   }
 
-  class TotalExecCountCache {
-    private[this] var targetExecTreeNodeCount: Map[Target, Long] = Map()
-    def get(target: Target): Option[Long] = targetExecTreeNodeCount.get(target)
-    def cache(target: Target, count: Long): Unit = synchronized { targetExecTreeNodeCount += target -> count }
-  }
-
   def calcTotalExecTreeNodeCount(request: Seq[Target],
                                  dependencyTrace: List[Target] = Nil,
-                                 dependencyCache: DependencyCache = new DependencyCache(),
-                                 totalExecCountCache: TotalExecCountCache = new TotalExecCountCache): Long =
+                                 dependencyCache: DependencyCache = new DependencyCache()): Long = {
 
-    request.foldLeft(0L) { (c, curTarget) =>
-      c + {
-        totalExecCountCache.get(curTarget) match {
-          case Some(count) => count
-          case None =>
-            val dependencies: Seq[Target] = dependencyCache.targetDeps(curTarget, dependencyTrace).flatten
-            val count = 1L + {
-              if (dependencies.isEmpty) 0
-              else calcTotalExecTreeNodeCount(dependencies, curTarget :: dependencyTrace, dependencyCache, totalExecCountCache)
-            }
-            totalExecCountCache.cache(curTarget, count)
-            count
+    class TotalExecCountCache {
+      private[this] var targetExecTreeNodeCount: Map[Target, Long] = Map()
+      def get(target: Target): Option[Long] = targetExecTreeNodeCount.get(target)
+      def cache(target: Target, count: Long): Unit = synchronized { targetExecTreeNodeCount += target -> count }
+    }
+
+    def worker(request: Seq[Target],
+               dependencyTrace: List[Target],
+               dependencyCache: DependencyCache,
+               totalExecCountCache: TotalExecCountCache): Long =
+
+      request.foldLeft(0L) { (c, curTarget) =>
+        c + {
+          totalExecCountCache.get(curTarget) match {
+            case Some(count) => count
+            case None =>
+              val dependencies: Seq[Target] = dependencyCache.targetDeps(curTarget, dependencyTrace).flatten
+              val count = 1L + {
+                if (dependencies.isEmpty) 0
+                else worker(dependencies, curTarget :: dependencyTrace, dependencyCache, totalExecCountCache)
+              }
+              totalExecCountCache.cache(curTarget, count)
+              count
+          }
         }
       }
-    }
+
+    worker(request, dependencyTrace, dependencyCache, new TotalExecCountCache)
+  }
 
   def dependenciesLastModified(dependencies: Seq[ExecutedTarget]): Long = {
     val now = System.currentTimeMillis
