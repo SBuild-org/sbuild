@@ -7,14 +7,19 @@ import java.io.FileReader
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import java.util.Properties
+
+import scala.Array.canBuildFrom
+import scala.Option.option2Iterable
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsScalaMapConverter
+
 import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.Ansi.Color.CYAN
 import org.fusesource.jansi.Ansi.Color.GREEN
 import org.fusesource.jansi.Ansi.Color.RED
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole
+
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdlineParserException
@@ -27,21 +32,18 @@ import de.tototec.sbuild.OutputStreamCmdlineMonitor
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.ProjectReader
+import de.tototec.sbuild.RichFile.toRichFile
 import de.tototec.sbuild.SBuildException
 import de.tototec.sbuild.SBuildVersion
 import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetAware
 import de.tototec.sbuild.TargetNotFoundException
 import de.tototec.sbuild.TargetRef
-import de.tototec.sbuild.execute.ExecutedTarget
 import de.tototec.sbuild.execute.InMemoryTransientTargetCache
 import de.tototec.sbuild.execute.LoggingTransientTargetCache
+import de.tototec.sbuild.execute.ParallelExecContext
 import de.tototec.sbuild.execute.TargetExecutor
 import de.tototec.sbuild.internal.BuildFileProject
-import de.tototec.sbuild.OutputStreamCmdlineMonitor
-import de.tototec.sbuild.RichFile._
-import de.tototec.sbuild.execute.ParallelExecContext
-import de.tototec.sbuild.execute.TransientTargetCache
 import de.tototec.sbuild.internal.I18n
 
 object SBuildRunner extends SBuildRunner {
