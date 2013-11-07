@@ -598,9 +598,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
 
   }
 
-  def calcTotalExecTreeNodeCount(request: Seq[Target],
-                                 dependencyTrace: List[Target] = Nil,
-                                 dependencyCache: DependencyCache = new DependencyCache()): Long = {
+  def calcTotalExecTreeNodeCount(request: Seq[Target], dependencyCache: DependencyCache = new DependencyCache()): Long = {
 
     class TotalExecCountCache {
       private[this] var targetExecTreeNodeCount: Map[Target, Long] = Map()
@@ -608,10 +606,10 @@ class TargetExecutor(monitor: CmdlineMonitor,
       def cache(target: Target, count: Long): Unit = synchronized { targetExecTreeNodeCount += target -> count }
     }
 
+    val totalExecCountCache = new TotalExecCountCache
+
     def worker(request: Seq[Target],
-               dependencyTrace: List[Target],
-               dependencyCache: DependencyCache,
-               totalExecCountCache: TotalExecCountCache): Long =
+               dependencyTrace: List[Target]): Long =
 
       request.foldLeft(0L) { (c, curTarget) =>
         c + {
@@ -621,7 +619,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
               val dependencies: Seq[Target] = dependencyCache.targetDeps(curTarget, dependencyTrace).flatten
               val count = 1L + {
                 if (dependencies.isEmpty) 0
-                else worker(dependencies, curTarget :: dependencyTrace, dependencyCache, totalExecCountCache)
+                else worker(dependencies, curTarget :: dependencyTrace)
               }
               totalExecCountCache.cache(curTarget, count)
               count
@@ -629,7 +627,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
         }
       }
 
-    worker(request, dependencyTrace, dependencyCache, new TotalExecCountCache)
+    worker(request = request, dependencyTrace = Nil)
   }
 
   def dependenciesLastModified(dependencies: Seq[ExecutedTarget]): Long = {
@@ -669,6 +667,23 @@ class TargetExecutor(monitor: CmdlineMonitor,
       }
       math.max(prevLastModified, modifiedAt)
     }
+  }
+
+  def dependencyTreeWalker(request: Seq[Target],
+                           dependencyCache: DependencyCache = new DependencyCache(),
+                           onTargetBeforeDeps: List[Target] => Unit = { _ => },
+                           onTargetAfterDeps: List[Target] => Unit = { _ => }) {
+
+    def worker(request: Seq[Target],
+               dependencyTrace: List[Target]): Unit = request.foreach { target =>
+      val trace = target :: dependencyTrace
+      onTargetBeforeDeps(trace)
+      val deps = dependencyCache.targetDeps(target, dependencyTrace).flatten
+      worker(deps, trace)
+      onTargetAfterDeps(trace)
+    }
+
+    worker(request = request, dependencyTrace = Nil)
   }
 
   private[this] case class ExecBag(ctx: TargetContext, resultState: ExecutedTarget.ResultState)
