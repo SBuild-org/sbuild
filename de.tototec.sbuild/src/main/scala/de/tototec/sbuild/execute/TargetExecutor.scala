@@ -1,12 +1,12 @@
 package de.tototec.sbuild.execute
 
-import scala.collection.parallel.ForkJoinTaskSupport
-import scala.concurrent.Lock
-import scala.concurrent.forkjoin.ForkJoinPool
+import scala.Option.option2Iterable
+
 import org.fusesource.jansi.Ansi.Color.CYAN
 import org.fusesource.jansi.Ansi.Color.GREEN
 import org.fusesource.jansi.Ansi.Color.RED
 import org.fusesource.jansi.Ansi.ansi
+
 import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExecutionFailedException
 import de.tototec.sbuild.Logger
@@ -16,11 +16,8 @@ import de.tototec.sbuild.TargetAware
 import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.TargetContextImpl
 import de.tototec.sbuild.UnsupportedSchemeException
-import de.tototec.sbuild.internal.WithinTargetExecution
-import scala.collection.immutable.HashSet
-import scala.collection.immutable.SortedSet
 import de.tototec.sbuild.internal.I18n
-import java.text.MessageFormat
+import de.tototec.sbuild.internal.WithinTargetExecution
 
 object TargetExecutor {
 
@@ -37,14 +34,14 @@ object TargetExecutor {
    * Track the current progress.
    */
   trait ExecProgress {
-    def addToCurrentNr(addToCurrentNr: Int)
+    def addToCurrentNr(addToCurrentNr: Long)
     //    def currentNr: Int
     def format: String
   }
 
-  class MutableExecProgress(private[this] var maxCount: Int, private[this] var _currentNr: Int = 1) extends ExecProgress {
+  class MutableExecProgress(val maxCount: Long, private[this] var _currentNr: Long = 1) extends ExecProgress {
     def currentNr = _currentNr
-    override def addToCurrentNr(addToCurrentNr: Int): Unit = synchronized { _currentNr += addToCurrentNr }
+    override def addToCurrentNr(addToCurrentNr: Long): Unit = synchronized { _currentNr += addToCurrentNr }
     override def format: String = if (_currentNr > 0 && maxCount > 0) {
       val p = (_currentNr - 1) * 100 / maxCount
       fPercent("[" + math.min(100, math.max(0, p)) + "%] ").toString
@@ -318,8 +315,6 @@ class TargetExecutor(monitor: CmdlineMonitor,
           x.map { "\n" + prefix + _.formatRelativeToBaseProject }.mkString
       }
 
-      case class ExecBag(ctx: TargetContext, resultState: ExecutedTarget.ResultState)
-
       def calcProgressPrefix = execProgress match {
         case Some(state) => state.format
         case None => ""
@@ -329,7 +324,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
       val execBag: ExecBag = if (skipExec) {
         // already known as up-to-date
 
-        ExecBag(ctx = new TargetContextImpl(curTarget, 0, Seq()), ExecutedTarget.SkippedUpToDate)
+        ExecBag(ctx = new TargetContextImpl(curTarget, 0, Seq.empty), ExecutedTarget.SkippedUpToDate)
 
       } else {
         // not skipped execution, determine if dependencies were up-to-date
@@ -603,6 +598,33 @@ class TargetExecutor(monitor: CmdlineMonitor,
 
   }
 
+  class TotalExecCountCache {
+    private[this] var targetExecTreeNodeCount: Map[Target, Long] = Map()
+    def get(target: Target): Option[Long] = targetExecTreeNodeCount.get(target)
+    def cache(target: Target, count: Long): Unit = synchronized { targetExecTreeNodeCount += target -> count }
+  }
+
+  def calcTotalExecTreeNodeCount(request: Seq[Target],
+                                 dependencyTrace: List[Target] = Nil,
+                                 dependencyCache: DependencyCache = new DependencyCache(),
+                                 totalExecCountCache: TotalExecCountCache = new TotalExecCountCache): Long =
+
+    request.foldLeft(0L) { (c, curTarget) =>
+      c + {
+        totalExecCountCache.get(curTarget) match {
+          case Some(count) => count
+          case None =>
+            val dependencies: Seq[Target] = dependencyCache.targetDeps(curTarget, dependencyTrace).flatten
+            val count = 1L + {
+              if (dependencies.isEmpty) 0
+              else calcTotalExecTreeNodeCount(dependencies, curTarget :: dependencyTrace, dependencyCache, totalExecCountCache)
+            }
+            totalExecCountCache.cache(curTarget, count)
+            count
+        }
+      }
+    }
+
   def dependenciesLastModified(dependencies: Seq[ExecutedTarget]): Long = {
     val now = System.currentTimeMillis
 
@@ -641,6 +663,8 @@ class TargetExecutor(monitor: CmdlineMonitor,
       math.max(prevLastModified, modifiedAt)
     }
   }
+
+  private[this] case class ExecBag(ctx: TargetContext, resultState: ExecutedTarget.ResultState)
 
 }
 
