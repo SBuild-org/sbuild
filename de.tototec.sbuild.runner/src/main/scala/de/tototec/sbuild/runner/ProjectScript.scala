@@ -51,6 +51,7 @@ object ProjectScript {
 
 }
 
+// TODO: if the compiled buildfile is up-to-date, reuse already parsed info (sbuild.info.xml) about classpath and include instead of re-parsing it
 class ProjectScript(_scriptFile: File,
                     sbuildClasspath: Array[String],
                     compileClasspath: Array[String],
@@ -269,15 +270,6 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  //  protected def readIncludeFiles(project: Project, buildScript: => Iterator[String]): Map[String, Seq[File]] = {
-  //    log.debug("About to find include files.")
-  //    val cp = annotationReader.findFirstAnnotationWithVarArgValue(buildScript, annoName = "include", varArgValueName = "value").map(_.values).getOrElse(Array())
-  //    log.debug(if (cp.isEmpty) "No includes files specified." else s"Using ${cp.size} included files:\n - ${cp.mkString("\n - ")}")
-  //
-  //    // TODO: specific error message, when fetch or download fails
-  //    resolveViaProject(cp, project, "@include")
-  //  }
-
   case class ResolvedPrerequisites(classpath: Seq[File], includes: Map[String, Seq[File]])
 
   protected def resolveViaProject(project: Project, classpathTargets: Seq[String], includeTargets: Seq[String]): ResolvedPrerequisites = {
@@ -313,17 +305,14 @@ class ProjectScript(_scriptFile: File,
         topLevelSkipped = CmdlineMonitor.Verbose
       ))
 
-    val dryRun: ExecutedTarget = targetExecutor.preorderedDependenciesTree(
-      curTarget = resolverTarget,
-      transientTargetCache = Some(new InMemoryTransientTargetCache()),
-      skipExec = true
-    )
-
-    val execProgressOption = Some(new TargetExecutor.MutableExecProgress(maxCount = dryRun.treeSize))
+    val dependencyCache = new TargetExecutor.DependencyCache()
+    val maxCount = targetExecutor.calcTotalExecTreeNodeCount(request = Seq(resolverTarget), dependencyCache = dependencyCache)
+    val execProgressOption = Some(new TargetExecutor.MutableExecProgress(maxCount = maxCount))
 
     val executedResolverTarget = targetExecutor.preorderedDependenciesTree(
       curTarget = resolverTarget,
       transientTargetCache = Some(new InMemoryTransientTargetCache()),
+      dependencyCache = dependencyCache,
       execProgress = execProgressOption,
       parallelExecContext = Some(new ParallelExecContext(threadCount = None))
     )
@@ -341,16 +330,7 @@ class ProjectScript(_scriptFile: File,
     if (!includes.isEmpty) log.debug("Resolved @include to: " + includes)
 
     ResolvedPrerequisites(additionalClasspath, includes)
-
-    //    resolvedFiles
   }
-
-  //  protected def readAdditionalClasspath(project: Project, buildScript: => Iterator[String]): Array[String] = {
-  //    log.debug("About to find additional classpath entries.")
-  //    val cp = annotationReader.findFirstAnnotationWithVarArgValue(buildScript, annoName = "classpath", varArgValueName = "value").map(_.values).getOrElse(Array())
-  //    log.debug("Using additional classpath entries: " + cp.mkString(", "))
-  //    resolveViaProject(cp, project, "@classpath").flatMap { case (key, value) => value }.map { _.getPath }.toArray
-  //  }
 
   protected def useExistingCompiled(project: Project, classpath: Array[String], className: String): Any = {
     log.debug("Loading compiled version of build script: " + scriptFile)
@@ -369,7 +349,7 @@ class ProjectScript(_scriptFile: File,
     targetBaseDir.deleteRecursive
   }
 
-  def cleanScala(): Unit = if(targetDir.exists) {
+  def cleanScala(): Unit = if (targetDir.exists) {
     monitor.info(CmdlineMonitor.Verbose, "Deleting dir_ " + targetDir)
     targetDir.deleteRecursive
   }
