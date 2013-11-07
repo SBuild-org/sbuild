@@ -301,6 +301,7 @@ class SBuildRunner {
     } catch exceptionHandler(rethrowInVerboseMode = true)
   }
 
+  // TODO: If we catch an exceptiona and know, that an older minimal SBuild version was requested (with @version) we could print a list of incompatible changes to the user. 
   def exceptionHandler(rethrowInVerboseMode: Boolean): PartialFunction[Throwable, Int] = {
     case e: CmdlineParserException =>
       errorOutput(e, tr("SBuild commandline was invalid. Please use --help for supported commandline options."))
@@ -339,24 +340,7 @@ class SBuildRunner {
     case (l, r) => l.projectFile.compareTo(r.projectFile) < 0
   }
 
-  def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis): Int = {
-
-    SBuildRunner.verbose = config.verbosity == CmdlineMonitor.Verbose
-    sbuildMonitor = new OutputStreamCmdlineMonitor(Console.out, config.verbosity)
-
-    val projectFile = new File(config.buildfile)
-
-    if (config.createStub) {
-      createSBuildStub(projectFile, new File(classpathConfig.sbuildHomeDir, "stub"))
-      return 0
-    }
-
-    val outputAndExit = config.listModules || config.listTargets || config.listTargetsRecursive
-
-    sbuildMonitor.info(
-      if (outputAndExit) CmdlineMonitor.Verbose else CmdlineMonitor.Default,
-      tr("Initializing project..."))
-
+  def compileAndLoadProjects(projectFile: File, config: Config, classpathConfig: ClasspathConfig): (BuildFileProject, Seq[Project]) = {
     val projectReader: ProjectReader = new SimpleProjectReader(
       classpathConfig = classpathConfig,
       monitor = sbuildMonitor,
@@ -383,28 +367,49 @@ class SBuildRunner {
     // Now, that we loaded all projects, we can release some resources. 
     ProjectScript.dropCaches
 
-    log.debug("Targets: \n" + project.targets.map(_.formatRelativeToBaseProject).mkString("\n"))
+    (project, additionalProjects)
+  }
 
-    /**
-     * Format all non-implicit targets of a project.
-     * If the project is not the main/entry project, to project name will be included in the formatted name.
-     */
-    def formatTargetsOf(project: Project): String = {
-      project.targets.sortBy(_.name).map { t =>
-        t.formatRelativeToBaseProject + " \t" + (t.help match {
-          case null => ""
-          case s: String => s
-        })
-      }.mkString("\n")
+  /**
+   * Format all non-implicit targets of a project.
+   * If the project is not the main/entry project, to project name will be included in the formatted name.
+   */
+  def formatTargetsOf(project: Project): String = {
+    project.targets.sortBy(_.name).map { t =>
+      t.formatRelativeToBaseProject + " \t" + (t.help match {
+        case null => ""
+        case s: String => s
+      })
+    }.mkString("\n")
+  }
+
+  def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis): Int = {
+
+    SBuildRunner.verbose = config.verbosity == CmdlineMonitor.Verbose
+    sbuildMonitor = new OutputStreamCmdlineMonitor(Console.out, config.verbosity)
+
+    val projectFile = new File(config.buildfile)
+
+    if (config.createStub) {
+      createSBuildStub(projectFile, new File(classpathConfig.sbuildHomeDir, "stub"))
+      return 0
     }
+
+    val outputAndExit = config.listModules || config.listTargets || config.listTargetsRecursive
+
+    sbuildMonitor.info(
+      if (outputAndExit) CmdlineMonitor.Verbose else CmdlineMonitor.Default,
+      tr("Initializing project..."))
+
+    val (project, additionalProjects) = compileAndLoadProjects(projectFile, config, classpathConfig)
+    log.debug("Targets: \n" + project.targets.map(_.formatRelativeToBaseProject).mkString("\n"))
 
     // Format listing of target and return
     if (config.listTargets || config.listTargetsRecursive) {
-      val projectsToList = if (config.listTargetsRecursive) {
-        project.projectPool.projects
-      } else {
-        project :: additionalProjects.toList
-      }
+      val projectsToList =
+        if (config.listTargetsRecursive) project.projectPool.projects
+        else (project +: additionalProjects)
+
       val out = projectsToList.sortWith(projectSorter(project) _).map { p => formatTargetsOf(p) }
       sbuildMonitor.info(out.mkString("\n\n"))
       // early exit
@@ -417,7 +422,7 @@ class SBuildRunner {
       return 0
     }
 
-    // Check targets requested from cmdline an throw a exception, if invalid targets were requested
+    // Check targets requested from cmdline an throw an exception, if invalid targets were requested
     val (requested: Seq[Target], invalid: Seq[String]) =
       determineRequestedTargets(targets = config.params.asScala, supportCamelCaseShortCuts = true)(project)
     if (!invalid.isEmpty) {
@@ -448,42 +453,40 @@ class SBuildRunner {
       return if (errors.isEmpty) 0 else 1
     }
 
-    // The dependencyTree will be populated by the treePrinter, in case it was requested on commandline
-
-    class DependencyTree() {
-      private var dependencyTree = List[(Int, Target)]()
-
-      def addNode(depth: Int, node: Target): Unit = dependencyTree = (depth -> node) :: dependencyTree
-
-      def format(showGoUp: Boolean = true): String = {
-        var lastDepth = 0
-        var lastShown = Map[Int, Target]()
-        val lines = dependencyTree.reverse.map {
-          case (depth, target) =>
-
-            var prefix = if (lastDepth > depth && depth > 0) {
-              List.fill(depth - 1)("  ").mkString + "  (" + lastShown(depth - 1).formatRelativeToBaseProject + ")\n"
-            } else ""
-
-            lastDepth = depth
-            lastShown += (depth -> target)
-            val line = prefix + List.fill(depth)("  ").mkString + "  " + target.formatRelativeToBaseProject
-
-            line
-        }
-        lines.mkString("\n")
-      }
-    }
-
-    val depTree =
-      if (config.showDependencyTree) Some(new DependencyTree())
-      else None
-
-    val treePrinter: Option[(Int, Target) => Unit] = depTree.map(t => t.addNode _)
-
+    val targetExecutor = new TargetExecutor(sbuildMonitor)
     val dependencyCache = new TargetExecutor.DependencyCache()
 
-    val targetExecutor = new TargetExecutor(sbuildMonitor)
+    if (config.showDependencyTree) {
+      sbuildMonitor.info(CmdlineMonitor.Default, tr("Dependency tree:"))
+      var lastDepth = 0
+      var lastShown = Map[Int, Target]()
+      targetExecutor.dependencyTreeWalker(targets, dependencyCache, onTargetBeforeDeps = {
+        case Nil =>
+        case target :: trace =>
+          var depth = trace.size
+          var prefix = if (lastDepth > depth && depth > 0) {
+            List.fill(depth - 1)("  ").mkString + "(" + lastShown(depth - 1).formatRelativeToBaseProject + ")\n"
+          } else ""
+
+          lastDepth = depth
+          lastShown += (depth -> target)
+          val line = prefix + List.fill(depth)("  ").mkString + target.formatRelativeToBaseProject
+          sbuildMonitor.info(line)
+      })
+      return 0
+    }
+
+    if (config.showExecutionPlan) {
+      sbuildMonitor.info(CmdlineMonitor.Default, tr("Execution plan (not optimized):"))
+      var line = 0
+      targetExecutor.dependencyTreeWalker(targets, dependencyCache, onTargetAfterDeps = {
+        case Nil =>
+        case target :: _ =>
+          line += 1
+          sbuildMonitor.info(line + ". " + target.formatRelativeToBaseProject)
+      })
+      return 0
+    }
 
     val parallelExecContext = config.parallelJobs.flatMap {
       case 1 => None
@@ -499,68 +502,17 @@ class SBuildRunner {
         Some(new ParallelExecContext(threadCount = explicitJobCount))
     }
 
-    // The execution plan (chain) will be evaluated on first need
-    lazy val lazyDryRunChain: Seq[ExecutedTarget] = {
-      if (!targets.isEmpty) {
-        sbuildMonitor.info(CmdlineMonitor.Verbose, tr("Calculating dependency tree..."))
-      }
-      val chain = targetExecutor.preorderedDependenciesForest(
-        targets,
-        skipExec = true,
-        treePrinter = treePrinter,
-        dependencyCache = dependencyCache
-      //        treeParallelExecContext = parallelExecContext
-      )
-      log.debug("Target Dependency Cache: " + dependencyCache.cached.map {
-        case (t, d) => "\n  " + t.formatRelativeToBaseProject + " -> " + d.flatten.map {
-          dep => dep.formatRelativeToBaseProject
-        }.mkString(", ")
-      })
-      log.debug("Finished creating lazyDryRunChain")
-      chain
-    }
-
-    depTree.map { t =>
-      // trigger chain
-      lazyDryRunChain
-      // print output
-      log.debug("Dependency tree:\n" + t.format())
-      // early exit
-      return 0
-    }
-
-    // Execution plan
-    def execPlan(chain: Seq[ExecutedTarget]): String = {
-      var line = 0
-      var plan: List[String] = tr("Execution plan:") :: Nil
-
-      def preorderDepthFirst(nodes: Seq[ExecutedTarget]): Unit = nodes.foreach { node =>
-        node.dependencies match {
-          case Seq() =>
-            line += 1
-            plan = ("  " + line + ". " + node.target.formatRelativeToBaseProject) :: plan
-          case deps =>
-            preorderDepthFirst(deps)
-        }
-      }
-
-      preorderDepthFirst(chain)
-      plan.reverse.mkString("\n")
-    }
-
-    if (config.showExecutionPlan) {
-      sbuildMonitor.info(execPlan(lazyDryRunChain))
-      // early exit
-      return 0
-    }
-    log.trace(execPlan(lazyDryRunChain))
-
     val bootstrapTime = System.currentTimeMillis - bootstrapStart
     log.debug("Bootstrap time in milliseconds: " + bootstrapTime)
 
     val localExceptionHandler: PartialFunction[Throwable, Int] =
       if (config.repeatAfterSec > 0) exceptionHandler(rethrowInVerboseMode = false)
       else { case t: Throwable => throw t }
+
+    log.debug("Calculating count of executions...")
+    val beforeMaxExecCount = System.currentTimeMillis
+    val maxExecCount = targetExecutor.calcTotalExecTreeNodeCount(request = targets, dependencyCache = dependencyCache)
+    log.debug("Calculated count of executions: " + maxExecCount + " after " + (System.currentTimeMillis - beforeMaxExecCount) + " msec")
 
     var repeat = true
     var lastRepeatStart = 0L
@@ -580,10 +532,10 @@ class SBuildRunner {
 
       // TODO: evaluate lazyDryRunChain in parallel and update the progress onSuccess.
       try {
-        // force evaluation of lazy val chain, if required, and switch afterwards from bootstrap to execution time benchmarking.
+
         val execProgress =
           if (config.verbosity == CmdlineMonitor.Quiet) None
-          else Some(new TargetExecutor.MutableExecProgress(maxCount = lazyDryRunChain.foldLeft(0) { (a, b) => a + b.treeSize }))
+          else Some(new TargetExecutor.MutableExecProgress(maxCount = maxExecCount))
 
         val keepGoing = if (config.keepGoing) Some(new TargetExecutor.KeepGoing()) else None
 
