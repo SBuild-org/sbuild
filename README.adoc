@@ -1,0 +1,15 @@
+= How to build SBuild
+
+SBuild is build with a previously released stable version of SBuild itself.
+
+If you want to build the latest version of SBuild, you can check it out from SBuild's subversion repository.
+
+svn co http://sbuild.tototec.de/svn/sbuild/trunk/sbuild sbuild
+
+After changing into the newly created directory "sbuild", you should use the "sbuild-wrapper" to build sbuild. When executing sbuild-wrapper the first time, it will download the right version of SBuild and will use is.
+
+cd sbuild
+./sbuild-wrapper all
+
+To build everything, including executing the tests, you should use the "all" target.
+
