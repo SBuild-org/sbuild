@@ -12,6 +12,6 @@ object Constants {
   /**
    * The full qualified class name of the plugin implementation class, which must implement [[Plugin]].
    */
-  val SBuildPluginFactory = "SBuild-PluginFactory"
+  val SBuildPluginClass = "SBuild-PluginClass"
 
 }
