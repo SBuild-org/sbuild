@@ -6,12 +6,12 @@ import java.net.URL
 import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Constants
 
-class PluginClassLoader(pluginUrl: URL, parent: ProjectClassLoader)
+class PluginExportClassLoader(pluginUrl: URL, parent: ProjectClassLoader)
     extends URLClassLoader(Array(pluginUrl), parent) {
 
   //  ClassLoader.registerAsParallelCapable()
 
-  private[this] val log = Logger[PluginClassLoader]
+  private[this] val log = Logger[PluginExportClassLoader]
 
   lazy val allowedPackageNames: Seq[String] = {
     val manifest = new JarInputStream(pluginUrl.openStream()).getManifest()

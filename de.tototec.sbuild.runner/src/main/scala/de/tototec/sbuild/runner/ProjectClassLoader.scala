@@ -20,7 +20,7 @@ class ProjectClassLoader(classpathUrls: Array[URL], pluginUrls: Array[URL], pare
 
   ClassLoader.registerAsParallelCapable()
 
-  val pluginClassLoaders: Seq[PluginClassLoader] = pluginUrls.toSeq.map(url => new PluginClassLoader(url, this))
+  val pluginClassLoaders: Seq[PluginExportClassLoader] = pluginUrls.toSeq.map(url => new PluginExportClassLoader(url, this))
 
   override protected def loadClass(className: String, resolve: Boolean): Class[_] = getClassLoadingLock(className).synchronized {
     try {
