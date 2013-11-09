@@ -8,8 +8,8 @@ if [ -d ".wrapper/sbuild-${VERSION}" ] ; then
 else
   echo "Fetching SBuild ${VERSION}"
   mkdir -p ".wrapper"
-  wget "${SRC}"
-  unzip -d ".wrapper" "sbuild-${VERSION}-dist.zip"
+  (cd .wrapper && wget "${SRC}")
+  (cd .wrapper && unzip "sbuild-${VERSION}-dist.zip")
   chmod u+x ".wrapper/sbuild-${VERSION}/bin/sbuild"
 fi
 
