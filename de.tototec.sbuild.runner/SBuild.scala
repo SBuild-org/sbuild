@@ -83,10 +83,11 @@ class SBuild(implicit _project: Project) {
     //      xmlOutputDir = Path("target/test-output"),
     //      fork = true)
 
-    addons.support.ForkSupport.runJavaAndWait(
+    val res = addons.support.ForkSupport.runJavaAndWait(
       classpath = testCp.files ++ jar.files,
       arguments = Array("org.scalatest.tools.Runner", "-p", Path("target/test-classes").getPath, "-oF", "-u", Path("target/test-output").getPath)
     )
+    if(res != 0) throw new RuntimeException("Some tests failed")
 
   }
 
