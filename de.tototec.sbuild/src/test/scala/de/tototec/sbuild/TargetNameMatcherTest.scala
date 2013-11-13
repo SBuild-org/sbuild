@@ -24,8 +24,9 @@ class TargetNameMatcherTest extends FunSuite {
     ("a", "aaaa-bbbb", false),
     ("aB", "aaaa-Bbbb", true),
     ("aB", "aaaa-BBbb", false),
-    ("aB", "aaaaBBbb", false)
+    ("aB", "aaaaBBbb", false),
     
+    ("gG", "greet-goodbye", true)
 
   )
 

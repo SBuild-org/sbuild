@@ -25,7 +25,6 @@ import de.tototec.sbuild.TargetRefs
 import de.tototec.sbuild.Target
 import de.tototec.sbuild.Path
 import de.tototec.sbuild.Logger
-import de.tototec.sbuild.ExperimentalPlugin
 import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.SchemeHandler
 import de.tototec.sbuild.ZipSchemeHandler
@@ -36,14 +35,19 @@ import de.tototec.sbuild.ScanSchemeHandler
 import de.tototec.sbuild.HttpSchemeHandler
 import de.tototec.sbuild.MapperSchemeHandler
 import de.tototec.sbuild.ProjectPool
+import scala.reflect.classTag
 
 class BuildFileProject(_projectFile: File,
                        _projectReader: ProjectReader = null,
                        _projectPool: Option[ProjectPool] = None,
                        typesToIncludedFilesProperties: Option[File] = None,
-                       override val monitor: CmdlineMonitor = NoopCmdlineMonitor) extends Project {
+                       override val monitor: CmdlineMonitor = NoopCmdlineMonitor)
+    extends Project
+    with PluginAwareImpl {
 
   private[this] val log = Logger[BuildFileProject]
+  private[this] val i18n = I18n[BuildFileProject]
+  import i18n._
 
   private val projectReader: Option[ProjectReader] = Option(_projectReader)
 
@@ -522,21 +526,6 @@ class BuildFileProject(_projectFile: File,
 
   override def toString: String =
     getClass.getSimpleName + "(" + projectFile + ",targets=" + targets.map(_.name).mkString(",") + ")"
-
-  private[this] var _pluginsToInitLater: Seq[ExperimentalPlugin] = Seq()
-
-  override protected[sbuild] def registerPlugin(plugin: ExperimentalPlugin) {
-    _pluginsToInitLater ++= Seq(plugin)
-  }
-  override protected[sbuild] def applyPlugins {
-    while (!_pluginsToInitLater.isEmpty) {
-      val plugin = _pluginsToInitLater.head
-      log.debug(s"""About to initialize plugin "${plugin.getClass()}": ${plugin.toString()}""")
-      plugin.init
-      log.debug(s"""Initialized plugin "${plugin.getClass()}": ${plugin.toString()}""")
-      _pluginsToInitLater = _pluginsToInitLater.tail
-    }
-  }
 
   // since 0.4.0.9002
   lazy val typesToIncludedFilesMap: Map[String, File] = typesToIncludedFilesProperties match {

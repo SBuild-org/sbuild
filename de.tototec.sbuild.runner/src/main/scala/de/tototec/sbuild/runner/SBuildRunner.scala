@@ -7,19 +7,16 @@ import java.io.FileReader
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import java.util.Properties
-
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.JavaConverters.mapAsScalaMapConverter
-
 import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.Ansi.Color.CYAN
 import org.fusesource.jansi.Ansi.Color.GREEN
 import org.fusesource.jansi.Ansi.Color.RED
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole
-
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdlineParserException
@@ -45,6 +42,7 @@ import de.tototec.sbuild.execute.ParallelExecContext
 import de.tototec.sbuild.execute.TargetExecutor
 import de.tototec.sbuild.internal.BuildFileProject
 import de.tototec.sbuild.internal.I18n
+import de.tototec.sbuild.execute.ExecutedTarget
 
 object SBuildRunner extends SBuildRunner {
 
@@ -307,26 +305,32 @@ class SBuildRunner {
   def exceptionHandler(rethrowInVerboseMode: Boolean): PartialFunction[Throwable, Int] = {
     case e: CmdlineParserException =>
       errorOutput(e, tr("SBuild commandline was invalid. Please use --help for supported commandline options."))
+      log.error("", e)
       if (rethrowInVerboseMode && verbose) throw e
       1
     case e: InvalidApiUsageException =>
       errorOutput(e, tr("SBuild detected a invalid usage of SBuild API. Please consult the API Refence Documentation at http://sbuild.tototec.de ."))
+      log.error("", e)
       if (rethrowInVerboseMode && verbose) throw e
       1
     case e: ProjectConfigurationException =>
       errorOutput(e, tr("SBuild detected a failure in the project configuration or the build scripts."))
+      log.error("", e)
       if (rethrowInVerboseMode && verbose) throw e
       1
     case e: TargetNotFoundException =>
       errorOutput(e, tr("SBuild failed because an invalid target was requested. For a list of available targets use --list-targets or --list-targets-recursive. Use --help for a list of other commandline options."))
+      log.error("", e)
       if (rethrowInVerboseMode && verbose) throw e
       1
     case e: ExecutionFailedException =>
       errorOutput(e, tr("SBuild detected a failure in a target execution."))
+      log.error("", e)
       if (rethrowInVerboseMode && verbose) throw e
       1
     case e: Exception =>
       errorOutput(e, tr("SBuild failed with an unexpected exception ({0}).", e.getClass.getSimpleName))
+      log.error("", e)
       if (rethrowInVerboseMode && verbose) throw e
       1
   }
@@ -545,9 +549,47 @@ class SBuildRunner {
           sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[0%]") + tr(" Executing..."))
           sbuildMonitor.info(CmdlineMonitor.Verbose, tr("Requested targets: ") + targets.map(_.formatRelativeToBaseProject).mkString(" ~ "))
 
+          //          val execThread = new Thread("TargetExecutor") {
+          //            var execResult: Seq[ExecutedTarget] = Seq()
+          //            override def run() {
           val execResult = targetExecutor.preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
             transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
             treeParallelExecContext = parallelExecContext, keepGoing = keepGoing)
+          //              this.execResult = execResult
+          //            }
+          //          }
+
+          //          var firstUncaughtException: Option[Throwable] = None
+          //          val shutdownHook = sys.addShutdownHook {
+          //            // never repeat
+          //            repeat = false
+          //
+          //            var ex = new ExecutionFailedException("SBuild process killed.")
+          //            firstUncaughtException = firstUncaughtException.orElse(Some(ex))
+          //
+          //            // If parallel, tear down the thread pool
+          //            parallelExecContext match {
+          //              case Some(parCtx) =>
+          //                parCtx.getFirstError(ex)
+          //                // we need to stop the complete ForkJoinPool
+          //                parCtx.pool.shutdownNow()
+          //              case None =>
+          //                execThread.interrupt()
+          //            }
+          //          }
+          //
+          //          execThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+          //            override def uncaughtException(t: Thread, e: Throwable) {
+          //              firstUncaughtException = firstUncaughtException.orElse(Some(e))
+          //            }
+          //          })
+          //          execThread.start()
+          //          execThread.join()
+          //          shutdownHook.remove()
+          //
+          //          firstUncaughtException.map(e => throw e)
+          //
+          //          val execResult = execThread.execResult
 
           execResult.filter(!_.resultState.successful) match {
             case Seq() =>

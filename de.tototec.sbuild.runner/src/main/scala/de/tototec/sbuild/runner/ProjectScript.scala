@@ -30,6 +30,7 @@ import de.tototec.sbuild.execute.TargetExecutor
 import de.tototec.sbuild.internal.BuildFileProject
 import de.tototec.sbuild.internal.OSGiVersion
 import de.tototec.sbuild.execute.ParallelExecContext
+import de.tototec.sbuild.Plugin
 
 object ProjectScript {
 
@@ -133,11 +134,16 @@ class ProjectScript(_scriptFile: File,
     }
 
     log.debug("About to find additional classpath entries for: " + scriptFile)
-    val cpEntries = annotationReader.
+    val allCpEntries = annotationReader.
       findFirstAnnotationWithVarArgValue(buildScriptIterator, annoName = "classpath", varArgValueName = "value").
       map(_.values).getOrElse(Array())
-    if (!cpEntries.isEmpty) {
-      log.debug(scriptFile + " contains @classpath annotation: " + cpEntries.mkString("@classpath(", ",\n  ", ")"))
+    if (!allCpEntries.isEmpty) {
+      log.debug(scriptFile + " contains @classpath annotation: " + allCpEntries.mkString("@classpath(", ",\n  ", ")"))
+    }
+
+    val cpEntries = allCpEntries.map {
+      case x if x.startsWith("raw:") => RawCpEntry(x.substring(4))
+      case x => ExtensionCpEntry(x)
     }
 
     log.debug("About to find include files for: " + scriptFile)
@@ -148,7 +154,6 @@ class ProjectScript(_scriptFile: File,
       log.debug(scriptFile + " contains @include annotation: " + includeEntires.mkString("@include(", ",\n  ", ")"))
     }
 
-    //    val toResolve = cpEntries.toSeq ++ includeEntires.toSeq
     val resolvedFiles = {
       val ts = System.currentTimeMillis
       val resolvedFiles = resolveViaProject(project, cpEntries, includeEntires)
@@ -156,11 +161,13 @@ class ProjectScript(_scriptFile: File,
       resolvedFiles
     }
 
-    val additionalClasspath = resolvedFiles.classpath.map(_.getPath).toArray
+    val additionalClasspath = resolvedFiles.classpath.flatMap(_.files.map(_.getPath)).toArray
+    //    val pluginClasspath = resolvedFiles.plugins.map(_.getPath).toArray
     val includes = resolvedFiles.includes
 
     val addCompileCp: Array[String] = additionalClasspath ++ additionalProjectCompileClasspath
-    val addRuntimeCp: Array[String] = additionalClasspath ++ additionalProjectRuntimeClasspath
+
+    val cpInfos = resolvedFiles.classpath
 
     // TODO: also check additional classpath entries 
 
@@ -205,7 +212,7 @@ class ProjectScript(_scriptFile: File,
       ExportDependencies("sbuild.project.includes", TargetRefs.fromSeq(includedFiles))
     }
 
-    useExistingCompiled(project, addRuntimeCp, buildClassName)
+    useExistingCompiled(project, additionalProjectRuntimeClasspath, buildClassName, cpInfos)
   } catch {
     case e: SBuildException =>
       e.buildScript = Some(project.projectFile)
@@ -270,9 +277,16 @@ class ProjectScript(_scriptFile: File,
     }
   }
 
-  case class ResolvedPrerequisites(classpath: Seq[File], includes: Map[String, Seq[File]])
+  sealed trait CpEntry { def name: String }
+  case class RawCpEntry(name: String) extends CpEntry
+  case class ExtensionCpEntry(name: String) extends CpEntry
 
-  protected def resolveViaProject(project: Project, classpathTargets: Seq[String], includeTargets: Seq[String]): ResolvedPrerequisites = {
+  case class ResolvedPrerequisites(classpath: Seq[LoadablePluginInfo], includes: Map[String, Seq[File]])
+
+  protected def resolveViaProject(project: Project, classpathTargets: Seq[CpEntry], includeTargets: Seq[String]): ResolvedPrerequisites = {
+    log.debug("About to resolve project contribution from @classpath and @include annotations for project: " + project)
+    log.debug("classpath: " + classpathTargets)
+    log.debug("includes: " + includeTargets)
     if (classpathTargets.isEmpty && includeTargets.isEmpty) return ResolvedPrerequisites(Seq(), Map())
 
     // We want to use a customized monitor
@@ -282,21 +296,31 @@ class ProjectScript(_scriptFile: File,
     class ProjectInitProject extends BuildFileProject(_projectFile = project.projectFile, monitor = resolveMonitor)
     implicit val initProject: Project = new ProjectInitProject
 
-    val resolverTargetSuffix = project match {
-      case p: BuildFileProject => p.projectPool.formatProjectFileRelativeToBase(project)
-      case _ => scriptFile
+
+    val idxCpEntries = classpathTargets.zipWithIndex.map { case (l, r) => r -> l }
+    val cpTargets = idxCpEntries.map {
+      case (idx, cpEntry) =>
+        //        val target = 
+        TargetRef(cpEntry.name)
+      //        val refTarget = Target("phony:classpath:" + idx) dependsOn target
+      //        TargetRef(refTarget)
     }
 
-    val cpDep = classpathTargets.map(TargetRef(_)) match {
-      case Seq() => Seq()
-      case deps => Seq(TargetRef(Target("phony:@classpath " + resolverTargetSuffix) dependsOn deps))
-    }
-    val includeDep = includeTargets.map(TargetRef(_)) match {
-      case Seq() => Seq()
-      case deps => Seq(TargetRef(Target("phony:@include " + resolverTargetSuffix) dependsOn deps))
+    val idxIncEntries = includeTargets.zipWithIndex.map { case (l, r) => r -> l }
+    val incTargets = idxIncEntries.map {
+      case (idx, name) =>
+        //        val target = 
+        TargetRef(name)
+      //        val refTarget = Target("phony:include:" + idx) dependsOn target
+      //        TargetRef(refTarget)
     }
 
-    val resolverTarget = Target("phony:@init") dependsOn cpDep ++ includeDep
+    
+    val resolverTargetName = "phony:@init:" + (project match {
+    case p: BuildFileProject => p.projectPool.formatProjectFileRelativeToBase(project)
+    case _ => scriptFile.getPath
+    })
+    val resolverTarget = Target(resolverTargetName) dependsOn cpTargets ~ incTargets
 
     val targetExecutor = new TargetExecutor(
       monitor = initProject.monitor,
@@ -317,40 +341,91 @@ class ProjectScript(_scriptFile: File,
       parallelExecContext = Some(new ParallelExecContext(threadCount = None))
     )
 
-    val resolvedFiles = executedResolverTarget.dependencies.flatMap { cpOrIncludeT =>
-      cpOrIncludeT.dependencies.map { t =>
-        t.targetContext.target.name -> t.targetContext.targetFiles
-      }
-    }.toMap
+    //    var cpResult: Map[Int, Seq[File]] = Map()
+    //    var incResult: Map[Int, Seq[File]] = Map()
 
-    val additionalClasspath = resolvedFiles.filterKeys(k => classpathTargets.contains(k)).values.flatten.toSeq
-    if (!additionalClasspath.isEmpty) log.debug("Resolved @classpath to: " + additionalClasspath.mkString(":"))
+    val files = executedResolverTarget.dependencies.map { d =>
+      var name = d.target.name
+      val files = d.targetContext.targetFiles
+      name -> files
+      //      if (name.startsWith("phony:classpath:")) {
+      //        val idx = name.substring(16).toInt
+      //        cpResult += idx -> files
+      //      } else if(name.startsWith("phony:include:")) {
+      //        val idx = name.substring(14).toInt
+      //        incResult += idx -> d.targetContext.targetFiles
+      //      } else {
+      //        //
+      //      }
+    }
 
-    val includes = resolvedFiles.filterKeys(k => includeTargets.contains(k))
-    if (!includes.isEmpty) log.debug("Resolved @include to: " + includes)
+    val filesMap = files.toMap
 
-    ResolvedPrerequisites(additionalClasspath, includes)
+    // TODO: improve accuracy by unpacking resolved tree and split result into rawClasspath, include and plugin
+    // TODO: check size of files seq and files map, should be both have same length
+
+    val classpathEntries = classpathTargets.map {
+      case RawCpEntry(name) => new LoadablePluginInfo(files = filesMap(name), raw = true)
+      case ExtensionCpEntry(name) => new LoadablePluginInfo(files = filesMap(name), raw = false)
+    }
+
+    val includes = includeTargets.map { name => name -> filesMap(name) }.toMap
+
+    //    val rawClasspath = resolvedFiles.filterKeys(k => classpathTargets.contains(k)).values.flatten.toSeq
+    //    if (!rawClasspath.isEmpty) log.debug("Resolved @classpath to: " + rawClasspath.mkString(":"))
+    //
+    //    val plugins = resolvedFiles.filterKeys(k => pluginTargets.contains(k)).values.flatten.toSeq
+    //    if (!plugins.isEmpty) log.debug("Resolved @plugins to: " + plugins.mkString(":"))
+    //
+    //    val includes = resolvedFiles.filterKeys(k => includeTargets.contains(k))
+    //    if (!includes.isEmpty) log.debug("Resolved @include to: " + includes)
+
+    ResolvedPrerequisites(classpathEntries, includes)
   }
 
-  protected def useExistingCompiled(project: Project, classpath: Array[String], className: String): Any = {
+  protected def useExistingCompiled(project: Project, classpath: Array[String], className: String, pluginInfos: Seq[LoadablePluginInfo]): Any = {
     log.debug("Loading compiled version of build script: " + scriptFile)
-    val cl = new URLClassLoader(Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL), getClass.getClassLoader)
-    log.debug("ClassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(",\n  "))
-    val clazz: Class[_] = cl.loadClass(className)
+    val cl = new ProjectClassLoader(
+      project = project.projectFile.getPath,
+      classpathUrls = Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL),
+      parent = getClass.getClassLoader,
+      pluginInfos = pluginInfos)
+    //    log.debug("ClassLoader loads build script from URLs: " + cl.asInstanceOf[{ def getURLs: Array[URL] }].getURLs.mkString(",\n  "))
+
+    //    // register plugins before loading build script
+    //    pluginInfos.map { pluginInfo =>
+    //      cl.pluginClassLoaders.find {
+    //        case (info, loader) =>
+    //          info == pluginInfo
+    //      } match {
+    //        case Some((info, pluginLoader)) if  =>
+    //          val pluginClassName = pluginInfo.pluginClass
+    //          log.debug("About to load plugin class")
+    //          val pluginClass = pluginLoader.loadClass(pluginClassName)
+    //          log.debug("About to register plugin: " + pluginClass)
+    //          project.registerPlugin(pluginClass, Plugin.Config(singleton = info.singleton))
+    //        case None => throw new ProjectConfigurationException("Grummel grummel")
+    //      }
+    //    }
+
+    val clazz: Class[_] = try cl.loadClass(className) catch {
+      case e: ClassNotFoundException => throw new ProjectConfigurationException("Buildfile \"" + scriptFile + "\" does not contain a class \"" + className + "\".")
+    }
+
     val ctr = clazz.getConstructor(classOf[Project])
     val scriptInstance = ctr.newInstance(project)
     // We assume, that everything is done in constructor, so we are done here
-    project.applyPlugins
+    project.finalizePlugins
     scriptInstance
   }
 
   def clean(): Unit = if (targetBaseDir.exists) {
-    monitor.info(CmdlineMonitor.Verbose, "Deleting dir_ " + targetBaseDir)
+    monitor.info(CmdlineMonitor.Verbose, "Deleting dir: " + targetBaseDir)
     targetBaseDir.deleteRecursive
   }
 
   def cleanScala(): Unit = if (targetDir.exists) {
-    monitor.info(CmdlineMonitor.Verbose, "Deleting dir_ " + targetDir)
+    monitor.info(CmdlineMonitor.Verbose, "Deleting dir: " + targetDir)
     targetDir.deleteRecursive
   }
 

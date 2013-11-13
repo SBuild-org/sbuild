@@ -28,7 +28,10 @@ class TargetRefs private (val targetRefGroups: Seq[Seq[TargetRef]]) {
     case n => targetRefGroups.take(n - 1)
   }
 
-  private[this] def openGroup: Seq[TargetRef] = targetRefGroups.last
+  private[this] def openGroup: Seq[TargetRef] = targetRefGroups.lastOption match {
+    case Some(last) => last
+    case None => Seq()
+  }
 
   private[this] def removeEmptyGroups(groups: Seq[Seq[TargetRef]]): Seq[Seq[TargetRef]] = groups.filter(!_.isEmpty)
 

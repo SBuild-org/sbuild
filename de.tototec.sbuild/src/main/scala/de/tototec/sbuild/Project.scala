@@ -42,8 +42,10 @@ trait MutableProject extends ProjectBase {
   protected[sbuild] def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
   protected[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean): Project
   /** Very exerimental. Do not use yet. */
-  protected[sbuild] def registerPlugin(plugin: ExperimentalPlugin)
-  protected[sbuild] def applyPlugins
+  //  protected[sbuild] def registerPluginFactory(plugin: ExperimentalPlugin[_])
+  //  protected[sbuild] def findOrCreatePlugin[P <: ExperimentalPlugin[_]: ClassTag](name: String): Any
+  //  protected[sbuild] def findOrCreatePlugin(pluginType: Class[_], name: String): Any
+  //  protected[sbuild] def finalizePlugins
 
   /**
    * Determine the target associated to the given target reference.
@@ -61,7 +63,7 @@ trait ProjectAntSupport {
   protected[sbuild] var antProject: Option[Any]
 }
 
-trait Project extends MutableProject with ProjectAntSupport
+trait Project extends MutableProject with ProjectAntSupport with PluginAware
 
 case class UniqueTargetFile(file: File, phony: Boolean, handler: Option[SchemeHandler])
 
