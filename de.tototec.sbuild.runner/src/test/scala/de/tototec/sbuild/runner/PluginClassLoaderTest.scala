@@ -4,7 +4,7 @@ import org.scalatest.FunSuite
 
 class PluginClassLoaderTest extends FunSuite {
 
-  val pluginInfo = new LoadablePluginInfo(null, true) {
+  val pluginInfo = new LoadablePluginInfo(Seq(), true) {
     override lazy val exportedPackages: Option[Seq[String]] = Some(Seq("a.b.c", "a.b.c.d"))
   }
 

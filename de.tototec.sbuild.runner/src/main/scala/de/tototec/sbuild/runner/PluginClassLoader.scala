@@ -18,7 +18,6 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
   private[this] lazy val manifest =
     if (raw || files.isEmpty) None
     else Some(new JarInputStream(urls.head.openStream()).getManifest())
-    
 
   lazy val exportedPackages: Option[Seq[String]] = manifest.flatMap { m =>
     m.getMainAttributes().getValue(Constants.SBuildPluginExportPackage) match {
@@ -29,18 +28,18 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
     }
   }
 
-  lazy val singleton: Boolean = manifest.map { m =>
-    m.getMainAttributes().getValue(Constants.SBuildPluginMultipleInstances) match {
-      case null => true
-      case v => v.trim.toLowerCase() match {
-        case "true" => false
-        case "false" => true
-        case _ =>
-          log.warn("Invalid value for manifest entry \"" + Constants.SBuildPluginMultipleInstances + "\" detected: " + v)
-          true
-      }
-    }
-  }.getOrElse(true)
+  //  lazy val singleton: Boolean = manifest.map { m =>
+  //    m.getMainAttributes().getValue(Constants.SBuildPluginMultipleInstances) match {
+  //      case null => true
+  //      case v => v.trim.toLowerCase() match {
+  //        case "true" => false
+  //        case "false" => true
+  //        case _ =>
+  //          log.warn("Invalid value for manifest entry \"" + Constants.SBuildPluginMultipleInstances + "\" detected: " + v)
+  //          true
+  //      }
+  //    }
+  //  }.getOrElse(true)
 
 }
 
