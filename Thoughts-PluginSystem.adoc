@@ -1,0 +1,17 @@
+= Plugin System for SBuild
+
+As some kind of dependency for SBuild's plugin system, also a kind of hierarchical classloader system is described.
+
+== Plugin ClassLoader / Extension ClassLoader
+
+=== Motivation
+
+Currently (as for SBuild 0.6.x), SBuild has a flat class loader. To bring additional dependencies into the project you can use the two annotations @classpath and @include. @inlcude allows to refer to Scala source code, whereas the @classpath annotation refer to additional classpath resources like JARs, which will be used to compile the project script and to execute it.
+
+Unfortunately, adding "rich" functionality (e.g. a fancy build helper library which has a lot of dependencies, like the Aether Schema Handler) this way will require you to add all the required dependencies yourself. Of course, you could use a transitive scheme handler but this would be transparent to SBuild. Besides the cumbersome requirement of adding a lot of dependencis, another point is just more important for interoperability of multiple plugins: isolation.
+
+A plugin should be allowed to use various dependencies but should not be forced to also throw these dependencies into the project classpath. Therefore some mechanism of exported vs. private classpath is required.
+
+=== @classpath
+
+
