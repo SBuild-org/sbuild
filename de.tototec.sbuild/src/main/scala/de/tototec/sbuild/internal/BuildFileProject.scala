@@ -478,6 +478,7 @@ class BuildFileProject(_projectFile: File,
   private[this] def schemeHandlers_=(schemeHandlers: Map[String, SchemeHandler]) = _schemeHandlers = schemeHandlers
 
   override def registerSchemeHandler(scheme: String, handler: SchemeHandler) {
+    log.debug("Registerung scheme handler for scheme \"" + scheme + "\": " + handler)
     schemeHandlers.get(scheme).map {
       _ =>
         val msg = s"""Replacing scheme handler "${scheme}" for project "${projectFile}"."""

@@ -8,7 +8,6 @@ trait ProjectBase {
   def projectDirectory: File
   def projectFile: File
   protected[sbuild] def baseProject: Option[Project]
-  // protected[sbuild] val log: SBuildLogger
   protected[sbuild] val monitor: CmdlineMonitor
   /**
    * Find an explicitly registered target.
@@ -41,11 +40,6 @@ trait MutableProject extends ProjectBase {
   protected[sbuild] def findOrCreateTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
   protected[sbuild] def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target
   protected[sbuild] def findOrCreateModule(dirOrFile: String, copyProperties: Boolean): Project
-  /** Very exerimental. Do not use yet. */
-  //  protected[sbuild] def registerPluginFactory(plugin: ExperimentalPlugin[_])
-  //  protected[sbuild] def findOrCreatePlugin[P <: ExperimentalPlugin[_]: ClassTag](name: String): Any
-  //  protected[sbuild] def findOrCreatePlugin(pluginType: Class[_], name: String): Any
-  //  protected[sbuild] def finalizePlugins
 
   /**
    * Determine the target associated to the given target reference.

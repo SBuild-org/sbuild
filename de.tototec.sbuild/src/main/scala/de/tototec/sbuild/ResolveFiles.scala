@@ -9,6 +9,7 @@ import de.tototec.sbuild.internal.WithinTargetExecution
  * 
  * This API may be removed in later versions in favour of plugins.
  */
+@deprecated("Do not use. Will be replaced by recursive dependency capabilities in plugins.", "0.6.0.9003")
 object ResolveFiles {
 
   private[this] val log = Logger[ResolveFiles.type]

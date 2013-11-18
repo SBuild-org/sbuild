@@ -7,15 +7,16 @@ object Constants {
    * The packages will be part of the current projects classpath.
    * All other packages of that plugin will only be available to the plugin implementation itself.
    */
-  val SBuildPluginExportPackage = "SBuildPlugin-ExportPackage"
+  val SBuildPluginExportPackage = "SBuild-ExportPackage"
 
   /**
-   * The full qualified class name of the plugin implementation class, which must implement [[Plugin]].
+   * A pair of full qualified class names denoting the plugin instance class and it factory delimited by an equals (=) sign. The factory class must implement [[Plugin]].
    */
-  // val SBuildPluginClass = "SBuildPlugin-Class"
+  val SBuildPlugin = "SBuild-Plugin"
 
-  val SBuildPluginClasspath = "SBuildPlugin-Classpath"
+  /**
+   * Addional classpath which will be automatically resolved and used when this header is present in a plugin JAR.
+   */
+  val SBuildPluginClasspath = "SBuild-Classpath"
 
-    // TODO: this way or a generic "SBuildPlugin-Features: multi" ? 
-  val SBuildPluginMultipleInstances = "SBuildPlugin-MultipleInstances"
 }
