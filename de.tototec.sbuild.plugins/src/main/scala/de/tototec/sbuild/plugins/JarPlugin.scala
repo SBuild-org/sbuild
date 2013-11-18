@@ -25,7 +25,7 @@ class Jar(implicit project: Project) {
 
   var jarCustomizer: AntJar => Unit = null
 
-  override def init {
+  def init {
     targetDir = Option(targetDir) getOrElse "target"
     artifact = Option(artifact) getOrElse "main"
     classesDir = Option(classesDir) getOrElse "target/classes"
