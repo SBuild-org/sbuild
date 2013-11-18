@@ -1,14 +1,22 @@
 package de.tototec.sbuild.plugins
 
 import de.tototec.sbuild.Project
-import de.tototec.sbuild.ExperimentalPlugin
+import de.tototec.sbuild.Plugin
 import de.tototec.sbuild.Target
 import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.ant.tasks.AntJar
 import de.tototec.sbuild.Path
 
-class JarPlugin()(implicit _project: Project) extends ExperimentalPlugin {
+class JarPlugin(implicit _project: Project) extends Plugin[Jar] {
+  def instanceType: Class[Jar] = classOf[Jar]
+  def create(name: String): Jar = {
+    new Jar()
+  }
+  def applyToProject(instances: Seq[(String, Jar)]) {
+  }
+}
 
+class Jar(implicit project: Project) {
   var targetDir: String = null
   var artifact: String = null
   var version: String = null

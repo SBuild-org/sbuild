@@ -1,18 +1,26 @@
 package de.tototec.sbuild.plugins
 
-import de.tototec.sbuild.ExperimentalPlugin
+import de.tototec.sbuild.Plugin
+import de.tototec.sbuild.Project
 import de.tototec.sbuild.TargetRef
 import de.tototec.sbuild.TargetRefs
 import de.tototec.sbuild.TargetRefs._
-import de.tototec.sbuild.Project
-import de.tototec.sbuild.Target
-import de.tototec.sbuild.Util
-import de.tototec.sbuild.Path
 import de.tototec.sbuild.addons.java.Javac
+import de.tototec.sbuild.Target
+import de.tototec.sbuild.Path
+import de.tototec.sbuild.internal.Util
 
-class JavaPlugin()(implicit _project: Project) extends ExperimentalPlugin {
+class JavaPlugin(implicit _project: Project) extends Plugin[Java] {
+  def instanceType: Class[Java] = classOf[Java]
+  def create(name: String): Java = {
+    new Java()
+  }
+  def applyToProject(instances: Seq[(String, Java)]) {
 
-  // compile
+  }
+}
+
+class Java(implicit project: Project) {
 
   var compileCp: TargetRefs = null
   var testCp: TargetRefs = null
@@ -40,7 +48,7 @@ class JavaPlugin()(implicit _project: Project) extends ExperimentalPlugin {
 
   // Test Compile
 
-  override def init {
+  def init {
     // ensure these deps are defined and the targets exists
     compileCp = Option(compileCp) getOrElse Target("phony:compileCp")
     testCp = Option(testCp) getOrElse Target("phony:testCp")
