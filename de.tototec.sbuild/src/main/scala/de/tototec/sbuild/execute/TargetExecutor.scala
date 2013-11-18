@@ -374,7 +374,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
                 log.debug(s"""Target file "${file}" is older (${fileLastModified}) than dependencies (${depsLastModified}).""")
                 val diff = depsLastModified - fileLastModified
                 if (diff < 1000 && fileLastModified % 1000 == 0 && System.getProperty("os.name").toLowerCase.contains("linux")) {
-                  log.debug(s"""Assuming up-to-dateness. Target file "${file}" is only ${diff} msec older, which might be caused by files system limitations or Oracle Java limitations (e.g. for ext4).""")
+                  log.debug(s"""Assuming up-to-dateness. Although target file "${file}" is ${diff} msec older it has a rounded last modified time. This might be caused by files system limitations or Oracle Java limitations (e.g. for ext4).""")
                   NeedsToRun(false, fileLastModified)
                 } else NeedsToRun(true, fileLastModified)
 
@@ -534,7 +534,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
 
       execProgress.map(_.addToCurrentNr(1))
 
-      log.debug("Target: " + curTargetFormatted + " => " + execBag.resultState + " after + " + execBag.ctx.execDurationMSec + " msec")
+      log.debug("Target: " + curTargetFormatted + " => " + execBag.resultState + " after " + execBag.ctx.execDurationMSec + " msec")
 
       if (!skipExec) {
         def skipLevel = if (dependencyTrace.isEmpty) monitorConfig.topLevelSkipped else monitorConfig.subLevelSkipped
