@@ -10,8 +10,6 @@ trait Plugin[T] {
 
   def instanceType: Class[T]
 
-  //  def defaultName: String
-
   def create(name: String): T
 
   def applyToProject(instances: Seq[(String, T)])
