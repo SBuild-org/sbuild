@@ -57,5 +57,7 @@ class RichFile(val file: File) {
     case (b, f) if b.isAbsolute && f.isAbsolute => Some(baseDir.toURI.relativize(f.toURI).getPath)
     case _ => None
   }
+
+  def /(name: String): File = new File(file, name)
 }
 
