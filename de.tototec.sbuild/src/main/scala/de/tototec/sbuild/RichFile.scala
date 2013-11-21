@@ -45,7 +45,7 @@ object RichFile {
 
 }
 
-class RichFile(val file: File) {
+class RichFile(val file: File) extends AnyVal {
 
   def deleteFile: Unit = RichFile.deleteFile(file)
   def deleteRecursive: Unit = RichFile.deleteRecursive(file)
