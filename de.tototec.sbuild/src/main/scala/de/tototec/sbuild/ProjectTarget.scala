@@ -1,6 +1,7 @@
 package de.tototec.sbuild
 
 import java.io.File
+import de.tototec.sbuild.internal.I18n
 
 class ProjectTarget private[sbuild] (override val name: String,
                                      override val file: File,
@@ -36,7 +37,7 @@ class ProjectTarget private[sbuild] (override val name: String,
   override def exec(execution: => Any): Target = exec((_: TargetContext) => execution)
   override def exec(execution: TargetContext => Any): Target = {
     if (_exec != null) {
-      project.monitor.warn(CmdlineMonitor.Default, s"Reassignment of exec block for target ${name} in project file ${project.projectFile}")
+      project.monitor.warn(CmdlineMonitor.Default, I18n[ProjectTarget].tr("Reassignment of exec block for target {0} in project file {1}", name, project.projectFile))
       execReplaced = true
     }
     // always non-transparent, but in case we override a transparent scheme handler here
