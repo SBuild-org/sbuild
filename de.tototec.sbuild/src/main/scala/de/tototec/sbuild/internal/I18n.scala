@@ -15,10 +15,13 @@ import de.tototec.sbuild.Logger
 trait I18nMarker {
   @inline def marktr(msgid: String): String = msgid
   @inline def marktrc(context: String, msgid: String): String = msgid
+  @inline def notr(msgid: String, params: Any*): String = params match {
+    case Seq() => msgid
+    case _ => MessageFormat.format(msgid, params.map(_.asInstanceOf[AnyRef]): _*)
+  }
 }
 
 trait I18n extends I18nMarker {
-  def notr(msgid: String, params: Any*): String
   def tr(msgid: String, params: Any*): String
   def trn(msgid: String, msgidPlural: String, n: Long, params: Any*): String
   def trc(context: String, msgid: String, params: Any*): String
@@ -94,11 +97,6 @@ class I18nImpl(catalogBaseName: String, classLoader: ClassLoader, override val l
         }
         case Some(miss) => miss(msgid)
       }
-  }
-
-  override def notr(msgid: String, params: Any*): String = params match {
-    case Seq() => msgid
-    case _ => MessageFormat.format(msgid, params.map(_.asInstanceOf[AnyRef]): _*)
   }
 
   override def tr(msgid: String, params: Any*): String = notr(translate(msgid), params: _*)
