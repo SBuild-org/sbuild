@@ -481,15 +481,16 @@ class BuildFileProject(_projectFile: File,
     log.debug("Registerung scheme handler for scheme \"" + scheme + "\": " + handler)
     schemeHandlers.get(scheme).map {
       _ =>
-        val msg = s"""Replacing scheme handler "${scheme}" for project "${projectFile}"."""
-        log.info(msg)
-        monitor.info(CmdlineMonitor.Default, msg)
+        val msg = marktr("Replacing scheme handler \"{0}\" for project \"{1}\".")
+        log.info(notr(msg, scheme, projectFile))
+        monitor.info(CmdlineMonitor.Default, tr(msg, scheme, projectFile))
     }
     schemeHandlers += ((scheme, handler))
   }
   override def replaceSchemeHandler(scheme: String, handler: SchemeHandler) {
     schemeHandlers.get(scheme).orElse {
-      throw ProjectConfigurationException.localized(s"""Cannot replace scheme handler "${scheme}" for project "${projectFile}". No previous scheme handler registered under this name.""")
+      val msg = marktr("Cannot replace scheme handler \"{0}\" for project \"{1}\". No previous scheme handler registered under this name.")
+      throw new ProjectConfigurationException(notr(msg, scheme, projectFile), null, tr(msg, scheme, projectFile))
     }
     schemeHandlers += ((scheme, handler))
   }
@@ -517,7 +518,7 @@ class BuildFileProject(_projectFile: File,
   override protected[sbuild] def properties: Map[String, String] = _properties
   override def addProperty(key: String, value: String) = if (_properties.contains(key)) {
     log.warn("Ignoring redefinition of property: " + key)
-    monitor.warn(CmdlineMonitor.Default, "Ignoring redefinition of property: " + key)
+    monitor.warn(CmdlineMonitor.Default, tr("Ignoring redefinition of property: {0}", key))
   } else {
     log.info("Defining property: " + key + " with value: " + value)
     _properties += (key -> value)
@@ -553,7 +554,8 @@ class BuildFileProject(_projectFile: File,
     typesToIncludedFilesMap.get(className) match {
       case Some(file) if file.getParentFile() != null => file.getParentFile()
       case _ =>
-        val ex = new ProjectConfigurationException(s"""Could not determine the location if the included file which contains class "${className}".""")
+        val msg = marktr("Could not determine the location if the included file which contains class \"{0}\".")
+        val ex = new ProjectConfigurationException(notr(msg, className), null, tr(msg, className))
         ex.buildScript = Some(projectFile)
         throw ex
     }
