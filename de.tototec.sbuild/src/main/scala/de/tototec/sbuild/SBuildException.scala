@@ -2,6 +2,8 @@ package de.tototec.sbuild
 
 import java.io.File
 import java.text.MessageFormat
+import scala.reflect.ClassTag
+import de.tototec.sbuild.internal.I18n
 
 /**
  * Common superclass for specific SBuild exceptions.
@@ -26,8 +28,10 @@ trait TargetAware {
 
 trait LocalizableSupport[E] {
 
+  @deprecated("To much code for to less gain. Please use constructor instead.", "0.6.0.9004")
   def localized(msgId: String, params: String*): E = localized(null: Throwable, msgId, params: _*)
 
+  @deprecated("To much code for to less gain. Please use constructor instead.", "0.6.0.9004")
   def localized(cause: Throwable, msgId: String, params: String*): E = {
     // TODO: actually translate
     val translated: String = msgId
@@ -38,6 +42,16 @@ trait LocalizableSupport[E] {
     create(msg, cause, localized)
   }
 
+  @deprecated("To much code for to less gain. Please use constructor instead.", "0.6.0.9004")
+  def localized[C: ClassTag](msgId: String, params: String*): E = localized(null: Throwable, msgId, params: _*)
+
+  @deprecated("To much code for to less gain. Please use constructor instead.", "0.6.0.9004")
+  def localized[C: ClassTag](cause: Throwable, msgId: String, params: String*): E = {
+    val i18n = I18n[C]
+    create(i18n.notr(msgId, params: _*), cause, i18n.tr(msgId, params: _*))
+  }
+
+  @deprecated("To much code for to less gain. Please use constructor instead.", "0.6.0.9004")
   protected def create(msg: String, cause: Throwable, localizedMsg: String): E
 
 }
@@ -130,7 +144,6 @@ object InvalidApiUsageException extends LocalizableSupport[InvalidApiUsageExcept
  */
 class InvalidApiUsageException(msg: String, cause: Throwable = null, localizedMsg: String = null)
   extends ProjectConfigurationException(msg, cause, localizedMsg)
-
 
 //////////////////////
 
