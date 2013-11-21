@@ -78,9 +78,9 @@ class Config {
     description = "Remove all generated output and caches without reading any buildfile. This will essentially remove the \".sbuild\" directory in the current directory and all sub-directories, no matter, if sub-directories contain SBuild projects or not.")
   var justCleanRecursive: Boolean = false
 
-  @CmdOption(names = Array("--jobs", "-j"), args = Array("N"), maxCount = -1 /* allow overriding */ , description = "Allow processing N targets in parallel.")
+  @CmdOption(names = Array("--jobs", "-j"), args = Array("N"), maxCount = -1 /* allow overriding */ , description = "Allow processing N targets in parallel. Use 1 to disable parallel and 0 to use <number-of-cpu-cores> threads.")
   def setParallelJobs(jobs: Int) = parallelJobs = Some(jobs)
-  var parallelJobs: Option[Int] = None
+  var parallelJobs: Option[Int] = Some(0)
 
   @CmdOption(names = Array("--repeat"), args = Array("SECONDS"), description = "Repeat the requested action after the given time (in seconds), but not before the previous run was completed.")
   var repeatAfterSec: Int = 0
