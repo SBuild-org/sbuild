@@ -19,7 +19,8 @@ object WithinTargetExecution extends ThreadLocal[WithinTargetExecution] {
   private[sbuild] def safeWithinTargetExecution[T](callingMethodName: String, project: Option[Project] = None)(doWith: WithinTargetExecution => T): T =
     get match {
       case null =>
-        val ex = InvalidApiUsageException.localized("'{0}' can only be used inside an exec block of a target.", callingMethodName)
+        val msg = I18n.marktr("'{0}' can only be used inside an exec block of a target.")
+        val ex = new InvalidApiUsageException(I18n.notr(msg, callingMethodName), null, I18n[WithinTargetExecution.type].tr(msg, callingMethodName))
         ex.buildScript = project.map(_.projectFile)
         throw ex
 
