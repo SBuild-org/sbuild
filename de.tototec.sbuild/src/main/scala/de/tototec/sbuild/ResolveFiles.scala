@@ -3,19 +3,21 @@ package de.tototec.sbuild
 import java.io.File
 import de.tototec.sbuild.execute.TargetExecutor
 import de.tototec.sbuild.internal.WithinTargetExecution
+import de.tototec.sbuild.internal.I18n
 
 /**
  * EXPERIMENTAL API - Resolve TargetRefs.
- * 
+ *
  * This API may be removed in later versions in favour of plugins.
  */
-@deprecated("Do not use. Will be replaced by recursive dependency capabilities in plugins.", "0.6.0.9003")
+@deprecated("Do not use. Will be replaced by recursive resolve dependencies capabilities in plugins.", "0.6.0.9003")
 object ResolveFiles {
 
   private[this] val log = Logger[ResolveFiles.type]
+  private[this] val i18n = I18n[ResolveFiles.type]
+  import i18n._
 
   def apply(targetRefs: TargetRefs)(implicit project: Project): Seq[File] = {
-
     WithinTargetExecution.get match {
       case null =>
         // ensure, we don't get executed within an target
@@ -34,14 +36,16 @@ object ResolveFiles {
                   log.debug("Resolved to a local file reference: " + fileRef)
                   Seq(fileRef)
                 case _ =>
-                  throw new TargetNotFoundException(s"""Could not found target with name "${targetRef}" in project ${project.projectFile}.""")
+
+                  val msg = marktr("Could not found target with name \"{0}\" in project {1}.")
+                  throw new TargetNotFoundException(notr(msg, targetRef, project.projectFile), null, tr(msg, targetRef, project.projectFile))
               }
 
             case Some(target) =>
               log.debug("About to resolve target: " + target)
               val executedTarget = targetExecutor.preorderedDependenciesTree(curTarget = target)
 
-              project.monitor.info(CmdlineMonitor.Verbose, "Resolved target '" + target + "' to: " + executedTarget)
+              project.monitor.info(CmdlineMonitor.Verbose, tr("Resolved target \"{0}\" to: {1}", target, executedTarget))
               executedTarget.targetContext.targetFiles
 
           }
@@ -52,7 +56,8 @@ object ResolveFiles {
         targetRefFiles
 
       case _ =>
-        val ex = InvalidApiUsageException.localized("'ResolveFiles' can only be used outside an exec block of a target.")
+        val msg = marktr("'ResolveFiles' can only be used outside an exec block of a target.")
+        val ex = new InvalidApiUsageException(notr(msg, null, tr(msg)))
         ex.buildScript = Some(project.projectFile)
         throw ex
     }
