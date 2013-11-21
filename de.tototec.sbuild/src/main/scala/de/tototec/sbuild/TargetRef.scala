@@ -1,8 +1,8 @@
 package de.tototec.sbuild
 
 import java.io.File
-
 import de.tototec.sbuild.internal.WithinTargetExecution
+import de.tototec.sbuild.internal.I18n
 
 object TargetRef {
 
@@ -80,7 +80,8 @@ class TargetRef(val ref: String)(implicit project: Project) {
         project.findTarget(this, searchInAllProjects = true, includeImplicit = true) match {
           case None =>
             // No target found, so this TargetRef can not be part of the dependencies 
-            val ex = ProjectConfigurationException.localized("'TargetRef.files' is used for dependency \"{0}\", that is not declared with 'dependsOn'.", this.toString)
+            val msg = I18n.marktr("'TargetRef.files' is used for dependency \"{0}\", that is not declared with 'dependsOn'.")
+            val ex = new ProjectConfigurationException(I18n.notr(msg, this.toString), null, I18n[TargetRef].tr(msg, this.toString))
             ex.buildScript = Some(project.projectFile)
             ex.targetName = Some(withinTargetExec.targetContext.name)
             throw ex
@@ -92,7 +93,8 @@ class TargetRef(val ref: String)(implicit project: Project) {
               case None =>
                 // No target context found, so this TargetRef can not be part of the dependencies 
                 log.debug("referencedTarget = " + referencedTarget + "\ndirectDepsTargetContexts = " + withinTargetExec.directDepsTargetContexts.mkString(",\n  "))
-                val ex = ProjectConfigurationException.localized("'TargetRef.files' is used for dependency \"{0}\", that is not declared with 'dependsOn'.", this.toString)
+                val msg = I18n.marktr("'TargetRef.files' is used for dependency \"{0}\", that is not declared with 'dependsOn'.")
+                val ex = new ProjectConfigurationException(I18n.notr(msg, this.toString), null, I18n[TargetRef].tr(msg, this.toString))
                 ex.buildScript = Some(project.projectFile)
                 ex.targetName = Some(withinTargetExec.targetContext.name)
                 throw ex
