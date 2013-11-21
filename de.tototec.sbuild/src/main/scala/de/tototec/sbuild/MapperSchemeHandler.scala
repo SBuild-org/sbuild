@@ -1,6 +1,7 @@
 package de.tototec.sbuild
 
 import de.tototec.sbuild.SchemeHandler.SchemeContext
+import de.tototec.sbuild.internal.I18n
 
 /**
  * A MapperSchemeHandler will maintain an mapping from on scheme to another scheme.
@@ -20,7 +21,9 @@ class MapperSchemeHandler(
           case Some((scheme, pathTranslator)) =>
             scheme + ":" + pathTranslator(path.substring(scheme.size + 1, path.size))
           case None =>
-            throw new TargetNotFoundException(s"""Cannot find a source scheme handler (mapping or translator) for "${path}".""")
+            val i18n = I18n[MapperSchemeHandler]
+            val msg = i18n.marktr("Cannot find a source scheme handler (mapping or translator) for \"{0}\".")
+            throw new TargetNotFoundException(i18n.notr(msg, path), null, i18n.tr(msg, path))
         }
     }
   }
