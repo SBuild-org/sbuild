@@ -3,9 +3,9 @@ package de.tototec.sbuild
 import java.io.File
 import java.io.FileNotFoundException
 import java.net.URL
-
 import de.tototec.sbuild.SchemeHandler.SchemeContext
-import de.tototec.sbuild.internal.{Util => InternalUtil}
+import de.tototec.sbuild.internal.{ Util => InternalUtil }
+import de.tototec.sbuild.internal.I18n
 
 /**
  * An HTTP-Scheme handler, that will download the given URI into a directory preserving the URI as path.
@@ -63,7 +63,10 @@ class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = 
       if (target.exists) {
         target.lastModified
       } else {
-        throw new FileNotFoundException("File is not present and can not be downloaded in offline-mode: " + target.getPath)
+        val msg = I18n.marktr("File is not present and can not be downloaded in offline-mode: {0}")
+        throw new FileNotFoundException(I18n.notr(msg, target.getPath)) {
+          override def getLocalizedMessage: String = I18n[HttpSchemeHandlerBase].tr(msg, target.getPath)
+        }
       }
     }
   }
