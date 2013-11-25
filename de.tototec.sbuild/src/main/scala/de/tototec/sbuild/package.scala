@@ -21,6 +21,7 @@ package de.tototec
  *  - `[[Module]]`
  *  - `[[Modules]]`
  *  - `[[Path]]`
+ *  - `[[Plugin]]`
  *  - `[[Prop]]`
  *  - `[[SchemeHandler]]`
  *  - `[[SchemeResolver]]`
@@ -33,7 +34,6 @@ package de.tototec
  *  - `[[version @version]]`
  *
  *  The following classes are currently experimental or not part of the public API:
- *  - `[[Plugin]]`
  *  - `[[ResolveFiles]]`
  *  - `[[ResolveResult]]`
  *  - `[[ServiceRegistry]]`
