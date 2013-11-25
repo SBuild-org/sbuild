@@ -11,6 +11,9 @@ SBuild core and SBuild Runner
 * Added Plugin trait/object to SBuild API to activate and interact with 
   plugins.
 * Project resources (@classpath, @include) will be resolved in parallel.
+* Added Logger API.
+* Replaced internal SBuildLogger by SBuildMonitor API.
+* Support for localized output and a partial German translation.
 * Check and warn for identical module definitions in a project.
 * ZipSchemeHandler: When an to-be-extracted resource already exists, but has
   an older modification date than the zip file, re-extract it and set the
@@ -25,6 +28,9 @@ SBuild core and SBuild Runner
   even if some targets failed. At the end, a summary of all failed and skipped
   targets is shown. This might be useful e.g. to run all test targets (in a CI
   server) which otherwise might fail the build to early.
+* Lock mechanism to avoid compilation of buildfiles concurrently.
+* Various cleanups and package reorganizations.
+* Started documentatio in AsciiDoc format.
 
 SBuild Addons
 
