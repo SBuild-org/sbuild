@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: de.tototec.sbuild\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-11-06 13:47+0100\n"
+"POT-Creation-Date: 2013-11-21 12:30+0100\n"
 "PO-Revision-Date: 2013-11-06 15:01+0100\n"
 "Last-Translator: Tobias Roeser <le.petit.fou@web.de>\n"
 "Language-Team: German <>\n"
@@ -17,81 +17,165 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:373
-#: de/tototec/sbuild/execute/TargetExecutor.scala:623
+#: de/tototec/sbuild/HttpSchemeHandler.scala:66
+#: de/tototec/sbuild/MvnSchemeHandler.scala:93
+#, java-format
+msgid "File is not present and can not be downloaded in offline-mode: {0}"
+msgstr ""
+
+#: de/tototec/sbuild/ProjectTarget.scala:40
+#, java-format
+msgid "Reassignment of exec block for target {0} in project file {1}"
+msgstr "Neuzuweisung eines exec-Bocks für Target {0} in Projectdatei {1}"
+
+#: de/tototec/sbuild/MapperSchemeHandler.scala:25
+#, java-format
+msgid ""
+"Cannot find a source scheme handler (mapping or translator) for \"{0}\"."
+msgstr ""
+
+#: de/tototec/sbuild/TargetRef.scala:83 de/tototec/sbuild/TargetRef.scala:96
+#, java-format
+msgid ""
+"'TargetRef.files' is used for dependency \"{0}\", that is not declared with "
+"'dependsOn'."
+msgstr ""
+
+#: de/tototec/sbuild/Prop.scala:17
+#, java-format
+msgid ""
+"Undefined property \"{0}\" accessed. Please define it e.g. with \"-D {0}"
+"=value\"."
+msgstr "Zugriff auf nicht definiertes Property \"{0}\". Bitte zuerst definieren, z.B. mit \"-D {0}=value\"."
+
+#: de/tototec/sbuild/ResolveFiles.scala:40
+#, java-format
+msgid "Could not found target with name \"{0}\" in project {1}."
+msgstr "Konnte Target mit Namen \"{0}\" in Projekt {1} nicht finden."
+
+#: de/tototec/sbuild/ResolveFiles.scala:48
+#, java-format
+msgid "Resolved target \"{0}\" to: {1}"
+msgstr "Löse target \"{0}\" auf zu: {1}"
+
+#: de/tototec/sbuild/ResolveFiles.scala:59
+msgid "'ResolveFiles' can only be used outside an exec block of a target."
+msgstr "'RsolveFiles' kann nur außerhalb eines Exec-Blocks eines Targets verwendet werden."
+
+#: de/tototec/sbuild/execute/TargetExecutor.scala:368
+#: de/tototec/sbuild/execute/TargetExecutor.scala:650
 #, java-format
 msgid ""
 "Modification time of file \"{0}\" is in the future. Up-to-date checks may be "
 "incorrect."
-msgstr "Veränderungszeit der Datei \"{0}\" liegt in der Zukunft. Aktualitätsprüfungen könnten nicht korrekt ausfallen."
+msgstr ""
+"Veränderungszeit der Datei \"{0}\" liegt in der Zukunft. "
+"Aktualitätsprüfungen könnten nicht korrekt ausfallen."
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:424
+#: de/tototec/sbuild/execute/TargetExecutor.scala:419
 #, java-format
 msgid ""
 "Target \"{0}\" has no defined execution. Don't know how to create or update "
 "file \"{1}\"."
-msgstr "Für Target \"{0}\" wurde kein Exec-Block definiert. Kann Target nicht erzeugen oder aktualisieren."
+msgstr ""
+"Für Target \"{0}\" wurde kein Exec-Block definiert. Kann Target nicht "
+"erzeugen oder aktualisieren."
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:459
+#: de/tototec/sbuild/execute/TargetExecutor.scala:454
 msgid "Executing target: "
 msgstr "Verarbeite Target: "
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:485
+#: de/tototec/sbuild/execute/TargetExecutor.scala:480
 #, java-format
 msgid ""
 "Outcome of target {0} looks out-of-date, as the timestamp hasn't changed."
-msgstr "Ergebnis von Target {0} scheint nicht aktuell zu sein, da der Zeitstempel sich nicht geändrt hat."
+msgstr ""
+"Ergebnis von Target {0} scheint nicht aktuell zu sein, da der Zeitstempel "
+"sich nicht geändrt hat."
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:513
+#: de/tototec/sbuild/execute/TargetExecutor.scala:508
 #, java-format
 msgid ""
 "Execution of target {0} failed with an exception: {1}.\n"
 "{2}"
-msgstr "Ausführung von Target {0} schlug mit einer Exception fehl: {1}.\n{2}"
+msgstr ""
+"Ausführung von Target {0} schlug mit einer Exception fehl: {1}.\n"
+"{2}"
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:519
+#: de/tototec/sbuild/execute/TargetExecutor.scala:514
 #, java-format
 msgid "Execution of target \"{0}\" aborted after {1} msec with errors: {2}"
-msgstr "Ausführung von Target \"{0}\" nach {1} msek mit Fehlern abgebrochen: {2}"
+msgstr ""
+"Ausführung von Target \"{0}\" nach {1} msek mit Fehlern abgebrochen: {2}"
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:552
-#: de/tototec/sbuild/execute/TargetExecutor.scala:564
+#: de/tototec/sbuild/execute/TargetExecutor.scala:547
+#: de/tototec/sbuild/execute/TargetExecutor.scala:559
 msgid "Finished target: "
 msgstr "Target fertiggestellt: "
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:552
-#: de/tototec/sbuild/execute/TargetExecutor.scala:556
+#: de/tototec/sbuild/execute/TargetExecutor.scala:547
+#: de/tototec/sbuild/execute/TargetExecutor.scala:551
 #, java-format
 msgid " after {0} msec"
 msgstr " nach {0} msek"
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:556
+#: de/tototec/sbuild/execute/TargetExecutor.scala:551
 msgid "Failed target: "
 msgstr "Target fehlgeschlagen: "
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:559
+#: de/tototec/sbuild/execute/TargetExecutor.scala:554
 msgid "Skipped unsatisfied target: "
 msgstr "Überpringe unerfülltes Target: "
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:561
+#: de/tototec/sbuild/execute/TargetExecutor.scala:556
 msgid "Skipped previously failed target: "
 msgstr "Überspringe früher fehlgschlagenes Target: "
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:567
+#: de/tototec/sbuild/execute/TargetExecutor.scala:562
 msgid "Skipped target: "
 msgstr "Überspringe Target: "
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:569
+#: de/tototec/sbuild/execute/TargetExecutor.scala:564
 msgid "Skipped empty target: "
 msgstr "Überpringe leeres Target: "
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:571
+#: de/tototec/sbuild/execute/TargetExecutor.scala:566
 msgid "Skipped cached target: "
 msgstr "Überspringe zwischengespeichertes Target: "
 
-#: de/tototec/sbuild/execute/TargetExecutor.scala:633
+#: de/tototec/sbuild/execute/TargetExecutor.scala:660
 #, java-format
 msgid ""
 "Reported modification time of target \"{0}\" is in the future. Up-to-date "
 "checks may be incorrect."
-msgstr "Berichtete Veränderungszeit von Target \"{0}\" liegt in der Zukunft. Aktualitätsprüfungen könnten nicht korrekt ausfallen."
+msgstr ""
+"Berichtete Veränderungszeit von Target \"{0}\" liegt in der Zukunft. "
+"Aktualitätsprüfungen könnten nicht korrekt ausfallen."
+
+#: de/tototec/sbuild/internal/WithinTargetExecution.scala:22
+msgid "'{0}' can only be used inside an exec block of a target."
+msgstr "'{0}' kann nur innerhalb eines Exec-Blocks eines Targets verwendet werden."
+
+#: de/tototec/sbuild/internal/BuildFileProject.scala:484
+#, java-format
+msgid "Replacing scheme handler \"{0}\" for project \"{1}\"."
+msgstr "Ersetze SchemeHandler \"{0}\" für Projekt \"{1}\"."
+
+#: de/tototec/sbuild/internal/BuildFileProject.scala:492
+#, java-format
+msgid ""
+"Cannot replace scheme handler \"{0}\" for project \"{1}\". No previous "
+"scheme handler registered under this name."
+msgstr "Kann SchemeHandler \"{0}\" für Projekt \"{1}\" nicht ersetzen. Keine vorheriger SchemeHandler unter diesem Namen registriert."
+
+#: de/tototec/sbuild/internal/BuildFileProject.scala:521
+#, java-format
+msgid "Ignoring redefinition of property: {0}"
+msgstr "Ignoriere Umdefinition von Property: {0}"
+
+#: de/tototec/sbuild/internal/BuildFileProject.scala:557
+#, java-format
+msgid ""
+"Could not determine the location if the included file which contains class "
+"\"{0}\"."
+msgstr "Konnte den Ort der Eingebundenen Datei, die die Klasse \"{0}\" enthält, nicht ermitteln."
