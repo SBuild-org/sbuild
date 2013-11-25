@@ -1,16 +1,22 @@
-SBuild trunk:
+SBuild 0.7.0 - ????-??-??:
 
+SBuild core and SBuild Runner
+
+* Plugin system with isolated plugin class loading and hierarchical dependency
+  resolving.
+* @classpath annotation not handles all entries as plugins (the JAR manifest
+  will be scanned for SBuild header entries). This can be disabled by adding
+  the prefix "raw:" to the entry.
+* Extended Project API to support Plugins, mostly for internal use.
+* Added Plugin trait/object to SBuild API to activate and interact with 
+  plugins.
+* Project resources (@classpath, @include) will be resolved in parallel.
 * Check and warn for identical module definitions in a project.
 * ZipSchemeHandler: When an to-be-extracted resource already exists, but has
   an older modification date than the zip file, re-extract it and set the
   modification date accordingly.
 * The cmdline shortcuts support is now able to also match hyphen-delimited
   target names, e.g. "uS" would match "update-site".
-* ScalaTest: Allow configuration of more than one reporter. Added new
-  parameters: graphicalOutputSettings, standardOutputSettings, 
-  standardErrorSettings, outputFile, outputFileSettings, xmlOutputDir,
-  reporterClass, additionalScalaTestArgs. Deprecated parameter: reporter.
-* New TestNG addon.
 * The project runtime classpath does include the scala library only once.
 * New RichFile API with contains so filerealted methdod and can be used in
   implicit conversion.
@@ -19,7 +25,16 @@ SBuild trunk:
   even if some targets failed. At the end, a summary of all failed and skipped
   targets is shown. This might be useful e.g. to run all test targets (in a CI
   server) which otherwise might fail the build to early.
-* Added new parameters "failOnError" and "env" to ForkSupport.runAndWait.
+
+SBuild Addons
+
+* New TestNG addon.
+* ScalaTest: Allow configuration of more than one reporter. Added new
+  parameters: graphicalOutputSettings, standardOutputSettings, 
+  standardErrorSettings, outputFile, outputFileSettings, xmlOutputDir,
+  reporterClass, additionalScalaTestArgs. Deprecated parameter: reporter.
+* ForkSupport: Added new parameters "failOnError" and "env" to 
+  ForkSupport.runAndWait.
 
 SBuild 0.6.0 - 2013-09-19:
 
