@@ -66,8 +66,8 @@ class I18n()(implicit _project: Project) {
     )
   }
 
-  val poFiles = "scan:src/main/po/;regex=.*\\.po"
-  
+  val poFiles = "scan:src/main/po/;regex=.*\\.po$"
+
   Target("phony:compile-messages").cacheable dependsOn msgCatalog ~ poFiles exec {
     poFiles.files.foreach { poFile =>
       targetCatalogDir.mkdirs
@@ -78,8 +78,8 @@ class I18n()(implicit _project: Project) {
       AntExec(failOnError = false, executable = "msgfmt",
         args = Array("--statistics", "--properties-input", propFile.getPath, "--output-file", "/dev/null") )
     }
-  } 
-  
+  }
+
   Target("phony:update-messages") dependsOn msgCatalog ~ poFiles exec {
     poFiles.files.foreach { poFile =>
       println("Updating " + poFile)
@@ -88,8 +88,8 @@ class I18n()(implicit _project: Project) {
       AntExec(failOnError = false, executable = "msgfmt",
         args = Array("--statistics", poFile.getPath, "--output-file", "/dev/null") )
     }
-  } 
-  
+  }
+
   }
 
 
