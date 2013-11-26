@@ -22,6 +22,7 @@ trait TargetContext {
 
   /** The prerequisites (direct dependencies) of this target. */
   def prerequisites: Seq[TargetRef]
+  def dependsOn: Seq[TargetRef] = prerequisites
 
   /**
    * Those files, that belongs to dependencies that resolve to files.
