@@ -8,15 +8,10 @@ The project home page is: http://sbuild.tototec.de
 
 SBuild is build with a previously released stable version of SBuild itself.
 
-To build SBuild from source, you need to clone SBuild's git repository.
+To build SBuild from source, you need to clone SBuild's git repository. After changing into the newly created directory "sbuild", you should use the "sbuild-wrapper" script in the project directory to build sbuild. When executing sbuild-wrapper the first time, it will download the right version of SBuild and will use it.
 
 ----
-git clone http://sbuild.tototec.de/git/sbuild
-----
-
-After changing into the newly created directory "sbuild", you should use the "sbuild-wrapper" script in the project directory to build sbuild. When executing sbuild-wrapper the first time, it will download the right version of SBuild and will use it.
-
-----
+git clone https://github.com/SBuild-org/sbuild.git
 cd sbuild
 ./sbuild-wrapper all
 ----
