@@ -42,7 +42,14 @@ class SBuild(implicit _project: Project) {
   }
 
   Target(jar) dependsOn "compile" exec { ctx: TargetContext =>
-    AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"))
+    AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/classes"),
+      manifestEntries = Map(
+        "SBuild-Plugin" -> """de.tototec.sbuild.plugins.clean.Clean=de.tototec.sbuild.plugins.clean.CleanPlugin,
+                              de.tototec.sbuild.plugins.javac.Javac=de.tototec.sbuild.plugins.javac.JavacPlugin,
+                              de.tototec.sbuild.plugins.jar.Jar=de.tototec.sbuild.plugins.jar.JarPlugin""",
+        "SBuild-Classpath" -> "raw:mvn:org.apache.ant:ant:1.8.4"
+      )
+    )
   }
 
 }
