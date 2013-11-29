@@ -201,7 +201,7 @@ class Javac(
           if (os.indexOf("win") >= 0) "Under Windows, the content of the JAVA_HOME environment variable lokks typically like this: JAVA_HOME=C:\\Program Files\\Java\\jdk1.7.0_21"
           else if (os.indexOf("mac") >= 0)
             " Under Mac OSX, the content of the JAVA_HOME environment variable looks typically like this: JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_21.jdk/Contents/Home." +
-              " A common trick is, to export it with \"export JAVA_HOME=$(/usr/libexec/java_home)\"."
+              " An common trick is, to export it with \"export JAVA_HOME=$(/usr/libexec/java_home)\"."
           else ""
         val ex = new ExecutionFailedException("Could not found the compiler \"" + javacClassName + "\". Either specify a valid compilerClasspath or make sure, the JAVA_HOME environment varibale is set properly." + extraMsg)
         ex.buildScript = Some(project.projectFile)
