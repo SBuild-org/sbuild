@@ -6,6 +6,8 @@ import de.tototec.sbuild.test.TestSupport
 class TargetRefTest extends FunSuite {
 
   implicit val project = TestSupport.createMainProject
+  
+  val pDir = project.projectDirectory
 
   private[this] var count = 0
   def testToString(expected: String, targetRefs: TargetRefs) = {
@@ -21,7 +23,7 @@ class TargetRefTest extends FunSuite {
   testToString("a ~ b ~~ c", "a" ~ "b" ~~ "c")
   testToString("a ~~ b ~~ c", "a" ~~ "b" ~~ "c")
 
-  testToString("file:/tmp/a ~ file:/tmp/b", Path("a") ~ Path("b"))
-  testToString("file:/tmp/a ~ file:/tmp/b ~ file:/tmp/c", Path("a") ~ Path("b") ~ Path("c"))
+  testToString(s"file:$pDir/a ~ file:$pDir/b", Path("a") ~ Path("b"))
+  testToString(s"file:$pDir/a ~ file:$pDir/b ~ file:$pDir/c", Path("a") ~ Path("b") ~ Path("c"))
   
 }
