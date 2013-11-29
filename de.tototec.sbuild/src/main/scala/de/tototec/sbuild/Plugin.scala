@@ -8,7 +8,7 @@ import scala.reflect.ClassTag
  */
 trait Plugin[T] {
 
-  def instanceType: Class[T]
+  //  def instanceType: Class[T]
 
   def create(name: String): T
 
@@ -20,13 +20,24 @@ trait Plugin[T] {
  * WARNING: Do not use this experimental API
  */
 object Plugin {
-  //    def apply[I: ClassTag](implicit project: Project): I = project.findOrCreatePluginInstance[I, Plugin[I]]
-  def apply[T: ClassTag](name: String)(implicit project: Project): T = project.findOrCreatePluginInstance[T](name)
+  //  def apply[T: ClassTag](name: String = "")(implicit project: Project): T = project.findOrCreatePluginInstance[T](name)
+  //  def apply[T: ClassTag](name: String = "")(configurer: T => Unit = { x: T => })(implicit project: Project): Unit = configurer(project.findOrCreatePluginInstance[T](name))
+  
+  def apply[T: ClassTag](implicit project: Project): PluginConfigurer[T] = apply[T]("")
+  
+  def apply[T: ClassTag](name: String)(implicit project: Project): PluginConfigurer[T] = {
+    val instance = project.findOrCreatePluginInstance[T](name)
+    new PluginConfigurer[T] {
+      override def configure(configurer: T => Unit) { configurer(instance) }
+      //      override def get: T = instance
+    }
+  }
 
-  //  //  def apply[I: ClassTag, T <: Plugin[I]: ClassTag](implicit project: Project): I = project.findOrCreatePluginInstance[I, T]
-  //  def apply[I: ClassTag, T <: Plugin[I]: ClassTag](name: String)(implicit project: Project): I = project.findOrCreatePluginInstance[I, T](name)
-
-  //  case class Config(singleton: Boolean = true)
+  trait PluginConfigurer[T] {
+    def configure(configurer: T => Unit)
+    //    def get: T
+    // def disable - to disable an already enabled plugin
+  }
 }
 
 trait PluginAware {

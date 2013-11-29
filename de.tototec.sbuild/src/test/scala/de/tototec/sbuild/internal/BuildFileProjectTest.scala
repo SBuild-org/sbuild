@@ -11,7 +11,7 @@ object BuildFileProjectTest {
   class TestPluginCtx(name: String)
 
   class TestPlugin(implicit project: Project) extends Plugin[TestPluginCtx] {
-    override def instanceType: Class[TestPluginCtx] = classOf[TestPluginCtx]
+    //    override def instanceType: Class[TestPluginCtx] = classOf[TestPluginCtx]
     //      override def defaultName: String = "testPlugin"
     override def create(name: String): TestPluginCtx = new TestPluginCtx(name)
     override def applyToProject(instances: Seq[(String, TestPluginCtx)]) {}
