@@ -50,7 +50,7 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
         case p =>
           p.split(",").toSeq.map { entry =>
             entry.split("=", 2) match {
-              case Array(instanceClassName, factoryClassName) => instanceClassName -> factoryClassName
+              case Array(instanceClassName, factoryClassName) => instanceClassName.trim -> factoryClassName.trim
               case _ =>
                 // FIXME: Change exception to new plugin exception
                 val ex = new ProjectConfigurationException("Invalid plugin entry: " + entry)
