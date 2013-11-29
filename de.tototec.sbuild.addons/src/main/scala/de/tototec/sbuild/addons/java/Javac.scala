@@ -191,9 +191,15 @@ class Javac(
       else compilerClasspath = Seq()
     }
 
-    val result =
+    val result = try {
       if (fork) compileExternal(args)
       else compileInternal(args)
+    } catch {
+      case e: ClassNotFoundException if e.getMessage == javacClassName =>
+        val ex = new ExecutionFailedException("Could not found the compiler \"" + javacClassName + "\". Either specify a valid compilerClasspath or make sure, the JAVA_HOME environment varibale is set properly.")
+        ex.buildScript = Some(project.projectFile)
+        throw ex
+    }
 
     if (result != 0) {
       val ex = new ExecutionFailedException("Compile Errors. See compiler output.")
