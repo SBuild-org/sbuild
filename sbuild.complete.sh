@@ -36,7 +36,7 @@ _sbuild()
           --help\
           --jobs --just-clean --just-clean-recursive\
           --keep-going\
-          --list-modules --list-targets --list-targets-recursive\
+          --list-available-plugins --list-modules --list-plugins --list-targets --list-targets-recursive\
           --no-color --no-fsc --no-global --no-progress\
           --quiet\
           --repeat\
