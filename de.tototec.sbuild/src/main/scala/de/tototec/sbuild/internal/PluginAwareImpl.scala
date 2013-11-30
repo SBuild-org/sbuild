@@ -79,6 +79,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
         instance
     }
 
+    def getInstanceNames: Seq[String] = _instances.map(_._1)
     def getAll: Seq[Any] = _instances.map(_._2)
 
     def applyToProject: Unit = {
@@ -141,5 +142,16 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
   }
 
   override def finalizePlugins: Unit = _plugins.map(_.applyToProject)
+
+  case class PluginInfo(override val name: String,
+                        override val version: String,
+                        override val instances: Seq[String])
+      extends Plugin.PluginInfo
+
+  override def registeredPlugins: Seq[PluginInfo] = {
+    _plugins.map { p =>
+      PluginInfo(name = p.instanceClassName, version = "0.0.1", instances = p.getInstanceNames)
+    }
+  }
 
 }

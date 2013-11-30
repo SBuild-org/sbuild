@@ -380,14 +380,18 @@ class SBuildRunner {
    * Format all non-implicit targets of a project.
    * If the project is not the main/entry project, to project name will be included in the formatted name.
    */
-  def formatTargetsOf(project: Project): String = {
+  def formatTargetsOf(project: Project): String =
     project.targets.sortBy(_.name).map { t =>
       t.formatRelativeToBaseProject + " \t" + (t.help match {
         case null => ""
         case s: String => s
       })
     }.mkString("\n")
-  }
+
+  def formatPluginsOf(project: Project, onlyUsed: Boolean): Seq[String] =
+    project.registeredPlugins.
+      filter { p => !onlyUsed || !p.instances.isEmpty }.
+      map { p => s"${p.name} ${p.version}" }
 
   def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis): Int = {
 
@@ -401,7 +405,7 @@ class SBuildRunner {
       return 0
     }
 
-    val outputAndExit = config.listModules || config.listTargets || config.listTargetsRecursive
+    val outputAndExit = config.listModules || config.listTargets || config.listTargetsRecursive || config.listPlugins
 
     sbuildMonitor.info(
       if (outputAndExit) CmdlineMonitor.Verbose else CmdlineMonitor.Default,
@@ -425,6 +429,12 @@ class SBuildRunner {
     if (config.listModules) {
       val moduleNames = project.projectPool.projects.sortWith(projectSorter(project) _).map(p => formatProject(p))
       sbuildMonitor.info(moduleNames.mkString("\n"))
+      return 0
+    }
+
+    if (config.listPlugins) {
+      val plugins = formatPluginsOf(project, onlyUsed = true)
+      sbuildMonitor.info(plugins.mkString("\n"))
       return 0
     }
 
@@ -635,7 +645,7 @@ class SBuildRunner {
     (requested.asInstanceOf[Seq[Target]], invalid.asInstanceOf[Seq[String]])
   }
 
-  def formatProject(project: Project) = project.baseProject match {
+  def formatProject(project: Project): String = project.baseProject match {
     case Some(baseProject) =>
       baseProject.projectDirectory.toURI.relativize(project.projectFile.toURI).getPath
     case None => project.projectFile.getName

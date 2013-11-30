@@ -22,9 +22,9 @@ trait Plugin[T] {
 object Plugin {
   //  def apply[T: ClassTag](name: String = "")(implicit project: Project): T = project.findOrCreatePluginInstance[T](name)
   //  def apply[T: ClassTag](name: String = "")(configurer: T => Unit = { x: T => })(implicit project: Project): Unit = configurer(project.findOrCreatePluginInstance[T](name))
-  
+
   def apply[T: ClassTag](implicit project: Project): PluginConfigurer[T] = apply[T]("")
-  
+
   def apply[T: ClassTag](name: String)(implicit project: Project): PluginConfigurer[T] = {
     val instance = project.findOrCreatePluginInstance[T](name)
     new PluginConfigurer[T] {
@@ -38,6 +38,12 @@ object Plugin {
     //    def get: T
     // def disable - to disable an already enabled plugin
   }
+
+  trait PluginInfo {
+    def name: String
+    def version: String
+    def instances: Seq[String]
+  }
 }
 
 trait PluginAware {
@@ -47,4 +53,5 @@ trait PluginAware {
   //  def findOrCreatePluginInstance[I: ClassTag, T <: Plugin[I]: ClassTag]: I
   def findOrCreatePluginInstance[T: ClassTag](name: String): T
   def finalizePlugins
+  def registeredPlugins: Seq[Plugin.PluginInfo]
 }

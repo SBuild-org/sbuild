@@ -31,6 +31,7 @@ SBuild core and SBuild Runner
 * Lock mechanism to avoid compilation of buildfiles concurrently.
 * Various cleanups and package reorganizations.
 * Started documentatio in AsciiDoc format.
+* Added --list-plugins commandline option to show used plugins.
 
 SBuild Addons
 

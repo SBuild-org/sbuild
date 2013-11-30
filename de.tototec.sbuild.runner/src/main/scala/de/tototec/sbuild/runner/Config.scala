@@ -84,8 +84,13 @@ class Config {
 
   @CmdOption(names = Array("--repeat"), args = Array("SECONDS"), description = "Repeat the requested action after the given time (in seconds), but not before the previous run was completed.")
   var repeatAfterSec: Int = 0
-  
+
   @CmdOption(names = Array("--keep-going", "-k"), description = "Keep going when some targets can't be made.")
   var keepGoing: Boolean = false
+
+  // TODO: list-available-plugins - also those, which are available but not used
+  // TODO: list-plugins-rekursive
+  @CmdOption(names = Array("--list-plugins"), description = "List all plugins used by this project.")
+  val listPlugins: Boolean = false
 
 }
