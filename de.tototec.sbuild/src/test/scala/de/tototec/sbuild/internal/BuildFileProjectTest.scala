@@ -27,7 +27,7 @@ class BuildFileProjectTest extends FunSuite {
     implicit val p = TestSupport.createMainProject
 
     //    val plugin = new TestPlugin
-    p.registerPlugin(classOf[TestPluginCtx].getName, classOf[TestPlugin].getName, classOf[TestPlugin].getClassLoader)
+    p.registerPlugin(classOf[TestPluginCtx].getName, classOf[TestPlugin].getName, "0.0.0", classOf[TestPlugin].getClassLoader)
 
     val foundInstance = p.findOrCreatePluginInstance[TestPluginCtx]("")
     assert(foundInstance !== null)

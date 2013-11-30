@@ -10,7 +10,10 @@ import de.tototec.sbuild.Logger
 
 trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
-  class RegisteredPlugin(val instanceClassName: String, val factoryClassName: String, val classLoader: ClassLoader) {
+  class RegisteredPlugin(val instanceClassName: String,
+                         val factoryClassName: String,
+                         val version: String,
+                         val classLoader: ClassLoader) {
 
     private[this] val log = Logger[RegisteredPlugin]
 
@@ -102,6 +105,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     override def toString: String = getClass.getSimpleName +
       "(instanceClassName=" + instanceClassName +
       ",factoryClassName=" + factoryClassName +
+      ",version=" + version +
       ",classLoader=" + classLoader +
       ",instances=" + _instances + ")"
   }
@@ -111,8 +115,8 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
   // we assume, plugins are registered in that order so that dependencies are already registered before
   private[this] var _plugins: Seq[RegisteredPlugin] = Seq()
 
-  def registerPlugin(instanceClassName: String, factoryClassName: String, classLoader: ClassLoader) = {
-    val reg = new RegisteredPlugin(instanceClassName, factoryClassName, classLoader)
+  def registerPlugin(instanceClassName: String, factoryClassName: String, version: String, classLoader: ClassLoader) = {
+    val reg = new RegisteredPlugin(instanceClassName, factoryClassName, version, classLoader)
     log.debug("About to register plugin: " + reg)
     _plugins ++= Seq(reg)
   }
@@ -150,7 +154,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
   override def registeredPlugins: Seq[PluginInfo] = {
     _plugins.map { p =>
-      PluginInfo(name = p.instanceClassName, version = "0.0.1", instances = p.getInstanceNames)
+      PluginInfo(name = p.instanceClassName, p.version, instances = p.getInstanceNames)
     }
   }
 

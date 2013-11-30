@@ -21,7 +21,8 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
   val (
     exportedPackages: Option[Seq[String]],
     dependencies: Seq[String],
-    pluginClasses: Seq[(String, String)]
+    // (instanceClassName, factoryClassName, version)
+    pluginClasses: Seq[(String, String, String)]
     ) = if (raw || files.isEmpty) (None, Seq(), Seq()) else {
 
     val manifest = Option(new JarInputStream(urls.head.openStream()).getManifest())
@@ -44,13 +45,24 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
       }
     }
 
-    val pluginClasses: Seq[(String, String)] = manifest.toSeq.flatMap { m =>
+    val pluginClasses: Seq[(String, String, String)] = manifest.toSeq.flatMap { m =>
       m.getMainAttributes().getValue(Constants.SBuildPlugin) match {
         case null => Seq()
         case p =>
           p.split(",").toSeq.map { entry =>
             entry.split("=", 2) match {
-              case Array(instanceClassName, factoryClassName) => instanceClassName.trim -> factoryClassName.trim
+              case Array(instanceClassName, factoryClassNameAndVersoin) =>
+                val fnv = factoryClassNameAndVersoin.split(";version=", 2)
+                val factoryClassName = fnv(0)
+                val version =
+                  if (fnv.size == 1) "0.0.0"
+                  else {
+                    val versionString = fnv(1).trim
+                    if (versionString.startsWith("\"") && versionString.endsWith("\"")) {
+                      versionString.substring(1, versionString.size - 1)
+                    } else versionString
+                  }
+                (instanceClassName.trim, factoryClassName.trim, version)
               case _ =>
                 // FIXME: Change exception to new plugin exception
                 val ex = new ProjectConfigurationException("Invalid plugin entry: " + entry)
@@ -126,8 +138,8 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
 
   // register found plugin classes
   pluginInfo.pluginClasses.map {
-    case (instanceClassName, factoryClassName) =>
-      project.registerPlugin(instanceClassName, factoryClassName, this)
+    case (instanceClassName, factoryClassName, version) =>
+      project.registerPlugin(instanceClassName, factoryClassName, version, this)
   }
 
   def loadPluginClass(className: String): Class[_] = { // getClassLoadingLock(className).synchronized {

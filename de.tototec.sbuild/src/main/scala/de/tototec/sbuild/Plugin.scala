@@ -47,7 +47,7 @@ object Plugin {
 }
 
 trait PluginAware {
-  def registerPlugin(instanceClassName: String, factoryClassName: String, classLoader: ClassLoader)
+  def registerPlugin(instanceClassName: String, factoryClassName: String, version: String, classLoader: ClassLoader)
   //  def registerPlugin(pluginClass: Class[_])
   //  def registerPlugin(plugin: Plugin[_], config: Plugin.Config)
   //  def findOrCreatePluginInstance[I: ClassTag, T <: Plugin[I]: ClassTag]: I
