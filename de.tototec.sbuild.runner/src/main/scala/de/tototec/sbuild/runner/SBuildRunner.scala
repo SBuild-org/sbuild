@@ -388,9 +388,9 @@ class SBuildRunner {
       })
     }.mkString("\n")
 
-  def formatPluginsOf(project: Project, onlyUsed: Boolean): Seq[String] =
+  def formatPluginsOf(project: Project, includeUnused: Boolean): Seq[String] =
     project.registeredPlugins.
-      filter { p => !onlyUsed || !p.instances.isEmpty }.
+      filter { p => includeUnused || !p.instances.isEmpty }.
       map { p => s"${p.name} ${p.version}" }
 
   def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis): Int = {
@@ -432,8 +432,8 @@ class SBuildRunner {
       return 0
     }
 
-    if (config.listPlugins) {
-      val plugins = formatPluginsOf(project, onlyUsed = true)
+    if (config.listAvailablePlugins || config.listPlugins) {
+      val plugins = formatPluginsOf(project, includeUnused = config.listAvailablePlugins)
       sbuildMonitor.info(plugins.mkString("\n"))
       return 0
     }

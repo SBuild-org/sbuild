@@ -88,9 +88,11 @@ class Config {
   @CmdOption(names = Array("--keep-going", "-k"), description = "Keep going when some targets can't be made.")
   var keepGoing: Boolean = false
 
-  // TODO: list-available-plugins - also those, which are available but not used
-  // TODO: list-plugins-rekursive
+  // TODO: list-plugins-recursive
   @CmdOption(names = Array("--list-plugins"), description = "List all plugins used by this project.")
   val listPlugins: Boolean = false
+
+  @CmdOption(names = Array("--list-available-plugins"), description = "List all plugins available (used and unused) by this project.")
+  val listAvailablePlugins: Boolean = false
 
 }
