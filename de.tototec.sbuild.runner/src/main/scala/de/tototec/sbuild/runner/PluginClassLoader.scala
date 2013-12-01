@@ -99,6 +99,11 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
       }
   }
 
+  override def toString() = getClass.getSimpleName +
+    "(files=" + files +
+    ",raw=" + raw +
+    ")"
+
 }
 
 object PluginClassLoader {

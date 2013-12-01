@@ -44,9 +44,10 @@ class ProjectClassLoader(project: Project, classpathUrls: Seq[URL], parent: Clas
 
   override def toString: String = getClass.getSimpleName +
     "(project=" + project +
-    ",classpathUrls=" + classpathUrls.mkString("[", ",", "]") +
+    //    ",classpathUrls=" + classpathUrls.mkString("[", ",", "]") +
     ",parent=" + parent +
-    ",pluginInfos=" + classpathTrees.mkString("[", ",", "]") + ")"
+    //    ",pluginInfos=" + classpathTrees.mkString("[", ",", "]") +
+    ")"
 
   private[this] val end = System.currentTimeMillis
 }

@@ -14,6 +14,9 @@ import de.tototec.sbuild.execute.ParallelExecContext
 
 sealed abstract class CpTree(val pluginInfo: Option[LoadablePluginInfo], val childs: Seq[CpTree]) {
   def flatPath: Seq[File] = pluginInfo.toSeq.flatMap(_.files) ++ childs.flatMap(_.flatPath)
+  override def toString() = getClass.getSimpleName() +
+    "(pluginInfo=" + pluginInfo +
+    ")"
 }
 object EmptyCpTree extends CpTree(None, Seq())
 class LeafCpTree(pluginInfo: LoadablePluginInfo) extends CpTree(Some(pluginInfo), Seq())
