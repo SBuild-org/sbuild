@@ -4,27 +4,49 @@ import scala.annotation.Annotation
 import scala.reflect.ClassTag
 
 /**
- * WARNING: Do not use this experimental API
+ * An implementation of this trait act as a plugin activator.
+ * It is responsible to create new plugin instances and to apply the plugins functionality to the project,
+ * based on the plugin instances.
+ *
+ * Implementations are expected to have a single arg constructor with a parameter of type `[[de.tototec.sbuild.Project]]`.
+ *
+ * @tparam T The type of the plugin instance controlled by this factory.
  */
 trait Plugin[T] {
 
-  //  def instanceType: Class[T]
-
+  /**
+   * Create a new plugin instance with the name `name`.
+   * Keep in mind that it is allowed that name in the empty string (`""`),
+   * which has the meaning "an instance with the default configuration".
+   */
   def create(name: String): T
 
+  /**
+   * Apply the plugin's functionality to the project.
+   * To get a handle of the project, implementation should implement a single arg constructor with a parameter of type [[de.tototec.sbuild.Project]].
+   * @param instances A sequence of all named plugin instances.
+   *   The pair contains the name and the instance.
+   */
   def applyToProject(instances: Seq[(String, T)])
 
 }
 
 /**
- * WARNING: Do not use this experimental API
+ *
  */
 object Plugin {
-  //  def apply[T: ClassTag](name: String = "")(implicit project: Project): T = project.findOrCreatePluginInstance[T](name)
-  //  def apply[T: ClassTag](name: String = "")(configurer: T => Unit = { x: T => })(implicit project: Project): Unit = configurer(project.findOrCreatePluginInstance[T](name))
 
+  /**
+   * Activate an get a default named instance of a plugin of type `T`.
+   * @tparam T The type of the plugin instance.
+   */
   def apply[T: ClassTag](implicit project: Project): PluginConfigurer[T] = apply[T]("")
 
+  /**
+   * Activate an get a named instance of a plugin ot type `T`.
+   * @tparam T The type of the plugin instance.
+   * @param name The name of this plugin instance.
+   */
   def apply[T: ClassTag](name: String)(implicit project: Project): PluginConfigurer[T] = {
     val instance = project.findOrCreatePluginInstance[T](name)
     new PluginConfigurer[T] {
@@ -33,9 +55,12 @@ object Plugin {
     }
   }
 
+  /**
+   * Handle to a plugin instance.
+   */
   trait PluginConfigurer[T] {
     def configure(configurer: T => Unit)
-    //    def get: T
+    // def get: T
     // def disable - to disable an already enabled plugin
   }
 
