@@ -32,18 +32,18 @@ trait Plugin[T] {
 }
 
 /**
- *
+ * This object contains useful `apply` method to activate and access plugin instances.
  */
 object Plugin {
 
   /**
-   * Activate an get a default named instance of a plugin of type `T`.
+   * Activate and get a default named instance of a plugin of type `T`.
    * @tparam T The type of the plugin instance.
    */
   def apply[T: ClassTag](implicit project: Project): PluginConfigurer[T] = apply[T]("")
 
   /**
-   * Activate an get a named instance of a plugin ot type `T`.
+   * Activate and get a named instance of a plugin ot type `T`.
    * @tparam T The type of the plugin instance.
    * @param name The name of this plugin instance.
    */
