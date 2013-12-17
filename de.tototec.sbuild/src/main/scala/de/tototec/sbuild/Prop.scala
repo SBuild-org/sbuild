@@ -8,7 +8,7 @@ object SetProp {
 }
 
 object Prop {
-  def apply(key: String, value: String)(implicit project: Project) =
+  def apply(key: String, value: String)(implicit project: Project): String =
     project.properties.getOrElse(key, value)
   def apply(key: String)(implicit project: Project): String = if (project.properties.contains(key)) {
     project.properties(key)

@@ -19,4 +19,9 @@ object Constants {
    */
   val SBuildPluginClasspath = "SBuild-Classpath"
 
+  /**
+   * The minimal SBuild version required to run this plugin.
+   */
+  val SBuildVersion = "SBuild-Version"
+
 }

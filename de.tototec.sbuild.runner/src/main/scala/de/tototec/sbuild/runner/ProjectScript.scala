@@ -31,6 +31,7 @@ import de.tototec.sbuild.internal.BuildFileProject
 import de.tototec.sbuild.internal.OSGiVersion
 import de.tototec.sbuild.execute.ParallelExecContext
 import de.tototec.sbuild.Plugin
+import de.tototec.sbuild.internal.I18n
 
 object ProjectScript {
 
@@ -128,10 +129,8 @@ class ProjectScript(_scriptFile: File,
 
     val versionOption = annotationReader.findFirstAnnotationSingleValue(buildScriptIterator, "version", "value")
     val version = versionOption.getOrElse("")
-    val osgiVersion = OSGiVersion.parseVersion(version)
-    if (osgiVersion.compareTo(new OSGiVersion(SBuildVersion.osgiVersion)) > 0) {
-      throw new SBuildException("The buildscript '" + scriptFile + "' requires at least SBuild version: " + version)
-    }
+
+    new VersionChecker().assertBuildscriptVersion(version, scriptFile)
 
     log.debug("About to find additional classpath entries for: " + scriptFile)
     val allCpEntries = annotationReader.
