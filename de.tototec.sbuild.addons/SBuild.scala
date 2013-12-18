@@ -12,6 +12,7 @@ import de.tototec.sbuild.ant.tasks._
 class SBuild(implicit _project: Project) {
 
   val addonsJar = s"target/de.tototec.sbuild.addons-${SBuildConfig.sbuildVersion}.jar"
+  val addonsSourcesJar = s"target/de.tototec.sbuild.addons-${SBuildConfig.sbuildVersion}-sources.jar"
 
   val compileCp =
     SBuildConfig.scalaLibrary ~
@@ -49,6 +50,14 @@ class SBuild(implicit _project: Project) {
       fileSet = AntFileSet(dir = Path("."), includes = "LICENSE.txt")
     )
   }
+
+  Target(addonsSourcesJar) dependsOn "scan:src/main/scala" ~ "scan:LICENSE.txt" exec { ctx: TargetContext =>
+    AntZip(destFile = ctx.targetFile.get, fileSets = Seq(
+      AntFileSet(dir = Path("src/main/scala")),
+      AntFileSet(file = Path("LICENSE.txt"))
+    ))
+  }
+
 
   Target("phony:scaladoc").cacheable dependsOn SBuildConfig.compilerPath ~ compileCp ~~
     "scan:src/main/scala" ~ "src/main/scaladoc/root.tracwiki" exec {

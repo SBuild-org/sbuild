@@ -12,6 +12,7 @@ import de.tototec.sbuild.TargetRefs._
 class SBuild(implicit _project: Project) {
 
   val jar = s"target/de.tototec.sbuild.ant-${SBuildConfig.sbuildVersion}.jar"
+  val sourcesJar = s"target/de.tototec.sbuild.ant-${SBuildConfig.sbuildVersion}-sources.jar"
 
   val compileCp =
     s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar" ~
@@ -49,6 +50,14 @@ class SBuild(implicit _project: Project) {
       manifestEntries = Map("SBuild-ComponentName" -> "de.tototec.sbuild.ant")
     )
   }
+
+  Target(sourcesJar) dependsOn "scan:src/main/scala" ~ "scan:LICENSE.txt" exec { ctx: TargetContext =>
+    AntZip(destFile = ctx.targetFile.get, fileSets = Seq(
+      AntFileSet(dir = Path("src/main/scala")),
+      AntFileSet(file = Path("LICENSE.txt"))
+    ))
+  }
+
 
   Target("phony:scaladoc").cacheable dependsOn SBuildConfig.compilerPath ~ compileCp ~~
     "scan:src/main/scala" ~ "src/main/scaladoc/root.tracwiki" exec {
