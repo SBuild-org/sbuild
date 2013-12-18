@@ -24,7 +24,7 @@ class SBuild(implicit _project: Project) {
 
   Target("phony:all") dependsOn jar ~ sourcesZip ~ "test"
 
-  val versionScalaFile = "target/generated-scala/scala/de/tototec/sbuild/SBuildVersion.scala"
+  val versionScalaFile = "target/generated-scala/de/tototec/sbuild/SBuildVersion.scala"
 
   Target("phony:clean").evictCache exec {
     AntDelete(dir = Path("target"))
