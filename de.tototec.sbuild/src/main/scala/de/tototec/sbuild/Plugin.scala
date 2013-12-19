@@ -52,7 +52,7 @@ object Plugin {
     project.findOrCreatePluginInstance[T](name)
 
     new PluginConfigurer[T] {
-      override def configure(configurer: T => T): this.type = {
+      override def configure(configurer: T => T): PluginConfigurer[T] = {
         project.findAndUpdatePluginInstance[T](name, configurer)
         this
       }
@@ -64,7 +64,7 @@ object Plugin {
    * Handle to a plugin instance.
    */
   trait PluginConfigurer[T] {
-    def configure(configurer: T => T): this.type
+    def configure(configurer: T => T): PluginConfigurer[T]
     def get: T
     // def disable - to disable an already enabled plugin
   }
@@ -78,9 +78,6 @@ object Plugin {
 
 trait PluginAware {
   def registerPlugin(instanceClassName: String, factoryClassName: String, version: String, classLoader: ClassLoader)
-  //  def registerPlugin(pluginClass: Class[_])
-  //  def registerPlugin(plugin: Plugin[_], config: Plugin.Config)
-  //  def findOrCreatePluginInstance[I: ClassTag, T <: Plugin[I]: ClassTag]: I
   def findOrCreatePluginInstance[T: ClassTag](name: String): T
   def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit
   def finalizePlugins
