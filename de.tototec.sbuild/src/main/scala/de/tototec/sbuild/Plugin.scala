@@ -48,10 +48,15 @@ object Plugin {
    * @param name The name of this plugin instance.
    */
   def apply[T: ClassTag](name: String)(implicit project: Project): PluginConfigurer[T] = {
-    val instance = project.findOrCreatePluginInstance[T](name)
+    // trigger plugin activation
+    project.findOrCreatePluginInstance[T](name)
+
     new PluginConfigurer[T] {
-      override def configure(configurer: T => Unit) { configurer(instance) }
-      //      override def get: T = instance
+      override def configure(configurer: T => T): this.type = {
+        project.findAndUpdatePluginInstance[T](name, configurer)
+        this
+      }
+      override def get: T = project.findOrCreatePluginInstance[T](name)
     }
   }
 
@@ -59,8 +64,8 @@ object Plugin {
    * Handle to a plugin instance.
    */
   trait PluginConfigurer[T] {
-    def configure(configurer: T => Unit)
-    // def get: T
+    def configure(configurer: T => T): this.type
+    def get: T
     // def disable - to disable an already enabled plugin
   }
 
@@ -77,6 +82,7 @@ trait PluginAware {
   //  def registerPlugin(plugin: Plugin[_], config: Plugin.Config)
   //  def findOrCreatePluginInstance[I: ClassTag, T <: Plugin[I]: ClassTag]: I
   def findOrCreatePluginInstance[T: ClassTag](name: String): T
+  def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit
   def finalizePlugins
   def registeredPlugins: Seq[Plugin.PluginInfo]
 }

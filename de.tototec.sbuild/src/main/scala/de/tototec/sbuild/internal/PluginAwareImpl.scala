@@ -82,6 +82,15 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
         instance
     }
 
+    def update(name: String, update: Any => Any): Unit = {
+      val instance = get(name)
+      val updatedInstance = update(instance)
+      _instances = _instances.map {
+        case (n, i) if n == name => (n, updatedInstance)
+        case x => x
+      }
+    }
+
     def getInstanceNames: Seq[String] = _instances.map(_._1)
     def getAll: Seq[Any] = _instances.map(_._2)
 
@@ -138,6 +147,23 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
       case Some(regPlugin) =>
         val instanceName = name
         regPlugin.get(instanceName).asInstanceOf[T]
+      case None =>
+        val ex = new ProjectConfigurationException("No plugin registered with instance type: " + classTag[T].runtimeClass.getName)
+        ex.buildScript = Some(projectSelf.projectFile)
+        throw ex
+    }
+  }
+
+  def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit = {
+    log.debug("About to findAndUpdatePluginInstance[" + classTag[T].runtimeClass.getName + "](" + name + ")")
+    _plugins.find { rp =>
+      log.debug("checking " + rp)
+      val searchedClass = classTag[T].runtimeClass
+      rp.instanceClassName == searchedClass.getName && rp.classLoader == searchedClass.getClassLoader
+    } match {
+      case Some(regPlugin) =>
+        val instanceName = name
+        regPlugin.update(instanceName, { instance => updater(instance.asInstanceOf[T]) })
       case None =>
         val ex = new ProjectConfigurationException("No plugin registered with instance type: " + classTag[T].runtimeClass.getName)
         ex.buildScript = Some(projectSelf.projectFile)
