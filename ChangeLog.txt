@@ -5,6 +5,7 @@ SBuild core
 * Plugin API: Changed Plugin.PluginConfigurer.configure to support and
   encourage immutable plugin configuration instances.
 * Extended Plugin API with get and isModified methods.
+* Check minimal required SBuild versions of plugins.
 
 SBuild Addons
 
