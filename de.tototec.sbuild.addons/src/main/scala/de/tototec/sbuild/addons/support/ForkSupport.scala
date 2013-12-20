@@ -30,7 +30,8 @@ object ForkSupport {
                      arguments: Array[String],
                      interactive: Boolean = false,
                      errorsIntoOutput: Boolean = true,
-                     failOnError: Boolean = true)(implicit project: Project): Int = {
+                     failOnError: Boolean = true,
+                     directory: File = new File("."))(implicit project: Project): Int = {
 
     log.debug("About to run Java process")
 
@@ -55,13 +56,38 @@ object ForkSupport {
     )
   }
 
+  @deprecated("Only for binary backward compatibility. Don't use.", "0.7.0.9000")
+  def runJavaAndWait(classpath: Seq[File], arguments: Array[String], interactive: Boolean, errorsIntoOutput: Boolean, failOnError: Boolean)(implicit project: Project): Int =
+    runJavaAndWait(
+      classpath = classpath,
+      arguments = arguments,
+      interactive = interactive,
+      errorsIntoOutput = errorsIntoOutput,
+      failOnError = failOnError,
+      directory = new File(".")
+    )
+
   @deprecated("Only for binary backward compatibility. Don't use.", "0.5.0.9003")
   def runJavaAndWait(classpath: Seq[File], arguments: Array[String], interactive: Boolean)(implicit project: Project): Int =
-    runJavaAndWait(classpath, arguments, interactive, errorsIntoOutput = true, failOnError = false)(project)
+    runJavaAndWait(
+      classpath = classpath,
+      arguments = arguments,
+      interactive = interactive,
+      errorsIntoOutput = true,
+      failOnError = false,
+      directory = new File(".")
+    )
 
   @deprecated("Only for binary backward compatibility. Don't use.", "0.6.0.9002")
   def runJavaAndWait(classpath: Seq[File], arguments: Array[String], interactive: Boolean, errorsIntoOutput: Boolean)(implicit project: Project): Int =
-    runJavaAndWait(classpath, arguments, interactive, errorsIntoOutput = true, failOnError = false)(project)
+    runJavaAndWait(
+      classpath = classpath,
+      arguments = arguments,
+      interactive = interactive,
+      errorsIntoOutput = errorsIntoOutput,
+      failOnError = false,
+      directory = new File(".")
+    )
 
   /**
    * Run a command.
