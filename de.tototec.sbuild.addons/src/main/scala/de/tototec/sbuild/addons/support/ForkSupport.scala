@@ -30,7 +30,7 @@ object ForkSupport {
                      arguments: Array[String],
                      interactive: Boolean = false,
                      errorsIntoOutput: Boolean = true,
-                     failOnError: Boolean = false)(implicit project: Project): Int = {
+                     failOnError: Boolean = true)(implicit project: Project): Int = {
 
     log.debug("About to run Java process")
 
@@ -78,7 +78,7 @@ object ForkSupport {
                  interactive: Boolean = false,
                  errorsIntoOutput: Boolean = true,
                  directory: File = new File("."),
-                 failOnError: Boolean = false,
+                 failOnError: Boolean = true,
                  env: Map[String, String] = Map())(implicit project: Project): Int = {
     val pb = new ProcessBuilder(command: _*)
     log.debug("Run command: " + command.mkString(" "))
