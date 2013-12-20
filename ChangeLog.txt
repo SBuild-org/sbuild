@@ -1,4 +1,4 @@
-SBuild 0.7.1:
+SBuild 0.7.1 - 2013-12-20:
 
 SBuild core
 
