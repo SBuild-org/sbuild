@@ -48,10 +48,16 @@ object Plugin {
    * @param name The name of this plugin instance.
    */
   def apply[T: ClassTag](name: String)(implicit project: Project): PluginConfigurer[T] = {
-    val instance = project.findOrCreatePluginInstance[T](name)
+    // trigger plugin activation
+    project.findOrCreatePluginInstance[T](name)
+
     new PluginConfigurer[T] {
-      override def configure(configurer: T => Unit) { configurer(instance) }
-      //      override def get: T = instance
+      override def configure(configurer: T => T): PluginConfigurer[T] = {
+        project.findAndUpdatePluginInstance[T](name, configurer)
+        this
+      }
+      override def get: T = project.findOrCreatePluginInstance[T](name)
+      override def isModified: Boolean = project.isPluginInstanceModified[T](name)
     }
   }
 
@@ -59,8 +65,9 @@ object Plugin {
    * Handle to a plugin instance.
    */
   trait PluginConfigurer[T] {
-    def configure(configurer: T => Unit)
-    // def get: T
+    def configure(configurer: T => T): PluginConfigurer[T]
+    def get: T
+    def isModified: Boolean
     // def disable - to disable an already enabled plugin
   }
 
@@ -73,10 +80,9 @@ object Plugin {
 
 trait PluginAware {
   def registerPlugin(instanceClassName: String, factoryClassName: String, version: String, classLoader: ClassLoader)
-  //  def registerPlugin(pluginClass: Class[_])
-  //  def registerPlugin(plugin: Plugin[_], config: Plugin.Config)
-  //  def findOrCreatePluginInstance[I: ClassTag, T <: Plugin[I]: ClassTag]: I
   def findOrCreatePluginInstance[T: ClassTag](name: String): T
+  def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit
   def finalizePlugins
   def registeredPlugins: Seq[Plugin.PluginInfo]
+  def isPluginInstanceModified[T: ClassTag](name: String): Boolean
 }
