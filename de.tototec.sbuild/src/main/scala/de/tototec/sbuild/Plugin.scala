@@ -40,19 +40,19 @@ object Plugin {
    * Activate and get a default named instance of a plugin of type `T`.
    * @tparam T The type of the plugin instance.
    */
-  def apply[T: ClassTag](implicit project: Project): PluginConfigurer[T] = apply[T]("")
+  def apply[T: ClassTag](implicit project: Project): PluginHandle[T] = apply[T]("")
 
   /**
    * Activate and get a named instance of a plugin ot type `T`.
    * @tparam T The type of the plugin instance.
    * @param name The name of this plugin instance.
    */
-  def apply[T: ClassTag](name: String)(implicit project: Project): PluginConfigurer[T] = {
+  def apply[T: ClassTag](name: String)(implicit project: Project): PluginHandle[T] = {
     // trigger plugin activation
     project.findOrCreatePluginInstance[T](name)
 
-    new PluginConfigurer[T] {
-      override def configure(configurer: T => T): PluginConfigurer[T] = {
+    new PluginHandle[T] {
+      override def configure(configurer: T => T): PluginHandle[T] = {
         project.findAndUpdatePluginInstance[T](name, configurer)
         this
       }
@@ -64,9 +64,21 @@ object Plugin {
   /**
    * Handle to a plugin instance.
    */
-  trait PluginConfigurer[T] {
-    def configure(configurer: T => T): PluginConfigurer[T]
+  trait PluginHandle[T] {
+    /**
+     * Configure the current plugin.
+     * A plugin instance is typically a case class, and the configurer then calls the `.copy` method to create a new instance with modified properties.
+     *
+     * @param configurer a function returning the modified configuration.
+     */
+    def configure(configurer: T => T): PluginHandle[T]
+    /**
+     * Get the current configuration.
+     */
     def get: T
+    /**
+     * Check, whether to configuration was changed after the plugin was activated.
+     */
     def isModified: Boolean
     // def disable - to disable an already enabled plugin
   }

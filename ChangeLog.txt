@@ -2,9 +2,10 @@ SBuild 0.7.1 - 2013-12-20:
 
 SBuild core
 
-* Plugin API: Changed Plugin.PluginConfigurer.configure to support and
-  encourage immutable plugin configuration instances.
-* Extended Plugin API with get and isModified methods.
+* Plugin API: Renamed Plugin.PluginConfigurer to Plugin.PluginHandle and
+  changed the configure method to support and encourage immutable plugin
+  configuration instances.
+* Extended Plugin.PluginHandle by get and isModified methods.
 * Check minimal required SBuild versions of plugins.
 
 SBuild Addons
