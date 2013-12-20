@@ -28,7 +28,18 @@ class VersionChecker {
   }
 
   // TODO: also detect, if a plugin required a higher version that declared in the buildfile.
-  def assertPluginVersion(pluginInfo: PluginInfo): Unit = {
+  def assertPluginVersion(pluginInfo: LoadablePluginInfo, buildScript: File): Unit = {
+    pluginInfo.sbuildVersion match {
+      case None => // nothing to check
+      case Some(v) =>
+        val osgiVersion = OSGiVersion.parseVersion(v)
+        if (osgiVersion.compareTo(new OSGiVersion(SBuildVersion.osgiVersion)) > 0) {
+          val msg = tr("The plugin(s) \"{0}\" in project \"{1}\" requires at least SBuild version: {2}", pluginInfo.pluginClasses.map(_.name).mkString(","), buildScript, v)
+          val ex = new SBuildException(msg)
+          ex.buildScript = Some(buildScript)
+          throw ex
+        }
+    }
 
   }
 

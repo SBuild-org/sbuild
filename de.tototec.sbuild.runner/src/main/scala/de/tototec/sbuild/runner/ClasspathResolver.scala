@@ -60,7 +60,7 @@ class ClasspathResolver(project: Project) extends Function1[ClasspathResolver.Re
 
     //    val idxCpEntries = classpathTargets.zipWithIndex.map { case (l, r) => r -> l }
     val cpTargets = cpEntries.map {
-      case cpEntry => TargetRef(cpEntry.name)
+      cpEntry => TargetRef(cpEntry.name)
     }
 
     val incTargets = request.includeEntries.map(TargetRef(_))
@@ -108,6 +108,9 @@ class ClasspathResolver(project: Project) extends Function1[ClasspathResolver.Re
         new LeafCpTree(new LoadablePluginInfo(files = filesMap(name), raw = true))
       case ExtensionCpEntry(name) =>
         val pi = new LoadablePluginInfo(files = filesMap(name), raw = false)
+
+        new VersionChecker().assertPluginVersion(pi, project.projectFile)
+
         pi.dependencies match {
           case Seq() => new LeafCpTree(pi)
           case deps =>

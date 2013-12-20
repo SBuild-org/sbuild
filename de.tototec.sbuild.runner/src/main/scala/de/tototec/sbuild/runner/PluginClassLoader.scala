@@ -12,7 +12,15 @@ import de.tototec.sbuild.Project
 import scala.util.Try
 import scala.util.Success
 
+object LoadablePluginInfo {
+  case class PluginClasses(instanceClass: String, factoryClass: String, version: String) {
+    def name: String = s"${instanceClass}-${version}"
+  }
+}
+
 class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
+
+  import LoadablePluginInfo._
 
   private[this] val log = Logger[LoadablePluginInfo]
 
@@ -22,8 +30,9 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
     exportedPackages: Option[Seq[String]],
     dependencies: Seq[String],
     // (instanceClassName, factoryClassName, version)
-    pluginClasses: Seq[(String, String, String)]
-    ) = if (raw || files.isEmpty) (None, Seq(), Seq()) else {
+    pluginClasses: Seq[PluginClasses],
+    sbuildVersion: Option[String]
+    ) = if (raw || files.isEmpty) (None, Seq(), Seq(), None) else {
 
     val manifest = Option(new JarInputStream(urls.head.openStream()).getManifest())
 
@@ -45,7 +54,7 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
       }
     }
 
-    val pluginClasses: Seq[(String, String, String)] = manifest.toSeq.flatMap { m =>
+    val pluginClasses: Seq[PluginClasses] = manifest.toSeq.flatMap { m =>
       m.getMainAttributes().getValue(Constants.SBuildPlugin) match {
         case null => Seq()
         case p =>
@@ -62,7 +71,7 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
                       versionString.substring(1, versionString.size - 1)
                     } else versionString
                   }
-                (instanceClassName.trim, factoryClassName.trim, version)
+                PluginClasses(instanceClassName.trim, factoryClassName.trim, version)
               case _ =>
                 // FIXME: Change exception to new plugin exception
                 val ex = new ProjectConfigurationException("Invalid plugin entry: " + entry)
@@ -70,9 +79,17 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
             }
           }
       }
+
     }
 
-    (exportedPackages, dependencies, pluginClasses)
+    val sbuildVersion = manifest.flatMap { m =>
+      m.getMainAttributes().getValue(Constants.SBuildVersion) match {
+        case null => None
+        case v => Some(v.trim)
+      }
+    }
+
+    (exportedPackages, dependencies, pluginClasses, sbuildVersion)
   }
 
   def checkClassNameInExported(className: String): Boolean = exportedPackages match {
@@ -143,7 +160,7 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
 
   // register found plugin classes
   pluginInfo.pluginClasses.map {
-    case (instanceClassName, factoryClassName, version) =>
+    case LoadablePluginInfo.PluginClasses(instanceClassName, factoryClassName, version) =>
       project.registerPlugin(instanceClassName, factoryClassName, version, this)
   }
 
