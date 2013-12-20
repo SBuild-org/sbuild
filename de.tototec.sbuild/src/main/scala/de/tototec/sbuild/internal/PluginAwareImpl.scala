@@ -141,42 +141,20 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
   //    _plugins ++= Seq(new RegisteredPlugin(plugin, config))
   //  }
 
-  //  override def findOrCreatePluginInstance[I: ClassTag, T <: Plugin[I]: ClassTag]: I = findOrCreatePluginInstance[I, T]("")
-
-  override def findOrCreatePluginInstance[T: ClassTag](name: String): T = {
-
-    log.debug("About to findOrCreatePluginInstance[" + classTag[T].runtimeClass.getName + "](" + name + ")")
-    _plugins.find { rp =>
-      log.debug("checking " + rp)
-      val searchedClass = classTag[T].runtimeClass
-      rp.instanceClassName == searchedClass.getName && rp.classLoader == searchedClass.getClassLoader
-    } match {
-      case Some(regPlugin) =>
-        val instanceName = name
-        regPlugin.get(instanceName).asInstanceOf[T]
-      case None =>
-        val ex = new ProjectConfigurationException("No plugin registered with instance type: " + classTag[T].runtimeClass.getName)
-        ex.buildScript = Some(projectSelf.projectFile)
-        throw ex
+  override def findOrCreatePluginInstance[T: ClassTag](name: String): T =
+    withPlugin[T, T] { rp =>
+      rp.get(name).asInstanceOf[T]
     }
-  }
 
-  def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit = {
-    log.debug("About to findAndUpdatePluginInstance[" + classTag[T].runtimeClass.getName + "](" + name + ")")
-    _plugins.find { rp =>
-      log.debug("checking " + rp)
-      val searchedClass = classTag[T].runtimeClass
-      rp.instanceClassName == searchedClass.getName && rp.classLoader == searchedClass.getClassLoader
-    } match {
-      case Some(regPlugin) =>
-        val instanceName = name
-        regPlugin.update(instanceName, { instance => updater(instance.asInstanceOf[T]) })
-      case None =>
-        val ex = new ProjectConfigurationException("No plugin registered with instance type: " + classTag[T].runtimeClass.getName)
-        ex.buildScript = Some(projectSelf.projectFile)
-        throw ex
+  def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit =
+    withPlugin[T, Unit] { rp =>
+      rp.update(name, { instance => updater(instance.asInstanceOf[T]) })
     }
-  }
+
+  override def isPluginInstanceModified[T: ClassTag](name: String): Boolean =
+    withPlugin[T, Boolean] { rp =>
+      rp.isModified(name)
+    }
 
   private def withPlugin[T: ClassTag, R](action: RegisteredPlugin => R): R = {
     log.debug("About to activate and access a plugin instance " + classTag[T].runtimeClass.getName)
@@ -193,11 +171,6 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
         throw ex
     }
   }
-
-  override def isPluginInstanceModified[T: ClassTag](name: String): Boolean =
-    withPlugin[T, Boolean] { regPlugin =>
-      regPlugin.isModified(name)
-    }
 
   override def finalizePlugins: Unit = _plugins.map(_.applyToProject)
 
