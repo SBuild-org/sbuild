@@ -57,6 +57,7 @@ object Plugin {
         this
       }
       override def get: T = project.findOrCreatePluginInstance[T](name)
+      override def isModified: Boolean = project.isPluginInstanceModified[T](name)
     }
   }
 
@@ -66,6 +67,7 @@ object Plugin {
   trait PluginConfigurer[T] {
     def configure(configurer: T => T): PluginConfigurer[T]
     def get: T
+    def isModified: Boolean
     // def disable - to disable an already enabled plugin
   }
 
@@ -82,4 +84,5 @@ trait PluginAware {
   def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit
   def finalizePlugins
   def registeredPlugins: Seq[Plugin.PluginInfo]
+  def isPluginInstanceModified[T: ClassTag](name: String): Boolean
 }
