@@ -19,7 +19,7 @@ class SBuild(implicit _project: Project) {
       s"../de.tototec.sbuild/target/de.tototec.sbuild-${SBuildConfig.sbuildVersion}.jar"
 
   val testCp = compileCp ~
-    s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.0.RC2"
+    s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.0"
 
   ExportDependencies("eclipse.classpath", testCp)
 
@@ -85,7 +85,7 @@ class SBuild(implicit _project: Project) {
 
     val res = addons.support.ForkSupport.runJavaAndWait(
       classpath = testCp.files ++ jar.files,
-      arguments = Array("org.scalatest.tools.Runner", "-p", Path("target/test-classes").getPath, "-oF", "-u", Path("target/test-output").getPath)
+      arguments = Array("org.scalatest.tools.Runner", "-p", Path("target/test-classes").getPath, "-oG", "-u", Path("target/test-output").getPath)
     )
     if(res != 0) throw new RuntimeException("Some tests failed")
 
