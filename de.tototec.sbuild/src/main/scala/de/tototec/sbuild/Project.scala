@@ -1,8 +1,8 @@
 package de.tototec.sbuild
 
 import java.io.File
-
 import scala.reflect.ClassTag
+import scala.annotation.implicitNotFound
 
 trait ProjectBase {
   def projectDirectory: File
@@ -57,6 +57,7 @@ trait ProjectAntSupport {
   protected[sbuild] var antProject: Option[Any]
 }
 
+@implicitNotFound("Cannot find an implicit Project, which is required when invoking API designed to run inside an SBuild project script. Please refer to the SBuild manual.")
 trait Project extends MutableProject with ProjectAntSupport with PluginAware
 
 case class UniqueTargetFile(file: File, phony: Boolean, handler: Option[SchemeHandler])
