@@ -224,29 +224,55 @@ class Util {
   def recursiveListFiles(dir: File, regex: Regex = ".*".r): Array[File] = RichFile.listFilesRecursive(dir, regex)
 
   def unzip(archive: File, targetDir: File, selectedFiles: String*) {
-    unzip(archive, targetDir, selectedFiles.map(f => (f, null)).toList, monitor)
+    unzip(archive, targetDir, selectedFiles.map(f => (f, null)).toList, monitor, None)
   }
 
   def unzip(archive: File, targetDir: File, _selectedFiles: List[(String, File)], monitor: CmdlineMonitor) {
+    unzip(archive, targetDir, _selectedFiles, monitor, None)
+  }
+
+  /**
+   * Extract files from a ZIP archive.
+   * If the list of `selectedFiles` is empty and no `fileSelector` was given, than all files will be extracted.
+   *
+   * @param archive The file denoting a ZIP archive.
+   * @param targetDir The base directory, where the extracted files will be stored.
+   * @param selectedFiles A list of name-file pairs denoting which archive content should be extracted into which file.
+   *   The name if the path inside the archive.
+   *   The file will be the place that file will be extracted to.
+   *   If the file value is `null`, that the file will be extracted into the `targetDir` without any sub directory created.
+   *   @param monitor A `[CmdlineMonitor]` to report this functions progress and messages.
+   * @param fileSelector A filter used to decide if a file in the archive should be extracted or not.
+   *   `fileSelector` is not able to exclude files already selected with `selectedFiles`.
+   *   If a selector is given (`[scala.Some]`), that only those files will be extracted, for which the selector returns `true`.
+   *
+   * @return A `Seq` of all extracted files.
+   *
+   * @since 0.7.1.9000
+   */
+  def unzip(archive: File, targetDir: File, selectedFiles: List[(String, File)], monitor: CmdlineMonitor, fileSelector: Option[String => Boolean]): Seq[File] = {
 
     if (!archive.exists || !archive.isFile) throw new FileNotFoundException("Zip file cannot be found: " + archive);
     targetDir.mkdirs
 
     monitor.info(CmdlineMonitor.Verbose, "Extracting zip archive '" + archive + "' to: " + targetDir)
 
-    var selectedFiles = _selectedFiles
-    val partial = !selectedFiles.isEmpty
+    val partial = !selectedFiles.isEmpty || fileSelector.isDefined
     if (partial) log.debug("Only extracting some content of zip file")
+
+    var filesToExtract = selectedFiles
+    var extractedFilesInv: List[File] = Nil
 
     try {
       val zipIs = new ZipInputStream(new FileInputStream(archive))
       var zipEntry = zipIs.getNextEntry
-      while (zipEntry != null && (!partial || !selectedFiles.isEmpty)) {
+      val finished = partial && fileSelector.isEmpty && filesToExtract.isEmpty
+      while (zipEntry != null && !finished) {
         val extractFile: Option[File] = if (partial) {
           if (!zipEntry.isDirectory) {
-            val candidate = selectedFiles.find { case (name, _) => name == zipEntry.getName }
+            val candidate = filesToExtract.find { case (name, _) => name == zipEntry.getName }
             if (candidate.isDefined) {
-              selectedFiles = selectedFiles.filterNot(_ == candidate.get)
+              filesToExtract = filesToExtract.filterNot(_ == candidate.get)
               if (candidate.get._2 != null) {
                 Some(candidate.get._2)
               } else {
@@ -256,7 +282,13 @@ class Util {
                 Some(new File(targetDir + "/" + name))
               }
             } else {
-              None
+              fileSelector match {
+                case None => None
+                case Some(s) => s(zipEntry.getName) match {
+                  case false => None
+                  case true => Some(new File(targetDir + "/" + zipEntry.getName))
+                }
+              }
             }
           } else {
             None
@@ -285,6 +317,7 @@ class Util {
           val outputStream = new BufferedOutputStream(new FileOutputStream(targetFile))
           copy(zipIs, outputStream);
           outputStream.close
+          extractedFilesInv ::= targetFile
           if (zipEntry.getTime > 0) {
             targetFile.setLastModified(zipEntry.getTime)
           }
@@ -300,10 +333,11 @@ class Util {
           e)
     }
 
-    if (!selectedFiles.isEmpty) {
-      throw new FileNotFoundException(s"""Could not found file "${selectedFiles.head._1}" in zip archive "${archive}".""")
+    if (!filesToExtract.isEmpty) {
+      throw new FileNotFoundException(s"""Could not found file "${filesToExtract.head._1}" in zip archive "${archive}".""")
     }
 
+    extractedFilesInv.reverse
   }
 
   def copy(in: InputStream, out: OutputStream) {
