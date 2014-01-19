@@ -3,11 +3,11 @@ package de.tototec.sbuild
 import java.io.File
 import java.io.FileNotFoundException
 import java.security.MessageDigest
-
 import scala.Array.canBuildFrom
-
 import de.tototec.sbuild.SchemeHandler.SchemeContext
-import de.tototec.sbuild.internal.{Util => InternalUtil}
+import de.tototec.sbuild.internal.{ Util => InternalUtil }
+import de.tototec.sbuild.internal.StringSplitter
+import java.util.regex.Pattern
 
 /**
  * The SchemeHandler to extract resources from a ZIP resource.
@@ -57,7 +57,7 @@ import de.tototec.sbuild.internal.{Util => InternalUtil}
 class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) extends SchemeResolver with SchemeResolverWithDependencies {
 
   private[this] def log = Logger[ZipSchemeHandler]
-  
+
   val baseDir: File = _baseDir match {
     case null => Path(".sbuild/unzip")
     case x => x.getAbsoluteFile
@@ -65,7 +65,7 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
 
   override def localPath(schemeCtx: SchemeContext): String = parseConfig(schemeCtx.path) match {
     case FileConfig(_, _, targetFile) => "file:" + targetFile.getPath
-    case PhonyConfig(_, _) => "phony:" + schemeCtx.fullName
+    case RegexConfig(_, _, _) => "phony:" + schemeCtx.fullName
   }
 
   override def dependsOn(schemeCtx: SchemeContext): TargetRefs = {
@@ -74,16 +74,16 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
   }
 
   override def resolve(schemeCtx: SchemeContext, targetContext: TargetContext) = {
-    val config = parseConfig(schemeCtx.path)
+    targetContext.fileDependencies match {
+      case Seq(zipFile) =>
 
-    config match {
-      case config: FileConfig =>
-        val file = config.targetFile
+        val config = parseConfig(schemeCtx.path)
 
-        targetContext.fileDependencies match {
-          case Seq(zipFile) =>
+        config match {
+          case config @ FileConfig(fileInArchive, archiveFile, file) =>
+
             if (!file.exists || file.lastModified < zipFile.lastModified) try {
-              InternalUtil.unzip(zipFile, file.getParentFile, List((config.fileInArchive -> file)), project.monitor)
+              InternalUtil.unzip(zipFile, file.getParentFile, List((fileInArchive -> file)), project.monitor)
               try {
                 file.setLastModified(System.currentTimeMillis)
               } catch {
@@ -100,28 +100,37 @@ ${e.getMessage}""", e)
                 ex.buildScript = Some(project.projectFile)
                 throw ex
             }
-          case x =>
-            // something wrong
-            throw new IllegalStateException("Expected exactly one zip file as dependency, but got: " + x)
+
+          case RegexConfig(archive, regex, extractDir) =>
+            val pattern = Pattern.compile(regex)
+            val extractedFiles = InternalUtil.unzip(zipFile, extractDir, List(), project.monitor, Some { name: String => pattern.matcher(name).matches() })
+
+            if (!extractedFiles.isEmpty) targetContext.targetLastModified = 1
+            extractedFiles.foreach { file =>
+              targetContext.attachFile(file)
+            }
+
         }
 
-      case config: PhonyConfig =>
-        throw new NotImplementedError("Pattern-based extractors are currently not supported in ZipSchemeHandler.")
+      case x =>
+        // something wrong
+        throw new IllegalStateException("Expected exactly one zip file as dependency, but got: " + x)
     }
   }
 
   private[this] sealed trait Config { def archive: String }
   private[this] case class FileConfig(fileInArchive: String, override val archive: String, targetFile: File) extends Config
-  private[this] case class PhonyConfig(override val archive: String, pattern: String) extends Config
+  private[this] case class RegexConfig(override val archive: String, regex: String, extractDir: File) extends Config
 
   private[this] def parseConfig(path: String): Config = {
-    val syntax = "archive=archivePath;file=fileInArchive"
+    val syntax = "[file=fileInArchive;[targetFile=exctractedFile;]|regex=filePathRegex;]archive=archivePath"
 
-    val pairs = path.split(";").map { part =>
+    val pairs = StringSplitter.split(path, ";", Some("\\")).map { part =>
       part.split("=", 2) match {
         case Array(key, value) =>
           key match {
-            case "archive" | "file" | "targetFile" => (key -> value)
+            case "archive" | "file" | "targetFile" | "regex" =>
+              key -> value
             case _ =>
               val e = new ProjectConfigurationException("Unsupported key in key=value pair \"" + part + "\".")
               e.buildScript = Some(project.projectFile)
@@ -134,11 +143,13 @@ ${e.getMessage}""", e)
       }
     }.toMap
 
-    val file = pairs("file") match {
-      case f if f.startsWith("/") => f.substring(1)
-      case f => f
+    val archive = pairs.get("archive") match {
+      case Some(x) => x
+      case None =>
+        val e = new ProjectConfigurationException("Don't know from which file to extract \"" + path + "\". Please specify 'archive' key.")
+        e.buildScript = Some(project.projectFile)
+        throw e
     }
-    val archive = pairs("archive")
 
     def fileBaseLocation: String = {
       val md = MessageDigest.getInstance("MD5")
@@ -146,12 +157,32 @@ ${e.getMessage}""", e)
       digestBytes.foldLeft("") { (string, byte) => string + Integer.toString((byte & 0xff) + 0x100, 16).substring(1) }
     }
 
-    val targetFile = pairs.get("targetFile") match {
-      case Some(targetFile) => Path(targetFile)
-      case None => Path.normalize(new File(file), new File(baseDir, fileBaseLocation))
+    (pairs.get("file"), pairs.get("regex")) match {
+      case (None, None) =>
+        val e = new ProjectConfigurationException("Don't know which file to extract in \"" + path + "\". Either specify 'file' or 'regex' key.")
+        e.buildScript = Some(project.projectFile)
+        throw e
+      case (Some(_), Some(_)) =>
+        val e = new ProjectConfigurationException("Keys \"file\" and \"regex\" given at the same time in \"" + path + "\".")
+        e.buildScript = Some(project.projectFile)
+        throw e
+      case (Some(filePath), _) =>
+        val file = filePath match {
+          case f if f.startsWith("/") => f.substring(1)
+          case f => f
+        }
+
+        val targetFile = pairs.get("targetFile") match {
+          case Some(targetFile) => Path(targetFile)
+          case None => Path.normalize(new File(file), new File(baseDir, fileBaseLocation))
+        }
+
+        FileConfig(fileInArchive = file, archive = archive, targetFile = targetFile)
+
+      case (_, Some(regex)) =>
+        RegexConfig(archive = archive, regex = regex, extractDir = new File(baseDir, fileBaseLocation))
     }
 
-    FileConfig(fileInArchive = file, archive = archive, targetFile = targetFile)
   }
 
   private[this] def zipFile(config: Config): File = {
