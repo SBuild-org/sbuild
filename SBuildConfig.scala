@@ -7,7 +7,7 @@ object SBuildConfig {
   def sbuildVersion = "0.7.1.9000"
   def sbuildOsgiVersion = sbuildVersion
 
-  private val cmdOptionVersion = "0.3.1"
+  private val cmdOptionVersion = "0.3.2"
   val cmdOption = s"mvn:de.tototec:de.tototec.cmdoption:${cmdOptionVersion}"
   // def cmdOption = s"/home/lefou/work/tototec/cmdoption-trunk/de.tototec.cmdoption/target/de.tototec.cmdoption-${cmdOptionVersion}.jar"
 
