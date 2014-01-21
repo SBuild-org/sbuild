@@ -27,6 +27,12 @@ trait I18n extends I18nMarker {
   def trc(context: String, msgid: String, params: Any*): String
   def trcn(context: String, msgid: String, msgidPlural: String, n: Long, params: Any*): String
   def locale: Locale
+  def preparetr(msgid: String, params: Any*): PreparedI18n
+}
+
+trait PreparedI18n {
+  def tr: String
+  def notr: String
 }
 
 object I18n extends I18nMarker {
@@ -109,5 +115,10 @@ class I18nImpl(catalogBaseName: String, classLoader: ClassLoader, override val l
   override def trc(context: String, msgid: String, params: Any*): String = tr(msgid, params: _*)
 
   override def trcn(context: String, msgid: String, msgidPlural: String, n: Long, params: Any*): String = trn(msgid, msgidPlural, n, params: _*)
+
+  @inline override def preparetr(msgid: String, params: Any*): PreparedI18n = new PreparedI18n {
+    override def tr: String = I18nImpl.this.tr(msgid, params: _*)
+    override def notr: String = I18nImpl.this.notr(msgid, params: _*)
+  }
 
 }

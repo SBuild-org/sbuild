@@ -56,8 +56,19 @@ class BuildFileProject(_projectFile: File,
     throw new ProjectConfigurationException("Project file '" + projectFile + "' does not exists")
 
   override val projectDirectory: File = projectFile.getParentFile
-  require(projectDirectory.exists, "Project directory '" + projectDirectory + "' does not exists")
-  require(projectDirectory.isDirectory, "Project directory '" + projectDirectory + "' is not an directory")
+
+  if (!projectDirectory.exists) {
+    val msg = preparetr("Project directory \"{0}\" does not exists.", projectDirectory)
+    val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
+    ex.buildScript = Some(projectFile)
+    throw ex
+  }
+  if (!projectDirectory.isDirectory) {
+    val msg = preparetr("Project directory \"{0}\" is not a directory.", projectDirectory)
+    val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
+    ex.buildScript = Some(projectFile)
+    throw ex
+  }
 
   private[sbuild] val projectPool: ProjectPool = _projectPool match {
     case Some(p) => p

@@ -64,9 +64,11 @@ class ProjectScript(_scriptFile: File,
                     monitor: CmdlineMonitor,
                     fileLocker: FileLocker) {
 
-  private[this] val log = Logger[ProjectScript]
-
   import ProjectScript._
+
+  private[this] val log = Logger[ProjectScript]
+  private[this] val i18n = I18n[ProjectScript]
+  import i18n._
 
   private[this] val annotationReader = new AnnotationReader()
 
@@ -86,7 +88,13 @@ class ProjectScript(_scriptFile: File,
   }
 
   private[this] val scriptFile: File = Path.normalize(_scriptFile)
-  require(scriptFile.isFile, "scriptFile must be a file")
+  if (!scriptFile.exists || !scriptFile.isFile) {
+    val msg = preparetr("Project buildfile \"{0}\" does not exists or is not a file.", scriptFile)
+    val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
+    ex.buildScript = Some(scriptFile)
+    throw ex
+  }
+
   private[this] val projectDir: File = scriptFile.getParentFile
 
   private[this] val buildTargetDir = ".sbuild";
