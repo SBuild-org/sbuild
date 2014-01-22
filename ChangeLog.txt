@@ -2,6 +2,8 @@ SBuild 0.7.1.9000:
 
 SBuild core and SBuild Runner:
 
+* ZipSchemeHandler: Added new regex parameter, to support extraction of
+  multiple resources based on that regex.
 * Added new --search-targets commandline option to search for targets with a
   regular expression pattern.
 
