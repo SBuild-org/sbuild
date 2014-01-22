@@ -81,8 +81,8 @@ class SBuildRunner {
    */
   def createSBuildStub(projectFile: File, stubDir: File) {
     if (projectFile.exists) {
-      val msg = marktr("File '{0}' already exists.")
-      throw new SBuildException(notr(msg, projectFile.getName), null, tr(msg, projectFile.getName))
+      val msg = preparetr("File \"{0}\" already exists.", projectFile.getName)
+      throw new SBuildException(msg.notr, null, msg.tr)
     }
 
     val sbuildStub = new File(stubDir, projectFile.getName) match {
