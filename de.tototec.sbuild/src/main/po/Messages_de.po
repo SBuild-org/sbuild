@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: de.tototec.sbuild\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-11-21 12:30+0100\n"
+"POT-Creation-Date: 2014-01-22 10:18+0100\n"
 "PO-Revision-Date: 2013-11-06 15:01+0100\n"
 "Last-Translator: Tobias Roeser <le.petit.fou@web.de>\n"
 "Language-Team: German <>\n"
@@ -22,6 +22,8 @@ msgstr ""
 #, java-format
 msgid "File is not present and can not be downloaded in offline-mode: {0}"
 msgstr ""
+"Datei existiert nicht und kann im Offline-Modus nicht heruntergeladen "
+"werden: {0}"
 
 #: de/tototec/sbuild/ProjectTarget.scala:40
 #, java-format
@@ -33,6 +35,7 @@ msgstr "Neuzuweisung eines exec-Bocks für Target {0} in Projectdatei {1}"
 msgid ""
 "Cannot find a source scheme handler (mapping or translator) for \"{0}\"."
 msgstr ""
+"Für \"{0}\" kann kein Source SchemeHandler (Mapper oder Übersetzer) gefunden werden."
 
 #: de/tototec/sbuild/TargetRef.scala:83 de/tototec/sbuild/TargetRef.scala:96
 #, java-format
@@ -40,13 +43,16 @@ msgid ""
 "'TargetRef.files' is used for dependency \"{0}\", that is not declared with "
 "'dependsOn'."
 msgstr ""
+"Abhängigkeit \"{0}\" wird durch 'TargetRef.files' referenziert, wurde aber nicht mit 'dependsOn' deklariert."
 
 #: de/tototec/sbuild/Prop.scala:17
 #, java-format
 msgid ""
 "Undefined property \"{0}\" accessed. Please define it e.g. with \"-D {0}"
 "=value\"."
-msgstr "Zugriff auf nicht definiertes Property \"{0}\". Bitte zuerst definieren, z.B. mit \"-D {0}=value\"."
+msgstr ""
+"Zugriff auf nicht definiertes Property \"{0}\". Bitte zuerst definieren, z."
+"B. mit \"-D {0}=value\"."
 
 #: de/tototec/sbuild/ResolveFiles.scala:40
 #, java-format
@@ -60,7 +66,9 @@ msgstr "Löse target \"{0}\" auf zu: {1}"
 
 #: de/tototec/sbuild/ResolveFiles.scala:59
 msgid "'ResolveFiles' can only be used outside an exec block of a target."
-msgstr "'RsolveFiles' kann nur außerhalb eines Exec-Blocks eines Targets verwendet werden."
+msgstr ""
+"'RsolveFiles' kann nur außerhalb eines Exec-Blocks eines Targets verwendet "
+"werden."
 
 #: de/tototec/sbuild/execute/TargetExecutor.scala:368
 #: de/tototec/sbuild/execute/TargetExecutor.scala:650
@@ -154,28 +162,43 @@ msgstr ""
 
 #: de/tototec/sbuild/internal/WithinTargetExecution.scala:22
 msgid "'{0}' can only be used inside an exec block of a target."
-msgstr "'{0}' kann nur innerhalb eines Exec-Blocks eines Targets verwendet werden."
+msgstr ""
+"'{0}' kann nur innerhalb eines Exec-Blocks eines Targets verwendet werden."
 
-#: de/tototec/sbuild/internal/BuildFileProject.scala:484
+#: de/tototec/sbuild/internal/BuildFileProject.scala:61
+#, java-format
+msgid "Project directory \"{0}\" does not exists."
+msgstr "Projektverzeichnis \"{0}\" existiert nicht."
+
+#: de/tototec/sbuild/internal/BuildFileProject.scala:67
+#, java-format
+msgid "Project directory \"{0}\" is not a directory."
+msgstr "Projektverzeichnis \"{0}\" is kein Verzeichnis."
+
+#: de/tototec/sbuild/internal/BuildFileProject.scala:495
 #, java-format
 msgid "Replacing scheme handler \"{0}\" for project \"{1}\"."
 msgstr "Ersetze SchemeHandler \"{0}\" für Projekt \"{1}\"."
 
-#: de/tototec/sbuild/internal/BuildFileProject.scala:492
+#: de/tototec/sbuild/internal/BuildFileProject.scala:503
 #, java-format
 msgid ""
 "Cannot replace scheme handler \"{0}\" for project \"{1}\". No previous "
 "scheme handler registered under this name."
-msgstr "Kann SchemeHandler \"{0}\" für Projekt \"{1}\" nicht ersetzen. Keine vorheriger SchemeHandler unter diesem Namen registriert."
+msgstr ""
+"Kann SchemeHandler \"{0}\" für Projekt \"{1}\" nicht ersetzen. Keine "
+"vorheriger SchemeHandler unter diesem Namen registriert."
 
-#: de/tototec/sbuild/internal/BuildFileProject.scala:521
+#: de/tototec/sbuild/internal/BuildFileProject.scala:532
 #, java-format
 msgid "Ignoring redefinition of property: {0}"
-msgstr "Ignoriere Umdefinition von Property: {0}"
+msgstr "Ignoriere Neudefinition von Property: {0}"
 
-#: de/tototec/sbuild/internal/BuildFileProject.scala:557
+#: de/tototec/sbuild/internal/BuildFileProject.scala:568
 #, java-format
 msgid ""
 "Could not determine the location if the included file which contains class "
 "\"{0}\"."
-msgstr "Konnte den Ort der Eingebundenen Datei, die die Klasse \"{0}\" enthält, nicht ermitteln."
+msgstr ""
+"Konnte den Ort der Eingebundenen Datei, die die Klasse \"{0}\" enthält, "
+"nicht ermitteln."
