@@ -35,7 +35,7 @@ object SBuildConfig {
 class I18n()(implicit _project: Project) {
   import java.io.File
 
-  var targetCatalogDir: File = Path("target/po") 
+  var targetCatalogDir: File = Path("target/po")
 
   def applyAll {
 
@@ -57,7 +57,7 @@ class I18n()(implicit _project: Project) {
       failOnError = true,
       executable = "xgettext",
       args = Array[String](
-        "-ktr", "-kmarktr",
+        "-ktr", "-kmarktr", "-kpreparetr",
         "--language", "Java",
         "--directory", new File(srcDirUri).getPath,
         "--output-dir", ctx.targetFile.get.getParent,
