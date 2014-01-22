@@ -7,6 +7,7 @@ import java.io.FileReader
 import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import java.util.Properties
+import java.util.regex.Pattern
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
 import scala.collection.JavaConverters.asScalaBufferConverter
@@ -380,13 +381,13 @@ class SBuildRunner {
    * Format all non-implicit targets of a project.
    * If the project is not the main/entry project, to project name will be included in the formatted name.
    */
-  def formatTargetsOf(project: Project): String =
+  def formatTargetsOf(project: Project): Seq[String] =
     project.targets.sortBy(_.name).map { t =>
       t.formatRelativeToBaseProject + " \t" + (t.help match {
         case null => ""
         case s: String => s
       })
-    }.mkString("\n")
+    }
 
   def formatPluginsOf(project: Project, includeUnused: Boolean): Seq[String] =
     project.registeredPlugins.
@@ -405,7 +406,7 @@ class SBuildRunner {
       return 0
     }
 
-    val outputAndExit = config.listModules || config.listTargets || config.listTargetsRecursive || config.listPlugins
+    val outputAndExit = config.listModules || config.listTargets || config.listTargetsRecursive || config.listPlugins || config.searchTargets.isDefined
 
     sbuildMonitor.info(
       if (outputAndExit) CmdlineMonitor.Verbose else CmdlineMonitor.Default,
@@ -415,13 +416,28 @@ class SBuildRunner {
     log.debug("Targets: \n" + project.targets.map(_.formatRelativeToBaseProject).mkString("\n"))
 
     // Format listing of target and return
-    if (config.listTargets || config.listTargetsRecursive) {
+    if (config.listTargets || config.listTargetsRecursive || config.searchTargets.isDefined) {
+      val recursive = config.listTargetsRecursive || config.searchTargets.isDefined
       val projectsToList =
-        if (config.listTargetsRecursive) project.projectPool.projects
+        if (recursive) project.projectPool.projects
         else (project +: additionalProjects)
 
-      val out = projectsToList.sortWith(projectSorter(project) _).map { p => formatTargetsOf(p) }
-      sbuildMonitor.info(out.mkString("\n\n"))
+      val formattedTargets: Seq[Seq[String]] = projectsToList.sortWith(projectSorter(project) _).map { p => formatTargetsOf(p) }
+
+      if (config.searchTargets.isDefined) {
+        val highlighter =
+          (if (isWindows) ansi.fg(RED).a("$0").reset
+          else ansi.fgBright(RED).a("$0").reset).toString
+
+        val pattern = Pattern.compile(config.searchTargets.get)
+        val out = formattedTargets.flatten.collect {
+          case t if pattern.matcher(t).find() => pattern.matcher(t).replaceAll(highlighter)
+        }
+        sbuildMonitor.info(out.mkString("\n"))
+      } else {
+        val out = formattedTargets.map { ts => ts.mkString("\n") }.mkString("\n\n")
+        sbuildMonitor.info(out)
+      }
       // early exit
       return 0
     }

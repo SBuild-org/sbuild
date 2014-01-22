@@ -32,6 +32,10 @@ class Config {
     description = "Show a list of modules involved in this project.")
   var listModules = false
 
+  @CmdOption(names = Array("--search-targets", "--find-targets"), args = Array("REGEX"), description = "Search targets based on a regular expression pattern.")
+  def setSearchTargets(pattern: String) = searchTargets = Some(pattern)
+  var searchTargets: Option[String] = None
+
   @CmdOption(names = Array("--define", "-D"), args = Array("KEY=VALUE"), maxCount = -1,
     description = "Define or override properties. If VALUE is omitted it defaults to \"true\".")
   def addDefine(keyValue: String) {

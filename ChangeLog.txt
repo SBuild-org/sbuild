@@ -1,3 +1,10 @@
+SBuild 0.7.1.9000:
+
+SBuild core and SBuild Runner:
+
+* Added new --search-targets commandline option to search for targets with a
+  regular expression pattern.
+
 SBuild 0.7.1 - 2013-12-20:
 
 SBuild core
