@@ -397,7 +397,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
               persistentTargetCache.dropCacheState(curTarget.project, cacheName)
             }
             // phony target, have to run it always. Any laziness is up to it implementation
-            log.debug(s"""Target "${curTargetFormatted}" is phony and needs to run (if not cached).""")
+            log.debug(s"""Target "${curTargetFormatted}" is phony and needs to run (cacheable-test pending).""")
             NeedsToRun(true)
         }
 
@@ -452,7 +452,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
                     val level = if (curTarget.isTransparentExec) CmdlineMonitor.Verbose else monitorConfig.executing
                     val progressPrefix = calcProgressPrefix
                     monitor.info(level, progressPrefix + tr("Executing target: ") + colorTarget(curTargetFormatted))
-                    log.debug("Executing Target: " + curTargetFormatted)
+                    log.debug("Executing " + (if (curTarget.isCacheable) "cacheable " else "") + "Target: " + curTargetFormatted)
                     if (curTarget.help != null && curTarget.help.trim != "")
                       monitor.info(level, progressPrefix + curTarget.help)
                     ctx.start
@@ -583,7 +583,9 @@ class TargetExecutor(monitor: CmdlineMonitor,
       case Some(parCtx) =>
         parCtx.lock(curTarget)
         try {
-          inner
+          scala.concurrent.blocking {
+            inner
+          }
         } catch {
           case e: Throwable =>
             log.debug("Catched an exception in parallel executed targets.", e)
