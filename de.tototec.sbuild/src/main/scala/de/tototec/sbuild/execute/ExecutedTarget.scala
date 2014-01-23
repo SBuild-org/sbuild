@@ -24,4 +24,9 @@ class ExecutedTarget(
   def target = targetContext.target
   val treeSize: Int = dependencies.foldLeft(1) { (a, b) => a + b.treeSize }
   def linearized: Seq[ExecutedTarget] = dependencies.flatMap { et => et.linearized } ++ Seq(this)
+  override def toString: String = getClass().getSimpleName() +
+    "(targetContext=" + targetContext +
+    ",dependencies.size=" + dependencies.size +
+    ",resultState=" + resultState +
+    ")"
 }
