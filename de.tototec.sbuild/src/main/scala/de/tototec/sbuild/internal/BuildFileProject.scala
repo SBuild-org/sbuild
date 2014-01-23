@@ -16,7 +16,6 @@ import de.tototec.sbuild.SchemeResolverWithDependencies
 import de.tototec.sbuild.TargetContext
 import de.tototec.sbuild.NoopCmdlineMonitor
 import de.tototec.sbuild.SchemeResolver
-import de.tototec.sbuild.ProjectTarget
 import de.tototec.sbuild.UniqueTargetFile
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.TargetNotFoundException
@@ -36,6 +35,7 @@ import de.tototec.sbuild.HttpSchemeHandler
 import de.tototec.sbuild.MapperSchemeHandler
 import de.tototec.sbuild.ProjectPool
 import scala.reflect.classTag
+import de.tototec.sbuild.CacheableSchemeResolver
 
 class BuildFileProject(_projectFile: File,
                        _projectReader: ProjectReader = null,
@@ -210,6 +210,10 @@ class BuildFileProject(_projectFile: File,
           },
           initialSideEffectFree = handler match {
             case Some(_: SideeffectFreeSchemeResolver) => true
+            case _ => false
+          },
+          initialCacheable = handler match {
+            case Some(c: CacheableSchemeResolver) => c.isCacheable(targetSchemeContext)
             case _ => false
           })
         target.isImplicit = isImplicit
@@ -414,7 +418,8 @@ class BuildFileProject(_projectFile: File,
                */
               class WrappedSchemeResolver(primaryHandler: SchemeHandler, secondaryResolver: SchemeResolver)
                   extends SchemeResolver
-                  with SchemeResolverWithDependencies {
+                  with SchemeResolverWithDependencies
+                  with CacheableSchemeResolver {
 
                 //                  def unwrappedPath(schemeContext: SchemeContext): String = handler.localPath(schemeContext).split(":", 2)(1)
                 def unwrappedScheme(schemeContext: SchemeContext): SchemeContext =
@@ -423,9 +428,14 @@ class BuildFileProject(_projectFile: File,
                     // other cases do not apply, as we know there is an explicit scheme
                   }
 
-                override def localPath(schemeContext: SchemeContext) = primaryHandler.localPath(schemeContext)
+                override def localPath(schemeContext: SchemeContext): String = primaryHandler.localPath(schemeContext)
 
-                override def resolve(schemeContext: SchemeContext, targetContext: TargetContext) = {
+                override def isCacheable(schemeContext: SchemeContext): Boolean = secondaryResolver match {
+                  case c: CacheableSchemeResolver => c.isCacheable(unwrappedScheme(schemeContext))
+                  case _ => false
+                }
+
+                override def resolve(schemeContext: SchemeContext, targetContext: TargetContext): Unit = {
                   val unwrappedPath = this.unwrappedScheme(schemeContext)
                   log.debug(s"""About to resolve "${schemeContext}" by calling undelying scheme handler's resolve with path "${unwrappedPath}""")
                   secondaryResolver.resolve(unwrappedPath, targetContext)
