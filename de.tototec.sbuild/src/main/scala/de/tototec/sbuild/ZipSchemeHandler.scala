@@ -12,27 +12,23 @@ import java.util.regex.Pattern
 /**
  * The SchemeHandler to extract resources from a ZIP resource.
  *
- * TODO: Syntax
- *
- *
- * Syntax
- * ------
- *
+ * ==Syntax==
+ * {{{
  *         target ::= <scheme> ':' ( single-file | file-pattern ) ';archive=' <archive>
  *    single-file ::= 'file=' <file> ( ';targetFile=' <file> )?
- *   file-pattern ::= 'pattern=' <pattern>
- *
+ *   file-pattern ::= 'regex=' <pattern>
+ * }}}
  *
  * The `scheme` is the name under which the ZipSchemeHandler was registered.
+ * 
  * The `archive`is the ZIP archive and can be any supported target resolving to a file target.
  *
- * Extracting single files
- * -----------------------
+ * ==Extracting single files==
  *
  * The `file` is a the path to the to-be-extracted file in the archive.
  * The optional `targetFile` denotes the location, where the extracted file should be stored.
- *
- * The ZipSchemeHandler will resolve to a file scheme pointing to the extracted file.
+ * 
+ * The `ZipSchemeHandler` will resolve to a file scheme pointing to the extracted file.
  *
  * Examples:
  * {{{
@@ -46,15 +42,19 @@ import java.util.regex.Pattern
  * Target("phony:remoteTest") dependsOn "zip:file=META-INF/MANIFEST.MF;archive=mvn:org.example:example:1.0"
  * }}}
  *
- * Extracting multiple files (no yet implemented)
- * ----------------------------------------------
+ * ==Extracting multiple files==
  *
- * Use `pattern` to specify a regular expression pattern which will match those files from the archive to be extracted.
- * The ZipSchemeHandler will resolve to a phony scheme including all extracted files as attached files.
+ * Use `regex` to specify a regular expression pattern which will match those files from the archive to be extracted.
+ *
+ * The `ZipSchemeHandler` will resolve to a phony scheme including all extracted files as attached files.
+ * 
  * Remember that it is legal for ZIP resources, to not include directory entries, thus your might want to match concrete files inside the archive.
  *
  */
-class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) extends SchemeResolver with SchemeResolverWithDependencies {
+class ZipSchemeHandler(val _baseDir: File = null, regexCacheable: Boolean = false)(implicit project: Project)
+    extends SchemeResolver
+    with SchemeResolverWithDependencies
+    with CacheableSchemeResolver {
 
   private[this] def log = Logger[ZipSchemeHandler]
 
@@ -66,6 +66,11 @@ class ZipSchemeHandler(val _baseDir: File = null)(implicit project: Project) ext
   override def localPath(schemeCtx: SchemeContext): String = parseConfig(schemeCtx.path) match {
     case FileConfig(_, _, targetFile) => "file:" + targetFile.getPath
     case RegexConfig(_, _, _) => "phony:" + schemeCtx.fullName
+  }
+
+  override def isCacheable(schemeCtx: SchemeContext): Boolean = parseConfig(schemeCtx.path) match {
+    case FileConfig(_, _, targetFile) => false
+    case RegexConfig(_, _, _) => regexCacheable
   }
 
   override def dependsOn(schemeCtx: SchemeContext): TargetRefs = {
@@ -105,6 +110,8 @@ ${e.getMessage}""", e)
             val pattern = Pattern.compile(regex)
             val extractedFiles = InternalUtil.unzip(zipFile, extractDir, List(), project.monitor, Some { name: String => pattern.matcher(name).matches() })
 
+            if (extractedFiles.isEmpty)
+              project.monitor.warn(CmdlineMonitor.Default, "No files matched pattern: " + regex)
             if (!extractedFiles.isEmpty) targetContext.targetLastModified = 1
             extractedFiles.foreach { file =>
               targetContext.attachFile(file)
@@ -125,30 +132,22 @@ ${e.getMessage}""", e)
   private[this] def parseConfig(path: String): Config = {
     val syntax = "[file=fileInArchive;[targetFile=exctractedFile;]|regex=filePathRegex;]archive=archivePath"
 
-    val pairs = StringSplitter.split(path, ";", Some("\\")).map { part =>
-      part.split("=", 2) match {
-        case Array(key, value) =>
-          key match {
-            case "archive" | "file" | "targetFile" | "regex" =>
-              key -> value
-            case _ =>
-              val e = new ProjectConfigurationException("Unsupported key in key=value pair \"" + part + "\".")
-              e.buildScript = Some(project.projectFile)
-              throw e
-          }
-        case _ =>
-          val e = new ProjectConfigurationException("Expected a key=value pair, but got \"" + part + "\".")
-          e.buildScript = Some(project.projectFile)
-          throw e
-      }
-    }.toMap
+    val pairsSeq = split(path, Seq("file", "archive", "targetFile", "regex"))
+    val keyCounts = pairsSeq.groupBy { case (k, _) => k }.collect { case (k, v) if v.size > 1 => k }.toSeq
+    if (!keyCounts.isEmpty) {
+      val ex = new ProjectConfigurationException("The following keys were given multiple times: " + keyCounts.mkString(", "))
+      ex.buildScript = Some(project.projectFile)
+      throw ex
+    }
+
+    val pairs = pairsSeq.toMap
 
     val archive = pairs.get("archive") match {
       case Some(x) => x
       case None =>
-        val e = new ProjectConfigurationException("Don't know from which file to extract \"" + path + "\". Please specify 'archive' key.")
-        e.buildScript = Some(project.projectFile)
-        throw e
+        val ex = new ProjectConfigurationException("Don't know from which file to extract \"" + path + "\". Please specify 'archive' key.")
+        ex.buildScript = Some(project.projectFile)
+        throw ex
     }
 
     def fileBaseLocation: String = {
@@ -201,4 +200,20 @@ ${e.getMessage}""", e)
     target.file
   }
 
+  def split(scanPath: String, keys: Seq[String], parsed: Seq[(String, String)] = Seq()): Seq[(String, String)] = {
+    if (!scanPath.startsWith(";")) split(";" + scanPath, keys, parsed)
+    else {
+      val idx = keys.map(k => scanPath.lastIndexOf(";" + k + "=")).max
+      if (idx < 0 && scanPath.length == 1) parsed
+      else if (idx < 0) {
+        val e = new ProjectConfigurationException("Expected a key=value pair, but got \"" + scanPath.substring(1) + "\".")
+        e.buildScript = Some(project.projectFile)
+        throw e
+      } else {
+        val candidate = scanPath.substring(idx + 1)
+        val newParsed = keys.find(k => candidate.startsWith(k)).map(k => k -> candidate.substring(k.length + 1)).get
+        split(scanPath.substring(0, idx), keys, newParsed +: parsed)
+      }
+    }
+  }
 }

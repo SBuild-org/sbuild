@@ -26,38 +26,71 @@ class ZipSchemeHandlerTest extends FreeSpec {
     assert(zipHandler.baseDir === zipPath)
   }
 
-  "Bad path with missing key=value pair" in {
-    intercept[ProjectConfigurationException] {
-      zipHandler.localPath(SchemeContext("zip", "badPath"))
+  "localPath" - {
+    "Bad path with missing key=value pair" in {
+      intercept[ProjectConfigurationException] {
+        zipHandler.localPath(SchemeContext("zip", "badPath"))
+      }
+    }
+
+    "Bad path with unsupported key=value pair" in {
+      intercept[ProjectConfigurationException] {
+        zipHandler.localPath(SchemeContext("zip", "badKey=badValue"))
+      }
+    }
+
+    "Bad path with missing value in key=value pair" in {
+      intercept[ProjectConfigurationException] {
+        zipHandler.localPath(SchemeContext("zip", "file"))
+      }
+    }
+
+    "Valid path without nested scheme" in {
+      assert(zipHandler.localPath(SchemeContext("zip", "file=/content.jar;archive=test.zip")) === "file:" + zipPath.getPath + "/8caba7d65b81501f3b65eca199c28ace/content.jar")
+    }
+
+    "Valid path with explicit file scheme" in {
+      assert(zipHandler.localPath(SchemeContext("zip", "file=/content.jar;archive=file:test.zip")) === "file:" + zipPath + "/64435b5ec7279a1857b506ab0cdd344e/content.jar")
+    }
+
+    "Valid path with nested http scheme" in {
+      assert(zipHandler.localPath(SchemeContext("zip", "file=/content.jar;archive=http://example.org/test.zip")) === "file:" + zipPath.getPath + "/81ce359bcbbb6f271516cb8dd272cb25/content.jar")
+    }
+
+    "Valid path with nested http scheme and renamed file" in {
+      assert(zipHandler.localPath(SchemeContext("zip", "file=content.jar;targetFile=renamed-content.jar;archive=http://example.org/test.zip")) === "file:" + projDir + "/renamed-content.jar")
     }
   }
 
-  "Bad path with unsupported key=value pair" in {
-    intercept[ProjectConfigurationException] {
-      zipHandler.localPath(SchemeContext("zip", "badKey=badValue"))
+  val splitKeys = Seq("key1", "key2", "key3")
+
+  "split should fail" - {
+
+    val cases = Seq("invalid", "invalid;key1=test")
+
+    cases.foreach { c =>
+      s"case ${c}" in {
+        intercept[ProjectConfigurationException] {
+          zipHandler.split(c, splitKeys)
+        }
+      }
     }
+
   }
 
-  "Bad path with missing value in key=value pair" in {
-    intercept[ProjectConfigurationException] {
-      zipHandler.localPath(SchemeContext("zip", "file"))
+  "split should" - {
+
+    val cases = Seq(
+      "" -> Seq(),
+      "key1=1" -> Seq("key1" -> "1"),
+      "key1=1;key2=2;;;" -> Seq("key1" -> "1", "key2" -> "2;;;")
+    )
+
+    cases.foreach { c =>
+      s"split ${c._1} into ${c._2}" in {
+        assert(zipHandler.split(c._1, splitKeys) === c._2)
+      }
     }
-  }
 
-  "Valid path without nested scheme" in {
-    assert(zipHandler.localPath(SchemeContext("zip", "file=/content.jar;archive=test.zip")) === "file:" + zipPath.getPath + "/8caba7d65b81501f3b65eca199c28ace/content.jar")
   }
-
-  "Valid path with explicit file scheme" in {
-    assert(zipHandler.localPath(SchemeContext("zip", "file=/content.jar;archive=file:test.zip")) === "file:" + zipPath + "/64435b5ec7279a1857b506ab0cdd344e/content.jar")
-  }
-
-  "Valid path with nested http scheme" in {
-    assert(zipHandler.localPath(SchemeContext("zip", "file=/content.jar;archive=http://example.org/test.zip")) === "file:" + zipPath.getPath + "/81ce359bcbbb6f271516cb8dd272cb25/content.jar")
-  }
-
-  "Valid path with nested http scheme and renamed file" in {
-    assert(zipHandler.localPath(SchemeContext("zip", "file=content.jar;targetFile=renamed-content.jar;archive=http://example.org/test.zip")) === "file:" + projDir + "/renamed-content.jar")
-  }
-  
 }
