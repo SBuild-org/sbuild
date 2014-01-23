@@ -32,6 +32,11 @@ class PersistentTargetCache {
     new File(cacheStateDir(project), md5)
   }
 
+  /**
+   * Load the cached state for the given `[[TargetContext]]`.
+   * The loaded state will be tested and if all recorded files exists and the timestamps match, it will return the `[[CachedState]]`.
+   * In all other cases, `[[scala.None]]` is returned and the potentially existing state file will be deleted.
+   */
   def loadOrDropCachedState(ctx: TargetContext): Option[CachedState] = synchronized {
     // TODO check same lastModified of fileDependencies, 
 
@@ -83,9 +88,10 @@ class PersistentTargetCache {
             cachedTargetLastModified = Try(line.toLong).toOption
 
           case unknownMode =>
-            log.warn(s"""Unexpected file format detected in file "${stateFile}". Dropping cached state of target "${ctx.name}".""")
-            closeAndDrop("Unknown mode: " + unknownMode)
-            return None
+            log.debug(s"""Ignoring section ${unknownMode} in cache file "${stateFile}" of target "${ctx.name}"""")
+            // log.warn(s"""Unexpected file format detected in file "${stateFile}" (cache of target "${ctx.name}").""")
+            // closeAndDrop("Unknown mode: " + unknownMode)
+            // return None
         }
       }
     )
@@ -152,6 +158,9 @@ class PersistentTargetCache {
 
       writer.write("[attachedFiles]\n")
       ctx.attachedFiles.foreach { file => writer.write(file.getPath + "\n") }
+
+      writer.write("[target]\n")
+      writer.write(ctx.name + "\n")
 
     } finally {
       writer.close
