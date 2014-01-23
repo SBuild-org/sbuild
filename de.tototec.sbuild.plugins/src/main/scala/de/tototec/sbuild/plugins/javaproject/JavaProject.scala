@@ -33,6 +33,7 @@ object JavaProject {
       c.target = target
       c.deprecation = deprecation
       c.debugInfo = debugInfo
+      c
     }
 
     Plugin[Clean]
@@ -40,15 +41,18 @@ object JavaProject {
     Plugin[Javac] configure javacConfigurer
     Plugin[Javac] configure { c =>
       c.classpath = compileCp
+      c
     }
 
     Plugin[Jar] configure { c =>
       c.jarName = jarName
+      c
     }
 
     Plugin[Javac]("test") configure javacConfigurer
     Plugin[Javac]("test") configure { c =>
       c.classpath = s"target/$jarName" ~ "aether:test"
+      c
     }
 
     Plugin[Jar]("test") configure { c =>
@@ -56,6 +60,7 @@ object JavaProject {
       c.baseDir = Path("target/test-classes")
       c.dependsOn = "compile-test"
       c.aggregatorTarget = Some("phony:jar-test")
+      c
     }
 
     Target("phony:all") dependsOn "jar"
