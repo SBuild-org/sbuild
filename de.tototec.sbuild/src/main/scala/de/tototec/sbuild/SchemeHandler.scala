@@ -34,11 +34,11 @@ object SchemeHandler {
 }
 
 /**
- * A SchemeHandler, that also resolves the representing target.
- *  with a built-in target scheme.
- * The localPath of such schemes should translate into a built-in target scheme, either "file" or "phony".
+ * A SchemeHandler, that also resolves the representing target with a built-in target scheme.
+ * 
+ * The `[[SchemeResolver#localPath localPath]]` of such schemes should translate into a built-in target scheme, either "file" or "phony".
  * If SBuild decides, that the virtual target needs to be executed (is not up-to-date),
- * [[de.tototec.sbuild.SchemeResolver#resolve(String)]] will be called.
+ * [[de.tototec.sbuild.SchemeResolver#resolve]] will be called.
  *
  */
 trait SchemeResolver extends SchemeHandler {
@@ -57,9 +57,6 @@ trait SchemeResolverWithDependencies extends SchemeResolver {
   def dependsOn(schemeContext: SchemeContext): TargetRefs
 }
 
-@deprecated("Use SchemeResolverWithDependencies instead.", "0.4.1")
-trait SchemeHandlerWithDependencies extends SchemeResolverWithDependencies
-
 /**
  * An internal marker interface.
  * Currently used to denote a scheme handler, that should work more silently, e.g. the default "scan:" handler.
@@ -73,3 +70,7 @@ trait TransparentSchemeResolver extends SchemeResolver
  * that do not change other files except the target file (localPath) and the attached files (TargetContext).
  */
 trait SideeffectFreeSchemeResolver extends SchemeResolver
+
+trait CacheableSchemeResolver extends SchemeResolver {
+  def isCacheable(schemeContext: SchemeContext): Boolean
+}
