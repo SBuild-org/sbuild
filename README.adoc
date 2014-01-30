@@ -17,3 +17,12 @@ cd sbuild
 ----
 
 To build everything, including executing the tests, you should use the "all" target.
+
+== Contributions
+
+We 're glad to welcome any kind of feedback and contributions. 
+
+Currently, we are in the transition from the Redmine-based project site to a Github + Static Pages approach.
+Our goal is, to migrate all existing tickets to Github issue tracker.
+Thus, we currently disabled issues + PR submissions on Github. 
+Please use the Redmine site at http://sbuild.tototec.de/sbuild for now. Thank you!
