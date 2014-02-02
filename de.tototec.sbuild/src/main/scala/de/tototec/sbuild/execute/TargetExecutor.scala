@@ -191,6 +191,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
    * If `skipExec` is `false`, for each target the up-to-date state will be evaluated,
    * and if the target is no up-to-date, the associated action will be executed.
    */
+  @deprecated("Simply use preorderedDependenciesTree", "0.7.1.9000")
   def preorderedDependenciesForest(request: Seq[Target],
                                    execProgress: Option[TargetExecutor.ExecProgress] = None,
                                    skipExec: Boolean = false,
