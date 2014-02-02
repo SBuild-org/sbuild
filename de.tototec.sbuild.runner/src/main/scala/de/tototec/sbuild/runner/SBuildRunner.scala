@@ -562,7 +562,6 @@ class SBuildRunner {
       }
       lastRepeatStart = System.currentTimeMillis
 
-      // TODO: evaluate lazyDryRunChain in parallel and update the progress onSuccess.
       try {
 
         val execProgress =
@@ -575,47 +574,16 @@ class SBuildRunner {
           sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[0%]") + tr(" Executing..."))
           sbuildMonitor.info(CmdlineMonitor.Verbose, tr("Requested targets: ") + targets.map(_.formatRelativeToBaseProject).mkString(" ~ "))
 
-          //          val execThread = new Thread("TargetExecutor") {
-          //            var execResult: Seq[ExecutedTarget] = Seq()
-          //            override def run() {
-          val execResult = targetExecutor.preorderedDependenciesForest(targets, execProgress = execProgress, dependencyCache = dependencyCache,
-            transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
-            treeParallelExecContext = parallelExecContext, keepGoing = keepGoing)
-          //              this.execResult = execResult
-          //            }
-          //          }
-
-          //          var firstUncaughtException: Option[Throwable] = None
-          //          val shutdownHook = sys.addShutdownHook {
-          //            // never repeat
-          //            repeat = false
-          //
-          //            var ex = new ExecutionFailedException("SBuild process killed.")
-          //            firstUncaughtException = firstUncaughtException.orElse(Some(ex))
-          //
-          //            // If parallel, tear down the thread pool
-          //            parallelExecContext match {
-          //              case Some(parCtx) =>
-          //                parCtx.getFirstError(ex)
-          //                // we need to stop the complete ForkJoinPool
-          //                parCtx.pool.shutdownNow()
-          //              case None =>
-          //                execThread.interrupt()
-          //            }
-          //          }
-          //
-          //          execThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-          //            override def uncaughtException(t: Thread, e: Throwable) {
-          //              firstUncaughtException = firstUncaughtException.orElse(Some(e))
-          //            }
-          //          })
-          //          execThread.start()
-          //          execThread.join()
-          //          shutdownHook.remove()
-          //
-          //          firstUncaughtException.map(e => throw e)
-          //
-          //          val execResult = execThread.execResult
+          val execResult = targets.map { target =>
+            targetExecutor.preorderedDependenciesTree(
+              target,
+              execProgress = execProgress,
+              dependencyCache = dependencyCache,
+              transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
+              parallelExecContext = parallelExecContext,
+              keepGoing = keepGoing
+            )
+          }
 
           execResult.filter(!_.resultState.successful) match {
             case Seq() =>
