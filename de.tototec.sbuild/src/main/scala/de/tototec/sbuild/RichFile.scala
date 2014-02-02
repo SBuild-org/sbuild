@@ -2,6 +2,9 @@ package de.tototec.sbuild
 
 import java.io.File
 import scala.util.matching.Regex
+import java.io.IOException
+import java.io.FileInputStream
+import java.io.FileOutputStream
 
 object RichFile {
 
@@ -43,6 +46,50 @@ object RichFile {
     }
   }
 
+  def copy(source: File, dest: File, preserveDate: Boolean): Unit = {
+    if (!source.exists()) throw new IOException("Cannot copy non-existing file: " + source)
+
+    if (source.isDirectory()) {
+      if (dest.exists() && !dest.isDirectory()) {
+        throw new IOException("Cannot copy directory " + source + ". Target exists and is not a directory: " + dest)
+      }
+      dest.mkdirs()
+      source.listFiles().foreach { file =>
+        copy(file, dest / file.getName(), preserveDate)
+      }
+    } else {
+      val realDest = if (dest.exists() && dest.isDirectory()) {
+        dest / source.getName()
+      } else {
+        dest.getParentFile() match {
+          case null =>
+          case parent => parent.mkdirs()
+        }
+        dest
+      }
+
+      val is = new FileInputStream(source)
+      val os = new FileOutputStream(realDest)
+      try {
+        val input = is.getChannel()
+        val output = os.getChannel()
+        val size = input.size
+        val bufferSize: Long = 1024 * 1024 * 10
+        var pos = 0L
+        while (pos < size) {
+          val count = scala.math.min(bufferSize, size - pos)
+          pos += output.transferFrom(input, pos, count)
+        }
+      } finally {
+        os.close()
+        is.close()
+      }
+
+      if (preserveDate) realDest.setLastModified(source.lastModified())
+
+    }
+  }
+
 }
 
 class RichFile(val file: File) extends AnyVal {
@@ -59,5 +106,8 @@ class RichFile(val file: File) extends AnyVal {
   }
 
   def /(name: String): File = new File(file, name)
+
+  def copyTo(dest: File): Unit = RichFile.copy(file, dest, preserveDate = false)
+
 }
 
