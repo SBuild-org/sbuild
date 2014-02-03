@@ -62,7 +62,7 @@ object RichFile {
         dest / source.getName()
       } else {
         dest.getParentFile() match {
-          case null =>
+          case null => // nothing to do
           case parent => parent.mkdirs()
         }
         dest
