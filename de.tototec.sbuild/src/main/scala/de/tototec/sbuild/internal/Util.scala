@@ -100,6 +100,8 @@ class Util {
               }
               val inStream = new BufferedInputStream(connection.getInputStream())
 
+              // TODO: evaluate status code, e.g. 404
+              
               // connection opened
               val contentLength = lastContentLength.getOrElse {
                 val cl = connection.getHeaderField("content-length") match {
@@ -113,6 +115,8 @@ class Util {
               var last = System.currentTimeMillis
               var break = false
               var alreadyLogged = false
+              val forceLogAfter = 5000
+              val bufferSize = 1024
 
               val format = new DecimalFormat("#,##0.#")
               def formatLength(length: Long): String = format.format(length / 1024)
@@ -123,16 +127,16 @@ class Util {
                 monitor.info(CmdlineMonitor.Default, s"Downloaded ${formatLength(len)} kb from ${url}")
               }
 
-              var buffer = new Array[Byte](1024)
+              var buffer = new Array[Byte](bufferSize)
 
               while (!break) {
                 val now = System.currentTimeMillis
-                if (len > 0 && now > last + 5000) {
+                if (len > 0 && now > last + forceLogAfter) {
                   alreadyLogged = true
                   logProgress
                   last = now;
                 }
-                inStream.read(buffer, 0, 1024) match {
+                inStream.read(buffer, 0, bufferSize) match {
                   case x if x < 0 => break = true
                   case count => {
                     len = len + count

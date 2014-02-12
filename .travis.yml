@@ -4,3 +4,6 @@ jdk:
   - oraclejdk7
 
 script: "./sbuild-wrapper all"
+
+notification:
+  irc: "chat.freenode.net#sbuild"

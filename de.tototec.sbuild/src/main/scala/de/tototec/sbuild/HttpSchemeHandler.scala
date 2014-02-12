@@ -44,7 +44,7 @@ class HttpSchemeHandlerBase(val downloadDir: File, val forceDownload: Boolean = 
   }
 
   /**
-   * @return <code>true</code>, if the file was already up-to-date
+   * @return The last modified time stamp of the file.
    */
   def download(path: String, monitor: CmdlineMonitor): Long = {
     val target = localFile(path)
