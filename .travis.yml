@@ -3,6 +3,10 @@ language: java
 jdk:
   - oraclejdk7
 
+install: "sudo apt-get install asciidoc"
+
+before_script: "./sbuild-wrapper --version"
+
 script: "./sbuild-wrapper all"
 
 notification:
