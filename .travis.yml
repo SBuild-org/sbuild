@@ -19,4 +19,4 @@ before_script: "./sbuild-wrapper --version"
 script: "./sbuild-wrapper --jobs 4 all"
 
 notification:
-  irc: "chat.freenode.net#sbuild"
+  irc: "irc.freenode.net#sbuild"
