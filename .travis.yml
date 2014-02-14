@@ -17,5 +17,5 @@ before_script: "./sbuild-wrapper --version"
 
 script: "./sbuild-wrapper --jobs 4 all"
 
-notification:
+notifications:
   irc: "irc.freenode.org#sbuild"
