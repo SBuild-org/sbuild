@@ -89,6 +89,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     }
 
     def get(name: String): Any = innerGet(name).obj
+    def exists(name: String): Boolean = _instances.exists(_.name == name)
     def isModified(name: String): Boolean = innerGet(name).modified
 
     def update(name: String, update: Any => Any): Unit = {
@@ -171,6 +172,13 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
   //  override def registerPlugin(plugin: Plugin[_]): Unit = {
   //    _plugins ++= Seq(new RegisteredPlugin(plugin, config))
   //  }
+
+  override def findPluginInstance[T: ClassTag](name: String): Option[T] =
+    withPlugin[T, Option[T]] { rp =>
+      if (rp.exists(name)) {
+        Some(rp.get(name).asInstanceOf[T])
+      } else None
+    }
 
   override def findOrCreatePluginInstance[T: ClassTag](name: String): T =
     withPlugin[T, T] { rp =>

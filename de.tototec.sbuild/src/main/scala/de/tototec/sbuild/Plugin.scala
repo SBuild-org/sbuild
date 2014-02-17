@@ -95,10 +95,16 @@ object Plugin {
     def version: String
     def instances: Seq[String]
   }
+
+  def isActive[T: ClassTag](implicit project: Project): Boolean = isActive[T]("")
+
+  def isActive[T: ClassTag](name: String)(implicit project: Project): Boolean = project.findPluginInstance[T](name).isDefined
+
 }
 
 trait PluginAware {
   def registerPlugin(instanceClassName: String, factoryClassName: String, version: String, classLoader: ClassLoader)
+  def findPluginInstance[T: ClassTag](name: String): Option[T]
   def findOrCreatePluginInstance[T: ClassTag](name: String): T
   def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit
   def findAndPostUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit
