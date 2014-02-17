@@ -17,13 +17,13 @@ class ProjectClassLoader(project: Project, classpathUrls: Seq[URL], parent: Clas
     extends URLClassLoader(classpathUrls.toArray, parent) {
   //  private[this] val log = Logger[ProjectClassLoader]
 
-  ClassLoader.registerAsParallelCapable()
+  //  ClassLoader.registerAsParallelCapable()
 
   val pluginClassLoaders: Seq[PluginClassLoader] = classpathTrees.collect {
     case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(project, cpTree.pluginInfo.get, cpTree.childs, this)
   }
 
-  override protected def loadClass(className: String, resolve: Boolean): Class[_] = getClassLoadingLock(className).synchronized {
+  override protected def loadClass(className: String, resolve: Boolean): Class[_] = { // getClassLoadingLock(className).synchronized {
     try {
       super.loadClass(className, resolve)
     } catch {
