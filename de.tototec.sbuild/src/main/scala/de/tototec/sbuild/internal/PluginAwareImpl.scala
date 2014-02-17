@@ -71,6 +71,9 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     case class Instance(name: String, obj: Any, modified: Boolean)
 
     private[this] var _instances: Seq[Instance] = Seq()
+    private[this] var _applied: Boolean = false
+
+    def isApplied: Boolean = _applied
 
     private def innerGet(name: String): Instance = _instances.find(_.name == name) match {
       case Some(i) =>
@@ -97,17 +100,39 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
       }
     }
 
+    private[this] var _postUpdates: Seq[(String, Any => Any)] = Seq()
+
+    def postUpdate(name: String, update: Any => Any): Unit = {
+      // trigger creation of instance
+      val instance = get(name)
+      _postUpdates ++= Seq((name, update))
+    }
+
     def getInstanceNames: Seq[String] = _instances.map(_.name)
     def getAll: Seq[Any] = _instances.map(_.obj)
 
     def applyToProject: Unit = {
       if (!_instances.isEmpty) {
+        if (_applied) {
+          throw new IllegalStateException("Plugin instance already applied")
+        }
         log.debug("About to run applyToProject for plugin: " + this)
         // TODO: cover this with a unit test to detect refactorings at test time
         try {
+          // TODO: add override config possibility
+          _postUpdates.foreach {
+            case (name, update) =>
+              val instance = get(name)
+              val updatedInstance = update(instance)
+              _instances = _instances.map {
+                case Instance(n, i, _) if n == name => Instance(n, updatedInstance, true)
+                case x => x
+              }
+          }
           factory.
             asInstanceOf[{ def applyToProject(instances: Seq[(String, Any)]) }].
             applyToProject(_instances.map(i => (i.name -> i.obj)))
+          _applied = true
         } catch {
           case e: ClassCastException =>
             val ex = new ProjectConfigurationException("Plugin configuration could to be applied to project: " + instanceClassName)
@@ -133,6 +158,12 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
   def registerPlugin(instanceClassName: String, factoryClassName: String, version: String, classLoader: ClassLoader) = {
     val reg = new RegisteredPlugin(instanceClassName, factoryClassName, version, classLoader)
     log.debug("About to register plugin: " + reg)
+    _plugins.find(p => p.instanceClassName == instanceClassName).map { p =>
+      log.warn {
+        val clInfo = if (p.classLoader == classLoader) "" else "from another classloader"
+        s"Already another registration for that plugin class name ${clInfo} detected."
+      }
+    }
     _plugins ++= Seq(reg)
   }
 
@@ -146,9 +177,16 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
       rp.get(name).asInstanceOf[T]
     }
 
-  def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit =
+  override def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit =
     withPlugin[T, Unit] { rp =>
+      if (rp.isApplied) throw new IllegalStateException(s"Plugin ${rp.instanceClassName} was already applied to this project and cannot be configured anymore.")
       rp.update(name, { instance => updater(instance.asInstanceOf[T]) })
+    }
+
+  override def findAndPostUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit =
+    withPlugin[T, Unit] { rp =>
+      if (rp.isApplied) throw new IllegalStateException(s"Plugin ${rp.instanceClassName} was already applied to this project and cannot be postConfigured anymore.")
+      rp.postUpdate(name, { instance => updater(instance.asInstanceOf[T]) })
     }
 
   override def isPluginInstanceModified[T: ClassTag](name: String): Boolean =
@@ -172,7 +210,11 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     }
   }
 
-  override def finalizePlugins: Unit = _plugins.map(_.applyToProject)
+  override def finalizePlugins: Unit = {
+    // TODO: create ordering based on plugin interdependencies and detect cycles
+    // currently, we apply them as in registration order
+    _plugins.map { rp => rp.applyToProject }
+  }
 
   case class PluginInfo(override val name: String,
                         override val version: String,

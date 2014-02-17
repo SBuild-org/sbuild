@@ -56,6 +56,10 @@ object Plugin {
         project.findAndUpdatePluginInstance[T](name, configurer)
         this
       }
+      override def postConfigure(configurer: T => T): PluginHandle[T] = {
+        project.findAndUpdatePluginInstance[T](name, configurer)
+        this
+      }
       override def get: T = project.findOrCreatePluginInstance[T](name)
       override def isModified: Boolean = project.isPluginInstanceModified[T](name)
     }
@@ -72,6 +76,9 @@ object Plugin {
      * @param configurer a function returning the modified configuration.
      */
     def configure(configurer: T => T): PluginHandle[T]
+
+    def postConfigure(configurer: T => T): PluginHandle[T]
+
     /**
      * Get the current configuration.
      */
@@ -94,6 +101,7 @@ trait PluginAware {
   def registerPlugin(instanceClassName: String, factoryClassName: String, version: String, classLoader: ClassLoader)
   def findOrCreatePluginInstance[T: ClassTag](name: String): T
   def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit
+  def findAndPostUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit
   def finalizePlugins
   def registeredPlugins: Seq[Plugin.PluginInfo]
   def isPluginInstanceModified[T: ClassTag](name: String): Boolean
