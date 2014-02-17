@@ -3,21 +3,12 @@ language: java
 jdk:
   - oraclejdk7
   - openjdk7
-  - openjdk6
 
 env:
   matrix:
     - SBUILD_VERSION=0.6.0 SBUILD_DIST=http://sbuild.tototec.de/sbuild/attachments/download/75/sbuild-0.6.0-dist.zip
     - SBUILD_VERSION=0.7.0 SBUILD_DIST=http://sbuild.tototec.de/sbuild/attachments/download/82/sbuild-0.7.0-dist.zip
     - SBUILD_VERSION=0.7.1 SBUILD_DIST=http://sbuild.tototec.de/sbuild/attachments/download/87/sbuild-0.7.1-dist.zip
-
-matix:
-  exclude:
-    - jdk: openjdk6
-      env: SBUILD_VERSION=0.7.0 SBUILD_DIST=http://sbuild.tototec.de/sbuild/attachments/download/82/sbuild-0.7.0-dist.zip
-    - jdk: openjdk6
-      env: SBUILD_VERSION=0.7.1 SBUILD_DIST=http://sbuild.tototec.de/sbuild/attachments/download/87/sbuild-0.7.1-dist.zip
-
 
 install: "sudo apt-get install asciidoc"
 
