@@ -2,11 +2,13 @@ package de.tototec.sbuild.internal
 
 import scala.reflect.ClassTag
 import scala.reflect.classTag
+
+import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Plugin
 import de.tototec.sbuild.PluginAware
+import de.tototec.sbuild.PluginWithDependencies
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
-import de.tototec.sbuild.Logger
 
 trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
@@ -133,12 +135,20 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
       }
     }
 
+    def dependencies: Seq[Class[_]] = factory match {
+      case p: PluginWithDependencies => p.dependsOn
+      case _ => Seq()
+    }
+
     override def toString: String = getClass.getSimpleName +
       "(instanceClassName=" + instanceClassName +
       ",factoryClassName=" + factoryClassName +
       ",version=" + version +
       ",classLoader=" + classLoader +
       ",instances=" + _instances + ")"
+
+    def toCompactString = s"${instanceClassName}=${factoryClassName};version=${version}"
+
   }
 
   private[this] val log = Logger[PluginAwareImpl]
@@ -206,9 +216,24 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
   }
 
   override def finalizePlugins: Unit = {
-    // TODO: create ordering based on plugin interdependencies and detect cycles
-    // currently, we apply them as in registration order
-    _plugins.map { rp => rp.applyToProject }
+
+    log.debug("About to finalize all activated plugins: " + _plugins.map(_.toCompactString))
+
+    val orderedClasses = new DependentClassesOrderer().orderClasses(
+      classes = _plugins.map(rp => rp.instanceClass),
+      dependencies = _plugins.flatMap(p => p.dependencies.map(d => d -> p.instanceClass))
+    )
+
+    val orderedPlugins = orderedClasses.map { instanceClass =>
+      _plugins.find(rp => rp.instanceClass == instanceClass) match {
+        case None => throw new IllegalStateException(s"Could not found registered plugin with instance class type ${instanceClass}")
+        case Some(c) => c
+      }
+    }
+
+    log.info("Re-ordered plugins: " + orderedPlugins.map(_.toCompactString).zipWithIndex)
+
+    orderedPlugins.map { rp => rp.applyToProject }
   }
 
   case class PluginInfo(override val name: String,
