@@ -154,6 +154,8 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
 
   private[this] val log = Logger[PluginClassLoader]
 
+  log.debug(s"Init PluginClassLoader (id: ${System.identityHashCode(this)}) for ${pluginInfo.urls}")
+
   val pluginClassLoaders: Seq[PluginClassLoader] = childTrees.collect {
     case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(project, cpTree.pluginInfo.get, cpTree.childs, this)
   }
