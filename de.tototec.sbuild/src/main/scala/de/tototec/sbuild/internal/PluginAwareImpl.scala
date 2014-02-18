@@ -18,7 +18,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     private[this] val log = Logger[RegisteredPlugin]
 
     lazy val pluginClass: Class[_] = try {
-      log.debug("About to load plugin factroy class: " + instanceClassName)
+      log.debug("About to load plugin factory class: " + instanceClassName)
       val t = classLoader.loadClass(factoryClassName)
       if (!classOf[Plugin[_]].isAssignableFrom(t)) {
         // TODO specific exception
@@ -36,17 +36,10 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
     lazy val instanceClass: Class[_] = try {
       log.debug("About to load plugin instance class: " + instanceClassName)
-      val t = classLoader.loadClass(instanceClassName)
-      if (!classOf[Plugin[_]].isAssignableFrom(t)) {
-        // TODO specific exception
-        val ex = new ProjectConfigurationException(s"Plugin instance class ${factoryClassName} does not implement ${classOf[Plugin[_]].getName} trait.")
-        ex.buildScript = Some(projectSelf.projectFile)
-        throw ex
-      }
-      t
+      classLoader.loadClass(instanceClassName)
     } catch {
       case e: ClassNotFoundException =>
-        val ex = new ProjectConfigurationException(s"Plugin instance class ${factoryClassName} could not be loaded.", e)
+        val ex = new ProjectConfigurationException(s"Plugin instance class ${instanceClassName} could not be loaded.", e)
         throw ex
     }
 
@@ -113,14 +106,12 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     def getAll: Seq[Any] = _instances.map(_.obj)
 
     def applyToProject: Unit = {
+      if (_applied) throw new IllegalStateException("Plugin instance already applied")
+      _applied = true
       if (!_instances.isEmpty) {
-        if (_applied) {
-          throw new IllegalStateException("Plugin instance already applied")
-        }
         log.debug("About to run applyToProject for plugin: " + this)
         // TODO: cover this with a unit test to detect refactorings at test time
         try {
-          // TODO: add override config possibility
           _postUpdates.foreach {
             case (name, update) =>
               val instance = get(name)
@@ -133,7 +124,6 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
           factory.
             asInstanceOf[{ def applyToProject(instances: Seq[(String, Any)]) }].
             applyToProject(_instances.map(i => (i.name -> i.obj)))
-          _applied = true
         } catch {
           case e: ClassCastException =>
             val ex = new ProjectConfigurationException("Plugin configuration could to be applied to project: " + instanceClassName)
@@ -168,11 +158,6 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     _plugins ++= Seq(reg)
   }
 
-  //  // TODO: check, that same instance type is not registered by two different plugins
-  //  override def registerPlugin(plugin: Plugin[_]): Unit = {
-  //    _plugins ++= Seq(new RegisteredPlugin(plugin, config))
-  //  }
-
   override def findPluginInstance[T: ClassTag](name: String): Option[T] =
     withPlugin[T, Option[T]] { rp =>
       if (rp.exists(name)) {
@@ -182,6 +167,8 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
   override def findOrCreatePluginInstance[T: ClassTag](name: String): T =
     withPlugin[T, T] { rp =>
+      // TODO: better wording in error msg
+      if (rp.isApplied) throw new IllegalStateException(s"Plugin ${rp.instanceClassName} was already applied to this project and cannot be created anymore.")
       rp.get(name).asInstanceOf[T]
     }
 
