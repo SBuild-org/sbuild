@@ -40,11 +40,11 @@ class Config {
     description = "Define or override properties. If VALUE is omitted it defaults to \"true\".")
   def addDefine(keyValue: String) {
     keyValue.split("=", 2) match {
-      case Array(key, value) => defines.put(key, value)
-      case Array(key) => defines.put(key, "true")
+      case Array(key, value) => defines += key -> value
+      case Array(key) => defines += key -> "true"
     }
   }
-  val defines: java.util.Map[String, String] = new java.util.LinkedHashMap()
+  var defines: Map[String, String] = Map()
 
   @CmdOption(names = Array("--execution-plan"), description = "Show the execution plan and exit.")
   val showExecutionPlan = false
@@ -94,9 +94,9 @@ class Config {
 
   // TODO: list-plugins-recursive
   @CmdOption(names = Array("--list-plugins"), description = "List all plugins used by this project.")
-  val listPlugins: Boolean = false
+  var listPlugins: Boolean = false
 
   @CmdOption(names = Array("--list-available-plugins"), description = "List all plugins available (used and unused) by this project.")
-  val listAvailablePlugins: Boolean = false
+  var listAvailablePlugins: Boolean = false
 
 }

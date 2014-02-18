@@ -353,7 +353,7 @@ class SBuildRunner {
       monitor = sbuildMonitor,
       clean = config.clean,
       fileLocker = new FileLocker(),
-      initialProperties = config.defines.asScala.toMap
+      initialProperties = config.defines
     )
     val project = projectReader.readAndCreateProject(projectFile, Map(), None, Some(sbuildMonitor)).asInstanceOf[BuildFileProject]
 
@@ -362,7 +362,7 @@ class SBuildRunner {
         case None =>
           // Create and add new module and copy configs
           val module = project.findOrCreateModule(new File(buildfile).getAbsolutePath, copyProperties = false)
-          config.defines.asScala foreach {
+          config.defines foreach {
             case (key, value) => module.addProperty(key, value)
           }
           module
