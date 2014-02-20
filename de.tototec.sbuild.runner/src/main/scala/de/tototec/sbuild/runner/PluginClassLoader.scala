@@ -34,10 +34,11 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
     sbuildVersion: Option[String]
     ) = if (raw || files.isEmpty) (None, Seq(), Seq(), None) else {
 
+    // TODO: Support more than one url, see also https://github.com/SBuild-org/sbuild/issues/175
     val manifest = Option(new JarInputStream(urls.head.openStream()).getManifest())
 
     val exportedPackages: Option[Seq[String]] = manifest.flatMap { m =>
-      m.getMainAttributes().getValue(Constants.SBuildPluginExportPackage) match {
+      m.getMainAttributes().getValue(Constants.ManifestSBuildExportPackage) match {
         case null => None
         //      log.warn("Plugin does not define Manifest Entry " + Constants.SBuildPluginExportPackage)
         //      Seq()
@@ -46,7 +47,7 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
     }
 
     val dependencies: Seq[String] = manifest.toSeq.flatMap { m =>
-      m.getMainAttributes().getValue(Constants.SBuildPluginClasspath) match {
+      m.getMainAttributes().getValue(Constants.ManifestSBuildClasspath) match {
         case null => Seq()
         case c =>
           // TODO, support more featureful splitter, because we want to support the whole schemes
@@ -55,7 +56,7 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
     }
 
     val pluginClasses: Seq[PluginClasses] = manifest.toSeq.flatMap { m =>
-      m.getMainAttributes().getValue(Constants.SBuildPlugin) match {
+      m.getMainAttributes().getValue(Constants.ManifestSBuildPlugin) match {
         case null => Seq()
         case p =>
           p.split(",").toSeq.map { entry =>
@@ -83,7 +84,7 @@ class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
     }
 
     val sbuildVersion = manifest.flatMap { m =>
-      m.getMainAttributes().getValue(Constants.SBuildVersion) match {
+      m.getMainAttributes().getValue(Constants.ManifestSBuildVersion) match {
         case null => None
         case v => Some(v.trim)
       }
@@ -194,7 +195,7 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
     if (loadable) loadedClass
     else throw new ClassNotFoundException(
       className + "\nAlthough the class is contained in this plugin (\"" + pluginInfo.urls.mkString(",") +
-        "\"), it is not exported with " + Constants.SBuildPluginExportPackage + ".")
+        "\"), it is not exported with " + Constants.ManifestSBuildExportPackage + ".")
 
   }
 
