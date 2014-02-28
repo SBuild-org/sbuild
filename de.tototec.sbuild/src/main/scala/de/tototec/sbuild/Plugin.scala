@@ -61,7 +61,7 @@ object Plugin {
         this
       }
       override def postConfigure(configurer: T => T): PluginHandle[T] = {
-        project.findAndUpdatePluginInstance[T](name, configurer)
+        project.findAndPostUpdatePluginInstance[T](name, configurer)
         this
       }
       override def get: T = project.findOrCreatePluginInstance[T](name)
