@@ -35,6 +35,11 @@ trait PluginWithDependencies { self: Plugin[_] =>
   def dependsOn: Seq[Class[_]]
 }
 
+trait ConfigureAware[T] { self: Plugin[T] =>
+  /** A hook called whenever [[Plugin.PluginHandle#configure]] is called. */
+  def configured(name: String, instance: T)
+}
+
 /**
  * This object contains useful `apply` method to activate and access plugin instances.
  */

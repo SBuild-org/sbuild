@@ -2,13 +2,13 @@ package de.tototec.sbuild.internal
 
 import scala.reflect.ClassTag
 import scala.reflect.classTag
-
 import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Plugin
 import de.tototec.sbuild.PluginAware
 import de.tototec.sbuild.PluginWithDependencies
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.ConfigureAware
 
 trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
@@ -87,13 +87,14 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     def exists(name: String): Boolean = _instances.exists(_.name == name)
     def isModified(name: String): Boolean = innerGet(name).modified
 
-    def update(name: String, update: Any => Any): Unit = {
+    def update(name: String, update: Any => Any): Any = {
       val instance = get(name)
       val updatedInstance = update(instance)
       _instances = _instances.map {
         case Instance(n, i, _) if n == name => Instance(n, updatedInstance, true)
         case x => x
       }
+      updatedInstance
     }
 
     private[this] var _postUpdates: Seq[(String, Any => Any)] = Seq()
@@ -177,21 +178,38 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
   override def findOrCreatePluginInstance[T: ClassTag](name: String): T =
     withPlugin[T, T] { rp =>
+      val runConfigureHook = !rp.exists(name)
       // TODO: better wording in error msg
       if (rp.isApplied) throw new IllegalStateException(s"Plugin ${rp.instanceClassName} was already applied to this project and cannot be created anymore.")
-      rp.get(name).asInstanceOf[T]
+      val instance = rp.get(name).asInstanceOf[T]
+      if (runConfigureHook) rp match {
+        case configAware: ConfigureAware[T] => configAware.configured(name, instance)
+        case _ =>
+      }
+      instance
     }
 
   override def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit =
     withPlugin[T, Unit] { rp =>
       if (rp.isApplied) throw new IllegalStateException(s"Plugin ${rp.instanceClassName} was already applied to this project and cannot be configured anymore.")
-      rp.update(name, { instance => updater(instance.asInstanceOf[T]) })
+      val updatedInstance = rp.update(name, { instance => updater(instance.asInstanceOf[T]) })
+      rp match {
+        case configAware: ConfigureAware[T] => configAware.configured(name, updatedInstance.asInstanceOf[T])
+        case _ =>
+      }
     }
 
   override def findAndPostUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit =
     withPlugin[T, Unit] { rp =>
       if (rp.isApplied) throw new IllegalStateException(s"Plugin ${rp.instanceClassName} was already applied to this project and cannot be postConfigured anymore.")
-      rp.postUpdate(name, { instance => updater(instance.asInstanceOf[T]) })
+      rp.postUpdate(name, { instance =>
+        val updatedInstance = updater(instance.asInstanceOf[T])
+        rp match {
+          case configAware: ConfigureAware[T] => configAware.configured(name, updatedInstance)
+          case _ =>
+        }
+        updatedInstance
+      })
     }
 
   override def isPluginInstanceModified[T: ClassTag](name: String): Boolean =
