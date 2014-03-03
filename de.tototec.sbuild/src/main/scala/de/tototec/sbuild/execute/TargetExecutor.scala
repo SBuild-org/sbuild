@@ -217,6 +217,44 @@ class TargetExecutor(monitor: CmdlineMonitor,
       )
     }
 
+  class WithParallelExecContext(val parallelExecContext: Option[ParallelExecContext]) {
+    def run[T](curTarget: Option[Target])(inner: WithParallelExecContext => T): T = parallelExecContext match {
+      case None =>
+        inner(this)
+
+      case Some(parCtx) =>
+        curTarget.map(t => parCtx.lock(t))
+        try {
+          scala.concurrent.blocking {
+            inner(this)
+          }
+        } catch {
+          case e: Throwable =>
+            log.debug("Catched an exception in parallel executed targets.", e)
+            val firstError = parCtx.getFirstError(e)
+            // we need to stop the complete ForkJoinPool
+            parCtx.pool.shutdownNow()
+            throw firstError
+        } finally {
+          curTarget.map(t => parCtx.unlock(t))
+        }
+    }
+
+    def parallelMapper(dependencies: Seq[Seq[Target]])(f: Target => ExecutedTarget): Seq[ExecutedTarget] =
+      parallelExecContext match {
+        case None =>
+          dependencies.flatten.map(f(_))
+
+        case Some(parCtx) =>
+          dependencies.map { group =>
+            val parDeps = collection.parallel.immutable.ParVector(group: _*)
+            parDeps.tasksupport = parCtx.taskSupport
+            val result = parDeps.map(f(_))
+            result.seq.toSeq
+          }.flatten
+      }
+  }
+
   /**
    * Visit each target of tree `node` deep-first.
    *
@@ -235,7 +273,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
                                  parallelExecContext: Option[ParallelExecContext] = None,
                                  keepGoing: Option[KeepGoing] = None): ExecutedTarget = {
 
-    def inner: ExecutedTarget = {
+    new WithParallelExecContext(parallelExecContext).run(Some(curTarget)) { withParCtx =>
 
       val curTargetFormatted = curTarget.formatRelativeToBaseProject
 
@@ -258,46 +296,18 @@ class TargetExecutor(monitor: CmdlineMonitor,
         log.trace("Processing dependencies of target: " + curTargetFormatted + " which are: " +
           dependencies.map(_.map(_.formatRelativeToBaseProject).mkString(" ~ ")).mkString(" ~~ "))
 
-        val executedDependencies: Seq[ExecutedTarget] = parallelExecContext match {
-          case None =>
-            dependencies.flatten.map { dep =>
-              preorderedDependenciesTree(
-                curTarget = dep,
-                execProgress = execProgress,
-                skipExec = skipExec,
-                dependencyTrace = curTarget :: dependencyTrace,
-                depth = depth + 1,
-                treePrinter = treePrinter,
-                dependencyCache = dependencyCache,
-                transientTargetCache = transientTargetCache,
-                parallelExecContext = parallelExecContext,
-                keepGoing = keepGoing)
-            }
-          case Some(parCtx) =>
-
-            dependencies.map { group =>
-
-              // val parDeps = collection.parallel.mutable.ParArray(dependencies: _*)
-              val parDeps = collection.parallel.immutable.ParVector(group: _*)
-              parDeps.tasksupport = parCtx.taskSupport
-
-              val result = parDeps.map { dep =>
-                preorderedDependenciesTree(
-                  curTarget = dep,
-                  execProgress = execProgress,
-                  skipExec = skipExec,
-                  dependencyTrace = curTarget :: dependencyTrace,
-                  depth = depth + 1,
-                  treePrinter = treePrinter,
-                  dependencyCache = dependencyCache,
-                  transientTargetCache = transientTargetCache,
-                  parallelExecContext = parallelExecContext,
-                  keepGoing = keepGoing)
-              }
-
-              result.seq.toSeq
-
-            }.flatten
+        val executedDependencies: Seq[ExecutedTarget] = withParCtx.parallelMapper(dependencies) { dep =>
+          preorderedDependenciesTree(
+            curTarget = dep,
+            execProgress = execProgress,
+            skipExec = skipExec,
+            dependencyTrace = curTarget :: dependencyTrace,
+            depth = depth + 1,
+            treePrinter = treePrinter,
+            dependencyCache = dependencyCache,
+            transientTargetCache = transientTargetCache,
+            parallelExecContext = parallelExecContext,
+            keepGoing = keepGoing)
         }
 
         log.trace("Processing of dependencies finished for target: " + curTargetFormatted)
@@ -576,27 +586,6 @@ class TargetExecutor(monitor: CmdlineMonitor,
 
       executedTarget
 
-    }
-
-    parallelExecContext match {
-      case None => inner
-
-      case Some(parCtx) =>
-        parCtx.lock(curTarget)
-        try {
-          scala.concurrent.blocking {
-            inner
-          }
-        } catch {
-          case e: Throwable =>
-            log.debug("Catched an exception in parallel executed targets.", e)
-            val firstError = parCtx.getFirstError(e)
-            // we need to stop the complete ForkJoinPool
-            parCtx.pool.shutdownNow()
-            throw firstError
-        } finally {
-          parCtx.unlock(curTarget)
-        }
     }
 
   }
