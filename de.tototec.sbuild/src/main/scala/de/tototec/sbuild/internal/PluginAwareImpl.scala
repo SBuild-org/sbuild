@@ -8,7 +8,7 @@ import de.tototec.sbuild.PluginAware
 import de.tototec.sbuild.PluginWithDependencies
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
-import de.tototec.sbuild.ConfigureAware
+import de.tototec.sbuild.PluginConfigureAware
 
 trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
@@ -183,7 +183,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
       if (rp.isApplied) throw new IllegalStateException(s"Plugin ${rp.instanceClassName} was already applied to this project and cannot be created anymore.")
       val instance = rp.get(name).asInstanceOf[T]
       if (runConfigureHook) rp match {
-        case configAware: ConfigureAware[T] => configAware.configured(name, instance)
+        case configAware: PluginConfigureAware[T] => configAware.configured(name, instance)
         case _ =>
       }
       instance
@@ -194,7 +194,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
       if (rp.isApplied) throw new IllegalStateException(s"Plugin ${rp.instanceClassName} was already applied to this project and cannot be configured anymore.")
       val updatedInstance = rp.update(name, { instance => updater(instance.asInstanceOf[T]) })
       rp match {
-        case configAware: ConfigureAware[T] => configAware.configured(name, updatedInstance.asInstanceOf[T])
+        case configAware: PluginConfigureAware[T] => configAware.configured(name, updatedInstance.asInstanceOf[T])
         case _ =>
       }
     }
@@ -205,7 +205,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
       rp.postUpdate(name, { instance =>
         val updatedInstance = updater(instance.asInstanceOf[T])
         rp match {
-          case configAware: ConfigureAware[T] => configAware.configured(name, updatedInstance)
+          case configAware: PluginConfigureAware[T] => configAware.configured(name, updatedInstance)
           case _ =>
         }
         updatedInstance

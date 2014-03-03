@@ -31,12 +31,25 @@ trait Plugin[T] {
 
 }
 
+/**
+ * Plugins that depend on other plugins need to implement this trait.
+ * In `[[PluginWithDependencies#dependsOn]]`, they need to return the dependencies.
+ * SBuild will ensure, that plugins will be applied before their dependencies are applied to the project.
+ */
 trait PluginWithDependencies { self: Plugin[_] =>
+  /**
+   * The classes of the dependencies of this plugin.
+   */
   def dependsOn: Seq[Class[_]]
 }
 
-trait ConfigureAware[T] { self: Plugin[T] =>
-  /** A hook called whenever [[Plugin.PluginHandle#configure]] is called. */
+/**
+ * Plugins that will be notified whenever they get (re-)configured.
+ */
+trait PluginConfigureAware[T] { self: Plugin[T] =>
+  /**
+   *  A hook called whenever [[Plugin.PluginHandle#configure]] is called.
+   */
   def configured(name: String, instance: T)
 }
 
