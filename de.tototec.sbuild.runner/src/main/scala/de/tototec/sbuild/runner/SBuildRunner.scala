@@ -574,31 +574,16 @@ class SBuildRunner {
           sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[0%]") + tr(" Executing..."))
           sbuildMonitor.info(CmdlineMonitor.Verbose, tr("Requested targets: ") + targets.map(_.formatRelativeToBaseProject).mkString(" ~ "))
 
-          val cmdlineTargetsParallelCtx = if (config.parallelRequest) parallelExecContext else None
-
-          val execResult = new targetExecutor.WithParallelExecContext(cmdlineTargetsParallelCtx).run(None) { withParCtx =>
-            withParCtx.parallelMapper(Seq(targets)) { target =>
-              targetExecutor.preorderedDependenciesTree(
-                target,
-                execProgress = execProgress,
-                dependencyCache = dependencyCache,
-                transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
-                parallelExecContext = parallelExecContext,
-                keepGoing = keepGoing
-              )
-            }
+          val execResult = targets.map { target =>
+            targetExecutor.preorderedDependenciesTree(
+              target,
+              execProgress = execProgress,
+              dependencyCache = dependencyCache,
+              transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
+              parallelExecContext = parallelExecContext,
+              keepGoing = keepGoing
+            )
           }
-
-          //          val execResult = targets.map { target =>
-          //            targetExecutor.preorderedDependenciesTree(
-          //              target,
-          //              execProgress = execProgress,
-          //              dependencyCache = dependencyCache,
-          //              transientTargetCache = Some(new InMemoryTransientTargetCache() with LoggingTransientTargetCache),
-          //              parallelExecContext = parallelExecContext,
-          //              keepGoing = keepGoing
-          //            )
-          //          }
 
           execResult.filter(!_.resultState.successful) match {
             case Seq() =>

@@ -99,7 +99,4 @@ class Config {
   @CmdOption(names = Array("--list-available-plugins"), description = "List all plugins available (used and unused) by this project.")
   var listAvailablePlugins: Boolean = false
 
-  @CmdOption(names = Array("--parallel-request", "-p"), description = "Run the targets requested on the commandline in parallel. Without this option, they will run sequentially. This option has no effect if combined with \"-j 1\".")
-  var parallelRequest: Boolean = false
-
 }
