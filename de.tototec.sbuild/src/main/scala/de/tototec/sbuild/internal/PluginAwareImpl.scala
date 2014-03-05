@@ -136,7 +136,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     }
 
     def dependencies: Seq[Class[_]] = factory match {
-      case p: PluginWithDependencies => p.dependsOn
+      case p: PluginWithDependencies => p.dependsOn.map(_.pluginClass)
       case _ => Seq()
     }
 

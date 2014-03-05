@@ -31,8 +31,14 @@ trait Plugin[T] {
 
 }
 
+object PluginDependency {
+  implicit def pluginDependency(pluginClass: Class[_]): PluginDependency =
+    PluginDependency(pluginClass = pluginClass)
+}
+case class PluginDependency(pluginClass: Class[_])
+
 trait PluginWithDependencies { self: Plugin[_] =>
-  def dependsOn: Seq[Class[_]]
+  def dependsOn: Seq[PluginDependency]
 }
 
 /**
