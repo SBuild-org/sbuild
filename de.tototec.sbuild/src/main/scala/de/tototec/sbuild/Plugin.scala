@@ -1,6 +1,5 @@
 package de.tototec.sbuild
 
-import scala.annotation.Annotation
 import scala.reflect.ClassTag
 
 /**
@@ -79,23 +78,8 @@ object Plugin {
    * @tparam T The type of the plugin instance.
    * @param name The name of this plugin instance.
    */
-  def apply[T: ClassTag](name: String)(implicit project: Project): PluginHandle[T] = {
-    // trigger plugin activation
-    project.findOrCreatePluginInstance[T](name)
-
-    new PluginHandle[T] {
-      override def configure(configurer: T => T): PluginHandle[T] = {
-        project.findAndUpdatePluginInstance[T](name, configurer)
-        this
-      }
-      override def postConfigure(configurer: T => T): PluginHandle[T] = {
-        project.findAndPostUpdatePluginInstance[T](name, configurer)
-        this
-      }
-      override def get: T = project.findOrCreatePluginInstance[T](name)
-      override def isModified: Boolean = project.isPluginInstanceModified[T](name)
-    }
-  }
+  def apply[T: ClassTag](name: String)(implicit project: Project): PluginHandle[T] =
+    project.getPluginHandle[T](name)
 
   /**
    * Handle to a plugin instance.
@@ -130,7 +114,7 @@ object Plugin {
 
   def isActive[T: ClassTag](implicit project: Project): Boolean = isActive[T]("")
 
-  def isActive[T: ClassTag](name: String)(implicit project: Project): Boolean = project.findPluginInstance[T](name).isDefined
+  def isActive[T: ClassTag](name: String)(implicit project: Project): Boolean = project.isPluginActive[T](name)
 
   def version[T: ClassTag](implicit project: Project): Option[String] = project.getPluginVersion[T]
 
@@ -138,12 +122,10 @@ object Plugin {
 
 trait PluginAware {
   def registerPlugin(instanceClassName: String, factoryClassName: String, version: String, classLoader: ClassLoader)
-  def findPluginInstance[T: ClassTag](name: String): Option[T]
-  def findOrCreatePluginInstance[T: ClassTag](name: String): T
-  def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit
-  def findAndPostUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit
   def finalizePlugins
   def registeredPlugins: Seq[Plugin.PluginInfo]
-  def isPluginInstanceModified[T: ClassTag](name: String): Boolean
+  def isPluginActive[T: ClassTag](name: String): Boolean
+  def isPluginModified[T: ClassTag](name: String): Boolean
   def getPluginVersion[T: ClassTag]: Option[String]
+  def getPluginHandle[T: ClassTag](name: String): Plugin.PluginHandle[T]
 }

@@ -31,10 +31,10 @@ class BuildFileProjectTest extends FunSuite {
   test("Find an added pluginFactory (inner API)") {
     implicit val p = createProjectWithPlugin
 
-    val foundInstance = p.findOrCreatePluginInstance[TestPluginCtx]("")
+    val foundInstance = p.getPluginHandle[TestPluginCtx]("").get
     assert(foundInstance !== null)
 
-    val foundDefaultInstance = p.findOrCreatePluginInstance[TestPluginCtx]("")
+    val foundDefaultInstance = p.getPluginHandle[TestPluginCtx]("").get
     assert(foundInstance === foundDefaultInstance)
 
   }
