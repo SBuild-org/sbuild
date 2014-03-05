@@ -36,10 +36,26 @@ sealed trait PluginDependency {
 }
 
 object PluginDependency {
-  case class BasicPluginDependency(override val pluginClass: Class[_]) extends PluginDependency
 
-  def apply(pluginClass: Class[_]): PluginDependency = BasicPluginDependency(pluginClass)
+  /**
+   * A dependency to another plugin (instance) class.
+   */
+  case class Basic(override val pluginClass: Class[_]) extends PluginDependency
 
+  /**
+   * A Dependency with version constraints. The version can be a minimal version or a range.
+   */
+  case class Versioned(
+    override val pluginClass: Class[_],
+    val version: String)
+      extends PluginDependency
+
+  def apply(pluginClass: Class[_]): PluginDependency = Basic(pluginClass)
+  def apply(pluginClass: Class[_], version: String): PluginDependency = Versioned(pluginClass, version)
+
+  /**
+   * Implicit conversion for convenience and backward source compatibility.
+   */
   implicit def pluginDependency(pluginClass: Class[_]): PluginDependency = apply(pluginClass)
 }
 

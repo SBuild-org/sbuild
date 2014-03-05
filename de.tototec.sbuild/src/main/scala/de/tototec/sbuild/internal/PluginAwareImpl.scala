@@ -2,13 +2,15 @@ package de.tototec.sbuild.internal
 
 import scala.reflect.ClassTag
 import scala.reflect.classTag
-
 import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Plugin
 import de.tototec.sbuild.PluginAware
 import de.tototec.sbuild.PluginWithDependencies
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.PluginDependency
+import de.tototec.sbuild.ProjectConfigurationException
+import de.tototec.sbuild.Plugin.PluginHandle
 
 trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
@@ -135,8 +137,8 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
       }
     }
 
-    def dependencies: Seq[Class[_]] = factory match {
-      case p: PluginWithDependencies => p.dependsOn.map(_.pluginClass)
+    def dependencies: Seq[PluginDependency] = factory match {
+      case p: PluginWithDependencies => p.dependsOn
       case _ => Seq()
     }
 
@@ -166,6 +168,42 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
       }
     }
     _plugins ++= Seq(reg)
+  }
+
+  private[this] var assertPluginCache: Set[RegisteredPlugin] = Set()
+
+  def assertPlugin[T: ClassTag]: RegisteredPlugin = {
+    val pluginClass = classTag[T].runtimeClass
+    _plugins.find(rp => rp.instanceClass == pluginClass) match {
+      case Some(rp) if assertPluginCache.contains(rp) => rp
+
+      case Some(rp) =>
+        log.debug("About to activate a plugin instance " + classTag[T].runtimeClass.getName)
+
+        val foundDeps = rp.dependencies.map {
+          case dep @ PluginDependency.Basic(pluginClass) =>
+            dep -> _plugins.find(rp => rp.instanceClass == pluginClass)
+          case dep @ PluginDependency.Versioned(pluginClass, version) =>
+            // TODO: also check the version range
+            dep -> _plugins.find(rp => rp.instanceClass == pluginClass)
+        }
+        val missingDeps = foundDeps.filter { case (_, rp) => rp.isEmpty }
+        if (!missingDeps.isEmpty) {
+          val formattedErrors = missingDeps.mkString("\n - ", "\n - ", "")
+
+          val ex = new ProjectConfigurationException(s"Unresolved plugin dependencies of plugin ${rp.toCompactString}.\nUnresolved dependencies:${formattedErrors}")
+          ex.buildScript = Some(projectFile)
+          throw ex
+        }
+
+        assertPluginCache += rp
+        rp
+
+      case None =>
+        val ex = new ProjectConfigurationException("No plugin registered with instance type: " + classTag[T].runtimeClass.getName)
+        ex.buildScript = Some(projectSelf.projectFile)
+        throw ex
+    }
   }
 
   override def findPluginInstance[T: ClassTag](name: String): Option[T] =
@@ -200,19 +238,9 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     }
 
   private def withPlugin[T: ClassTag, R](action: RegisteredPlugin => R): R = {
-    log.debug("About to activate and access a plugin instance " + classTag[T].runtimeClass.getName)
-    _plugins.find { rp =>
-      log.debug("checking " + rp)
-      val searchedClass = classTag[T].runtimeClass
-      rp.instanceClassName == searchedClass.getName && rp.classLoader == searchedClass.getClassLoader
-    } match {
-      case Some(regPlugin) =>
-        action(regPlugin)
-      case None =>
-        val ex = new ProjectConfigurationException("No plugin registered with instance type: " + classTag[T].runtimeClass.getName)
-        ex.buildScript = Some(projectSelf.projectFile)
-        throw ex
-    }
+    log.debug("About to access a plugin instance " + classTag[T].runtimeClass.getName)
+    val regPlugin = assertPlugin[T]
+    action(regPlugin)
   }
 
   override def finalizePlugins: Unit = {
@@ -221,7 +249,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
     val orderedClasses = new DependentClassesOrderer().orderClasses(
       classes = _plugins.map(rp => rp.instanceClass),
-      dependencies = _plugins.flatMap(p => p.dependencies.map(d => d -> p.instanceClass))
+      dependencies = _plugins.flatMap(p => p.dependencies.map(d => d.pluginClass -> p.instanceClass))
     )
 
     val orderedPlugins = orderedClasses.map { instanceClass =>
