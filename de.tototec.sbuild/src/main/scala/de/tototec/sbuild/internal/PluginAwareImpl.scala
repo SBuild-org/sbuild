@@ -256,7 +256,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
         def runConfiguredHook[T](name: String, instance: T): Unit = {
           rp.factory match {
-            case configAware: PluginConfigureAware[T] => configAware.configured(name, instance.asInstanceOf[T])
+            case configAware: PluginConfigureAware[T] => configAware.configured(name, instance)
             case _ =>
           }
         }
@@ -278,7 +278,8 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
           override def configure(configurer: T => T): Plugin.PluginHandle[T] = {
             rp.update(name, { instance =>
               val updatedInstance = configurer(instance.asInstanceOf[T])
-              runConfiguredHook(name, updatedInstance)
+              runConfiguredHook[T](name, updatedInstance)
+              updatedInstance
             })
             this
           }
@@ -286,7 +287,8 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
           override def postConfigure(configurer: T => T): Plugin.PluginHandle[T] = {
             rp.postUpdate(name, { instance =>
               val updatedInstance = configurer(instance.asInstanceOf[T])
-              runConfiguredHook(name, updatedInstance)
+              runConfiguredHook[T](name, updatedInstance)
+              updatedInstance
             })
             this
           }

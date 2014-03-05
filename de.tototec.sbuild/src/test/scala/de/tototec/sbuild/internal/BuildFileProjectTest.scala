@@ -67,11 +67,15 @@ class BuildFileProjectTest extends FunSuite {
     implicit val p = createProjectWithPlugin
 
     val config1 = Plugin[TestPluginCtx]("blau").get
-    Plugin[TestPluginCtx]("blau") configure { _.copy(prop1 = "gray") }
+    val config1a = Plugin[TestPluginCtx]("blau").get
+    assert(config1 === config1a)
+    assert(config1.prop1 === "blau")
+    assert(config1.prop1 === config1a.prop1)
+
+    Plugin[TestPluginCtx]("blau") configure { c => c.copy(prop1 = "gray") }
     val config2 = Plugin[TestPluginCtx]("blau").get
     assert(config1.prop1 === "blau")
     assert(config2.prop1 === "gray")
-    assert(config1.prop1 !== config2.prop1)
     assert(config1 !== config2)
 
   }
