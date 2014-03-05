@@ -46,10 +46,10 @@ object OSGiVersion {
  */
 class OSGiVersion() extends Comparable[OSGiVersion] {
 
-  private var _major: Int = 0
-  private var _minor: Int = 0
-  private var _micro: Int = 0
-  private var _qualifier: String = null
+  private[this] var _major: Int = 0
+  private[this] var _minor: Int = 0
+  private[this] var _micro: Int = 0
+  private[this] var _qualifier: String = null
 
   def major = _major
   def minor = _minor
@@ -206,6 +206,7 @@ class OSGiVersion() extends Comparable[OSGiVersion] {
       other.eq(this) ||
         (major == other.major) && (minor == other.minor) && (micro == other.micro) &&
         qualifier == other.qualifier
+    case _ => false
   }
 
   /**

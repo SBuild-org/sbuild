@@ -9,6 +9,8 @@ import de.tototec.sbuild.PluginWithDependencies
 import de.tototec.sbuild.Project
 import de.tototec.sbuild.ProjectConfigurationException
 import de.tototec.sbuild.PluginConfigureAware
+import de.tototec.sbuild.PluginDependency
+import de.tototec.sbuild.Plugin.PluginHandle
 
 trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
@@ -136,7 +138,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
       }
     }
 
-    def dependencies: Seq[Class[_]] = factory match {
+    def dependencies: Seq[PluginDependency] = factory match {
       case p: PluginWithDependencies => p.dependsOn
       case _ => Seq()
     }
@@ -169,68 +171,46 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     _plugins ++= Seq(reg)
   }
 
-  override def findPluginInstance[T: ClassTag](name: String): Option[T] =
-    withPlugin[T, Option[T]] { rp =>
-      if (rp.exists(name)) {
-        Some(rp.get(name).asInstanceOf[T])
-      } else None
-    }
+  private[this] var assertPluginCache: Set[RegisteredPlugin] = Set()
 
-  override def findOrCreatePluginInstance[T: ClassTag](name: String): T =
-    withPlugin[T, T] { rp =>
-      val runConfigureHook = !rp.exists(name)
-      // TODO: better wording in error msg
-      if (rp.isApplied) throw new IllegalStateException(s"Plugin ${rp.instanceClassName} was already applied to this project and cannot be created anymore.")
-      val instance = rp.get(name).asInstanceOf[T]
-      if (runConfigureHook) rp match {
-        case configAware: PluginConfigureAware[T] => configAware.configured(name, instance)
-        case _ =>
-      }
-      instance
-    }
+  def assertPlugin[T: ClassTag]: RegisteredPlugin = {
+    val pluginClass = classTag[T].runtimeClass
+    _plugins.find(rp => rp.instanceClass == pluginClass) match {
+      case Some(rp) if assertPluginCache.contains(rp) => rp
 
-  override def findAndUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit =
-    withPlugin[T, Unit] { rp =>
-      if (rp.isApplied) throw new IllegalStateException(s"Plugin ${rp.instanceClassName} was already applied to this project and cannot be configured anymore.")
-      val updatedInstance = rp.update(name, { instance => updater(instance.asInstanceOf[T]) })
-      rp match {
-        case configAware: PluginConfigureAware[T] => configAware.configured(name, updatedInstance.asInstanceOf[T])
-        case _ =>
-      }
-    }
+      case Some(rp) =>
+        log.debug("About to activate a plugin instance " + classTag[T].runtimeClass.getName)
 
-  override def findAndPostUpdatePluginInstance[T: ClassTag](name: String, updater: T => T): Unit =
-    withPlugin[T, Unit] { rp =>
-      if (rp.isApplied) throw new IllegalStateException(s"Plugin ${rp.instanceClassName} was already applied to this project and cannot be postConfigured anymore.")
-      rp.postUpdate(name, { instance =>
-        val updatedInstance = updater(instance.asInstanceOf[T])
-        rp match {
-          case configAware: PluginConfigureAware[T] => configAware.configured(name, updatedInstance)
-          case _ =>
+        val foundDeps = rp.dependencies.map {
+          case dep @ PluginDependency.Basic(pluginClass) =>
+            dep -> _plugins.find(rp => rp.instanceClass == pluginClass)
+          case dep @ PluginDependency.Versioned(pluginClass, version) =>
+            // TODO: also check the version range
+            dep -> _plugins.find(rp => rp.instanceClass == pluginClass)
         }
-        updatedInstance
-      })
-    }
+        val missingDeps = foundDeps.filter { case (_, rp) => rp.isEmpty }
+        if (!missingDeps.isEmpty) {
+          val formattedErrors = missingDeps.mkString("\n - ", "\n - ", "")
 
-  override def isPluginInstanceModified[T: ClassTag](name: String): Boolean =
-    withPlugin[T, Boolean] { rp =>
-      rp.isModified(name)
-    }
+          val ex = new ProjectConfigurationException(s"Unresolved plugin dependencies of plugin ${rp.toCompactString}.\nUnresolved dependencies:${formattedErrors}")
+          ex.buildScript = Some(projectFile)
+          throw ex
+        }
 
-  private def withPlugin[T: ClassTag, R](action: RegisteredPlugin => R): R = {
-    log.debug("About to activate and access a plugin instance " + classTag[T].runtimeClass.getName)
-    _plugins.find { rp =>
-      log.debug("checking " + rp)
-      val searchedClass = classTag[T].runtimeClass
-      rp.instanceClassName == searchedClass.getName && rp.classLoader == searchedClass.getClassLoader
-    } match {
-      case Some(regPlugin) =>
-        action(regPlugin)
+        assertPluginCache += rp
+        rp
+
       case None =>
         val ex = new ProjectConfigurationException("No plugin registered with instance type: " + classTag[T].runtimeClass.getName)
         ex.buildScript = Some(projectSelf.projectFile)
         throw ex
     }
+  }
+
+  private def withPlugin[T: ClassTag, R](action: RegisteredPlugin => R): R = {
+    log.debug("About to access a plugin instance " + classTag[T].runtimeClass.getName)
+    val regPlugin = assertPlugin[T]
+    action(regPlugin)
   }
 
   override def finalizePlugins: Unit = {
@@ -239,7 +219,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
     val orderedClasses = new DependentClassesOrderer().orderClasses(
       classes = _plugins.map(rp => rp.instanceClass),
-      dependencies = _plugins.flatMap(p => p.dependencies.map(d => d -> p.instanceClass))
+      dependencies = _plugins.flatMap(p => p.dependencies.map(d => d.pluginClass -> p.instanceClass))
     )
 
     val orderedPlugins = orderedClasses.map { instanceClass =>
@@ -252,6 +232,70 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     log.info("Re-ordered plugins: " + orderedPlugins.map(_.toCompactString).zipWithIndex)
 
     orderedPlugins.map { rp => rp.applyToProject }
+  }
+
+  override def getPluginVersion[T: ClassTag]: Option[String] = {
+    val pluginClass = classTag[T].runtimeClass
+    _plugins.find(p => p.instanceClass == pluginClass).map(rp => rp.version)
+
+  }
+
+  override def isPluginModified[T: ClassTag](name: String): Boolean =
+    withPlugin[T, Boolean] { rp => rp.isModified(name) }
+
+  def isPluginActive[T: ClassTag](name: String): Boolean =
+    withPlugin[T, Boolean] { rp => rp.exists(name) }
+
+  private[this] var pluginHandles: Map[(Class[_], String), PluginHandle[_]] = Map()
+
+  override def getPluginHandle[T: ClassTag](name: String): Plugin.PluginHandle[T] = withPlugin[T, Plugin.PluginHandle[T]] { rp =>
+    val pluginClass = classTag[T].runtimeClass
+    pluginHandles.get((pluginClass, name)) match {
+      case Some(handle) => handle.asInstanceOf[Plugin.PluginHandle[T]]
+      case None =>
+
+        def runConfiguredHook[T](name: String, instance: T): Unit = {
+          rp.factory match {
+            case configAware: PluginConfigureAware[T] => configAware.configured(name, instance.asInstanceOf[T])
+            case _ =>
+          }
+        }
+
+        // init this instance
+        // TODO: later, we will require, that it is not init before
+        if (rp.exists(name)) {
+          // trigger instance creation
+          val instance = rp.get(name)
+          runConfiguredHook(name, instance)
+        }
+
+        // now, we can assume an always initialized plugin instance
+        val handle = new Plugin.PluginHandle[T] {
+          override def get: T = rp.get(name).asInstanceOf[T]
+
+          override def isModified: Boolean = rp.isModified(name)
+
+          override def configure(configurer: T => T): Plugin.PluginHandle[T] = {
+            rp.update(name, { instance =>
+              val updatedInstance = configurer(instance.asInstanceOf[T])
+              runConfiguredHook(name, updatedInstance)
+            })
+            this
+          }
+
+          override def postConfigure(configurer: T => T): Plugin.PluginHandle[T] = {
+            rp.postUpdate(name, { instance =>
+              val updatedInstance = configurer(instance.asInstanceOf[T])
+              runConfiguredHook(name, updatedInstance)
+            })
+            this
+          }
+        }
+
+        pluginHandles += (pluginClass, name) -> handle
+
+        handle
+    }
   }
 
   case class PluginInfo(override val name: String,
