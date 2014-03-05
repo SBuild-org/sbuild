@@ -31,11 +31,17 @@ trait Plugin[T] {
 
 }
 
-object PluginDependency {
-  implicit def pluginDependency(pluginClass: Class[_]): PluginDependency =
-    PluginDependency(pluginClass = pluginClass)
+sealed trait PluginDependency {
+  def pluginClass: Class[_]
 }
-case class PluginDependency(pluginClass: Class[_])
+
+object PluginDependency {
+  case class BasicPluginDependency(override val pluginClass: Class[_]) extends PluginDependency
+
+  def apply(pluginClass: Class[_]): PluginDependency = BasicPluginDependency(pluginClass)
+
+  implicit def pluginDependency(pluginClass: Class[_]): PluginDependency = apply(pluginClass)
+}
 
 trait PluginWithDependencies { self: Plugin[_] =>
   def dependsOn: Seq[PluginDependency]
