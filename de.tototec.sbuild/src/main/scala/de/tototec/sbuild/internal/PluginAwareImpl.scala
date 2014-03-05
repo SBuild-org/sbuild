@@ -236,6 +236,12 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     orderedPlugins.map { rp => rp.applyToProject }
   }
 
+  override def getPluginVersion[T: ClassTag]: Option[String] = {
+    val pluginClass = classTag[T].runtimeClass
+    _plugins.find(p => p.instanceClass == pluginClass).map(rp => rp.version)
+
+  }
+
   case class PluginInfo(override val name: String,
                         override val version: String,
                         override val instances: Seq[String])

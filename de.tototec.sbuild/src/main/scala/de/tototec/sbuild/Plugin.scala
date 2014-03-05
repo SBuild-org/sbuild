@@ -104,6 +104,8 @@ object Plugin {
 
   def isActive[T: ClassTag](name: String)(implicit project: Project): Boolean = project.findPluginInstance[T](name).isDefined
 
+  def version[T: ClassTag](implicit project: Project): Option[String] = project.getPluginVersion[T]
+
 }
 
 trait PluginAware {
@@ -115,4 +117,5 @@ trait PluginAware {
   def finalizePlugins
   def registeredPlugins: Seq[Plugin.PluginInfo]
   def isPluginInstanceModified[T: ClassTag](name: String): Boolean
+  def getPluginVersion[T: ClassTag]: Option[String]
 }
