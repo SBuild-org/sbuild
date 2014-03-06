@@ -35,18 +35,31 @@ class TargetRef(val ref: String)(implicit project: Project) {
     case _ => None
   }
 
-  val nameWithoutProto = name.split(":", 2) match {
+  val nameWithoutProto: String = name.split(":", 2) match {
     case Array(_, name) => name
     case _ => name
   }
 
-  def nameWithoutStandardProto = name.split(":", 2) match {
+  def nameWithoutStandardProto: String = name.split(":", 2) match {
     case Array(p, name) if p == "phony" || p == "file" => name
     case Array(_, _) => name
     case _ => name
   }
 
-  override def toString = ref
+  def formatRelativeToProject: String = (name.split(":", 2) match {
+    case Array(p, name) if p == "file" => Right(name)
+    case Array(_, _) => Left(name)
+    case _ => Right(name)
+  }) match {
+    case Right(name) => new RichFile(Path(name)(project)).pathRelativeTo(project.projectDirectory) match {
+      case Some(relative) if relative.isEmpty() => name
+      case Some(relative) => relative
+      case None => name
+    }
+    case Left(name) => name
+  }
+
+  override def toString: String = ref
 
   protected[sbuild] def targetProject: Option[Project] =
     if (explicitProject == None || project.projectFile == explicitProject.get)

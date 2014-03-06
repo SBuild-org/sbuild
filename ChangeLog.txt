@@ -10,6 +10,12 @@ SBuild core and SBuild Runner:
   the body of the buildscript and other plugins have been applied.
 * Plugins can now express dependencies to other plugins with the new
   PluginWithDependencies trait.
+* Plugins can now react on configuration changes by implementing the
+  PluginConfigureAware trait. This is especially useful for meta-plugins that
+  want to push their own configuration to other plugins.
+* This version again work with a Java 6 Runtime (0.7.0 and 0.7.1 do not).
+* In --list-targets (and related) show files relative to the project directory
+  if possible.
 
 SBuild 0.7.1 - 2013-12-20:
 
