@@ -22,5 +22,7 @@
   <logger name="de.tototec.sbuild.BuildFileProject" level="DEBUG" />
   <logger name="de.tototec.sbuild.ExportDependencies" level="DEBUG" />
   <logger name="de.tototec.sbuild.runner.SBuildRunner" level="DEBUG" />
+  <logger name="de.tototec.sbuild.internal.I18n" level="WARN" />
+
 
 </configuration>
