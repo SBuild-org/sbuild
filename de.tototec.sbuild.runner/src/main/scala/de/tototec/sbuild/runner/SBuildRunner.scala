@@ -234,7 +234,7 @@ class SBuildRunner {
   def run(args: Array[String]): Int = {
     val bootstrapStart = System.currentTimeMillis
 
-    val aboutAndVersion = "SBuild " + SBuildVersion.version + " (c) 2011 - 2013, ToToTec GbR, Tobias Roeser"
+    val aboutAndVersion = "SBuild " + SBuildVersion.version + " (c) 2011 - 2014, ToToTec GbR, Tobias Roeser"
 
     try {
 
