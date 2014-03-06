@@ -50,12 +50,12 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
     lazy val factory: Plugin[_] = {
       val fac = pluginClass.getConstructors().find(c => c.getParameterTypes().size == 1 && c.getParameterTypes()(0) == classOf[Project]) match {
         case Some(ctr) =>
-          log.debug("Creating a plugin instance with constructor: " + ctr)
+          log.debug("Instantiating plugin factory with constructor: " + ctr)
           ctr.newInstance(projectSelf)
         case None =>
           pluginClass.getConstructors().find(c => c.getParameterTypes().size == 0) match {
             case Some(ctr) =>
-              log.debug("Creating a plugin instance with constructor: " + ctr)
+              log.debug("Instantiating plugin factory with constructor: " + ctr)
               ctr.newInstance()
             case None =>
               log.debug("Could not found any supported constructors: Found these: " + pluginClass.getConstructors().mkString("\n  "))
@@ -179,7 +179,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
       case Some(rp) if assertPluginCache.contains(rp) => rp
 
       case Some(rp) =>
-        log.debug("About to activate a plugin instance " + classTag[T].runtimeClass.getName)
+        log.debug(s"About to check plugin dependencies: ${rp.toCompactString}")
 
         val foundDeps = rp.dependencies.map {
           case dep @ PluginDependency.Basic(pluginClass) =>
@@ -188,13 +188,15 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
             // TODO: also check the version range
             dep -> _plugins.find(rp => rp.instanceClass == pluginClass)
         }
-        val missingDeps = foundDeps.filter { case (_, rp) => rp.isEmpty }
+        val (missingDeps, resolvedDeps) = foundDeps.partition { case (_, rp) => rp.isEmpty }
         if (!missingDeps.isEmpty) {
           val formattedErrors = missingDeps.mkString("\n - ", "\n - ", "")
 
           val ex = new ProjectConfigurationException(s"Unresolved plugin dependencies of plugin ${rp.toCompactString}.\nUnresolved dependencies:${formattedErrors}")
           ex.buildScript = Some(projectFile)
           throw ex
+        } else {
+          log.debug(s"All plugin dependencies of plugin ${rp.toCompactString} resolved: ${resolvedDeps.map(_._1)}")
         }
 
         assertPluginCache += rp
@@ -208,7 +210,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
   }
 
   private def withPlugin[T: ClassTag, R](action: RegisteredPlugin => R): R = {
-    log.debug("About to access a plugin instance " + classTag[T].runtimeClass.getName)
+    log.debug("About to access plugin " + classTag[T].runtimeClass.getName)
     val regPlugin = assertPlugin[T]
     action(regPlugin)
   }
@@ -254,19 +256,24 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
       case Some(handle) => handle.asInstanceOf[Plugin.PluginHandle[T]]
       case None =>
 
-        def runConfiguredHook[T](name: String, instance: T): Unit = {
+        def runConfiguredHook[T](name: String, instance: T, initial: Boolean = false): Unit = {
           rp.factory match {
-            case configAware: PluginConfigureAware[T] => configAware.configured(name, instance)
+            case configAware: PluginConfigureAware[T] =>
+              log.debug(s"Trigger ${if (initial) "initial " else ""} configured hook of instance '${name}' of plugin ${rp.toCompactString}")
+              configAware.configured(name, instance)
             case _ =>
           }
         }
 
         // init this instance
         // TODO: later, we will require, that it is not init before
-        if (rp.exists(name)) {
+        if (!rp.exists(name)) {
           // trigger instance creation
+          log.debug(s"Activating instance '${name}' of plugin ${rp.toCompactString}")
           val instance = rp.get(name)
-          runConfiguredHook(name, instance)
+          runConfiguredHook(name, instance, initial = true)
+        } else {
+          log.warn(s"Expected, that plugin instance with name '${name}' was not initializized before, but it was: ${rp.toCompactString}")
         }
 
         // now, we can assume an always initialized plugin instance
@@ -276,8 +283,10 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
           override def isModified: Boolean = rp.isModified(name)
 
           override def configure(configurer: T => T): Plugin.PluginHandle[T] = {
+            log.debug(s"Configuring instance '${name}' of plugin ${rp.toCompactString}")
             rp.update(name, { instance =>
               val updatedInstance = configurer(instance.asInstanceOf[T])
+              log.debug(s"Configuration of instance '${name}': ${updatedInstance}")
               runConfiguredHook[T](name, updatedInstance)
               updatedInstance
             })
@@ -285,8 +294,10 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
           }
 
           override def postConfigure(configurer: T => T): Plugin.PluginHandle[T] = {
+            log.debug(s"Post-configuring instance '${name}' of plugin ${rp.toCompactString}")
             rp.postUpdate(name, { instance =>
               val updatedInstance = configurer(instance.asInstanceOf[T])
+              log.debug(s"Configuration of instance '${name}': ${updatedInstance}")
               runConfiguredHook[T](name, updatedInstance)
               updatedInstance
             })
