@@ -24,20 +24,20 @@ class ChainCreatorTest extends FunSuite {
   val targetExecutor = new TargetExecutor(NoopCmdlineMonitor)
   
   test("build chain test 1") {
-    assert(Seq(g1) === targetExecutor.preorderedDependenciesForest(Seq(g1)).flatMap(_.linearized).map(_.target))
-    assert(Seq(g1) === targetExecutor.preorderedDependenciesForest(Seq(g1), skipExec = true).flatMap(_.linearized).map(_.target))
+    assert(Seq(g1) === targetExecutor.preorderedDependenciesTree(g1).linearized.map(_.target))
+    assert(Seq(g1) === targetExecutor.preorderedDependenciesTree(g1, skipExec = true).linearized.map(_.target))
   }
   test("build chain test 2") {
-    assert(Seq(g1, g2) === targetExecutor.preorderedDependenciesForest(Seq(g2)).flatMap(_.linearized).map(_.target))
-    assert(Seq(g1, g2) === targetExecutor.preorderedDependenciesForest(Seq(g2), skipExec = true).flatMap(_.linearized).map(_.target))
+    assert(Seq(g1, g2) === targetExecutor.preorderedDependenciesTree(g2).linearized.map(_.target))
+    assert(Seq(g1, g2) === targetExecutor.preorderedDependenciesTree(g2, skipExec = true).linearized.map(_.target))
   }
   test("build chain test 3") {
-    assert(Seq(g1, g1, g2) === targetExecutor.preorderedDependenciesForest(Seq(g1, g2)).flatMap(_.linearized).map(_.target))
-    assert(Seq(g1, g1, g2) === targetExecutor.preorderedDependenciesForest(Seq(g1, g2), skipExec = true).flatMap(_.linearized).map(_.target))
+    assert(Seq(g1, g1, g2) === Seq(g1, g2).flatMap(g => targetExecutor.preorderedDependenciesTree(g).linearized).map(_.target))
+    assert(Seq(g1, g1, g2) === Seq(g1, g2).flatMap(g => targetExecutor.preorderedDependenciesTree(g, skipExec = true).linearized).map(_.target))
   }
   test("build chain test 4") {
-    assert(Seq(g1, g2, g1) === targetExecutor.preorderedDependenciesForest(Seq(g2, g1)).flatMap(_.linearized).map(_.target))
-    assert(Seq(g1, g2, g1) === targetExecutor.preorderedDependenciesForest(Seq(g2, g1), skipExec = true).flatMap(_.linearized).map(_.target))
+    assert(Seq(g1, g2, g1) === Seq(g2, g1).flatMap(g => targetExecutor.preorderedDependenciesTree(g).linearized).map(_.target))
+    assert(Seq(g1, g2, g1) === Seq(g2, g1).flatMap(g => targetExecutor.preorderedDependenciesTree(g, skipExec = true).linearized).map(_.target))
   }
 
 }
