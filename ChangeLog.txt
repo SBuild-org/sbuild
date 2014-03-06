@@ -1,18 +1,21 @@
-SBuild 0.7.1.9000:
+SBuild 0.7.2 - 2014-03-06:
 
-SBuild core and SBuild Runner:
+SBuild API
 
 * ZipSchemeHandler: Added new regex parameter, to support extraction of
   multiple resources based on that regex.
-* Added new --search-targets commandline option to search for targets with a
-  regular expression pattern.
-* Added Plugin.postConfigure to have an very late configuration phase, after
-  the body of the buildscript and other plugins have been applied.
 * Plugins can now express dependencies to other plugins with the new
   PluginWithDependencies trait.
 * Plugins can now react on configuration changes by implementing the
   PluginConfigureAware trait. This is especially useful for meta-plugins that
   want to push their own configuration to other plugins.
+* Experimental: Added Plugin.postConfigure to have an very late configuration
+  phase, after the body of the buildscript and other plugins have been applied.
+
+SBuild Runner
+
+* Added new --search-targets commandline option to search for targets with a
+  regular expression pattern.
 * This version again work with a Java 6 Runtime (0.7.0 and 0.7.1 do not).
 * In --list-targets (and related) show files relative to the project directory
   if possible.
