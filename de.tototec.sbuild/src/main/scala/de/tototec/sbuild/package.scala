@@ -5,7 +5,7 @@ package de.tototec
  *
  * This package contains SBuild core classes and public API.
  *
- * Project Homepage: [[http://sbuild.tototec.de/]]
+ * Project Homepage: [[http://sbuild.org]]
  *
  * SBuild is released under the [[http://www.apache.org/licenses/LICENSE-2.0 Apache License, Version 2.0]].
  *

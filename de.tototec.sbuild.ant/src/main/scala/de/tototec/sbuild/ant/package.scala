@@ -7,7 +7,7 @@ package de.tototec.sbuild
  *
  * This version is designed to be used with SBuild $#{SBUILD_VERSION}.
  *
- * Project Homepage: [[http://sbuild.tototec.de/]]
+ * Project Homepage: [[http://sbuild.org]]
  *
  * SBuild Ant Support and Wrappers are released under the [[http://www.apache.org/licenses/LICENSE-2.0 Apache License, Version 2.0]].
  *
