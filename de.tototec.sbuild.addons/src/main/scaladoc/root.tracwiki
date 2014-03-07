@@ -6,7 +6,7 @@ This version is designed to be used with SBuild $#{SBUILD_VERSION}.
 
 Detailed documentation of all addons are located in package [[de.tototec.sbuild.addons]] and it's subpackages.
 
-Project Homepage: [[http://sbuild.tototec.de/]]
+Project Homepage: [[http://sbuild.org]]
 
 SBuild Addons are released under the [[http://www.apache.org/licenses/LICENSE-2.0 Apache License, Version 2.0]].
 
