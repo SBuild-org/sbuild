@@ -11,13 +11,13 @@ class SBuild(implicit _project: Project) {
 
   import SBuildConfig._
 
-  val binJar = s"../de.tototec.sbuild/target/de.tototec.sbuild-${sbuildVersion}.jar"
-  val runnerJar = s"../de.tototec.sbuild.runner/target/de.tototec.sbuild.runner-${sbuildVersion}.jar"
-  val antJar = s"../de.tototec.sbuild.ant/target/de.tototec.sbuild.ant-${sbuildVersion}.jar"
-  val addonsJar = s"../de.tototec.sbuild.addons/target/de.tototec.sbuild.addons-${sbuildVersion}.jar"
-  val pluginsJar = s"../de.tototec.sbuild.plugins/target/de.tototec.sbuild.plugins-${sbuildVersion}.jar"
-  val scriptCompilerJar = s"../de.tototec.sbuild.scriptcompiler/target/de.tototec.sbuild.scriptcompiler-${sbuildVersion}.jar"
-  val compilerPluginJar = s"../de.tototec.sbuild.compilerplugin/target/de.tototec.sbuild.compilerplugin-${sbuildVersion}.jar"
+  val binJar = s"../org.sbuild/target/org.sbuild-${sbuildVersion}.jar"
+  val runnerJar = s"../org.sbuild.runner/target/org.sbuild.runner-${sbuildVersion}.jar"
+  val antJar = s"../org.sbuild.ant/target/org.sbuild.ant-${sbuildVersion}.jar"
+  val addonsJar = s"../org.sbuild.addons/target/org.sbuild.addons-${sbuildVersion}.jar"
+  val pluginsJar = s"../org.sbuild.plugins/target/org.sbuild.plugins-${sbuildVersion}.jar"
+  val scriptCompilerJar = s"../org.sbuild.scriptcompiler/target/org.sbuild.scriptcompiler-${sbuildVersion}.jar"
+  val compilerPluginJar = s"../org.sbuild.compilerplugin/target/org.sbuild.compilerplugin-${sbuildVersion}.jar"
 
   val distName = s"sbuild-${sbuildVersion}"
   val distDir = "target/" + distName
@@ -28,7 +28,7 @@ class SBuild(implicit _project: Project) {
 
   val javaOptions = "-XX:MaxPermSize=256m"
 
-  val sbuildRunnerClass = "de.tototec.sbuild.runner.SBuildRunner"
+  val sbuildRunnerClass = "org.sbuild.runner.SBuildRunner"
   val sbuildRunnerLibs = scalaLibrary ~ cmdOption ~ jansi ~ binJar ~ runnerJar
   val sbuildRunnerDebugLibs = sbuildRunnerLibs ~ SBuildConfig.slf4jApi ~ SBuildConfig.logbackCore ~ SBuildConfig.logbackClassic ~ SBuildConfig.jclOverSlf4j ~ SBuildConfig.log4jOverSlf4j
 
@@ -71,7 +71,7 @@ class SBuild(implicit _project: Project) {
     scalaLibrary ~ scalaCompiler ~ scalaReflect exec { ctx: TargetContext =>
     val properties = s"""|# Classpath configuration for SBuild ${sbuildVersion}
       |# sbuildClasspath - Used to load the SBuild API
-      |sbuildClasspath = de.tototec.sbuild-${sbuildVersion}.jar
+      |sbuildClasspath = ${binJar.files.head.getName}
       |# compileClasspath - Used to load the compiler to compile the buildfile in initialization phase
       |compileClasspath = ${scalaCompiler.files.head.getName}:${scalaReflect.files.head.getName}:${scriptCompilerJar.files.head.getName}
       |# projectCompileClasspath - Used to compile the buildfiles

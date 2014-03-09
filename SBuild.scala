@@ -5,13 +5,13 @@ import de.tototec.sbuild.TargetRefs._
 class SBuild(implicit _project: Project) {
 
   val modules = Modules(
-    "de.tototec.sbuild",
-    "de.tototec.sbuild.runner",
-    "de.tototec.sbuild.ant",
-    "de.tototec.sbuild.addons",
-    "de.tototec.sbuild.scriptcompiler",
-    "de.tototec.sbuild.compilerplugin",
-    "de.tototec.sbuild.experimental",
+    "org.sbuild",
+    "org.sbuild.runner",
+    "org.sbuild.ant",
+    "org.sbuild.addons",
+    "org.sbuild.scriptcompiler",
+    "org.sbuild.compilerplugin",
+    "org.sbuild.experimental",
     "doc",
     "sbuild-dist"
   )
@@ -20,15 +20,15 @@ class SBuild(implicit _project: Project) {
 
   Target("phony:all") dependsOn modules.map(m => m("all"))
 
-  Target("phony:test") dependsOn "de.tototec.sbuild::test" ~ "de.tototec.sbuild.runner::test"
+  Target("phony:test") dependsOn "org.sbuild::test" ~ "org.sbuild.runner::test"
 
   Target("phony:scaladoc") dependsOn
-    "de.tototec.sbuild::scaladoc" ~
-    "de.tototec.sbuild.runner::scaladoc" ~
-    "de.tototec.sbuild.ant::scaladoc" ~
-    "de.tototec.sbuild.addons::scaladoc" ~
-    "de.tototec.sbuild.compilerplugin::scaladoc" ~
-    "de.tototec.sbuild.experimental::scaladoc"
+    "org.sbuild::scaladoc" ~
+    "org.sbuild.runner::scaladoc" ~
+    "org.sbuild.ant::scaladoc" ~
+    "org.sbuild.addons::scaladoc" ~
+    "org.sbuild.compilerplugin::scaladoc" ~
+    "org.experimental::scaladoc"
 
   Target("phony:dist") dependsOn "sbuild-dist::dist"
 

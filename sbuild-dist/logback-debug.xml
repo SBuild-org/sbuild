@@ -13,16 +13,16 @@
   </root>
 
   <logger name="de.tototec" level="TRACE" />
-  <logger name="de.tototec.sbuild.execute.TargetExecutor$DependencyCache" level="INFO" />
-  <logger name="de.tototec.sbuild.OutputStreamCmdlineMonitor" level="DEBUG" />
-  <logger name="de.tototec.sbuild.NoopCmdlineMonitor" level="DEBUG" />
-  <logger name="de.tototec.sbuild.runner.ProjectScript" level="DEBUG" />
-  <logger name="de.tototec.sbuild.execute.TargetExecutor" level="DEBUG" />
-  <logger name="de.tototec.sbuild.execute.LoggingTransientTargetCache" level="INFO" />
-  <logger name="de.tototec.sbuild.BuildFileProject" level="DEBUG" />
-  <logger name="de.tototec.sbuild.ExportDependencies" level="DEBUG" />
-  <logger name="de.tototec.sbuild.runner.SBuildRunner" level="DEBUG" />
-  <logger name="de.tototec.sbuild.internal.I18n" level="WARN" />
+  <logger name="org.sbuild.execute.TargetExecutor$DependencyCache" level="INFO" />
+  <logger name="org.sbuild.OutputStreamCmdlineMonitor" level="DEBUG" />
+  <logger name="org.sbuild.NoopCmdlineMonitor" level="DEBUG" />
+  <logger name="org.sbuild.runner.ProjectScript" level="DEBUG" />
+  <logger name="org.sbuild.execute.TargetExecutor" level="DEBUG" />
+  <logger name="org.sbuild.execute.LoggingTransientTargetCache" level="INFO" />
+  <logger name="org.sbuild.BuildFileProject" level="DEBUG" />
+  <logger name="org.sbuild.ExportDependencies" level="DEBUG" />
+  <logger name="org.sbuild.runner.SBuildRunner" level="DEBUG" />
+  <logger name="org.sbuild.internal.I18n" level="WARN" />
 
 
 </configuration>
