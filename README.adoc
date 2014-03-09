@@ -2,7 +2,7 @@
 
 image:https://travis-ci.org/SBuild-org/sbuild.png?branch=master["Build Status", link="https://travis-ci.org/SBuild-org/sbuild"]
 
-SBuild is a very fast, powerful and flexible build tool. It can be used to build anything you want and does not force any style, but its main target are all Java VM targeted projects. The main "script language" of SBuild is Scala. SBuild is a dependency-driven tool, so it will only do what is necessary, to build your requested target, nothing more and nothing less. SBuild can detect unchanged targets and dependencies, and will avoid doing the same task multiple times, if nothing has changed.
+http://sbuild.org[SBuild] is a very fast, powerful and flexible build tool. It can be used to build anything you want and does not force any style, but its main target are all Java VM targeted projects. The main "script language" of SBuild is Scala. SBuild is a dependency-driven tool, so it will only do what is necessary, to build your requested target, nothing more and nothing less. SBuild can detect unchanged targets and dependencies, and will avoid doing the same task multiple times, if nothing has changed.
 
 The project home page is: http://sbuild.org
 

@@ -1,4 +1,4 @@
-import de.tototec.sbuild._
+import org.sbuild._
 
 @version("0.6.0.9004")
 @classpath("../de.tototec.sbuild.plugins/target/de.tototec.sbuild.plugins-0.6.0.9004.jar",

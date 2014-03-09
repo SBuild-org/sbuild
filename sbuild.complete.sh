@@ -1,4 +1,4 @@
-# bash completion for de.tototec.sbuild
+# bash completion for org.sbuild
 
 # have sbuild &&
 _sbuild()

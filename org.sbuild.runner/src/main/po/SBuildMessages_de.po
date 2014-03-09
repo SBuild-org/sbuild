@@ -1,0 +1,215 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Tobias Roeser <le.petit.fou@web.de>, 2013.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2014-03-09 13:23+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Tobias Roeser <le.petit.fou@web.de>\n"
+"Language-Team: German <>\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: org/sbuild/runner/SBuildRunner.scala:85
+#, java-format
+msgid "File \"{0}\" already exists."
+msgstr "Datei \"{0}\" existiert nicht."
+
+#: org/sbuild/runner/SBuildRunner.scala:152
+msgid "Checking target: "
+msgstr "Überprüfe target: "
+
+#: org/sbuild/runner/SBuildRunner.scala:155
+msgid "OK"
+msgstr "OK"
+
+#: org/sbuild/runner/SBuildRunner.scala:158
+msgid "FAILED: "
+msgstr "FEHLER: "
+
+#: org/sbuild/runner/SBuildRunner.scala:175
+#, java-format
+msgid ""
+"Project {0} contains {1} cacheable target, but does not declare any target "
+"with \"evictCache\"."
+msgstr ""
+"Project {0} enthält {1} cacheable Targets, aber deklariert kein Target mit "
+"\"evictCache\"."
+
+#: org/sbuild/runner/SBuildRunner.scala:189
+msgid "Project: "
+msgstr "Projekt: "
+
+#: org/sbuild/runner/SBuildRunner.scala:192
+msgid "Target:  "
+msgstr "Target: "
+
+#: org/sbuild/runner/SBuildRunner.scala:194
+msgid "Details: "
+msgstr "Details: "
+
+#: org/sbuild/runner/SBuildRunner.scala:197
+msgid "Reflective invokation message: "
+msgstr "Meldung eines reflektiven Aufrufs: "
+
+#: org/sbuild/runner/SBuildRunner.scala:202
+#, java-format
+msgid "No global settings file found: {0}"
+msgstr "Keine globale Settings-Datei gefunden: {0}"
+
+#: org/sbuild/runner/SBuildRunner.scala:204
+#, java-format
+msgid "About to read global settings file: {0}"
+msgstr "Lese globale Settings-Date: {0}"
+
+#: org/sbuild/runner/SBuildRunner.scala:210
+#, java-format
+msgid "Could not read settings file \"{0}\""
+msgstr "Konnte Settings-Datei \"{0}\" nicht lesen"
+
+#: org/sbuild/runner/SBuildRunner.scala:221
+#, java-format
+msgid "Could not read setting \"{0}\" from settings file \"{1}\"."
+msgstr "Konnte Setting \"{0}\" von Settings-Datei \"{1}\" nicht lesen."
+
+#: org/sbuild/runner/SBuildRunner.scala:283
+#, java-format
+msgid "Deleting {0}"
+msgstr "Lösche {0}"
+
+#: org/sbuild/runner/SBuildRunner.scala:308
+msgid ""
+"SBuild commandline was invalid. Please use --help for supported commandline "
+"options."
+msgstr ""
+"SBuild Kommandozeile war ungültig. Bitte verwenden sie --help für eine Liste "
+"unterstützter Optionen."
+
+#: org/sbuild/runner/SBuildRunner.scala:313
+#, fuzzy
+msgid ""
+"SBuild detected a invalid usage of SBuild API. Please consult the API "
+"Refence Documentation at http://sbuild.org/doc/sbuild ."
+msgstr ""
+"SBuild hat eine ungültige Verwendung der SBuild API erkannt. Konsultieren "
+"sie die API Reference Dokumentation unter http://sbuild.org/doc/sbuild ."
+
+#: org/sbuild/runner/SBuildRunner.scala:318
+msgid ""
+"SBuild detected a failure in the project configuration or the build scripts."
+msgstr ""
+"SBuild hat einen Fehler in der Projektkonfiguration oder im Build-Skript "
+"festgestellt."
+
+#: org/sbuild/runner/SBuildRunner.scala:323
+msgid ""
+"SBuild failed because an invalid target was requested. For a list of "
+"available targets use --list-targets or --list-targets-recursive. Use --help "
+"for a list of other commandline options."
+msgstr ""
+"SBuild schlug fehl da ein unbekanntes Target angeforder wurde. Für eine "
+"Liste von verfügbaren Targets verwende --list-targets oder --list-targets-"
+"recursive. Verwende --help für eine Liste aller Kommandozeilenoptionen."
+
+#: org/sbuild/runner/SBuildRunner.scala:328
+msgid "SBuild detected a failure in a target execution."
+msgstr "SBuild hat einen Fehler während der Ausführung eines Targets erkannt."
+
+#: org/sbuild/runner/SBuildRunner.scala:333
+#, java-format
+msgid "SBuild failed with an unexpected exception ({0})."
+msgstr "SBuild ist mit einer unbekannten Exception ({0}) fehlgeschlagen."
+
+#: org/sbuild/runner/SBuildRunner.scala:413
+msgid "Initializing project..."
+msgstr "Initialisiere Projekt..."
+
+#: org/sbuild/runner/SBuildRunner.scala:474
+#, java-format
+msgid "Found the following {0} problems:"
+msgstr "Folgende {0} Probleme wurden gefunden:"
+
+#: org/sbuild/runner/SBuildRunner.scala:492
+msgid "Dependency tree:"
+msgstr "Abhängigkeitsbaum..."
+
+#: org/sbuild/runner/SBuildRunner.scala:512
+msgid "Execution plan (not optimized):"
+msgstr "Ausführungsplan (nicht optimiert):"
+
+#: org/sbuild/runner/SBuildRunner.scala:533
+#, java-format
+msgid ""
+"Enabled parallel processing. Explicit parallel threads (None = nr of cpu "
+"cores): {0}"
+msgstr ""
+"Aktiviere parallele Ausführung. Explizit parallele threads (None = Anzahl "
+"der CPU-Kerne): {0}"
+
+#: org/sbuild/runner/SBuildRunner.scala:574
+msgid " Executing..."
+msgstr " Führe aus..."
+
+#: org/sbuild/runner/SBuildRunner.scala:575
+msgid "Requested targets: "
+msgstr "Angeforderte Targets: "
+
+#: org/sbuild/runner/SBuildRunner.scala:591
+#, java-format
+msgid ""
+" Execution finished. SBuild init time: {0} msec, Execution time: {1} msec"
+msgstr ""
+" Ausführung beendet. SBuild Init-Zeit: {0} msec, Ausführungszeit: {1} msec"
+
+#: org/sbuild/runner/SBuildRunner.scala:595
+#, java-format
+msgid " Execution failed. SBuild init time: {0} msec, Execution time: {1} msec"
+msgstr ""
+" Ausführung fehlgeschlagen. SBuild Init-Zeit: {0} msec, Ausführungszeit: {1} "
+"msec"
+
+#: org/sbuild/runner/SBuildRunner.scala:597
+#, java-format
+msgid ""
+"Some targets failed or were skipped because of unsatisfied dependencies: {0}"
+"{1}"
+msgstr ""
+"Einige Targets schlugen fehl oder wurden wegen unerfüllter Abhängigkeiten "
+"ausgelassen: {0}"
+
+#: org/sbuild/runner/VersionChecker.scala:23
+#: org/sbuild/runner/VersionChecker.scala:53
+#, java-format
+msgid "The buildscript \"{0}\" requires at least SBuild version: {1}"
+msgstr ""
+"Für Buildfile \"{0}\" wird mindests SBuild in Version {1} vorausgesetzt."
+
+#: org/sbuild/runner/VersionChecker.scala:37
+#, java-format
+msgid ""
+"The plugin(s) \"{0}\" in project \"{1}\" requires at least SBuild version: "
+"{2}"
+msgstr ""
+"Plugin(s) \"{0}\" in Projekt \"{1}\" setzen mindestens SBuild in Version {2} "
+"voraus."
+
+#: org/sbuild/runner/VersionChecker.scala:51
+#, java-format
+msgid ""
+"The plugin \"{0}\" in buildscript \"{1}\" requires at least SBuild version: "
+"{2}"
+msgstr ""
+"Das Plugin \"{0}\" in Buildscript \"{1}\" setzt mindestens SBuild in Version "
+"{2} voraus."
+
+#: org/sbuild/runner/ProjectScript.scala:92
+#, java-format
+msgid "Project buildfile \"{0}\" does not exists or is not a file."
+msgstr "Project Buildfile \"{0}\" existiert nicht oder ist keine Datei."

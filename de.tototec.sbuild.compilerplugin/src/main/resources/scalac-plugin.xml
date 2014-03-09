@@ -1,4 +1,0 @@
-<plugin>
-  <name>analyzetypes</name>
-  <classname>de.tototec.sbuild.compilerplugin.AnalyzeTypesPlugin</classname>
-</plugin>
