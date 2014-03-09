@@ -45,13 +45,6 @@ object Path {
 
 }
 
-// since SBuild 0.3.1.9000
-@deprecated("Use Paths instead.", "0.4.0.9002")
-object Pathes {
-  def apply(paths: Seq[String])(implicit project: Project): Seq[File] =
-    paths.map(path => Path(path))
-}
-
 // since SBuild 0.4.0.9002
 object Paths {
   def apply(paths: Seq[String])(implicit project: Project): Seq[File] =
