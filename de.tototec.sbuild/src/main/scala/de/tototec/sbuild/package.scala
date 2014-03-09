@@ -56,13 +56,4 @@ package object sbuild extends TargetRefsImplicits {
 
   implicit def toRichFile(file: java.io.File): RichFile = new RichFile(file)
 
-//  @deprecated("Use internal.OSGiVersion instead", "0.6.0.9002")
-//  type OSGiVersion = internal.OSGiVersion
-
-  @deprecated("Use de.tototec.sbuild.internal.ProjectTarget instead.", "0.7.1.9000")
-  type ProjectTarget = internal.ProjectTarget
-
-//  @deprecated("No public API of SBuild.", "0.6.0.9002")
-//  type Util = internal.Util
-
 }

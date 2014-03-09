@@ -1,8 +1,9 @@
 package de.tototec.sbuild
 
 import java.io.File
-import de.tototec.sbuild.internal.WithinTargetExecution
+
 import de.tototec.sbuild.internal.I18n
+import de.tototec.sbuild.internal.WithinTargetExecution
 
 object TargetRef {
 
@@ -117,15 +118,6 @@ class TargetRef(val ref: String)(implicit project: Project) {
                 foundDepCtx.targetFiles
             }
         }
-    }
-  }
-
-  @deprecated("When this kind of utility function is required, RichFile should provide it.", "0.6.0.9002")
-  def filesRelativeTo(baseDir: File): Seq[String] = {
-    val baseUri = baseDir.toURI()
-    files.map { f =>
-      val absFile = if (f.isAbsolute) f else new File(project.projectDirectory, f.getPath)
-      baseUri.relativize(absFile.toURI).getPath
     }
   }
 

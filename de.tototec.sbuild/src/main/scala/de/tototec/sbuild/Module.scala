@@ -7,9 +7,6 @@ object Module {
     _project.findOrCreateModule(dirOrFile, copyProperties = false)
     new Module(dirOrFile, _project)
   }
-  @deprecated(message = "Use Modules() instead.", since = "0.3.2.9000")
-  def apply(dirOrFiles: String*)(implicit _project: Project): Seq[Module] =
-    dirOrFiles.map { dirOrFile => Module(dirOrFile) }
 }
 
 class Module private (dirOrFile: String, project: Project) {
@@ -17,7 +14,6 @@ class Module private (dirOrFile: String, project: Project) {
   def apply(targetName: String): TargetRef = targetRef(targetName)
   def targetRef(targetName: String): TargetRef = TargetRef(dirOrFile + "::" + targetName)(project)
   def targetRefs(targetNames: String*): TargetRefs = targetNames.map(t => targetRef(t))
-  // def listTargets: Seq[TargetRef] = project.targets.values.toSeq.map { t => TargetRef(t) }
 }
 
 object Modules {
@@ -25,6 +21,3 @@ object Modules {
     dirOrFiles.map { dirOrFile => Module(dirOrFile) }
 }
 
-//class Modules(modules: Seq[Module]) {
-//  def targetRefs(targetRefName: String): TargetRefs = TargetRefs(modules.map(_ targetRef targetRefName))
-//}

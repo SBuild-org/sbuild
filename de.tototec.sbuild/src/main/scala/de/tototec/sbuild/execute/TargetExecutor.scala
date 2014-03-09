@@ -186,38 +186,6 @@ class TargetExecutor(monitor: CmdlineMonitor,
   import TargetExecutor._
 
   /**
-   * Visit a forest of targets, each target of parameter `request` is the root of a tree.
-   * Each tree will search deep-first. If parameter `skipExec` is `true`, the associated actions will not executed.
-   * If `skipExec` is `false`, for each target the up-to-date state will be evaluated,
-   * and if the target is no up-to-date, the associated action will be executed.
-   */
-  @deprecated("Simply use preorderedDependenciesTree", "0.7.1.9000")
-  def preorderedDependenciesForest(request: Seq[Target],
-                                   execProgress: Option[TargetExecutor.ExecProgress] = None,
-                                   skipExec: Boolean = false,
-                                   dependencyTrace: List[Target] = List(),
-                                   depth: Int = 0,
-                                   treePrinter: Option[(Int, Target) => Unit] = None,
-                                   dependencyCache: DependencyCache = new DependencyCache(),
-                                   transientTargetCache: Option[TransientTargetCache] = None,
-                                   treeParallelExecContext: Option[ParallelExecContext] = None,
-                                   keepGoing: Option[KeepGoing] = None): Seq[ExecutedTarget] =
-    request.map { req =>
-      preorderedDependenciesTree(
-        curTarget = req,
-        execProgress = execProgress,
-        skipExec = skipExec,
-        dependencyTrace = dependencyTrace,
-        depth = depth,
-        treePrinter = treePrinter,
-        dependencyCache = dependencyCache,
-        transientTargetCache = transientTargetCache,
-        parallelExecContext = treeParallelExecContext,
-        keepGoing = keepGoing
-      )
-    }
-
-  /**
    * Visit each target of tree `node` deep-first.
    *
    * If parameter `skipExec` is `true`, the associated actions will not executed.

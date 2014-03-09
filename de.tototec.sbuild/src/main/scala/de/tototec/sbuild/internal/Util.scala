@@ -29,29 +29,6 @@ class Util {
   private[this] val log = Logger[Util.type]
   private[sbuild] var monitor: CmdlineMonitor = NoopCmdlineMonitor
 
-  @deprecated("Use RichFile.deleteRecursive instead.", "0.6.0.9002")
-  def delete(files: File*): Boolean = delete(None, files: _*)
-
-  @deprecated("Use RichFile.deleteRecursive instead.", "0.6.0.9002")
-  def delete(onDelete: Option[File => Unit], files: File*): Boolean = {
-    var success = true;
-    files.map {
-      case f if f.isDirectory => {
-        success = delete(f.listFiles: _*) && success
-        log.debug("Deleting dir: " + f)
-        onDelete.map(_(f))
-        success = f.delete && success
-      }
-      case f if f.exists => {
-        log.debug("Deleting file: " + f)
-        onDelete.map(_(f))
-        success = f.delete && success
-      }
-      case _ =>
-    }
-    success
-  }
-
   def download(url: String, target: String, monitor: CmdlineMonitor = monitor, userAgent: Option[String]): Option[Throwable] = {
 
     val retryCount = 5
@@ -223,9 +200,6 @@ class Util {
   //  def recursiveListFiles(dir: String, regex: Regex = ".*".r): Array[String] = {
   //    recursiveListFiles(new File(dir), regex).map(_.getPath)
   //  }
-
-  @deprecated("Use RichFile.listFilesRecursive instead", "0.6.0.9002")
-  def recursiveListFiles(dir: File, regex: Regex = ".*".r): Array[File] = RichFile.listFilesRecursive(dir, regex)
 
   def unzip(archive: File, targetDir: File, selectedFiles: String*) {
     unzip(archive, targetDir, selectedFiles.map(f => (f, null)).toList, monitor, None)

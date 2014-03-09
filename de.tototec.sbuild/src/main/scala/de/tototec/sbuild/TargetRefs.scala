@@ -68,12 +68,6 @@ class TargetRefs private (val targetRefGroups: Seq[Seq[TargetRef]]) {
       targetRefs.flatMap(tr => tr.files)
   }
 
-  @deprecated("When this kind of utility function is required, RichFile should provide it.", "0.6.0.9002")
-  def filesRelativeTo(baseDir: File): Seq[String] = WithinTargetExecution.safeWithinTargetExecution("TargetRefs.filesRelativeTo") {
-    withinTargetExec =>
-      targetRefs.flatMap(tr => tr.filesRelativeTo(baseDir))
-  }
-
 }
 
 trait TargetRefsImplicits {
