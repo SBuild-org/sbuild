@@ -47,7 +47,8 @@ class TargetRef(val ref: String)(implicit project: Project) {
   }
 
   def formatRelativeToProject: String = (name.split(":", 2) match {
-    case Array(p, name) if p == "file" => Right(name)
+    case Array("file", name) => Right(name)
+    case Array("phony", name) => Left(name)
     case Array(_, _) => Left(name)
     case _ => Right(name)
   }) match {
