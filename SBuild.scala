@@ -11,7 +11,6 @@ class SBuild(implicit _project: Project) {
     "de.tototec.sbuild.addons",
     "de.tototec.sbuild.scriptcompiler",
     "de.tototec.sbuild.compilerplugin",
-//    "de.tototec.sbuild.plugins",
     "de.tototec.sbuild.experimental",
     "doc",
     "sbuild-dist"
@@ -30,7 +29,6 @@ class SBuild(implicit _project: Project) {
     "de.tototec.sbuild.addons::scaladoc" ~
     "de.tototec.sbuild.compilerplugin::scaladoc" ~
     "de.tototec.sbuild.experimental::scaladoc"
-//    "de.tototec.sbuild.plugins::scaladoc"
 
   Target("phony:dist") dependsOn "sbuild-dist::dist"
 
