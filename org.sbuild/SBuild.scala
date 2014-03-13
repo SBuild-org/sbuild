@@ -12,6 +12,8 @@ class SBuild(implicit _project: Project) {
   val jar = s"target/${namespace}-${SBuildConfig.sbuildVersion}.jar"
   val sourcesZip = s"target/${namespace}-${SBuildConfig.sbuildVersion}-sources.jar"
 
+  val testJar = s"target/${namespace}-${SBuildConfig.sbuildVersion}-tests.jar"
+
   val compileCp =
     SBuildConfig.scalaLibrary ~
       SBuildConfig.jansi ~
@@ -91,6 +93,10 @@ object SBuildVersion {
       if (Path("target/po-classes").exists) add(AntFileSet(dir = Path("target/po-classes")))
       add(AntFileSet(file = Path("LICENSE.txt")))
     }.execute
+  }
+
+  Target(testJar) dependsOn "testCompile" ~ "scan:target/test-classes" exec { ctx: TargetContext =>
+    AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/test-classes"))
   }
 
   Target(sourcesZip) dependsOn versionScalaFile ~ "scan:src/main" ~ "scan:target/generated-scala" ~ "scan:LICENSE.txt" exec { ctx: TargetContext =>
