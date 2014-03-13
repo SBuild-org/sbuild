@@ -40,10 +40,9 @@ class SimpleProjectReader(
     } catch {
       case e: InvocationTargetException =>
         Console.err.println("Errors in build script: " + projectFile)
-        if (e.getCause != null) {
-          throw e.getCause
-        } else {
-          throw e
+        e.getCause match {
+          case null => throw e
+          case c => throw c
         }
     }
   }
