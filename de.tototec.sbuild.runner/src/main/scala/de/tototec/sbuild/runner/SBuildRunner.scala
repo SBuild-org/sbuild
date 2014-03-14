@@ -21,6 +21,7 @@ import org.fusesource.jansi.AnsiConsole
 import de.tototec.cmdoption.CmdOption
 import de.tototec.cmdoption.CmdlineParser
 import de.tototec.cmdoption.CmdlineParserException
+import de.tototec.cmdoption.DefaultUsageFormatter
 import de.tototec.sbuild.BuildScriptAware
 import de.tototec.sbuild.CmdlineMonitor
 import de.tototec.sbuild.ExecutionFailedException
@@ -43,6 +44,7 @@ import de.tototec.sbuild.execute.ParallelExecContext
 import de.tototec.sbuild.execute.TargetExecutor
 import de.tototec.sbuild.internal.BuildFileProject
 import de.tototec.sbuild.internal.I18n
+import de.tototec.sbuild.internal.Util
 import de.tototec.sbuild.execute.ExecutedTarget
 
 object SBuildRunner extends SBuildRunner {
@@ -267,6 +269,37 @@ class SBuildRunner {
         Ansi.setEnabled(false)
 
       if (cmdlineConfig.help) {
+        // TODO: proof of concept -> no clean it up
+        def readCols(): Option[Int] = try {
+          val out = new java.io.ByteArrayOutputStream();
+          val pb = new ProcessBuilder("stty", "-a", "-F", "/dev/tty")
+          val process = pb.start()
+          val pout = process.getInputStream()
+          Util.copy(pout, out)
+          process.waitFor()
+          pout.close()
+          val stty = out.toString()
+          log.trace("Output of stty: " + stty)
+          // this pattern doesn'tr work for me, but google says it works for others
+          val pattern = Pattern.compile("columns\\s+=\\s+([^;]*)[;\\n\\r]")
+          val matcher = pattern.matcher(stty)
+          if (matcher.find()) {
+            Some(matcher.group(1).toInt)
+          } else {
+            val pattern = Pattern.compile("columns\\s+([^;]*)[;\\n\\r]")
+            val matcher = pattern.matcher(stty)
+            if (matcher.find()) {
+              Some(matcher.group(1).toInt)
+            } else {
+              None
+            }
+          }
+        } catch {
+          case e: Exception =>
+            log.debug("Could not eval columns with stty", e)
+            None
+        }
+        cp.setUsageFormatter(new DefaultUsageFormatter(true, readCols().getOrElse(80)))
         cp.usage
         return 0
       }
