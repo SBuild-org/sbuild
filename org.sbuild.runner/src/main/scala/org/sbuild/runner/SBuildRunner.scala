@@ -268,37 +268,7 @@ class SBuildRunner {
         Ansi.setEnabled(false)
 
       if (cmdlineConfig.help) {
-        // TODO: proof of concept -> no clean it up
-        def readCols(): Option[Int] = try {
-          val out = new java.io.ByteArrayOutputStream();
-          val pb = new ProcessBuilder("stty", "-a", "-F", "/dev/tty")
-          val process = pb.start()
-          val pout = process.getInputStream()
-          org.sbuild.internal.Util.copy(pout, out)
-          process.waitFor()
-          pout.close()
-          val stty = out.toString()
-          log.trace("Output of stty: " + stty)
-          // this pattern doesn'tr work for me, but google says it works for others
-          val pattern = Pattern.compile("columns\\s+=\\s+([^;]*)[;\\n\\r]")
-          val matcher = pattern.matcher(stty)
-          if (matcher.find()) {
-            Some(matcher.group(1).toInt)
-          } else {
-            val pattern = Pattern.compile("columns\\s+([^;]*)[;\\n\\r]")
-            val matcher = pattern.matcher(stty)
-            if (matcher.find()) {
-              Some(matcher.group(1).toInt)
-            } else {
-              None
-            }
-          }
-        } catch {
-          case e: Exception =>
-            log.debug("Could not eval columns with stty", e)
-            None
-        }
-        cp.setUsageFormatter(new DefaultUsageFormatter(true, readCols().getOrElse(80)))
+        cp.setUsageFormatter(new DefaultUsageFormatter(true, readConsoleColumns().getOrElse(80)))
         cp.usage
         return 0
       }
@@ -685,6 +655,40 @@ class SBuildRunner {
   def fErrorEmph(text: => String) =
     if (isWindows) ansi.fg(RED).bold.a(text).reset
     else ansi.fgBright(RED).bold.a(text).reset
+
+  def readConsoleColumns(): Option[Int] =
+    if (!new File("/dev/tty").exists()) {
+      log.debug("/dev/tty does not exists.")
+      None
+    } else try {
+      val out = new java.io.ByteArrayOutputStream();
+      val pb = new ProcessBuilder("stty", "-a", "-F", "/dev/tty")
+      val process = pb.start()
+      val pout = process.getInputStream()
+      org.sbuild.internal.Util.copy(pout, out)
+      process.waitFor()
+      pout.close()
+      val stty = out.toString()
+      log.trace("Output of stty: " + stty)
+      // this pattern doesn'tr work for me, but google says it works for others
+      val pattern = Pattern.compile("columns\\s+=\\s+([^;]*)[;\\n\\r]")
+      val matcher = pattern.matcher(stty)
+      if (matcher.find()) {
+        Some(matcher.group(1).toInt)
+      } else {
+        val pattern = Pattern.compile("columns\\s+([^;]*)[;\\n\\r]")
+        val matcher = pattern.matcher(stty)
+        if (matcher.find()) {
+          Some(matcher.group(1).toInt)
+        } else {
+          None
+        }
+      }
+    } catch {
+      case e: Exception =>
+        log.debug("Could not eval columns with stty", e)
+        None
+    }
 
 }
 
