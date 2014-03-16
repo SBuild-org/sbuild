@@ -1,7 +1,12 @@
 package de.tototec
 
 import org.sbuild.ExportDependencies
+import org.sbuild.RichFile
+import java.io.File
+
 package object sbuild {
+
+  implicit def toRichFile(file: File): RichFile = org.sbuild.toRichFile(file)
 
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   type classpath = org.sbuild.classpath
@@ -55,7 +60,17 @@ package object sbuild {
   type ScanSchemeHandler = org.sbuild.ScanSchemeHandler
 
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  type SchemeHandler = org.sbuild.SchemeHandler
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   val SchemeHandler = org.sbuild.SchemeHandler
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  type SchemeResolver = org.sbuild.SchemeResolver
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  type TransparentSchemeResolver = org.sbuild.TransparentSchemeResolver
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  type SideeffectFreeSchemeResolver = org.sbuild.SideeffectFreeSchemeResolver
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  type CacheableSchemeResolver = org.sbuild.CacheableSchemeResolver
 
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   type Target = org.sbuild.Target
@@ -64,7 +79,7 @@ package object sbuild {
 
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   type TargetContext = org.sbuild.TargetContext
-  
+
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   type TargetRef = org.sbuild.TargetRef
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
@@ -80,5 +95,5 @@ package object sbuild {
 
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   type ZipSchemeHandler = org.sbuild.ZipSchemeHandler
-  
+
 }
