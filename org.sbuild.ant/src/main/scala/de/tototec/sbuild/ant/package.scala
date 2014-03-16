@@ -59,7 +59,6 @@ package object tasks {
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   val AntExec = org.sbuild.ant.tasks.AntExec
 
-
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   type AntExpand = org.sbuild.ant.tasks.AntExpand
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
@@ -94,5 +93,38 @@ package object tasks {
   type AntZip = org.sbuild.ant.tasks.AntZip
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   val AntZip = org.sbuild.ant.tasks.AntZip
+}
+
+package tasks {
+package object aQute_bnd_ant {
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  type AntBnd = org.sbuild.ant.tasks.aQute_bnd_ant.AntBnd
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  val AntBnd = org.sbuild.ant.tasks.aQute_bnd_ant.AntBnd
+}
+
+package object liquibase_integration_ant {
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  type AntUpdateDatabase = org.sbuild.ant.tasks.liquibase_integration_ant.AntUpdateDatabase
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  val AntUpdateDatabase = org.sbuild.ant.tasks.liquibase_integration_ant.AntUpdateDatabase
+}
+
+package object scala_tools_ant {
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  type AntFastScalac = org.sbuild.ant.tasks.scala_tools_ant.AntFastScalac
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  val AntFastScalac = org.sbuild.ant.tasks.scala_tools_ant.AntFastScalac
+
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  type AntScalac = org.sbuild.ant.tasks.scala_tools_ant.AntScalac
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  val AntScalac = org.sbuild.ant.tasks.scala_tools_ant.AntScalac
+
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  type AntScaladoc = org.sbuild.ant.tasks.scala_tools_ant.AntScaladoc
+  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
+  val AntScaladoc = org.sbuild.ant.tasks.scala_tools_ant.AntScaladoc
+}
 }
 }
