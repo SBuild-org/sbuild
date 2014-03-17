@@ -29,7 +29,7 @@ class SBuild(implicit _project: Project) {
   val javaOptions = "-XX:MaxPermSize=256m"
 
   val sbuildRunnerClass = "org.sbuild.runner.SBuildRunner"
-  val sbuildRunnerLibs = scalaLibrary ~ cmdOption ~ jansi ~ binJar ~ runnerJar
+  val sbuildRunnerLibs = scalaLibrary ~ scalaXml ~ cmdOption ~ jansi ~ binJar ~ runnerJar
   val sbuildRunnerDebugLibs = sbuildRunnerLibs ~ SBuildConfig.slf4jApi ~ SBuildConfig.logbackCore ~ SBuildConfig.logbackClassic ~ SBuildConfig.jclOverSlf4j ~ SBuildConfig.log4jOverSlf4j
 
   Target("phony:clean").evictCache exec {
@@ -68,7 +68,7 @@ class SBuild(implicit _project: Project) {
     binJar ~ runnerJar ~ compilerPluginJar ~ scriptCompilerJar ~
     antJar ~ addonsJar ~
     cmdOption ~ jansi ~
-    scalaLibrary ~ scalaCompiler ~ scalaReflect exec { ctx: TargetContext =>
+    scalaLibrary ~ scalaCompiler ~ scalaReflect ~ scalaXml exec { ctx: TargetContext =>
     val properties = s"""|# Classpath configuration for SBuild ${sbuildVersion}
       |# sbuildClasspath - Used to load the SBuild API
       |sbuildClasspath = ${binJar.files.head.getName}
@@ -79,7 +79,7 @@ class SBuild(implicit _project: Project) {
       |# projectRuntimeClasspath - Used to load the buildfiles
       |projectRuntimeClasspath = ${antJar.files.head.getName}:${addonsJar.files.head.getName}
       |# embeddedClasspath - Used to load the SBuild embedded API and all its dependencies, e.g. from IDE's
-      |embeddedClasspath = ${binJar.files.head.getName}:${runnerJar.files.head.getName}:${cmdOption.files.head.getName}:${jansi.files.head.getName}
+      |embeddedClasspath = ${binJar.files.head.getName}:${runnerJar.files.head.getName}:${scalaXml.files.head.getName}:${cmdOption.files.head.getName}:${jansi.files.head.getName}
       |# compilerPluginJar - Used by the build file compiler to load the compiler plugin which extracts additional infos
       |compilerPluginJar = ${compilerPluginJar.files.head.getName}
       |"""
