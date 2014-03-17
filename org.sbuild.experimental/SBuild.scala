@@ -87,7 +87,8 @@ class SBuild(implicit _project: Project) {
       classpath = compileCp.files,
       sources = sources.files,
       destDir = Path(output),
-      unchecked = true, deprecation = true, debugInfo = "vars"
+      unchecked = true, deprecation = true, debugInfo = "vars",
+      fork = true
     )
   }
 

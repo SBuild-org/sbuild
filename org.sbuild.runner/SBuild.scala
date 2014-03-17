@@ -40,7 +40,8 @@ class SBuild(implicit _project: Project) {
         classpath = compileCp.files,
         sources = "scan:src/main/scala".files,
         destDir = Path(output),
-        unchecked = true, deprecation = true, debugInfo = "vars"
+        unchecked = true, deprecation = true, debugInfo = "vars",
+        fork = true
       )
 
     }
@@ -70,7 +71,8 @@ class SBuild(implicit _project: Project) {
       classpath = testCp.files ++ jar.files,
       sources = "scan:src/test/scala".files,
       destDir = Path("target/test-classes"),
-      deprecation = true, unchecked = true, debugInfo = "vars"
+      deprecation = true, unchecked = true, debugInfo = "vars",
+      fork = true
     )
   }
 

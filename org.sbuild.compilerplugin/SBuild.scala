@@ -32,7 +32,8 @@ class SBuild(implicit _project: Project) {
       classpath = compileCp.files,
       sources = "scan:src/main/scala".files,
       destDir = Path(output),
-      unchecked = true, deprecation = true, debugInfo = "vars"
+      unchecked = true, deprecation = true, debugInfo = "vars",
+      fork = true
     )
   }
 

@@ -71,7 +71,8 @@ object SBuildVersion {
         classpath = compileCp.files,
         sources = "scan:src/main/scala;regex=.+\\.scala".files ++ "scan:src/main/java;regex=.+\\.java".files ++ versionScalaFile.files,
         destDir = Path(output),
-        unchecked = true, deprecation = true, debugInfo = "vars"
+        unchecked = true, deprecation = true, debugInfo = "vars",
+        fork = true
       )
 
       // compile java files
@@ -116,7 +117,8 @@ object SBuildVersion {
       classpath = testCp.files ++ jar.files,
       sources = "scan:src/test/scala".files,
       destDir = Path("target/test-classes"),
-      deprecation = true, unchecked = true, debugInfo = "vars"
+      deprecation = true, unchecked = true, debugInfo = "vars",
+      fork = true
     )
   }
 

@@ -40,7 +40,8 @@ class SBuild(implicit _project: Project) {
       compilerClasspath = SBuildConfig.compilerPath.files,
       classpath = compileCp.files,
       sources = "scan:src/main/scala".files,
-      destDir = Path(output)
+      destDir = Path(output),
+      fork = true
     )
   }
 
