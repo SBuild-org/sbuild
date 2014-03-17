@@ -14,12 +14,13 @@ object SBuildConfig {
   private def jansiVersion = "1.11"
   val jansi = s"mvn:org.fusesource.jansi:jansi:${jansiVersion}"
 
-  def scalaVersion = "2.10.3"
-  def scalaBinVersion = "2.10"
+  def scalaVersion = "2.11.0-RC1"
+  def scalaBinVersion = "2.11.0-RC1"
 
   def scalaLibrary = s"mvn:org.scala-lang:scala-library:${scalaVersion}"
   def scalaCompiler = s"mvn:org.scala-lang:scala-compiler:${scalaVersion}"
   def scalaReflect = s"mvn:org.scala-lang:scala-reflect:${scalaVersion}"
+  def scalaXml = s"mvn:org.scala-lang.modules:scala-xml_${SBuildConfig.scalaBinVersion}:1.0.0"
 
   def compilerPath(implicit project: Project) =
     scalaLibrary ~ scalaCompiler ~ scalaReflect
@@ -29,6 +30,7 @@ object SBuildConfig {
   val log4jOverSlf4j = "mvn:org.slf4j:log4j-over-slf4j:1.7.5"
   val logbackCore = "mvn:ch.qos.logback:logback-core:1.0.13"
   val logbackClassic = "mvn:ch.qos.logback:logback-classic:1.0.13"
+  val scalaTest = s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.1.0"
 
 }
 

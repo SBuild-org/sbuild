@@ -69,7 +69,7 @@ class SBuildRunner {
   private[this] val i18n = I18n[SBuildRunner]
   import i18n._
 
-  private var verbose = false
+  private[runner] var verbose = false
 
   private[this] var sbuildMonitor: CmdlineMonitor = new OutputStreamCmdlineMonitor(Console.out, CmdlineMonitor.Default)
 

@@ -20,7 +20,8 @@ class SBuild(implicit _project: Project) {
       SBuildConfig.slf4jApi // optional
 
   val testCp = compileCp ~
-    s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.0"
+    SBuildConfig.scalaTest ~
+    SBuildConfig.scalaXml
 
   ExportDependencies("eclipse.classpath", testCp)
 
