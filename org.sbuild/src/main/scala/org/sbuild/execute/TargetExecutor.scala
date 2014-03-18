@@ -552,9 +552,9 @@ class TargetExecutor(monitor: CmdlineMonitor,
       case Some(parCtx) =>
         parCtx.lock(curTarget)
         try {
-          scala.concurrent.blocking {
+          // scala.concurrent.blocking {
             inner
-          }
+          // }
         } catch {
           case e: Throwable =>
             log.debug("Catched an exception in parallel executed targets.", e)
