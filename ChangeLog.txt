@@ -1,3 +1,12 @@
+SBuild 0.7.3:
+
+SBuild Runner:
+* Fixed a sporadically deadlock when running parallel jobs introduced in
+  0.7.2.
+* Fixed output of names for phony targets.
+* Output of `--help` now tries to evaluate current used line length and
+  uses it to format the help.
+
 SBuild 0.7.2 - 2014-03-06:
 
 SBuild API
