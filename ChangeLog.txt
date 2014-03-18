@@ -1,8 +1,17 @@
 SBuild {master}:
 
-* Fixed console output of phony targets.
 * Renamed all packages and release artifacts from "de.tototec.sbuild" to
   "org.sbuild".
+
+SBuild 0.7.3 - 2014-03-18:
+
+SBuild Runner
+
+* Fixed a sporadically deadlock when running parallel jobs introduced in
+  0.7.2.
+* Fixed output of names for phony targets.
+* Output of `--help` now uses the full terminal width but falls back to 80
+  columns if the width can not be evaluated.
 
 SBuild 0.7.2 - 2014-03-06:
 
