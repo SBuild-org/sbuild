@@ -1,11 +1,12 @@
-SBuild 0.7.3:
+SBuild 0.7.3 - 2014-03-18:
 
-SBuild Runner:
+SBuild Runner
+
 * Fixed a sporadically deadlock when running parallel jobs introduced in
   0.7.2.
 * Fixed output of names for phony targets.
-* Output of `--help` now tries to evaluate current used line length and
-  uses it to format the help.
+* Output of `--help` now uses the full terminal width but falls back to 80
+  columns if the width can not be evaluated.
 
 SBuild 0.7.2 - 2014-03-06:
 
