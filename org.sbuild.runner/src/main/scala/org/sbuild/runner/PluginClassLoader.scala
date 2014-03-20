@@ -11,6 +11,7 @@ import java.io.File
 import org.sbuild.Project
 import scala.util.Try
 import scala.util.Success
+import java.util.concurrent.ConcurrentHashMap
 
 object LoadablePluginInfo {
   case class PluginClasses(instanceClass: String, factoryClass: String, version: String) {
@@ -151,7 +152,20 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
 
   import PluginClassLoader._
 
-  //  ClassLoader.registerAsParallelCapable()
+  if (ParallelClassLoader.isJava7) {
+    ClassLoader.registerAsParallelCapable()
+  }
+
+  private[this] val classLockMap = new ConcurrentHashMap[String, Any]
+
+  protected def getClassLock(className: String): AnyRef =
+    ParallelClassLoader.withJava7 { () => getClassLoadingLock(className) }.getOrElse {
+      val newLock = new Object()
+      classLockMap.putIfAbsent(className, newLock) match {
+        case null => newLock
+        case lock => lock.asInstanceOf[AnyRef]
+      }
+    }
 
   private[this] val log = Logger[PluginClassLoader]
 
@@ -167,7 +181,7 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
       project.registerPlugin(instanceClassName, factoryClassName, version, this)
   }
 
-  def loadPluginClass(className: String): Class[_] = { // getClassLoadingLock(className).synchronized {
+  def loadPluginClass(className: String): Class[_] = getClassLock(className).synchronized {
     val loadable = if (InnerRequestGuard.isInner(this, className)) true else pluginInfo.checkClassNameInExported(className)
 
     // First, check if the class has already been loaded
