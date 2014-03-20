@@ -160,17 +160,20 @@ object TargetExecutor {
   private val isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 
   private def fPercent(text: => String) =
-    if (isWindows) ansi.fg(CYAN).a(text).reset
-    else ansi.fgBright(CYAN).a(text).reset
+    // if (isWindows) 
+    ansi.fg(CYAN).a(text).reset
+    // else ansi.fgBright(CYAN).a(text).reset
   private def fTarget(text: => String) = ansi.fg(GREEN).a(text).reset
   private def fMainTarget(text: => String) = ansi.fg(GREEN).bold.a(text).reset
   private def fOk(text: => String) = ansi.fgBright(GREEN).a(text).reset
   private def fError(text: => String) =
-    if (isWindows) ansi.fg(RED).a(text).reset
-    else ansi.fgBright(RED).a(text).reset
+    // if (isWindows) 
+    ansi.fg(RED).a(text).reset
+    // else ansi.fgBright(RED).a(text).reset
   private def fErrorEmph(text: => String) =
-    if (isWindows) ansi.fg(RED).bold.a(text).reset
-    else ansi.fgBright(RED).bold.a(text).reset
+    // if (isWindows) 
+    ansi.fg(RED).bold.a(text).reset
+    // else ansi.fgBright(RED).bold.a(text).reset
 
 }
 
