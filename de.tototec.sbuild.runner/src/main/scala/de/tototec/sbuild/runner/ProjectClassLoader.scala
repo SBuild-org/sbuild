@@ -6,6 +6,7 @@ import scala.util.Success
 import scala.util.Try
 import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Project
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * This classloader first tried to load all classes from the given parent classloader or the classpathUrls.
@@ -17,13 +18,26 @@ class ProjectClassLoader(project: Project, classpathUrls: Seq[URL], parent: Clas
     extends URLClassLoader(classpathUrls.toArray, parent) {
   //  private[this] val log = Logger[ProjectClassLoader]
 
-  //  ClassLoader.registerAsParallelCapable()
+  if (ParallelClassLoader.isJava7) {
+    ClassLoader.registerAsParallelCapable()
+  }
+
+  private[this] val classLockMap = new ConcurrentHashMap[String, Any]
+
+  protected def getClassLock(className: String): AnyRef =
+    ParallelClassLoader.withJava7 { () => getClassLoadingLock(className) }.getOrElse {
+      val newLock = new Object()
+      classLockMap.putIfAbsent(className, newLock) match {
+        case null => newLock
+        case lock => lock.asInstanceOf[AnyRef]
+      }
+    }
 
   val pluginClassLoaders: Seq[PluginClassLoader] = classpathTrees.collect {
     case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(project, cpTree.pluginInfo.get, cpTree.childs, this)
   }
 
-  override protected def loadClass(className: String, resolve: Boolean): Class[_] = { // getClassLoadingLock(className).synchronized {
+  override protected def loadClass(className: String, resolve: Boolean): Class[_] = getClassLock(className).synchronized {
     try {
       super.loadClass(className, resolve)
     } catch {
