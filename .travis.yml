@@ -22,7 +22,7 @@ install: "sudo apt-get install asciidoc"
 
 before_script: "./sbuild-wrapper --version"
 
-script: "./sbuild-wrapper --jobs 4 all"
+script: "./sbuild-wrapper all"
 
 notifications:
   irc: "irc.freenode.org#sbuild"
