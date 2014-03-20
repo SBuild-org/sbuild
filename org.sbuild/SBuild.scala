@@ -82,7 +82,8 @@ object SBuildVersion {
         classpath = compileCp.files,
         source = "1.6",
         target = "1.6",
-        debugInfo = "all"
+        debugInfo = "all",
+        fork = true
       )
     }
 
