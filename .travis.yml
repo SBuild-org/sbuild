@@ -3,19 +3,11 @@ language: java
 jdk:
   - oraclejdk7
   - openjdk7
-  - openjdk6
 
 env:
   - SBUILD_VERSION=0.6.0
   - SBUILD_VERSION=0.7.0
   - SBUILD_VERSION=0.7.1
-
-matrix:
-  exclude:
-    - jdk: openjdk6
-      env: SBUILD_VERSION=0.7.0
-    - jdk: openjdk6
-      env: SBUILD_VERSION=0.7.1
 
 install: "sudo apt-get install asciidoc"
 
