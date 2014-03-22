@@ -37,6 +37,7 @@ import org.sbuild.Target
 import org.sbuild.TargetAware
 import org.sbuild.TargetNotFoundException
 import org.sbuild.TargetRef
+import org.sbuild.TargetRefs
 import org.sbuild.execute.InMemoryTransientTargetCache
 import org.sbuild.execute.LoggingTransientTargetCache
 import org.sbuild.execute.ParallelExecContext
@@ -576,7 +577,13 @@ class SBuildRunner {
           sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[0%]") + tr(" Executing..."))
           sbuildMonitor.info(CmdlineMonitor.Verbose, tr("Requested targets: ") + targets.map(_.formatRelativeToBaseProject).mkString(" ~ "))
 
-          val execResult = targets.map { target =>
+          val request = if (config.parallelRequest) {
+            implicit val p = project
+            val targetRefs = TargetRefs(targets.map(t => TargetRef(t)))
+            Seq(ParallelRequest(targetRefs))
+          } else targets
+
+          val execResult = request.map { target =>
             targetExecutor.preorderedDependenciesTree(
               target,
               execProgress = execProgress,
