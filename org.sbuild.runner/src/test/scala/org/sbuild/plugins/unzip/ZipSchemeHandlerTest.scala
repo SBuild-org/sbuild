@@ -1,10 +1,16 @@
-package org.sbuild
+package org.sbuild.plugins.unzip
 
 import org.scalatest.FunSuite
 import java.io.File
 import org.sbuild.SchemeHandler.SchemeContext
 import org.sbuild.internal.BuildFileProject
 import org.scalatest.FreeSpec
+import org.sbuild.ProjectConfigurationException
+import org.sbuild.SchemeHandler
+import org.sbuild.Path
+import org.sbuild.Project
+import org.sbuild.SchemeHandler
+import org.sbuild.plugins.http.HttpSchemeHandler
 
 class ZipSchemeHandlerTest extends FreeSpec {
 

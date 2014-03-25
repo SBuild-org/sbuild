@@ -21,9 +21,6 @@ package object sbuild {
   val ExportDependencies = org.sbuild.ExportDependencies
 
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
-  type HttpSchemeHandler = org.sbuild.HttpSchemeHandler
-
-  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   type include = org.sbuild.include
 
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
@@ -38,9 +35,6 @@ package object sbuild {
   val Module = org.sbuild.Module
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   val Modules = org.sbuild.Modules
-
-  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
-  type MvnSchemeHandler = org.sbuild.MvnSchemeHandler
 
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   val Path = org.sbuild.Path
@@ -92,8 +86,5 @@ package object sbuild {
 
   @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
   type version = org.sbuild.version
-
-  @deprecated("Package de.tototec.sbuild was renamed to org.sbuild.", "0.7.2.9000")
-  type ZipSchemeHandler = org.sbuild.ZipSchemeHandler
 
 }

@@ -1,13 +1,26 @@
-package org.sbuild
+package org.sbuild.plugins.unzip
 
 import java.io.File
 import java.io.FileNotFoundException
 import java.security.MessageDigest
 import scala.Array.canBuildFrom
-import org.sbuild.SchemeHandler.SchemeContext
 import org.sbuild.internal.{ Util => InternalUtil }
 import org.sbuild.internal.StringSplitter
 import java.util.regex.Pattern
+import org.sbuild.ExecutionFailedException
+import org.sbuild.CacheableSchemeResolver
+import org.sbuild.ProjectConfigurationException
+import org.sbuild.SchemeResolverWithDependencies
+import org.sbuild.TargetContext
+import org.sbuild.SchemeResolver
+import org.sbuild.Project
+import org.sbuild.TargetRef
+import org.sbuild.TargetRefs
+import org.sbuild.ProjectConfigurationException
+import org.sbuild.CmdlineMonitor
+import org.sbuild.Path
+import org.sbuild.SchemeHandler.SchemeContext
+import org.sbuild.Logger
 
 /**
  * The SchemeHandler to extract resources from a ZIP resource.

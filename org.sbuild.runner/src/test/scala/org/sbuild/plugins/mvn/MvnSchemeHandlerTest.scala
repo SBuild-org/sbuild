@@ -1,4 +1,4 @@
-package org.sbuild
+package org.sbuild.plugins.mvn
 
 import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner

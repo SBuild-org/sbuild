@@ -3,6 +3,13 @@ SBuild {master}:
 * Renamed all packages and release artifacts from "de.tototec.sbuild" to
   "org.sbuild".
 
+SBuild API
+
+* Moven non-API classes into other projects.
+* Moved HttpSchemeHandler into plugin.
+* Moved MvnSchemeHandler into plugin.
+* Moved ZipSchemeHandler into plugin.
+
 SBuild Runner
 
 * Added new cmdline option --parallel-request, to run all targets requested on

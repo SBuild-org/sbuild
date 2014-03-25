@@ -12,6 +12,8 @@ class SBuild(implicit _project: Project) {
   val jar = s"target/${namespace}-${SBuildConfig.sbuildVersion}.jar"
   val sourcesZip = s"target/${namespace}-${SBuildConfig.sbuildVersion}-sources.jar"
 
+  val testJar = s"target/${namespace}-${SBuildConfig.sbuildVersion}-tests.jar"
+
   val compileCp =
     SBuildConfig.scalaLibrary ~
       SBuildConfig.jansi ~
@@ -56,6 +58,10 @@ class SBuild(implicit _project: Project) {
     }.execute
   }
 
+  Target(testJar) dependsOn "testCompile" ~ "scan:target/test-classes" exec { ctx: TargetContext =>
+    AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/test-classes"))
+  }
+
   Target(sourcesZip) dependsOn "scan:src/main" ~ "scan:LICENSE.txt" exec { ctx: TargetContext =>
     AntZip(destFile = ctx.targetFile.get, fileSets = Seq(
       AntFileSet(dir = Path("src/main/scala")),
@@ -89,7 +95,7 @@ class SBuild(implicit _project: Project) {
       classpath = testCp.files ++ jar.files,
       arguments = Array("org.scalatest.tools.Runner", "-p", Path("target/test-classes").getPath, "-oG", "-u", Path("target/test-output").getPath)
     )
-    if(res != 0) throw new RuntimeException("Some tests failed")
+    if (res != 0) throw new RuntimeException("Some tests failed")
 
   }
 

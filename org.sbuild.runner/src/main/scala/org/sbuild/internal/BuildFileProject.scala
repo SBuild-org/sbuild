@@ -26,12 +26,12 @@ import org.sbuild.Path
 import org.sbuild.Logger
 import org.sbuild.CmdlineMonitor
 import org.sbuild.SchemeHandler
-import org.sbuild.ZipSchemeHandler
+import org.sbuild.plugins.unzip.ZipSchemeHandler
 import org.sbuild.SideeffectFreeSchemeResolver
-import org.sbuild.MvnSchemeHandler
+import org.sbuild.plugins.mvn.MvnSchemeHandler
 import org.sbuild.TransparentSchemeResolver
 import org.sbuild.ScanSchemeHandler
-import org.sbuild.HttpSchemeHandler
+import org.sbuild.plugins.http.HttpSchemeHandler
 import org.sbuild.MapperSchemeHandler
 import org.sbuild.ProjectPool
 import scala.reflect.classTag

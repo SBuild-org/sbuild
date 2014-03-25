@@ -1,11 +1,16 @@
-package org.sbuild
+package org.sbuild.plugins.mvn
 
 import java.io.File
 import java.io.FileNotFoundException
 import scala.Array.canBuildFrom
-import org.sbuild.SchemeHandler.SchemeContext
 import org.sbuild.internal.{ Util => InternalUtil }
 import org.sbuild.internal.I18n
+import org.sbuild.SBuildVersion
+import org.sbuild.SchemeResolver
+import org.sbuild.SchemeHandler.SchemeContext
+import org.sbuild.TargetContext
+import org.sbuild.Project
+import org.sbuild.CmdlineMonitor
 
 object MavenSupport {
   object MavenGav {
