@@ -11,6 +11,7 @@ import org.sbuild.TargetRef
 import org.sbuild.CmdlineMonitor
 import org.sbuild.execute.InMemoryTransientTargetCache
 import org.sbuild.execute.ParallelExecContext
+import org.sbuild.internal.Bootstrapper
 
 sealed abstract class CpTree(val pluginInfo: Option[LoadablePluginInfo], val childs: Seq[CpTree]) {
   def flatPath: Seq[File] = pluginInfo.toSeq.flatMap(_.files) ++ childs.flatMap(_.flatPath)
@@ -35,13 +36,13 @@ object ClasspathResolver {
   }
 }
 
-class ClasspathResolver(project: Project) extends Function1[ClasspathResolver.ResolveRequest, ClasspathResolver.ResolvedClassPathInfo] {
+class ClasspathResolver(projectFile: File, outputMode: CmdlineMonitor.OutputMode, bootstrapper: Bootstrapper) extends Function1[ClasspathResolver.ResolveRequest, ClasspathResolver.ResolvedClassPathInfo] {
   import ClasspathResolver._
 
   private[this] val log = Logger[ClasspathResolver]
 
   override def apply(request: ResolveRequest): ResolvedClassPathInfo = {
-    log.debug("About to resolve project contribution from @classpath and @include annotations for project: " + project)
+    log.debug("About to resolve project contribution from @classpath and @include annotations for project: " + projectFile)
     log.debug("classpath: " + request.classpathEntries)
     log.debug("includes: " + request.includeEntries)
     if (request.classpathEntries.isEmpty && request.includeEntries.isEmpty) return ResolvedClassPathInfo(Map(), Seq())
@@ -52,11 +53,13 @@ class ClasspathResolver(project: Project) extends Function1[ClasspathResolver.Re
     }
 
     // We want to use a customized monitor
-    val resolveMonitor = new OutputStreamCmdlineMonitor(Console.out, mode = project.monitor.mode, messagePrefix = "(init) ")
+    val resolveMonitor = new OutputStreamCmdlineMonitor(Console.out, mode = outputMode, messagePrefix = "(init) ")
 
     // We want to use a dedicated project in the init phase
-    class ProjectInitProject extends BuildFileProject(_projectFile = project.projectFile, monitor = resolveMonitor)
+    class ProjectInitProject extends BuildFileProject(_projectFile = projectFile, monitor = resolveMonitor)
     implicit val initProject: Project = new ProjectInitProject
+    bootstrapper.applyToProject(initProject)
+    
 
     //    val idxCpEntries = classpathTargets.zipWithIndex.map { case (l, r) => r -> l }
     val cpTargets = cpEntries.map {
@@ -64,10 +67,7 @@ class ClasspathResolver(project: Project) extends Function1[ClasspathResolver.Re
     }
 
     val incTargets = request.includeEntries.map(TargetRef(_))
-    val resolverTargetName = "phony:@init:" + (project match {
-      case p: BuildFileProject => p.projectPool.formatProjectFileRelativeToBase(project)
-      case _ => project.projectFile.getPath
-    })
+    val resolverTargetName = s"phony:@init:${projectFile}"
     val resolverTarget = Target(resolverTargetName) dependsOn cpTargets ~ incTargets
 
     val targetExecutor = new TargetExecutor(
@@ -109,7 +109,7 @@ class ClasspathResolver(project: Project) extends Function1[ClasspathResolver.Re
       case ExtensionCpEntry(name) =>
         val pi = new LoadablePluginInfo(files = filesMap(name), raw = false)
 
-        new VersionChecker().assertPluginVersion(pi, project.projectFile)
+        new VersionChecker().assertPluginVersion(pi, projectFile)
 
         pi.dependencies match {
           case Seq() => new LeafCpTree(pi)

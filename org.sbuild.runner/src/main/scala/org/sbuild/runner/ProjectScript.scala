@@ -32,6 +32,7 @@ import org.sbuild.internal.OSGiVersion
 import org.sbuild.execute.ParallelExecContext
 import org.sbuild.Plugin
 import org.sbuild.internal.I18n
+import org.sbuild.internal.Bootstrapper
 
 object ProjectScript {
 
@@ -50,6 +51,16 @@ object ProjectScript {
    */
   private var cachedScalaCompiler: Option[CachedScalaCompiler] = None
   private var cachedExtendedScalaCompiler: Option[CachedExtendedScalaCompiler] = None
+
+  /**
+   * A compiled project script.
+   */
+  trait CompiledProjectScript {
+    /**
+     * Apply the script to the project instance.
+     */
+    def applyToProject(project: Project)
+  }
 
 }
 
@@ -125,9 +136,9 @@ class ProjectScript(_scriptFile: File,
   }
 
   /**
-   * Compile this project script (if necessary) and apply it to the given Project.
+   * Compile this project script (if necessary).
    */
-  def compileAndExecute(project: Project): Any = try {
+  def resolveAndCompile(bootstrapper: Bootstrapper): CompiledProjectScript = {
     checkFile
 
     // We get an iterator and convert it to a stream, which will cache all seen lines
@@ -164,7 +175,7 @@ class ProjectScript(_scriptFile: File,
     val resolved = {
       val ts = System.currentTimeMillis
 
-      val classpathResolver = new ClasspathResolver(project)
+      val classpathResolver = new ClasspathResolver(scriptFile, monitor.mode, bootstrapper)
       val resolved = classpathResolver(ClasspathResolver.ResolveRequest(includeEntries = includeEntires, classpathEntries = allCpEntries))
 
       //      val resolvedFiles = resolveViaProject(project, cpEntries, includeEntires)
@@ -214,18 +225,23 @@ class ProjectScript(_scriptFile: File,
 
     val buildClassName = compileWhenNecessary(checkLock = true)
 
-    // Experimental: Attach included files 
-    {
-      implicit val _p = project
-      val includedFiles = includes.flatMap { case (k, v) => v }.map(TargetRef(_)).toSeq
-      ExportDependencies("sbuild.project.includes", TargetRefs.fromSeq(includedFiles))
-    }
+    new CompiledProjectScript {
+      override def applyToProject(project: Project) = try {
+        
+        // Experimental: Attach included files 
+        {
+          implicit val _p = project
+          val includedFiles = includes.flatMap { case (k, v) => v }.map(TargetRef(_)).toSeq
+          ExportDependencies("sbuild.project.includes", TargetRefs.fromSeq(includedFiles))
+        }
 
-    useExistingCompiled(project, additionalProjectRuntimeClasspath, buildClassName, resolved.classpathTrees)
-  } catch {
-    case e: SBuildException =>
-      e.buildScript = Some(project.projectFile)
-      throw e
+        useExistingCompiled(project, additionalProjectRuntimeClasspath, buildClassName, resolved.classpathTrees)
+      } catch {
+        case e: SBuildException =>
+          e.buildScript = Some(project.projectFile)
+          throw e
+      }
+    }
   }
 
   case class LastRunInfo(upToDate: Boolean, targetClassName: String, issues: Option[String] = None)

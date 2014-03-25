@@ -516,24 +516,25 @@ class BuildFileProject(_projectFile: File,
     schemeHandlers += ((scheme, handler))
   }
 
-  // Default Scheme Handler
-  {
-    implicit val p = this
-    SchemeHandler("http", new HttpSchemeHandler())
-    SchemeHandler("mvn", new MvnSchemeHandler())
-    SchemeHandler("zip", new ZipSchemeHandler())
-    SchemeHandler("scan", new ScanSchemeHandler())
-
-    // Experimental
-
-    SchemeHandler("source", new MapperSchemeHandler(
-      pathTranslators = Seq("mvn" -> { path => path + ";classifier=sources" })
-    ))
-    SchemeHandler("javadoc", new MapperSchemeHandler(
-      pathTranslators = Seq("mvn" -> { path => path + ";classifier=javadoc" })
-    ))
-
-  }
+//  // Default Scheme Handler
+//  {
+//    implicit val p = this
+//    SchemeHandler("http", new HttpSchemeHandler())
+//    SchemeHandler("mvn", new MvnSchemeHandler())
+//    import org.sbuild.plugin.unzip._
+//    Plugin[Zip]("zip")
+//    SchemeHandler("scan", new ScanSchemeHandler())
+//
+//    // Experimental
+//
+//    SchemeHandler("source", new MapperSchemeHandler(
+//      pathTranslators = Seq("mvn" -> { path => path + ";classifier=sources" })
+//    ))
+//    SchemeHandler("javadoc", new MapperSchemeHandler(
+//      pathTranslators = Seq("mvn" -> { path => path + ";classifier=javadoc" })
+//    ))
+//
+//  }
 
   private var _properties: Map[String, String] = Map()
   override protected[sbuild] def properties: Map[String, String] = _properties
