@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ -z "${SBUILD_VERSION}" ] ; then
-	SBUILD_VERSION="0.6.0"
+	SBUILD_VERSION="0.7.1"
 fi
 if [ -z "${SBUILD_DIST}" ] ; then
 	SBUILD_DIST="http://sbuild.org/uploads/sbuild/${SBUILD_VERSION}/sbuild-${SBUILD_VERSION}-dist.zip"

@@ -5,9 +5,8 @@ jdk:
   - openjdk7
 
 env:
-  - SBUILD_VERSION=0.6.0
-  - SBUILD_VERSION=0.7.0
   - SBUILD_VERSION=0.7.1
+  - SBUILD_VERSION=0.7.4
 
 install: "sudo apt-get install asciidoc"
 
