@@ -18,7 +18,8 @@ class SBuild(implicit _project: Project) {
     SBuildConfig.scalaLibrary ~
       SBuildConfig.jansi ~
       SBuildConfig.cmdOption ~
-      s"../org.sbuild/target/org.sbuild-${SBuildConfig.sbuildVersion}.jar"
+      s"../org.sbuild/target/org.sbuild-${SBuildConfig.sbuildVersion}.jar" ~
+      SBuildConfig.sbuildUnzipPlugin
 
   val testCp = compileCp ~
     s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.0"

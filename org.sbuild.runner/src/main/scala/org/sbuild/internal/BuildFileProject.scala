@@ -26,7 +26,6 @@ import org.sbuild.Path
 import org.sbuild.Logger
 import org.sbuild.CmdlineMonitor
 import org.sbuild.SchemeHandler
-import org.sbuild.plugins.unzip.ZipSchemeHandler
 import org.sbuild.SideeffectFreeSchemeResolver
 import org.sbuild.plugins.mvn.MvnSchemeHandler
 import org.sbuild.TransparentSchemeResolver

@@ -35,13 +35,13 @@ class SimpleProjectReader(
 
         project match {
           case pluginProj: PluginAwareImpl =>
-            pluginProj.registerPlugin(classOf[Zip].getName(), classOf[ZipPlugin].getName(), SBuildVersion.version, getClass().getClassLoader())
+            pluginProj.registerPlugin(classOf[Unzip].getName(), classOf[UnzipPlugin].getName(), SBuildVersion.version, getClass().getClassLoader())
         }
 
         implicit val p = project
         SchemeHandler("http", new HttpSchemeHandler())
         SchemeHandler("mvn", new MvnSchemeHandler())
-        Plugin[Zip]("zip")
+        Plugin[Unzip]("zip")
         SchemeHandler("scan", new ScanSchemeHandler())
 
         // Experimental
