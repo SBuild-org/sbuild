@@ -9,7 +9,23 @@ import java.io.FileInputStream
 import org.sbuild.ProjectConfigurationException
 import org.sbuild.Path
 
+case class Classpaths(
+    sbuildClasspath: Array[String] = Array(),
+    compileClasspath: Array[String] = Array(),
+    projectCompileClasspath: Array[String] = Array(),
+    projectRuntimeClasspath: Array[String] = Array(),
+    compilerPluginJars: Array[String] = Array()) {
+
+  def validate(): Boolean =
+    (sbuildClasspath ++ compileClasspath ++ projectCompileClasspath ++ projectRuntimeClasspath ++ compilerPluginJars).
+      forall { new File(_).exists }
+
+}
+
 class ClasspathConfig {
+
+  private[this] var _classpaths: Classpaths = Classpaths()
+
   @CmdOption(names = Array("--sbuild-home"), args = Array("PATH"), hidden = true)
   def sbuildHomeDir_=(sbuildHomeDirString: String): Unit = sbuildHomeDir = new File(sbuildHomeDirString)
   def sbuildHomeDir_=(sbuildHomeDir: File): Unit = _sbuildHomeDir = sbuildHomeDir match {
@@ -21,44 +37,21 @@ class ClasspathConfig {
   def sbuildHomeDir = _sbuildHomeDir
   var _sbuildHomeDir: File = _
 
+  def classpaths: Classpaths = _classpaths
+
   // Classpath of SBuild itself
-  @CmdOption(names = Array("--sbuild-cp"), args = Array("CLASSPATH"), hidden = true)
-  def sbuildClasspath_=(classpath: String): Unit = sbuildClasspath = classpath match {
-    case null => Array[String]()
-    case x => x.split(";|:")
-  }
-  var sbuildClasspath: Array[String] = Array()
+  def sbuildClasspath: Array[String] = classpaths.sbuildClasspath
 
   // Add to the classpath used to load the scala compiler
-  @CmdOption(names = Array("--compile-cp"), args = Array("CLASSPATH"), hidden = true)
-  def compileClasspath_=(classpath: String): Unit = compileClasspath = classpath match {
-    case null => Array[String]()
-    case x => x.split(";|:")
-  }
-  var compileClasspath: Array[String] = Array()
+  def compileClasspath: Array[String] = classpaths.compileClasspath
 
   // Add to the classpath used to load the project script
-  @CmdOption(names = Array("--project-compile-cp", "--additional-project-compile-cp"), args = Array("CLASSPATH"), hidden = true)
-  def projectCompileClasspath_=(classpath: String): Unit = projectCompileClasspath = classpath match {
-    case null => Array[String]()
-    case x => x.split(";|:")
-  }
-  var projectCompileClasspath: Array[String] = Array()
+  def projectCompileClasspath: Array[String] = classpaths.projectCompileClasspath
 
-    // Add to the classpath used to load the project script
-  @CmdOption(names = Array("--project-runtime-cp", "--additional-project-runtime-cp"), args = Array("CLASSPATH"), hidden = true)
-  def projectRuntmeClasspath_=(classpath: String): Unit = projectRuntimeClasspath = classpath match {
-    case null => Array[String]()
-    case x => x.split(";|:")
-  }
-  var projectRuntimeClasspath: Array[String] = Array()
+  // Add to the classpath used to load the project script
+  def projectRuntimeClasspath: Array[String] = classpaths.projectRuntimeClasspath
 
-  @CmdOption(names = Array("--compiler-plugin-jar"), args = Array("JAR"), hidden = true)
-  def compilerPluginJars_=(jars: String): Unit = compilerPluginJars = jars match {
-    case null => Array[String]()
-    case x => x.split(";|:")
-  }
-  var compilerPluginJars: Array[String] = Array()
+  def compilerPluginJars: Array[String] = classpaths.compilerPluginJars
 
   @CmdOption(names = Array("--no-fsc"), description = "Do not try to use the fast scala compiler (client/server)")
   var noFsc: Boolean = true
@@ -66,13 +59,7 @@ class ClasspathConfig {
   @CmdOption(names = Array("--fsc"), description = "Use the fast scala compiler (client/server). The fsc compiler of the correct Scala version must be installed.", conflictsWith = Array("--no-fsc"))
   def fsc = noFsc = false
 
-  def validate: Boolean = {
-    sbuildClasspath.forall { new File(_).exists } &&
-      compileClasspath.forall { new File(_).exists } &&
-      projectCompileClasspath.forall { new File(_).exists } &&
-      projectRuntimeClasspath.forall { new File(_).exists } &&
-      compilerPluginJars.forall { new File(_).exists }
-  }
+  def validate: Boolean = classpaths.validate()
 
   def readFromPropertiesFile(propertiesFile: File) {
     val libDir = Path.normalize(propertiesFile).getParentFile
@@ -94,11 +81,13 @@ class ClasspathConfig {
       }
     }
 
-    sbuildClasspath = splitAndPrepend(properties.getProperty("sbuildClasspath"))
-    compileClasspath = splitAndPrepend(properties.getProperty("compileClasspath"))
-    projectCompileClasspath = splitAndPrepend(properties.getProperty("projectCompileClasspath"))
-    projectRuntimeClasspath = splitAndPrepend(properties.getProperty("projectRuntimeClasspath"))
-    compilerPluginJars = splitAndPrepend(properties.getProperty("compilerPluginJar"))
+    _classpaths = Classpaths(
+      sbuildClasspath = splitAndPrepend(properties.getProperty("sbuildClasspath")),
+      compileClasspath = splitAndPrepend(properties.getProperty("compileClasspath")),
+      projectCompileClasspath = splitAndPrepend(properties.getProperty("projectCompileClasspath")),
+      projectRuntimeClasspath = splitAndPrepend(properties.getProperty("projectRuntimeClasspath")),
+      compilerPluginJars = splitAndPrepend(properties.getProperty("compilerPluginJar"))
+    )
   }
 
 }
