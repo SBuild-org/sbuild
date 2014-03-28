@@ -29,14 +29,21 @@ object ClasspathResolver {
   case class RawCpEntry(name: String) extends CpEntry
   case class ExtensionCpEntry(name: String) extends CpEntry
 
-  case class ResolveRequest(includeEntries: Seq[String], classpathEntries: Seq[String])
+  case class ResolveRequest(
+    name: String = "init",
+    includeEntries: Seq[String] = Seq(),
+    classpathEntries: Seq[String] = Seq(),
+    bootstrapEntries: Seq[String] = Seq())
 
-  case class ResolvedClassPathInfo(includes: Map[String, Seq[File]], classpathTrees: Seq[CpTree]) {
+  case class ResolvedClassPathInfo(
+      includes: Map[String, Seq[File]],
+      classpathTrees: Seq[CpTree],
+      bootstrap: Map[String, Seq[File]]) {
     def flatClasspath: Seq[File] = classpathTrees.flatMap(_.flatPath)
   }
 }
 
-class ClasspathResolver(projectFile: File, outputMode: CmdlineMonitor.OutputMode, bootstrapper: Bootstrapper) extends Function1[ClasspathResolver.ResolveRequest, ClasspathResolver.ResolvedClassPathInfo] {
+class ClasspathResolver(projectFile: File, outputMode: CmdlineMonitor.OutputMode, bootstrappers: Seq[Bootstrapper]) extends Function1[ClasspathResolver.ResolveRequest, ClasspathResolver.ResolvedClassPathInfo] {
   import ClasspathResolver._
 
   private[this] val log = Logger[ClasspathResolver]
@@ -45,7 +52,8 @@ class ClasspathResolver(projectFile: File, outputMode: CmdlineMonitor.OutputMode
     log.debug("About to resolve project contribution from @classpath and @include annotations for project: " + projectFile)
     log.debug("classpath: " + request.classpathEntries)
     log.debug("includes: " + request.includeEntries)
-    if (request.classpathEntries.isEmpty && request.includeEntries.isEmpty) return ResolvedClassPathInfo(Map(), Seq())
+    log.debug("bootstraps:" + request.bootstrapEntries)
+    if (request.classpathEntries.isEmpty && request.includeEntries.isEmpty && request.bootstrapEntries.isEmpty) return ResolvedClassPathInfo(Map(), Seq(), Map())
 
     val cpEntries = request.classpathEntries.map {
       case x if x.startsWith("raw:") => RawCpEntry(x.substring(4))
@@ -58,8 +66,8 @@ class ClasspathResolver(projectFile: File, outputMode: CmdlineMonitor.OutputMode
     // We want to use a dedicated project in the init phase
     class ProjectInitProject extends BuildFileProject(_projectFile = projectFile, monitor = resolveMonitor)
     implicit val initProject: Project = new ProjectInitProject
-    bootstrapper.applyToProject(initProject)
-    
+    bootstrappers.foreach { bs => bs.applyToProject(initProject) }
+    initProject.finalizePlugins
 
     //    val idxCpEntries = classpathTargets.zipWithIndex.map { case (l, r) => r -> l }
     val cpTargets = cpEntries.map {
@@ -67,8 +75,10 @@ class ClasspathResolver(projectFile: File, outputMode: CmdlineMonitor.OutputMode
     }
 
     val incTargets = request.includeEntries.map(TargetRef(_))
-    val resolverTargetName = s"phony:@init:${projectFile}"
-    val resolverTarget = Target(resolverTargetName) dependsOn cpTargets ~ incTargets
+    val bootstrapTargets = request.bootstrapEntries.map(TargetRef(_))
+
+    val resolverTargetName = s"phony:@${request.name}:${projectFile}"
+    val resolverTarget = Target(resolverTargetName) dependsOn cpTargets ~ incTargets ~ bootstrapTargets
 
     val targetExecutor = new TargetExecutor(
       monitor = initProject.monitor,
@@ -101,6 +111,7 @@ class ClasspathResolver(projectFile: File, outputMode: CmdlineMonitor.OutputMode
     // TODO: check size of files seq and files map, should be both have same length
 
     val includes = request.includeEntries.map { name => name -> filesMap(name) }.toMap
+    val bootstraps = request.bootstrapEntries.map { name => name -> filesMap(name) }.toMap
 
     val cpTrees: Seq[CpTree] = cpEntries.map {
       case RawCpEntry(name) =>
@@ -114,12 +125,12 @@ class ClasspathResolver(projectFile: File, outputMode: CmdlineMonitor.OutputMode
         pi.dependencies match {
           case Seq() => new LeafCpTree(pi)
           case deps =>
-            val result = apply(ResolveRequest(includeEntries = Seq(), classpathEntries = deps))
+            val result = apply(ResolveRequest(includeEntries = Seq(), classpathEntries = deps, bootstrapEntries = Seq()))
             new NodeCpTree(pi, result.classpathTrees)
         }
     }
 
-    ResolvedClassPathInfo(includes, cpTrees)
+    ResolvedClassPathInfo(includes, cpTrees, bootstraps)
 
   }
 

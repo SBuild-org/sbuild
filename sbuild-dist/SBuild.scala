@@ -75,9 +75,9 @@ class SBuild(implicit _project: Project) {
       |# compileClasspath - Used to load the compiler to compile the buildfile in initialization phase
       |compileClasspath = ${scalaCompiler.files.head.getName}:${scalaReflect.files.head.getName}:${scriptCompilerJar.files.head.getName}
       |# projectCompileClasspath - Used to compile the buildfiles
-      |projectCompileClasspath = ${scalaLibrary.files.head.getName}:${antJar.files.head.getName}:${addonsJar.files.head.getName}
+      |projectCompileClasspath = ${scalaLibrary.files.head.getName}
       |# projectRuntimeClasspath - Used to load the buildfiles
-      |projectRuntimeClasspath = ${antJar.files.head.getName}:${addonsJar.files.head.getName}
+      |projectRuntimeClasspath =
       |# embeddedClasspath - Used to load the SBuild embedded API and all its dependencies, e.g. from IDE's
       |embeddedClasspath = ${binJar.files.head.getName}:${runnerJar.files.head.getName}:${cmdOption.files.head.getName}:${jansi.files.head.getName}
       |# compilerPluginJar - Used by the build file compiler to load the compiler plugin which extracts additional infos

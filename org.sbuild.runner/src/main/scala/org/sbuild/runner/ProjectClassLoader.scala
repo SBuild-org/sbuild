@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap
  * but it will only load those classes which are exported by that plugin. [[org.sbuild.Constants.SBuildPluginExportPackage]]
  *
  */
-class ProjectClassLoader(project: Project, classpathUrls: Seq[URL], parent: ClassLoader, classpathTrees: Seq[CpTree])
+class ProjectClassLoader(classpathUrls: Seq[URL], parent: ClassLoader, classpathTrees: Seq[CpTree])
     extends URLClassLoader(classpathUrls.toArray, parent) {
   //  private[this] val log = Logger[ProjectClassLoader]
 
@@ -34,7 +34,7 @@ class ProjectClassLoader(project: Project, classpathUrls: Seq[URL], parent: Clas
     }
 
   val pluginClassLoaders: Seq[PluginClassLoader] = classpathTrees.collect {
-    case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(project, cpTree.pluginInfo.get, cpTree.childs, this)
+    case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(cpTree.pluginInfo.get, cpTree.childs, this)
   }
 
   override protected def loadClass(className: String, resolve: Boolean): Class[_] = getClassLock(className).synchronized {
@@ -57,12 +57,14 @@ class ProjectClassLoader(project: Project, classpathUrls: Seq[URL], parent: Clas
   }
 
   override def toString: String = getClass.getSimpleName +
-    "(project=" + project +
+    //    "(project=" + project +
     //    ",classpathUrls=" + classpathUrls.mkString("[", ",", "]") +
-    ",parent=" + parent +
+    "(parent=" + parent +
     //    ",pluginInfos=" + classpathTrees.mkString("[", ",", "]") +
     ")"
 
   private[this] val end = System.currentTimeMillis
+
+  def registerToProject(project: Project): Unit = pluginClassLoaders.foreach(_.registerToProject(project))
 }
 

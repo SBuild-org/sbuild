@@ -375,7 +375,7 @@ class SBuildRunner {
     }
 
     // Now, that we loaded all projects, we can release some resources. 
-    ProjectScript.dropCaches
+    projectReader.close()
 
     (project, additionalProjects)
   }

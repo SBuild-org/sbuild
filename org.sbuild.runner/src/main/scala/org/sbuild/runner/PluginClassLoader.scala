@@ -147,7 +147,7 @@ object PluginClassLoader {
   }
 }
 
-class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree], parent: ClassLoader)
+class PluginClassLoader(pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree], parent: ClassLoader)
     extends URLClassLoader(pluginInfo.urls.toArray, parent) {
 
   import PluginClassLoader._
@@ -172,13 +172,7 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
   log.debug(s"Init PluginClassLoader (id: ${System.identityHashCode(this)}) for ${pluginInfo.urls}")
 
   val pluginClassLoaders: Seq[PluginClassLoader] = childTrees.collect {
-    case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(project, cpTree.pluginInfo.get, cpTree.childs, this)
-  }
-
-  // register found plugin classes
-  pluginInfo.pluginClasses.map {
-    case LoadablePluginInfo.PluginClasses(instanceClassName, factoryClassName, version) =>
-      project.registerPlugin(instanceClassName, factoryClassName, version, this)
+    case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(cpTree.pluginInfo.get, cpTree.childs, this)
   }
 
   def loadPluginClass(className: String): Class[_] = { // }getClassLock(className).synchronized {
@@ -224,4 +218,12 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
     "(pluginInfo=" + pluginInfo +
     ",parent=" + parent + ")"
 
+  def registerToProject(project: Project): Unit = {
+    pluginClassLoaders.foreach(_.registerToProject(project))
+    // register found plugin classes
+    pluginInfo.pluginClasses.map {
+      case LoadablePluginInfo.PluginClasses(instanceClassName, factoryClassName, version) =>
+        project.registerPlugin(instanceClassName, factoryClassName, version, this)
+    }
+  }
 }
