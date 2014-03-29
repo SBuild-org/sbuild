@@ -10,6 +10,7 @@ import org.sbuild.ProjectConfigurationException
 import org.sbuild.Path
 
 case class Classpaths(
+    sbuildLibDir: Option[File] = None,
     sbuildClasspath: Array[String] = Array(),
     compileClasspath: Array[String] = Array(),
     projectCompileClasspath: Array[String] = Array(),
@@ -82,6 +83,7 @@ class ClasspathConfig {
     }
 
     _classpaths = Classpaths(
+      sbuildLibDir = Some(sbuildLibDir),
       sbuildClasspath = splitAndPrepend(properties.getProperty("sbuildClasspath")),
       compileClasspath = splitAndPrepend(properties.getProperty("compileClasspath")),
       projectCompileClasspath = splitAndPrepend(properties.getProperty("projectCompileClasspath")),

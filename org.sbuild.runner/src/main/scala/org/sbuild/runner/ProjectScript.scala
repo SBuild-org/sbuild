@@ -2,21 +2,27 @@ package org.sbuild.runner
 
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileWriter
+import java.lang.reflect.Method
+import java.net.URLClassLoader
+
+import scala.Left
+import scala.Right
 import scala.io.BufferedSource
+
+import org.sbuild.BuildfileCompilationException
 import org.sbuild.CmdlineMonitor
 import org.sbuild.Logger
 import org.sbuild.Path
 import org.sbuild.Project
 import org.sbuild.ProjectConfigurationException
-import org.sbuild.internal.I18n
-import org.sbuild.SBuildVersion
-import org.sbuild.BuildfileCompilationException
-import org.sbuild.toRichFile
-import java.io.FileWriter
-import java.net.URLClassLoader
 import org.sbuild.SBuildException
-import java.lang.reflect.Method
+import org.sbuild.SBuildVersion
+import org.sbuild.ScanSchemeHandler
+import org.sbuild.SchemeHandler
 import org.sbuild.internal.Bootstrapper
+import org.sbuild.internal.I18n
+import org.sbuild.toRichFile
 
 object ProjectScript {
   val InfoFileName = "sbuild.info.xml"
@@ -53,18 +59,24 @@ object ProjectScript {
 
   }
 
+  trait BootstrapProvider {
+    def scriptDefinedClasspath: Seq[File]
+    def applyToProject(project: Project): Unit
+    def projectClassLoader: Either[ClassLoader, ProjectClassLoader]
+  }
+
   // TODO: add some classpath to compile against this script
   case class LoadedScriptClass(
       scriptEnv: ScriptEnv,
       scriptClass: Class[_],
-      projectClassLoader: ProjectClassLoader,
-      bootstrapClass: Option[LoadedScriptClass],
-      scriptDefinedClasspath: Seq[File]) {
+      projectClassLoader: Either[ClassLoader, ProjectClassLoader],
+      bootstrapClass: Option[BootstrapProvider],
+      override val scriptDefinedClasspath: Seq[File]) extends BootstrapProvider {
 
-    def applyToProject(project: Project): Unit = {
+    override def applyToProject(project: Project): Unit = {
       bootstrapClass.map(_.applyToProject(project))
 
-      projectClassLoader.registerToProject(project)
+      projectClassLoader.right.map(_.registerToProject(project))
 
       val ctr = scriptClass.getConstructor(classOf[Project])
       val scriptInstance = ctr.newInstance(project)
@@ -118,8 +130,16 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
           case Some(bootstrapFile) =>
             Some(loadScriptClass(Path.normalize(new File(bootstrapFile), baseDir = scriptEnv.baseDir), monitor))
           case None =>
-            // TODO: load built-in defaults: none for now
-            None
+            // TODO: load built-in defaults
+            Some(new BootstrapProvider {
+              override def scriptDefinedClasspath: Seq[File] = Seq()
+              override def projectClassLoader: Either[ClassLoader, ProjectClassLoader] = Left(getClass.getClassLoader())
+              override def applyToProject(project: Project): Unit = {
+                implicit val _p = project
+                SchemeHandler("scan", new ScanSchemeHandler())
+                // SchemeHandler("sbuild", new SBuildSchemeHandler(classpaths.sbuildLibDir))
+              }
+            })
         }
 
         val includeEntries = readAnnoInclude(scriptEnv)
@@ -161,8 +181,11 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
           // TODO: load all extra classes only in top-most bootstrapper project classloader
           val classpath = classpaths.projectRuntimeClasspath
           val parentClassLoader = bootstrapClass match {
-            case Some(bc) => bc.projectClassLoader
-            case None => getClass().getClassLoader()
+            case Some(bc) => bc.projectClassLoader match {
+              case Left(cl) => cl
+              case Right(cl) => cl
+            }
+            // case None => getClass().getClassLoader()
           }
           val classpathTrees = resolved.classpathTrees
 
@@ -178,7 +201,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
           LoadedScriptClass(
             scriptEnv = scriptEnv,
             scriptClass = clazz,
-            projectClassLoader = cl,
+            projectClassLoader = Right(cl),
             bootstrapClass = bootstrapClass,
             scriptDefinedClasspath = scriptDefinedClasspath
           )
