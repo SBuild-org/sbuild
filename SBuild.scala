@@ -12,7 +12,6 @@ class SBuild(implicit _project: Project) {
     "org.sbuild.scriptcompiler",
     "org.sbuild.compilerplugin",
     "org.sbuild.experimental",
-    "doc",
     "sbuild-dist",
     "sbuild-unzip-plugin/org.sbuild.plugins.unzip"
   )
