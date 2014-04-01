@@ -15,7 +15,10 @@ case class Classpaths(
     compileClasspath: Array[String] = Array(),
     projectCompileClasspath: Array[String] = Array(),
     projectRuntimeClasspath: Array[String] = Array(),
-    compilerPluginJars: Array[String] = Array()) {
+    compilerPluginJars: Array[String] = Array(),
+    projectBootstrapJars: Array[String] = Array(),
+    projectBootstrapClasspath: Array[String] = Array(),
+    projectBootstrapClass: String = "org.sbuild.runner.bootstrap.SBuildBootstrap") {
 
   def validate(): Boolean =
     (sbuildClasspath ++ compileClasspath ++ projectCompileClasspath ++ projectRuntimeClasspath ++ compilerPluginJars).
@@ -88,7 +91,9 @@ class ClasspathConfig {
       compileClasspath = splitAndPrepend(properties.getProperty("compileClasspath")),
       projectCompileClasspath = splitAndPrepend(properties.getProperty("projectCompileClasspath")),
       projectRuntimeClasspath = splitAndPrepend(properties.getProperty("projectRuntimeClasspath")),
-      compilerPluginJars = splitAndPrepend(properties.getProperty("compilerPluginJar"))
+      compilerPluginJars = splitAndPrepend(properties.getProperty("compilerPluginJar")),
+      projectBootstrapJars = splitAndPrepend(properties.getProperty("projectBootstrapJars")),
+      projectBootstrapClasspath = splitAndPrepend(properties.getProperty("projectBootstrapClasspath"))
     )
   }
 

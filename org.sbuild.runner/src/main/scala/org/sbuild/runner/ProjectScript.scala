@@ -59,24 +59,17 @@ object ProjectScript {
 
   }
 
-  trait BootstrapProvider {
-    def scriptDefinedClasspath: Seq[File]
-    def applyToProject(project: Project): Unit
-    def projectClassLoader: Either[ClassLoader, ProjectClassLoader]
-  }
-
   // TODO: add some classpath to compile against this script
   case class LoadedScriptClass(
-      scriptEnv: ScriptEnv,
+      scriptEnv: Option[ScriptEnv],
       scriptClass: Class[_],
-      projectClassLoader: Either[ClassLoader, ProjectClassLoader],
-      bootstrapClass: Option[BootstrapProvider],
-      override val scriptDefinedClasspath: Seq[File]) extends BootstrapProvider {
+      projectClassLoader: ProjectClassLoader,
+      bootstrapClass: Option[LoadedScriptClass],
+      scriptDefinedClasspath: Seq[File]) {
 
-    override def applyToProject(project: Project): Unit = {
+    def applyToProject(project: Project): Unit = {
       bootstrapClass.map(_.applyToProject(project))
-
-      projectClassLoader.right.map(_.registerToProject(project))
+      projectClassLoader.registerToProject(project)
 
       val ctr = scriptClass.getConstructor(classOf[Project])
       val scriptInstance = ctr.newInstance(project)
@@ -105,7 +98,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
    */
   private[this] var cachedScalaCompiler: Option[CachedScalaCompiler] = None
   private[this] var cachedExtendedScalaCompiler: Option[CachedExtendedScalaCompiler] = None
-  private[this] var cachedScriptClasses: Map[String, LoadedScriptClass] = Map()
+  private[this] var cachedScriptClasses: Map[Option[String], LoadedScriptClass] = Map()
 
   /**
    * Drop all caches. For now, this is the Scalac compiler and its ClassLoader.
@@ -116,30 +109,68 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
     cachedScriptClasses = Map()
   }
 
-  def loadScriptClass(scriptFile: File, monitor: CmdlineMonitor): LoadedScriptClass = {
+  protected def loadBuiltinBootstrapProvider(monitor: CmdlineMonitor): LoadedScriptClass = {
+    cachedScriptClasses.get(None) match {
+      case Some(c) =>
+        log.debug("Using already cached built-in bootstrap script")
+        c
+      case None =>
+        log.debug("Loading built-in bootstrap script")
+
+        // TODO: check for existence
+        // classpaths.projectBootstrapJars.map(new File(_))
+
+        val bootstrapJar = classpaths.projectBootstrapJars.headOption.map(f => new File(f)).get
+
+        val classpathResolver = new ClasspathResolver(bootstrapJar, bootstrapJar.getParentFile(), monitor.mode, Seq())
+        val resolved = classpathResolver.apply(ClasspathResolver.ResolveRequest(classpathEntries = classpaths.projectBootstrapClasspath))
+
+        val cl = new ProjectClassLoader(
+          classpathUrls = classpaths.projectBootstrapJars.map(cp => new File(cp).toURI.toURL),
+          parent = getClass().getClassLoader(),
+          classpathTrees = resolved.classpathTrees)
+
+        val className = classpaths.projectBootstrapClass
+        val clazz: Class[_] = try cl.loadClass(className) catch {
+          case e: ClassNotFoundException => throw new ProjectConfigurationException("Loading built-in bootstrap script failed. Could not load class \"" + className + "\" from classloader: " + cl)
+        }
+
+        val loadedScript = LoadedScriptClass(
+          scriptEnv = None,
+          scriptClass = clazz,
+          scriptDefinedClasspath = resolved.flatClasspath,
+          projectClassLoader = cl,
+          bootstrapClass = None
+        )
+
+        log.debug("Caching loaded built-in bootstrap script")
+        cachedScriptClasses += None -> loadedScript
+
+        loadedScript
+    }
+  }
+
+  def loadScriptClass(scriptFile: File, monitor: CmdlineMonitor, bootstrapRequest: List[File] = Nil): LoadedScriptClass = {
     val normalizedScriptFile = Path.normalize(scriptFile).getPath
     // TODO: thread safety?
-    cachedScriptClasses.get(normalizedScriptFile) match {
-      case Some(loadedScriptClass) => loadedScriptClass
+    cachedScriptClasses.get(Some(normalizedScriptFile)) match {
+      case Some(loadedScriptClass) =>
+        log.debug("Using already cached script: " + loadedScriptClass.scriptClass)
+        loadedScriptClass
       case None =>
-
-        val scriptEnv = checkScriptFile(scriptFile)
+        log.debug("About to load script: " + scriptFile)
+        val scriptEnv = checkScriptFile(scriptFile, bootstrapRequest)
         val version = readAndCheckAnnoVersion(scriptEnv)
 
         val bootstrapClass = readAnnoBootstrap(scriptEnv) match {
           case Some(bootstrapFile) =>
-            Some(loadScriptClass(Path.normalize(new File(bootstrapFile), baseDir = scriptEnv.baseDir), monitor))
+            log.debug("Found @bootstrap annotation. First load bootstrap script now")
+            val boot = loadScriptClass(Path.normalize(new File(bootstrapFile), baseDir = scriptEnv.baseDir), monitor, bootstrapRequest = scriptFile :: bootstrapRequest)
+            log.debug("Bootstrap script loaded. Continuing loading script: " + scriptFile)
+            boot
           case None =>
-            // TODO: load built-in defaults
-            Some(new BootstrapProvider {
-              override def scriptDefinedClasspath: Seq[File] = Seq()
-              override def projectClassLoader: Either[ClassLoader, ProjectClassLoader] = Left(getClass.getClassLoader())
-              override def applyToProject(project: Project): Unit = {
-                implicit val _p = project
-                SchemeHandler("scan", new ScanSchemeHandler())
-                // SchemeHandler("sbuild", new SBuildSchemeHandler(classpaths.sbuildLibDir))
-              }
-            })
+            log.debug("No @bootstrap annotation found. Loading built-in bootstrap script")
+            loadBuiltinBootstrapProvider(monitor)
         }
 
         val includeEntries = readAnnoInclude(scriptEnv)
@@ -151,18 +182,16 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
 
           val bootstrappers = Seq(new Bootstrapper {
             override def applyToProject(project: Project): Unit = {
-              bootstrapClass.map(_.applyToProject(project))
+              bootstrapClass.applyToProject(project)
             }
           })
-          val classpathResolver = new ClasspathResolver(scriptEnv.scriptFile, monitor.mode, bootstrappers)
+          val classpathResolver = new ClasspathResolver(scriptEnv.scriptFile, scriptEnv.baseDir, monitor.mode, bootstrappers)
           val resolved = classpathResolver.apply(ClasspathResolver.ResolveRequest(includeEntries = includeEntries, classpathEntries = classpathEntries))
           log.debug("Resolving project prerequisites took " + (System.currentTimeMillis - ts) + " milliseconds")
           resolved
         }
 
-        val scriptDefinedClasspath: Seq[File] =
-          bootstrapClass.map(_.scriptDefinedClasspath).getOrElse(Seq()) ++
-            resolved.flatClasspath
+        val scriptDefinedClasspath: Seq[File] = bootstrapClass.scriptDefinedClasspath ++ resolved.flatClasspath
 
         log.debug("Using script defined classpath (boot + this): " + scriptDefinedClasspath.mkString("\n  ", "\n  ", ""))
 
@@ -180,13 +209,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
 
           // TODO: load all extra classes only in top-most bootstrapper project classloader
           val classpath = classpaths.projectRuntimeClasspath
-          val parentClassLoader = bootstrapClass match {
-            case Some(bc) => bc.projectClassLoader match {
-              case Left(cl) => cl
-              case Right(cl) => cl
-            }
-            // case None => getClass().getClassLoader()
-          }
+          val parentClassLoader = bootstrapClass.projectClassLoader
           val classpathTrees = resolved.classpathTrees
 
           val cl = new ProjectClassLoader(
@@ -194,33 +217,46 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
             parent = parentClassLoader,
             classpathTrees = classpathTrees)
 
+          log.debug("Classloader to load build script: " + cl)
+
           val clazz: Class[_] = try cl.loadClass(className) catch {
             case e: ClassNotFoundException => throw new ProjectConfigurationException("Buildfile \"" + scriptFile + "\" does not contain a class \"" + className + "\".")
           }
 
           LoadedScriptClass(
-            scriptEnv = scriptEnv,
+            scriptEnv = Some(scriptEnv),
             scriptClass = clazz,
-            projectClassLoader = Right(cl),
-            bootstrapClass = bootstrapClass,
+            projectClassLoader = cl,
+            bootstrapClass = Some(bootstrapClass),
             scriptDefinedClasspath = scriptDefinedClasspath
           )
         }
 
         // return
-        cachedScriptClasses += normalizedScriptFile -> loadedScriptClass
+        cachedScriptClasses += Some(normalizedScriptFile) -> loadedScriptClass
         loadedScriptClass
     }
   }
 
-  def checkScriptFile(scriptFile: File): ScriptEnv = {
+  def checkScriptFile(scriptFile: File, bootstrapRequest: List[File]): ScriptEnv = {
     val file = Path.normalize(scriptFile)
 
     if (!file.exists || !file.isFile) {
-      val msg = preparetr("Project buildfile \"{0}\" does not exists or is not a file.", scriptFile)
-      val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
-      ex.buildScript = Some(file)
-      throw ex
+      if (bootstrapRequest.isEmpty) {
+        val msg = preparetr("Project buildfile does not exists or is not a file: {0}", scriptFile)
+        val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
+        ex.buildScript = Some(file)
+        throw ex
+      } else {
+        val msg = preparetr("A bootstrap resource does not exists or is not a file: {0}", scriptFile.getPath)
+        val addMsg = bootstrapRequest.map(reqFile => preparetr("It was requested by: {0}", reqFile.getPath))
+        val ex = new ProjectConfigurationException(
+          msg.notr + addMsg.map(_.notr).mkString("\n", "\n", ""),
+          null,
+          msg.tr + addMsg.map(_.tr).mkString("\n", "\n", ""))
+        ex.buildScript = bootstrapRequest.reverse.headOption
+        throw ex
+      }
     }
 
     ScriptEnv(
@@ -263,7 +299,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
     allCpEntries
   }
 
-  def compileScript(scriptEnv: ScriptEnv, bootstrapClasspath: Seq[File], includes: Map[String, Seq[File]], classpath: Seq[String], monitor: CmdlineMonitor): String = {
+  def compileScript(scriptEnv: ScriptEnv, bootstrapClasspath: Seq[File], includes: Map[String, Seq[File]], classpath: Seq[String], monitor: CmdlineMonitor, bootstrapRequest: List[File] = Nil): String = {
     val scriptFile = scriptEnv.scriptFile
     val lockFile = scriptEnv.lockFile
 
@@ -274,7 +310,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
           className
         case LastRunInfo(_, _, reason) if !checkLock =>
           log.debug("Compiling build script " + scriptFile + " is necessary. Reason: " + reason)
-          newCompile(scriptEnv, classpath, bootstrapClasspath, includes, reason, monitor)
+          newCompile(scriptEnv, classpath, bootstrapClasspath, includes, reason, monitor, bootstrapRequest)
         case LastRunInfo(_, _, reason) =>
           fileLocker.acquire(
             file = lockFile,
@@ -330,13 +366,15 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
         classFile.lastModified == targetClassLastModified &&
         classFile.lastModified >= scriptFile.lastModified
 
+      val bootstrapClasspathDistinct = bootstrapClasspath.distinct
+
       lazy val bootstrapClasspathMatch: Boolean = try {
         val lastBoot = (info \ "bootstrapClasspath" \ "bootstrap").map { lastInclude =>
           ((lastInclude \ "path").text, (lastInclude \ "lastModified").text.toLong)
         }.toMap
 
-        bootstrapClasspath.size == lastBoot.size &&
-          bootstrapClasspath.forall { file =>
+        bootstrapClasspathDistinct.size == lastBoot.size &&
+          bootstrapClasspathDistinct.forall { file =>
             lastBoot.get(file.getPath()) match {
               case Some(time) => file.lastModified == time
               case _ => false
@@ -388,7 +426,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
       scriptEnv.classesDir.deleteRecursive
     }
 
-  protected def newCompile(scriptEnv: ScriptEnv, classpath: Seq[String], bootstrapCp: Seq[File], includes: Map[String, Seq[File]], printReason: Option[String] = None, monitor: CmdlineMonitor): String = {
+  protected def newCompile(scriptEnv: ScriptEnv, classpath: Seq[String], bootstrapCp: Seq[File], includes: Map[String, Seq[File]], printReason: Option[String] = None, monitor: CmdlineMonitor, bootstrapRequest: List[File] = Nil): String = {
     val scriptFile = scriptEnv.scriptFile
 
     cleanScala(scriptEnv, monitor)
@@ -397,7 +435,8 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
       (printReason match {
         case None => ""
         case Some(r) => r + ": "
-      }) + "Compiling build script: " + scriptFile +
+      }) + (if (bootstrapRequest.isEmpty) "Compiling build script: " else "Compiling bootstrap script: ") +
+        scriptFile +
         (if (includes.isEmpty) "" else " and " + includes.size + " included files") +
         "..."
     )
@@ -433,7 +472,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
                  </includes>
                  <bootstrapClasspath>
                    {
-                     bootstrapCp.map {
+                     bootstrapCp.distinct.map {
                        case file =>
                          <bootstrap>
                            <path>{ file.getPath }</path>

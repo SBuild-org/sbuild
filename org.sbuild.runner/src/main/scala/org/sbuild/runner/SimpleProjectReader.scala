@@ -16,6 +16,7 @@ import org.sbuild.internal.Bootstrapper
 import org.sbuild.internal.PluginAwareImpl
 import org.sbuild.SBuildVersion
 import org.sbuild.RichFile
+import org.sbuild.Path
 
 class SimpleProjectReader(
   classpathConfig: ClasspathConfig,
@@ -46,7 +47,7 @@ class SimpleProjectReader(
       //  Compile Script and load compiled class
       val script = projectScript.loadScriptClass(projectFile, projectMonitor)
 
-      val project = new BuildFileProject(projectFile, this, projectPool, Some(script.scriptEnv.typesToIncludedFilesPropertiesFile), monitor = projectMonitor)
+      val project = new BuildFileProject(projectFile, Path.normalize(projectFile).getParentFile(), this, projectPool, script.scriptEnv.map(_.typesToIncludedFilesPropertiesFile), monitor = projectMonitor)
 
       initialProperties.foreach {
         case (key, value) => project.addProperty(key, value)
@@ -64,7 +65,6 @@ class SimpleProjectReader(
 
     } catch {
       case e: InvocationTargetException =>
-        Console.err.println("Errors in build script: " + projectFile)
         e.getCause match {
           case null => throw e
           case c => throw c

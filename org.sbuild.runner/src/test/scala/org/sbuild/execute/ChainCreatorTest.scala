@@ -12,7 +12,7 @@ import org.sbuild.internal.BuildFileProject
 
 class ChainCreatorTest extends FunSuite {
 
-  private implicit val project = new BuildFileProject(new File("SBuild.scala"), null)
+  private implicit val project = new BuildFileProject(new File("SBuild.scala"), new File("."), null)
 
   private val g1 = Target("phony:1")
   private val g2 = Target("phony:2") dependsOn g1
@@ -22,7 +22,7 @@ class ChainCreatorTest extends FunSuite {
   private val gC = Target("phony:c")
 
   val targetExecutor = new TargetExecutor(NoopCmdlineMonitor)
-  
+
   test("build chain test 1") {
     assert(Seq(g1) === targetExecutor.preorderedDependenciesTree(g1).linearized.map(_.target))
     assert(Seq(g1) === targetExecutor.preorderedDependenciesTree(g1, skipExec = true).linearized.map(_.target))

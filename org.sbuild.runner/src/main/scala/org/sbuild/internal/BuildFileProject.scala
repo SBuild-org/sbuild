@@ -37,6 +37,7 @@ import scala.reflect.classTag
 import org.sbuild.CacheableSchemeResolver
 
 class BuildFileProject(_projectFile: File,
+                       _projectDir: File,
                        _projectReader: ProjectReader = null,
                        _projectPool: Option[ProjectPool] = None,
                        typesToIncludedFilesProperties: Option[File] = None,
@@ -51,10 +52,10 @@ class BuildFileProject(_projectFile: File,
   private val projectReader: Option[ProjectReader] = Option(_projectReader)
 
   override val projectFile: File = Path.normalize(_projectFile)
-  if (!projectFile.exists)
-    throw new ProjectConfigurationException("Project file '" + projectFile + "' does not exists")
+  //  if (!projectFile.exists)
+  //    throw new ProjectConfigurationException("Project file '" + projectFile + "' does not exists")
 
-  override val projectDirectory: File = projectFile.getParentFile
+  override val projectDirectory: File = Path.normalize(_projectDir)
 
   if (!projectDirectory.exists) {
     val msg = preparetr("Project directory \"{0}\" does not exists.", projectDirectory)
@@ -514,26 +515,6 @@ class BuildFileProject(_projectFile: File,
     }
     schemeHandlers += ((scheme, handler))
   }
-
-//  // Default Scheme Handler
-//  {
-//    implicit val p = this
-//    SchemeHandler("http", new HttpSchemeHandler())
-//    SchemeHandler("mvn", new MvnSchemeHandler())
-//    import org.sbuild.plugin.unzip._
-//    Plugin[Zip]("zip")
-//    SchemeHandler("scan", new ScanSchemeHandler())
-//
-//    // Experimental
-//
-//    SchemeHandler("source", new MapperSchemeHandler(
-//      pathTranslators = Seq("mvn" -> { path => path + ";classifier=sources" })
-//    ))
-//    SchemeHandler("javadoc", new MapperSchemeHandler(
-//      pathTranslators = Seq("mvn" -> { path => path + ";classifier=javadoc" })
-//    ))
-//
-//  }
 
   private var _properties: Map[String, String] = Map()
   override protected[sbuild] def properties: Map[String, String] = _properties

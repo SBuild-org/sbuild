@@ -18,6 +18,7 @@ class SBuild(implicit _project: Project) {
   val pluginsJar = s"../org.sbuild.plugins/target/org.sbuild.plugins-${sbuildVersion}.jar"
   val scriptCompilerJar = s"../org.sbuild.scriptcompiler/target/org.sbuild.scriptcompiler-${sbuildVersion}.jar"
   val compilerPluginJar = s"../org.sbuild.compilerplugin/target/org.sbuild.compilerplugin-${sbuildVersion}.jar"
+  val bootstrapJar = s"../org.sbuild.runner.bootstrap/target/org.sbuild.runner.bootstrap-${sbuildVersion}.jar"
 
   val distName = s"sbuild-${sbuildVersion}"
   val distDir = "target/" + distName
@@ -55,6 +56,7 @@ class SBuild(implicit _project: Project) {
 
   Target("phony:copyJars").cacheable dependsOn cmdOption ~ SBuildConfig.compilerPath ~
       binJar ~ runnerJar ~ antJar ~ addonsJar ~ compilerPluginJar ~ scriptCompilerJar ~ jansi ~
+      sbuildUnzipPlugin ~ bootstrapJar ~
       sbuildRunnerDebugLibs exec { ctx: TargetContext =>
     ctx.fileDependencies.distinct.foreach { file =>
       val targetFile = Path(distDir, "lib", file.getName)
@@ -66,6 +68,7 @@ class SBuild(implicit _project: Project) {
   Target(classpathProperties) dependsOn
     _project.projectFile ~
     binJar ~ runnerJar ~ compilerPluginJar ~ scriptCompilerJar ~
+    bootstrapJar ~ sbuildUnzipPlugin ~
     antJar ~ addonsJar ~
     cmdOption ~ jansi ~
     scalaLibrary ~ scalaCompiler ~ scalaReflect exec { ctx: TargetContext =>
@@ -82,6 +85,8 @@ class SBuild(implicit _project: Project) {
       |embeddedClasspath = ${binJar.files.head.getName}:${runnerJar.files.head.getName}:${cmdOption.files.head.getName}:${jansi.files.head.getName}
       |# compilerPluginJar - Used by the build file compiler to load the compiler plugin which extracts additional infos
       |compilerPluginJar = ${compilerPluginJar.files.head.getName}
+      |projectBootstrapJars = ${bootstrapJar.files.head.getName}
+      |projectBootstrapClasspath = ${runnerJar.files.head.getName}:${sbuildUnzipPlugin.files.head.getName}
       |"""
     AntMkdir(dir = ctx.targetFile.get.getParentFile)
     AntEcho(file = ctx.targetFile.get, message = properties.stripMargin)
