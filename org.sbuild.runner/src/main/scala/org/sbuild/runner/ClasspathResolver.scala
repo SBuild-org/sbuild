@@ -43,7 +43,7 @@ object ClasspathResolver {
   }
 }
 
-class ClasspathResolver(projectFile: File, projectDir: File, outputMode: CmdlineMonitor.OutputMode, bootstrappers: Seq[Bootstrapper]) extends Function1[ClasspathResolver.ResolveRequest, ClasspathResolver.ResolvedClassPathInfo] {
+class ClasspathResolver(projectFile: File, projectDir: File, outputMode: CmdlineMonitor.OutputMode, bootstrappers: Seq[Bootstrapper], typesToIncludedFilesPropertiesFile: Seq[File]) extends Function1[ClasspathResolver.ResolveRequest, ClasspathResolver.ResolvedClassPathInfo] {
   import ClasspathResolver._
 
   private[this] val log = Logger[ClasspathResolver]
@@ -64,7 +64,7 @@ class ClasspathResolver(projectFile: File, projectDir: File, outputMode: Cmdline
     val resolveMonitor = new OutputStreamCmdlineMonitor(Console.out, mode = outputMode, messagePrefix = "(init) ")
 
     // We want to use a dedicated project in the init phase
-    class ProjectInitProject extends BuildFileProject(_projectFile = projectFile, _projectDir = projectDir, monitor = resolveMonitor)
+    class ProjectInitProject extends BuildFileProject(_projectFile = projectFile, _projectDir = projectDir, typesToIncludedFilesProperties = typesToIncludedFilesPropertiesFile, monitor = resolveMonitor)
     implicit val initProject: Project = new ProjectInitProject
     bootstrappers.foreach { bs => bs.applyToProject(initProject) }
     initProject.finalizePlugins

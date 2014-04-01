@@ -47,7 +47,13 @@ class SimpleProjectReader(
       //  Compile Script and load compiled class
       val script = projectScript.loadScriptClass(projectFile, projectMonitor)
 
-      val project = new BuildFileProject(projectFile, Path.normalize(projectFile).getParentFile(), this, projectPool, script.scriptEnv.map(_.typesToIncludedFilesPropertiesFile), monitor = projectMonitor)
+      val project = new BuildFileProject(
+        _projectFile = projectFile,
+        _projectDir = Path.normalize(projectFile).getParentFile(),
+        _projectReader = this,
+        _projectPool = projectPool,
+        typesToIncludedFilesProperties = script.typesToIncludedFilesPropertiesFile,
+        monitor = projectMonitor)
 
       initialProperties.foreach {
         case (key, value) => project.addProperty(key, value)

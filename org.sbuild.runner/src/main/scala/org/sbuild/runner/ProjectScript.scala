@@ -75,6 +75,10 @@ object ProjectScript {
       val scriptInstance = ctr.newInstance(project)
     }
 
+    val typesToIncludedFilesPropertiesFile: Seq[File] =
+      bootstrapClass.toSeq.flatMap(_.typesToIncludedFilesPropertiesFile) ++
+        scriptEnv.map(_.typesToIncludedFilesPropertiesFile).toSeq
+
   }
 
   case class LastRunInfo(upToDate: Boolean, targetClassName: String, issues: Option[String] = None)
@@ -122,7 +126,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
 
         val bootstrapJar = classpaths.projectBootstrapJars.headOption.map(f => new File(f)).get
 
-        val classpathResolver = new ClasspathResolver(bootstrapJar, bootstrapJar.getParentFile(), monitor.mode, Seq())
+        val classpathResolver = new ClasspathResolver(bootstrapJar, bootstrapJar.getParentFile(), monitor.mode, bootstrappers = Seq(), typesToIncludedFilesPropertiesFile = Seq())
         val resolved = classpathResolver.apply(ClasspathResolver.ResolveRequest(classpathEntries = classpaths.projectBootstrapClasspath))
 
         val cl = new ProjectClassLoader(
@@ -185,7 +189,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
               bootstrapClass.applyToProject(project)
             }
           })
-          val classpathResolver = new ClasspathResolver(scriptEnv.scriptFile, scriptEnv.baseDir, monitor.mode, bootstrappers)
+          val classpathResolver = new ClasspathResolver(scriptEnv.scriptFile, scriptEnv.baseDir, monitor.mode, bootstrappers, typesToIncludedFilesPropertiesFile = bootstrapClass.typesToIncludedFilesPropertiesFile)
           val resolved = classpathResolver.apply(ClasspathResolver.ResolveRequest(includeEntries = includeEntries, classpathEntries = classpathEntries))
           log.debug("Resolving project prerequisites took " + (System.currentTimeMillis - ts) + " milliseconds")
           resolved
@@ -200,7 +204,8 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
           bootstrapClasspath = scriptDefinedClasspath,
           includes = resolved.includes,
           classpath = classpaths.sbuildClasspath.toSeq ++ classpaths.projectCompileClasspath.toSeq ++ scriptDefinedClasspath.map(_.getPath),
-          monitor = monitor
+          monitor = monitor,
+          bootstrapRequest = bootstrapRequest
         )
 
         // load Script Class
