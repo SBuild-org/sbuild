@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: de.tototec.sbuild\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-03-09 13:23+0100\n"
+"POT-Creation-Date: 2014-04-01 16:35+0200\n"
 "PO-Revision-Date: 2013-11-06 15:01+0100\n"
 "Last-Translator: Tobias Roeser <le.petit.fou@web.de>\n"
 "Language-Team: German <>\n"
@@ -16,13 +16,6 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-
-#: org/sbuild/HttpSchemeHandler.scala:66 org/sbuild/MvnSchemeHandler.scala:93
-#, java-format
-msgid "File is not present and can not be downloaded in offline-mode: {0}"
-msgstr ""
-"Datei existiert nicht und kann im Offline-Modus nicht heruntergeladen "
-"werden: {0}"
 
 #: org/sbuild/MapperSchemeHandler.scala:25
 #, java-format
@@ -50,143 +43,109 @@ msgstr ""
 "Zugriff auf nicht definiertes Property \"{0}\". Bitte zuerst definieren, z."
 "B. mit \"-D {0}=value\"."
 
-#: org/sbuild/execute/TargetExecutor.scala:337
-#: org/sbuild/execute/TargetExecutor.scala:621
-#, java-format
-msgid ""
-"Modification time of file \"{0}\" is in the future. Up-to-date checks may be "
-"incorrect."
-msgstr ""
-"Veränderungszeit der Datei \"{0}\" liegt in der Zukunft. "
-"Aktualitätsprüfungen könnten nicht korrekt ausfallen."
-
-#: org/sbuild/execute/TargetExecutor.scala:388
-#, java-format
-msgid ""
-"Target \"{0}\" has no defined execution. Don't know how to create or update "
-"file \"{1}\"."
-msgstr ""
-"Für Target \"{0}\" wurde kein Exec-Block definiert. Kann Target nicht "
-"erzeugen oder aktualisieren."
-
-#: org/sbuild/execute/TargetExecutor.scala:423
-msgid "Executing target: "
-msgstr "Verarbeite Target: "
-
-#: org/sbuild/execute/TargetExecutor.scala:449
-#, java-format
-msgid ""
-"Outcome of target {0} looks out-of-date, as the timestamp hasn't changed."
-msgstr ""
-"Ergebnis von Target {0} scheint nicht aktuell zu sein, da der Zeitstempel "
-"sich nicht geändrt hat."
-
-#: org/sbuild/execute/TargetExecutor.scala:477
-#, java-format
-msgid ""
-"Execution of target {0} failed with an exception: {1}.\n"
-"{2}"
-msgstr ""
-"Ausführung von Target {0} schlug mit einer Exception fehl: {1}.\n"
-"{2}"
-
-#: org/sbuild/execute/TargetExecutor.scala:483
-#, java-format
-msgid "Execution of target \"{0}\" aborted after {1} msec with errors: {2}"
-msgstr ""
-"Ausführung von Target \"{0}\" nach {1} msek mit Fehlern abgebrochen: {2}"
-
-#: org/sbuild/execute/TargetExecutor.scala:516
-#: org/sbuild/execute/TargetExecutor.scala:528
-msgid "Finished target: "
-msgstr "Target fertiggestellt: "
-
-#: org/sbuild/execute/TargetExecutor.scala:516
-#: org/sbuild/execute/TargetExecutor.scala:520
-#, java-format
-msgid " after {0} msec"
-msgstr " nach {0} msek"
-
-#: org/sbuild/execute/TargetExecutor.scala:520
-msgid "Failed target: "
-msgstr "Target fehlgeschlagen: "
-
-#: org/sbuild/execute/TargetExecutor.scala:523
-msgid "Skipped unsatisfied target: "
-msgstr "Überpringe unerfülltes Target: "
-
-#: org/sbuild/execute/TargetExecutor.scala:525
-msgid "Skipped previously failed target: "
-msgstr "Überspringe früher fehlgschlagenes Target: "
-
-#: org/sbuild/execute/TargetExecutor.scala:531
-msgid "Skipped target: "
-msgstr "Überspringe Target: "
-
-#: org/sbuild/execute/TargetExecutor.scala:533
-msgid "Skipped empty target: "
-msgstr "Überpringe leeres Target: "
-
-#: org/sbuild/execute/TargetExecutor.scala:535
-msgid "Skipped cached target: "
-msgstr "Überspringe zwischengespeichertes Target: "
-
-#: org/sbuild/execute/TargetExecutor.scala:631
-#, java-format
-msgid ""
-"Reported modification time of target \"{0}\" is in the future. Up-to-date "
-"checks may be incorrect."
-msgstr ""
-"Berichtete Veränderungszeit von Target \"{0}\" liegt in der Zukunft. "
-"Aktualitätsprüfungen könnten nicht korrekt ausfallen."
-
 #: org/sbuild/internal/WithinTargetExecution.scala:22
 msgid "'{0}' can only be used inside an exec block of a target."
 msgstr ""
 "'{0}' kann nur innerhalb eines Exec-Blocks eines Targets verwendet werden."
 
-#: org/sbuild/internal/BuildFileProject.scala:61
-#, java-format
-msgid "Project directory \"{0}\" does not exists."
-msgstr "Projektverzeichnis \"{0}\" existiert nicht."
+#~ msgid "File is not present and can not be downloaded in offline-mode: {0}"
+#~ msgstr ""
+#~ "Datei existiert nicht und kann im Offline-Modus nicht heruntergeladen "
+#~ "werden: {0}"
 
-#: org/sbuild/internal/BuildFileProject.scala:67
-#, java-format
-msgid "Project directory \"{0}\" is not a directory."
-msgstr "Projektverzeichnis \"{0}\" is kein Verzeichnis."
+#~ msgid ""
+#~ "Modification time of file \"{0}\" is in the future. Up-to-date checks may "
+#~ "be incorrect."
+#~ msgstr ""
+#~ "Veränderungszeit der Datei \"{0}\" liegt in der Zukunft. "
+#~ "Aktualitätsprüfungen könnten nicht korrekt ausfallen."
 
-#: org/sbuild/internal/BuildFileProject.scala:505
-#, java-format
-msgid "Replacing scheme handler \"{0}\" for project \"{1}\"."
-msgstr "Ersetze SchemeHandler \"{0}\" für Projekt \"{1}\"."
+#~ msgid ""
+#~ "Target \"{0}\" has no defined execution. Don't know how to create or "
+#~ "update file \"{1}\"."
+#~ msgstr ""
+#~ "Für Target \"{0}\" wurde kein Exec-Block definiert. Kann Target nicht "
+#~ "erzeugen oder aktualisieren."
 
-#: org/sbuild/internal/BuildFileProject.scala:513
-#, java-format
-msgid ""
-"Cannot replace scheme handler \"{0}\" for project \"{1}\". No previous "
-"scheme handler registered under this name."
-msgstr ""
-"Kann SchemeHandler \"{0}\" für Projekt \"{1}\" nicht ersetzen. Keine "
-"vorheriger SchemeHandler unter diesem Namen registriert."
+#~ msgid "Executing target: "
+#~ msgstr "Verarbeite Target: "
 
-#: org/sbuild/internal/BuildFileProject.scala:542
-#, java-format
-msgid "Ignoring redefinition of property: {0}"
-msgstr "Ignoriere Neudefinition von Property: {0}"
+#~ msgid ""
+#~ "Outcome of target {0} looks out-of-date, as the timestamp hasn't changed."
+#~ msgstr ""
+#~ "Ergebnis von Target {0} scheint nicht aktuell zu sein, da der Zeitstempel "
+#~ "sich nicht geändrt hat."
 
-#: org/sbuild/internal/BuildFileProject.scala:578
-#, java-format
-msgid ""
-"Could not determine the location if the included file which contains class "
-"\"{0}\"."
-msgstr ""
-"Konnte den Ort der Eingebundenen Datei, die die Klasse \"{0}\" enthält, "
-"nicht ermitteln."
+#~ msgid ""
+#~ "Execution of target {0} failed with an exception: {1}.\n"
+#~ "{2}"
+#~ msgstr ""
+#~ "Ausführung von Target {0} schlug mit einer Exception fehl: {1}.\n"
+#~ "{2}"
 
-#: org/sbuild/internal/ProjectTarget.scala:46
-#, java-format
-msgid "Reassignment of exec block for target {0} in project file {1}"
-msgstr "Neuzuweisung eines exec-Bocks für Target {0} in Projectdatei {1}"
+#~ msgid "Execution of target \"{0}\" aborted after {1} msec with errors: {2}"
+#~ msgstr ""
+#~ "Ausführung von Target \"{0}\" nach {1} msek mit Fehlern abgebrochen: {2}"
+
+#~ msgid "Finished target: "
+#~ msgstr "Target fertiggestellt: "
+
+#~ msgid " after {0} msec"
+#~ msgstr " nach {0} msek"
+
+#~ msgid "Failed target: "
+#~ msgstr "Target fehlgeschlagen: "
+
+#~ msgid "Skipped unsatisfied target: "
+#~ msgstr "Überpringe unerfülltes Target: "
+
+#~ msgid "Skipped previously failed target: "
+#~ msgstr "Überspringe früher fehlgschlagenes Target: "
+
+#~ msgid "Skipped target: "
+#~ msgstr "Überspringe Target: "
+
+#~ msgid "Skipped empty target: "
+#~ msgstr "Überpringe leeres Target: "
+
+#~ msgid "Skipped cached target: "
+#~ msgstr "Überspringe zwischengespeichertes Target: "
+
+#~ msgid ""
+#~ "Reported modification time of target \"{0}\" is in the future. Up-to-date "
+#~ "checks may be incorrect."
+#~ msgstr ""
+#~ "Berichtete Veränderungszeit von Target \"{0}\" liegt in der Zukunft. "
+#~ "Aktualitätsprüfungen könnten nicht korrekt ausfallen."
+
+#~ msgid "Project directory \"{0}\" does not exists."
+#~ msgstr "Projektverzeichnis \"{0}\" existiert nicht."
+
+#~ msgid "Project directory \"{0}\" is not a directory."
+#~ msgstr "Projektverzeichnis \"{0}\" is kein Verzeichnis."
+
+#~ msgid "Replacing scheme handler \"{0}\" for project \"{1}\"."
+#~ msgstr "Ersetze SchemeHandler \"{0}\" für Projekt \"{1}\"."
+
+#~ msgid ""
+#~ "Cannot replace scheme handler \"{0}\" for project \"{1}\". No previous "
+#~ "scheme handler registered under this name."
+#~ msgstr ""
+#~ "Kann SchemeHandler \"{0}\" für Projekt \"{1}\" nicht ersetzen. Keine "
+#~ "vorheriger SchemeHandler unter diesem Namen registriert."
+
+#~ msgid "Ignoring redefinition of property: {0}"
+#~ msgstr "Ignoriere Neudefinition von Property: {0}"
+
+#~ msgid ""
+#~ "Could not determine the location if the included file which contains "
+#~ "class \"{0}\"."
+#~ msgstr ""
+#~ "Konnte den Ort der Eingebundenen Datei, die die Klasse \"{0}\" enthält, "
+#~ "nicht ermitteln."
+
+#~ msgid "Reassignment of exec block for target {0} in project file {1}"
+#~ msgstr "Neuzuweisung eines exec-Bocks für Target {0} in Projectdatei {1}"
 
 #~ msgid "Could not found target with name \"{0}\" in project {1}."
 #~ msgstr "Konnte Target mit Namen \"{0}\" in Projekt {1} nicht finden."
