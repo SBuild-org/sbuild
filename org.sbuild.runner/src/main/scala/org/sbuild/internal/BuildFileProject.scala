@@ -532,7 +532,7 @@ class BuildFileProject(_projectFile: File,
     getClass.getSimpleName + "(" + projectFile + ",targets=" + targets.map(_.name).mkString(",") + ")"
 
   // since 0.4.0.9002
-  lazy val typesToIncludedFilesMap: Map[String, File] = {
+  lazy val typesToIncludedFilesMap: Seq[(String, File)] = {
     log.debug("About to create mapping between types and files based on these properties files: " + typesToIncludedFilesProperties)
     val map = typesToIncludedFilesProperties.map {
       case file if file.exists() =>
@@ -541,30 +541,43 @@ class BuildFileProject(_projectFile: File,
         try {
           import scala.collection.JavaConverters._
           props.load(inStream)
-          val map = props.entrySet().asScala.map(entry => (entry.getKey().asInstanceOf[String], new File(entry.getValue().asInstanceOf[String]))).toMap
+          val map = props.entrySet().asScala.map(entry => (entry.getKey().asInstanceOf[String], new File(entry.getValue().asInstanceOf[String]))).toSeq
           map
         } catch {
-          case e: Exception => Map[String, File]()
+          case e: Exception => Seq()
         } finally {
           inStream.close()
         }
-
-      case _ => Map[String, File]()
+      case file =>
+        log.error("Could not found properties file: " + file)
+        Seq()
     }.reduceLeftOption { (l, r) =>
       val map = l ++ r
       map
-    }.getOrElse(Map())
+    }.getOrElse(Seq())
 
     log.debug("Types-to-IncludeFiles map (for project " + projectFile + "): " + map)
-    map
+    map.distinct
   }
 
   // since 0.4.0.9002
   def includeDirOf[T: ClassTag]: File = {
     val classTag = scala.reflect.classTag[T]
     val className = classTag.runtimeClass.getName()
-    typesToIncludedFilesMap.get(className) match {
-      case Some(file) if file.getParentFile() != null => file.getParentFile()
+    typesToIncludedFilesMap.collect { case (name, file) if name == className => file } match {
+      case files if files.isEmpty =>
+        val msg = preparetr("Could not determine the location of the (included/bootstrap) file which contains class \"{0}\".", className)
+        val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
+        ex.buildScript = Some(projectFile)
+        throw ex
+      case files if files.size > 1 =>
+        // anbiguous result
+        val msg = preparetr("Could not determine a unique location of the (included/bootstrap) file which contains class \"{0}\".", className)
+        val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
+        ex.buildScript = Some(projectFile)
+        throw ex
+      case Seq(file) if file.getParentFile() != null =>
+        file.getParentFile()
       case _ =>
         val msg = preparetr("Could not determine the location of the (included/bootstrap) file which contains class \"{0}\".", className)
         val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
