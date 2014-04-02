@@ -7,8 +7,6 @@ jdk:
 env:
   - SBUILD_VERSION=0.7.1
 
-install: "sudo apt-get install asciidoc"
-
 before_script: "./sbuild-wrapper --version"
 
 script: "./sbuild-wrapper all"
