@@ -1,3 +1,0 @@
-* Build files are pure scala files, but in default package, use SBuild DSL and have special annotations
-* A simple example without Ant
-
