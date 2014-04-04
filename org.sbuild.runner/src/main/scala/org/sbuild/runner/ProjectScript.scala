@@ -169,7 +169,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
         val bootstrapClass = readAnnoBootstrap(scriptEnv) match {
           case Some(bootstrapFile) =>
             log.debug("Found @bootstrap annotation. First load bootstrap script now")
-            val boot = loadScriptClass(Path.normalize(new File(bootstrapFile), baseDir = scriptEnv.baseDir), monitor, bootstrapRequest = scriptFile :: bootstrapRequest)
+            val boot = loadScriptClass(Path.normalize(new File(bootstrapFile), baseDir = scriptEnv.baseDir), monitor, bootstrapRequest = scriptEnv.scriptFile :: bootstrapRequest)
             log.debug("Bootstrap script loaded. Continuing loading script: " + scriptFile)
             boot
           case None =>
@@ -246,6 +246,18 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
   def checkScriptFile(scriptFile: File, bootstrapRequest: List[File]): ScriptEnv = {
     val file = Path.normalize(scriptFile)
 
+    lazy val addMsg = bootstrapRequest.map(reqFile => preparetr("It was requested by: {0}", reqFile.getPath))
+
+    bootstrapRequest.find(f => f == file).map { _ =>
+      val msg = preparetr("Cyclic bootstrap definition detected: {0}", scriptFile.getPath)
+      val ex = new ProjectConfigurationException(
+        msg.notr + addMsg.map(_.notr).mkString("\n", "\n", ""),
+        null,
+        msg.tr + addMsg.map(_.tr).mkString("\n", "\n", ""))
+      ex.buildScript = bootstrapRequest.reverse.headOption
+      throw ex
+    }
+
     if (!file.exists || !file.isFile) {
       if (bootstrapRequest.isEmpty) {
         val msg = preparetr("Project buildfile does not exists or is not a file: {0}", scriptFile)
@@ -254,7 +266,6 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
         throw ex
       } else {
         val msg = preparetr("A bootstrap resource does not exists or is not a file: {0}", scriptFile.getPath)
-        val addMsg = bootstrapRequest.map(reqFile => preparetr("It was requested by: {0}", reqFile.getPath))
         val ex = new ProjectConfigurationException(
           msg.notr + addMsg.map(_.notr).mkString("\n", "\n", ""),
           null,
