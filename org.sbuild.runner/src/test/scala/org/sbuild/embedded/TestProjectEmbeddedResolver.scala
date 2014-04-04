@@ -22,7 +22,7 @@ class TestProjectEmbeddedResolver extends FreeSpec {
       val writer = new FileWriter(projectFile)
       writer.write("// Dummy File")
       writer.close
-      val project: Project = new BuildFileProject(projectFile)
+      val project: Project = new BuildFileProject(projectFile, projectFile.getParentFile())
       val resolver = new ProjectEmbeddedResolver(project)
       val result = resolver.resolve("phony:test", new NullProgressMonitor())
       assert(result.isFailure)
@@ -41,7 +41,7 @@ class TestProjectEmbeddedResolver extends FreeSpec {
         // ensure, the target file does not exists
         new File(projectFile.getParentFile, "test").delete
 
-        val project: Project = new BuildFileProject(projectFile)
+        val project: Project = new BuildFileProject(projectFile, projectFile.getParentFile())
         val resolver = new ProjectEmbeddedResolver(project)
         val result = resolver.resolve("test", new NullProgressMonitor())
         assert(result.isFailure)
@@ -60,7 +60,7 @@ class TestProjectEmbeddedResolver extends FreeSpec {
         writer2.write("// Dummy test file")
         writer2.close
 
-        val project: Project = new BuildFileProject(projectFile)
+        val project: Project = new BuildFileProject(projectFile, projectFile.getParentFile())
         val resolver = new ProjectEmbeddedResolver(project)
         val result = resolver.resolve("test", new NullProgressMonitor())
         assert(result.isSuccess)

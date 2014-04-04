@@ -95,6 +95,8 @@ object SBuildVersion {
     }.execute
   }
 
+  Target("phony:jar") dependsOn jar
+
   Target(sourcesZip) dependsOn versionScalaFile ~ "scan:src/main" ~ "scan:target/generated-scala" ~ "scan:LICENSE.txt" exec { ctx: TargetContext =>
     AntZip(destFile = ctx.targetFile.get, fileSets = Seq(
       AntFileSet(dir = Path("src/main/scala")),

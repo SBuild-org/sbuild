@@ -10,11 +10,15 @@ import org.sbuild.ProjectConfigurationException
 import org.sbuild.Path
 
 case class Classpaths(
+    sbuildLibDir: Option[File] = None,
     sbuildClasspath: Array[String] = Array(),
     compileClasspath: Array[String] = Array(),
     projectCompileClasspath: Array[String] = Array(),
     projectRuntimeClasspath: Array[String] = Array(),
-    compilerPluginJars: Array[String] = Array()) {
+    compilerPluginJars: Array[String] = Array(),
+    projectBootstrapJars: Array[String] = Array(),
+    projectBootstrapClasspath: Array[String] = Array(),
+    projectBootstrapClass: String = "org.sbuild.runner.bootstrap.SBuildBootstrap") {
 
   def validate(): Boolean =
     (sbuildClasspath ++ compileClasspath ++ projectCompileClasspath ++ projectRuntimeClasspath ++ compilerPluginJars).
@@ -82,11 +86,14 @@ class ClasspathConfig {
     }
 
     _classpaths = Classpaths(
+      sbuildLibDir = Some(sbuildLibDir),
       sbuildClasspath = splitAndPrepend(properties.getProperty("sbuildClasspath")),
       compileClasspath = splitAndPrepend(properties.getProperty("compileClasspath")),
       projectCompileClasspath = splitAndPrepend(properties.getProperty("projectCompileClasspath")),
       projectRuntimeClasspath = splitAndPrepend(properties.getProperty("projectRuntimeClasspath")),
-      compilerPluginJars = splitAndPrepend(properties.getProperty("compilerPluginJar"))
+      compilerPluginJars = splitAndPrepend(properties.getProperty("compilerPluginJar")),
+      projectBootstrapJars = splitAndPrepend(properties.getProperty("projectBootstrapJars")),
+      projectBootstrapClasspath = splitAndPrepend(properties.getProperty("projectBootstrapClasspath"))
     )
   }
 

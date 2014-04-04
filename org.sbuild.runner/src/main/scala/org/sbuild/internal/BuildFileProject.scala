@@ -37,9 +37,10 @@ import scala.reflect.classTag
 import org.sbuild.CacheableSchemeResolver
 
 class BuildFileProject(_projectFile: File,
+                       _projectDir: File,
                        _projectReader: ProjectReader = null,
                        _projectPool: Option[ProjectPool] = None,
-                       typesToIncludedFilesProperties: Option[File] = None,
+                       typesToIncludedFilesProperties: Seq[File] = Seq(),
                        override val monitor: CmdlineMonitor = NoopCmdlineMonitor)
     extends Project
     with PluginAwareImpl {
@@ -51,10 +52,10 @@ class BuildFileProject(_projectFile: File,
   private val projectReader: Option[ProjectReader] = Option(_projectReader)
 
   override val projectFile: File = Path.normalize(_projectFile)
-  if (!projectFile.exists)
-    throw new ProjectConfigurationException("Project file '" + projectFile + "' does not exists")
+  //  if (!projectFile.exists)
+  //    throw new ProjectConfigurationException("Project file '" + projectFile + "' does not exists")
 
-  override val projectDirectory: File = projectFile.getParentFile
+  override val projectDirectory: File = Path.normalize(_projectDir)
 
   if (!projectDirectory.exists) {
     val msg = preparetr("Project directory \"{0}\" does not exists.", projectDirectory)
@@ -515,26 +516,6 @@ class BuildFileProject(_projectFile: File,
     schemeHandlers += ((scheme, handler))
   }
 
-//  // Default Scheme Handler
-//  {
-//    implicit val p = this
-//    SchemeHandler("http", new HttpSchemeHandler())
-//    SchemeHandler("mvn", new MvnSchemeHandler())
-//    import org.sbuild.plugin.unzip._
-//    Plugin[Zip]("zip")
-//    SchemeHandler("scan", new ScanSchemeHandler())
-//
-//    // Experimental
-//
-//    SchemeHandler("source", new MapperSchemeHandler(
-//      pathTranslators = Seq("mvn" -> { path => path + ";classifier=sources" })
-//    ))
-//    SchemeHandler("javadoc", new MapperSchemeHandler(
-//      pathTranslators = Seq("mvn" -> { path => path + ";classifier=javadoc" })
-//    ))
-//
-//  }
-
   private var _properties: Map[String, String] = Map()
   override protected[sbuild] def properties: Map[String, String] = _properties
   override def addProperty(key: String, value: String) = if (_properties.contains(key)) {
@@ -551,32 +532,55 @@ class BuildFileProject(_projectFile: File,
     getClass.getSimpleName + "(" + projectFile + ",targets=" + targets.map(_.name).mkString(",") + ")"
 
   // since 0.4.0.9002
-  lazy val typesToIncludedFilesMap: Map[String, File] = typesToIncludedFilesProperties match {
-    case Some(file) if file.exists() =>
-      val props = new Properties()
-      val inStream = new BufferedInputStream(new FileInputStream(file))
-      try {
-        import scala.collection.JavaConverters._
-        props.load(inStream)
-        props.entrySet().asScala.map(entry => (entry.getKey().asInstanceOf[String], new File(entry.getValue().asInstanceOf[String]))).toMap
-      } catch {
-        case e: Exception => Map()
-      } finally {
-        inStream.close()
-      }
+  lazy val typesToIncludedFilesMap: Seq[(String, File)] = {
+    log.debug("About to create mapping between types and files based on these properties files: " + typesToIncludedFilesProperties)
+    val map = typesToIncludedFilesProperties.map {
+      case file if file.exists() =>
+        val props = new Properties()
+        val inStream = new BufferedInputStream(new FileInputStream(file))
+        try {
+          import scala.collection.JavaConverters._
+          props.load(inStream)
+          val map = props.entrySet().asScala.map(entry => (entry.getKey().asInstanceOf[String], new File(entry.getValue().asInstanceOf[String]))).toSeq
+          map
+        } catch {
+          case e: Exception => Seq()
+        } finally {
+          inStream.close()
+        }
+      case file =>
+        log.error("Could not found properties file: " + file)
+        Seq()
+    }.reduceLeftOption { (l, r) =>
+      val map = l ++ r
+      map
+    }.getOrElse(Seq())
 
-    case None => Map()
+    log.debug("Types-to-IncludeFiles map (for project " + projectFile + "): " + map)
+    map.distinct
   }
 
   // since 0.4.0.9002
   def includeDirOf[T: ClassTag]: File = {
     val classTag = scala.reflect.classTag[T]
     val className = classTag.runtimeClass.getName()
-    typesToIncludedFilesMap.get(className) match {
-      case Some(file) if file.getParentFile() != null => file.getParentFile()
+    typesToIncludedFilesMap.collect { case (name, file) if name == className => file } match {
+      case files if files.isEmpty =>
+        val msg = preparetr("Could not determine the location of the (included/bootstrap) file which contains class \"{0}\".", className)
+        val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
+        ex.buildScript = Some(projectFile)
+        throw ex
+      case files if files.size > 1 =>
+        // anbiguous result
+        val msg = preparetr("Could not determine a unique location of the (included/bootstrap) file which contains class \"{0}\".", className)
+        val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
+        ex.buildScript = Some(projectFile)
+        throw ex
+      case Seq(file) if file.getParentFile() != null =>
+        file.getParentFile()
       case _ =>
-        val msg = marktr("Could not determine the location if the included file which contains class \"{0}\".")
-        val ex = new ProjectConfigurationException(notr(msg, className), null, tr(msg, className))
+        val msg = preparetr("Could not determine the location of the (included/bootstrap) file which contains class \"{0}\".", className)
+        val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
         ex.buildScript = Some(projectFile)
         throw ex
     }

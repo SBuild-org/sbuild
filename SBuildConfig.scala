@@ -30,7 +30,7 @@ object SBuildConfig {
   val logbackCore = "mvn:ch.qos.logback:logback-core:1.0.13"
   val logbackClassic = "mvn:ch.qos.logback:logback-classic:1.0.13"
 
-  def sbuildUnzipPlugin(implicit p: Project) = Path[SBuildConfig.type]("sbuild-unzip-plugin/org.sbuild.plugins.unzip").getPath + "::jar"
+  def sbuildUnzipPlugin(implicit p: Project) = Path[SBuildConfig.type]("sbuild-unzip-plugin/org.sbuild.plugins.unzip/target/org.sbuild.plugins.unzip-0.0.9000.jar")
 
 }
 

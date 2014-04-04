@@ -16,7 +16,8 @@ object TestSupport {
   }
 
   def createMainProject: Project = {
-    new BuildFileProject(createProjectFile)
+    val file = createProjectFile
+    new BuildFileProject(file, file.getParentFile())
   }
 
   def createMainProject(content: String): Project = {
@@ -25,7 +26,7 @@ object TestSupport {
     stream.print(content)
     stream.close()
 
-    new BuildFileProject(file)
+    new BuildFileProject(file, file.getParentFile())
   }
 
 }
