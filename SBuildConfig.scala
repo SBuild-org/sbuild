@@ -4,15 +4,15 @@ import de.tototec.sbuild.ant.tasks._
 
 object SBuildConfig {
 
-  def sbuildVersion = "0.7.2.9000"
+  def sbuildVersion = "0.7.9000"
   def sbuildOsgiVersion = sbuildVersion
 
   private val cmdOptionVersion = "0.3.2"
   val cmdOption = s"mvn:de.tototec:de.tototec.cmdoption:${cmdOptionVersion}"
   // def cmdOption = s"/home/lefou/work/tototec/cmdoption-trunk/de.tototec.cmdoption/target/de.tototec.cmdoption-${cmdOptionVersion}.jar"
 
-  private def jansiVersion = "1.11"
-  val jansi = s"mvn:org.fusesource.jansi:jansi:${jansiVersion}"
+  // http://jansi.fusesource.org/
+  val jansi = s"mvn:org.fusesource.jansi:jansi:1.11"
 
   def scalaVersion = "2.11.0-RC3"
   def scalaBinVersion = "2.11.0-RC3"
@@ -31,6 +31,8 @@ object SBuildConfig {
   val logbackCore = "mvn:ch.qos.logback:logback-core:1.0.13"
   val logbackClassic = "mvn:ch.qos.logback:logback-classic:1.0.13"
   val scalaTest = s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.1.2"
+
+  def sbuildUnzipPlugin(implicit p: Project) = Path[SBuildConfig.type]("sbuild-unzip-plugin/org.sbuild.plugins.unzip/target/org.sbuild.plugins.unzip-0.0.9000.jar")
 
 }
 

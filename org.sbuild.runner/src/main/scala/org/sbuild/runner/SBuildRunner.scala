@@ -37,6 +37,7 @@ import org.sbuild.Target
 import org.sbuild.TargetAware
 import org.sbuild.TargetNotFoundException
 import org.sbuild.TargetRef
+import org.sbuild.TargetRefs
 import org.sbuild.execute.InMemoryTransientTargetCache
 import org.sbuild.execute.LoggingTransientTargetCache
 import org.sbuild.execute.ParallelExecContext
@@ -374,7 +375,7 @@ class SBuildRunner {
     }
 
     // Now, that we loaded all projects, we can release some resources. 
-    ProjectScript.dropCaches
+    projectReader.close()
 
     (project, additionalProjects)
   }
@@ -576,7 +577,13 @@ class SBuildRunner {
           sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[0%]") + tr(" Executing..."))
           sbuildMonitor.info(CmdlineMonitor.Verbose, tr("Requested targets: ") + targets.map(_.formatRelativeToBaseProject).mkString(" ~ "))
 
-          val execResult = targets.map { target =>
+          val request = if (config.parallelRequest) {
+            implicit val p = project
+            val targetRefs = TargetRefs(targets.map(t => TargetRef(t)))
+            Seq(ParallelRequest(targetRefs))
+          } else targets
+
+          val execResult = request.map { target =>
             targetExecutor.preorderedDependenciesTree(
               target,
               execProgress = execProgress,
@@ -640,21 +647,14 @@ class SBuildRunner {
   import org.fusesource.jansi.Ansi._
   import org.fusesource.jansi.Ansi.Color._
 
-  // It seems, under windows bright colors are not displayed correctly
   val isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 
-  def fPercent(text: => String) =
-    if (isWindows) ansi.fg(CYAN).a(text).reset
-    else ansi.fgBright(CYAN).a(text).reset
-  def fTarget(text: => String) = ansi.fg(GREEN).a(text).reset
-  def fMainTarget(text: => String) = ansi.fg(GREEN).bold.a(text).reset
-  def fOk(text: => String) = ansi.fgBright(GREEN).a(text).reset
-  def fError(text: => String) =
-    if (isWindows) ansi.fg(RED).a(text).reset
-    else ansi.fgBright(RED).a(text).reset
-  def fErrorEmph(text: => String) =
-    if (isWindows) ansi.fg(RED).bold.a(text).reset
-    else ansi.fgBright(RED).bold.a(text).reset
+  private def fPercent(text: => String) = ansi.fg(CYAN).a(text).reset
+  private def fTarget(text: => String) = ansi.fg(GREEN).a(text).reset
+  private def fMainTarget(text: => String) = ansi.fg(GREEN).bold.a(text).reset
+  private def fOk(text: => String) = ansi.fgBright(GREEN).a(text).reset
+  private def fError(text: => String) = ansi.fg(RED).a(text).reset
+  private def fErrorEmph(text: => String) = ansi.fg(RED).bold.a(text).reset
 
   def readConsoleColumns(): Option[Int] =
     if (!new File("/dev/tty").exists()) {

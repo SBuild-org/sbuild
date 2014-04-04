@@ -11,6 +11,7 @@ import java.io.File
 import org.sbuild.Project
 import scala.util.Try
 import scala.util.Success
+import java.util.concurrent.ConcurrentHashMap
 
 object LoadablePluginInfo {
   case class PluginClasses(instanceClass: String, factoryClass: String, version: String) {
@@ -146,28 +147,35 @@ object PluginClassLoader {
   }
 }
 
-class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree], parent: ClassLoader)
+class PluginClassLoader(pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree], parent: ClassLoader)
     extends URLClassLoader(pluginInfo.urls.toArray, parent) {
 
   import PluginClassLoader._
 
-  //  ClassLoader.registerAsParallelCapable()
+  //  if (ParallelClassLoader.isJava7) {
+  //    ClassLoader.registerAsParallelCapable()
+  //  }
+
+  //  private[this] val classLockMap = new ConcurrentHashMap[String, Any]
+  //
+  //  protected def getClassLock(className: String): AnyRef =
+  //    ParallelClassLoader.withJava7 { () => getClassLoadingLock(className) }.getOrElse {
+  //      val newLock = new Object()
+  //      classLockMap.putIfAbsent(className, newLock) match {
+  //        case null => newLock
+  //        case lock => lock.asInstanceOf[AnyRef]
+  //      }
+  //    }
 
   private[this] val log = Logger[PluginClassLoader]
 
   log.debug(s"Init PluginClassLoader (id: ${System.identityHashCode(this)}) for ${pluginInfo.urls}")
 
   val pluginClassLoaders: Seq[PluginClassLoader] = childTrees.collect {
-    case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(project, cpTree.pluginInfo.get, cpTree.childs, this)
+    case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(cpTree.pluginInfo.get, cpTree.childs, this)
   }
 
-  // register found plugin classes
-  pluginInfo.pluginClasses.map {
-    case LoadablePluginInfo.PluginClasses(instanceClassName, factoryClassName, version) =>
-      project.registerPlugin(instanceClassName, factoryClassName, version, this)
-  }
-
-  def loadPluginClass(className: String): Class[_] = { // getClassLoadingLock(className).synchronized {
+  def loadPluginClass(className: String): Class[_] = { // }getClassLock(className).synchronized {
     val loadable = if (InnerRequestGuard.isInner(this, className)) true else pluginInfo.checkClassNameInExported(className)
 
     // First, check if the class has already been loaded
@@ -210,4 +218,12 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
     "(pluginInfo=" + pluginInfo +
     ",parent=" + parent + ")"
 
+  def registerToProject(project: Project): Unit = {
+    pluginClassLoaders.foreach(_.registerToProject(project))
+    // register found plugin classes
+    pluginInfo.pluginClasses.map {
+      case LoadablePluginInfo.PluginClasses(instanceClassName, factoryClassName, version) =>
+        project.registerPlugin(instanceClassName, factoryClassName, version, this)
+    }
+  }
 }

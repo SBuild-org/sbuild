@@ -5,16 +5,11 @@ jdk:
   - openjdk7
 
 env:
-  matrix:
-    - SBUILD_VERSION=0.6.0 SBUILD_DIST=http://sbuild.tototec.de/sbuild/attachments/download/75/sbuild-0.6.0-dist.zip
-    - SBUILD_VERSION=0.7.0 SBUILD_DIST=http://sbuild.tototec.de/sbuild/attachments/download/82/sbuild-0.7.0-dist.zip
-    - SBUILD_VERSION=0.7.1 SBUILD_DIST=http://sbuild.tototec.de/sbuild/attachments/download/87/sbuild-0.7.1-dist.zip
-
-install: "sudo apt-get install asciidoc"
+  - SBUILD_VERSION=0.7.1
 
 before_script: "./sbuild-wrapper --version"
 
-script: "./sbuild-wrapper --jobs 4 all"
+script: "./sbuild-wrapper all"
 
 notifications:
   irc: "irc.freenode.org#sbuild"

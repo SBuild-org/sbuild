@@ -12,8 +12,9 @@ class SBuild(implicit _project: Project) {
     "org.sbuild.scriptcompiler",
     "org.sbuild.compilerplugin",
     "org.sbuild.experimental",
-    "doc",
-    "sbuild-dist"
+    "sbuild-dist",
+    "sbuild-unzip-plugin/org.sbuild.plugins.unzip",
+    "org.sbuild.runner.bootstrap"
   )
 
   Target("phony:clean") dependsOn modules.map(m => m("clean"))

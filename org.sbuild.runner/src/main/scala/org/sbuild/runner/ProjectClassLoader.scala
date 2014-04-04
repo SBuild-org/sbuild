@@ -6,6 +6,7 @@ import scala.util.Success
 import scala.util.Try
 import org.sbuild.Logger
 import org.sbuild.Project
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * This classloader first tried to load all classes from the given parent classloader or the classpathUrls.
@@ -13,17 +14,30 @@ import org.sbuild.Project
  * but it will only load those classes which are exported by that plugin. [[org.sbuild.Constants.SBuildPluginExportPackage]]
  *
  */
-class ProjectClassLoader(project: Project, classpathUrls: Seq[URL], parent: ClassLoader, classpathTrees: Seq[CpTree])
+class ProjectClassLoader(classpathUrls: Seq[URL], parent: ClassLoader, classpathTrees: Seq[CpTree])
     extends URLClassLoader(classpathUrls.toArray, parent) {
   //  private[this] val log = Logger[ProjectClassLoader]
 
-  //  ClassLoader.registerAsParallelCapable()
-
-  val pluginClassLoaders: Seq[PluginClassLoader] = classpathTrees.collect {
-    case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(project, cpTree.pluginInfo.get, cpTree.childs, this)
+  if (ParallelClassLoader.isJava7) {
+    ClassLoader.registerAsParallelCapable()
   }
 
-  override protected def loadClass(className: String, resolve: Boolean): Class[_] = { // getClassLoadingLock(className).synchronized {
+  private[this] val classLockMap = new ConcurrentHashMap[String, Any]
+
+  protected def getClassLock(className: String): AnyRef =
+    ParallelClassLoader.withJava7 { () => getClassLoadingLock(className) }.getOrElse {
+      val newLock = new Object()
+      classLockMap.putIfAbsent(className, newLock) match {
+        case null => newLock
+        case lock => lock.asInstanceOf[AnyRef]
+      }
+    }
+
+  val pluginClassLoaders: Seq[PluginClassLoader] = classpathTrees.collect {
+    case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(cpTree.pluginInfo.get, cpTree.childs, this)
+  }
+
+  override protected def loadClass(className: String, resolve: Boolean): Class[_] = getClassLock(className).synchronized {
     try {
       super.loadClass(className, resolve)
     } catch {
@@ -43,12 +57,14 @@ class ProjectClassLoader(project: Project, classpathUrls: Seq[URL], parent: Clas
   }
 
   override def toString: String = getClass.getSimpleName +
-    "(project=" + project +
-    //    ",classpathUrls=" + classpathUrls.mkString("[", ",", "]") +
+    //    "(project=" + projectScript +
+    "(classpathUrls=" + classpathUrls.mkString("[", ",", "]") +
     ",parent=" + parent +
-    //    ",pluginInfos=" + classpathTrees.mkString("[", ",", "]") +
+    ",pluginInfos=" + classpathTrees.map(cpTree => cpTree.pluginInfo).mkString("[", ",", "]") +
     ")"
 
   private[this] val end = System.currentTimeMillis
+
+  def registerToProject(project: Project): Unit = pluginClassLoaders.foreach(_.registerToProject(project))
 }
 

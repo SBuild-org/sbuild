@@ -12,8 +12,6 @@ class SBuild(implicit _project: Project) {
   val jar = s"target/${namespace}-${SBuildConfig.sbuildVersion}.jar"
   val sourcesZip = s"target/${namespace}-${SBuildConfig.sbuildVersion}-sources.jar"
 
-  val testJar = s"target/${namespace}-${SBuildConfig.sbuildVersion}-tests.jar"
-
   val compileCp =
     SBuildConfig.scalaLibrary ~
       SBuildConfig.jansi ~
@@ -83,7 +81,8 @@ object SBuildVersion {
         classpath = compileCp.files,
         source = "1.6",
         target = "1.6",
-        debugInfo = "all"
+        debugInfo = "all",
+        fork = true
       )
     }
 
@@ -97,9 +96,7 @@ object SBuildVersion {
     }.execute
   }
 
-  Target(testJar) dependsOn "testCompile" ~ "scan:target/test-classes" exec { ctx: TargetContext =>
-    AntJar(destFile = ctx.targetFile.get, baseDir = Path("target/test-classes"))
-  }
+  Target("phony:jar") dependsOn jar
 
   Target(sourcesZip) dependsOn versionScalaFile ~ "scan:src/main" ~ "scan:target/generated-scala" ~ "scan:LICENSE.txt" exec { ctx: TargetContext =>
     AntZip(destFile = ctx.targetFile.get, fileSets = Seq(
@@ -137,7 +134,7 @@ object SBuildVersion {
       classpath = testCp.files ++ jar.files,
       arguments = Array("org.scalatest.tools.Runner", "-p", Path("target/test-classes").getPath, "-oG", "-u", Path("target/test-output").getPath)
     )
-    if(res != 0) throw new RuntimeException("Some tests failed.")
+    if (res != 0) throw new RuntimeException("Some tests failed.")
   }
 
   Target("phony:scaladoc").cacheable dependsOn SBuildConfig.compilerPath ~ compileCp ~ "scan:src/main/scala" ~ versionScalaFile exec {

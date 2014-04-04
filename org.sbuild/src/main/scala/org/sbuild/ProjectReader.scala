@@ -10,4 +10,6 @@ trait ProjectReader {
    *
    */
   def readAndCreateProject(projectFile: File, properties: Map[String, String], projectPool: Option[ProjectPool], monitor: Option[CmdlineMonitor]): Project
+  
+  def close()
 }

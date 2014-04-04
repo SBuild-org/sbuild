@@ -1,8 +1,46 @@
 SBuild {master}:
 
-* Fixed console output of phony targets.
 * Renamed all packages and release artifacts from "de.tototec.sbuild" to
   "org.sbuild".
+
+SBuild API
+
+* Moven non-API classes into other projects.
+* Moved HttpSchemeHandler into plugin.
+* Moved MvnSchemeHandler into plugin.
+* Moved ZipSchemeHandler into plugin.
+
+SBuild Runner
+
+* Added new cmdline option --parallel-request, to run all targets requested on
+  cmdline in parallel.
+
+SBuild 0.7.5 - 2014-04-04:
+
+* Disabled parallel classloading in plugin classloader. This effectivly speeds
+  up initialization time and avoids some not that well understood linkage
+  errors.
+* Removed doc submodule. Documentation of SBuild is in project
+  https://github.com/SBuild-org/site-sbuild-org.
+
+SBuild 0.7.4 - 2014-03-20:
+
+SBuild Runner
+
+* Re-enabled parallel loading of classes in project class loader which should
+  finally fix the deadlock issue introduced with 0.7.2. With this fix, SBuild
+  requires Java 7 to build, but at runtime Java 6 should be sufficient.
+
+
+SBuild 0.7.3 - 2014-03-18:
+
+SBuild Runner
+
+* Fixed a sporadically deadlock when running parallel jobs introduced in
+  0.7.2.
+* Fixed output of names for phony targets.
+* Output of `--help` now uses the full terminal width but falls back to 80
+  columns if the width can not be evaluated.
 
 SBuild 0.7.2 - 2014-03-06:
 
