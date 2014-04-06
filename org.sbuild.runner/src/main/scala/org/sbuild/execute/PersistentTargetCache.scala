@@ -4,16 +4,15 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 import java.security.MessageDigest
-
 import scala.io.Source
 import scala.util.Try
-
 import org.sbuild.Logger
 import org.sbuild.Path
 import org.sbuild.Project
 import org.sbuild.RichFile
 import org.sbuild.TargetContext
 import org.sbuild.TargetContextImpl
+import org.sbuild.internal.Md5
 
 class PersistentTargetCache {
 
@@ -25,10 +24,7 @@ class PersistentTargetCache {
     Path(".sbuild/scala/" + project.projectFile.getName + "/cache")(project)
 
   def cacheStateFile(project: Project, cacheName: String): File = {
-    val md = MessageDigest.getInstance("MD5")
-    val digestBytes = md.digest(cacheName.replaceFirst("^phony:", "").getBytes())
-    val md5 = digestBytes.foldLeft("") { (string, byte) => string + Integer.toString((byte & 0xff) + 0x100, 16).substring(1) }
-
+    val md5 = Md5.md5sum(cacheName.replaceFirst("^phony:", ""))
     new File(cacheStateDir(project), md5)
   }
 
