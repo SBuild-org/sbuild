@@ -152,6 +152,8 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
     def toCompactString = s"${instanceClassName}=${factoryClassName};version=${version}"
 
+    lazy val osgiVersion = OSGiVersion.parseVersion(version)
+
   }
 
   private[this] val log = Logger[PluginAwareImpl]
@@ -185,8 +187,8 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
           case dep @ PluginDependency.Basic(pluginClass) =>
             dep -> _plugins.find(rp => rp.instanceClass == pluginClass)
           case dep @ PluginDependency.Versioned(pluginClass, version) =>
-            // TODO: also check the version range
-            dep -> _plugins.find(rp => rp.instanceClass == pluginClass)
+            val range = OSGiVersionRange.parseVersionOrRange(version)
+            dep -> _plugins.find(rp => rp.instanceClass == pluginClass && range.includes(rp.osgiVersion))
         }
         val (missingDeps, resolvedDeps) = foundDeps.partition { case (_, rp) => rp.isEmpty }
         if (!missingDeps.isEmpty) {
