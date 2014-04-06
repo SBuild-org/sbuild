@@ -113,6 +113,15 @@ object OSGiVersionRange {
     }
   }
 
+  def parseVersionOrRange(versionOrRange: String): OSGiVersionRange = {
+    versionOrRange.trim.take(1) match {
+      case LeftOpenDelimiter | LeftClosedDelimiter => parseVersionRange(versionOrRange)
+      case _ =>
+        val version = parseVersion(versionOrRange, versionOrRange)
+        new OSGiVersionRange(true, version, null, false)
+    }
+  }
+
 }
 
 /**
