@@ -24,6 +24,16 @@ object PluginAwareImplTest {
     override def dependsOn: Seq[PluginDependency] = Seq(classOf[P1])
   }
 
+  class P2DependsOnP1Plugin_above_1_0_0() extends StubPlugin[P2DependsOnP1](P2DependsOnP1()) with PluginWithDependencies {
+    override def dependsOn: Seq[PluginDependency] = Seq(PluginDependency.Versioned(pluginClass = classOf[P1], version = "1.0.0"))
+  }
+  class P2DependsOnP1Plugin_below_1_0_0() extends StubPlugin[P2DependsOnP1](P2DependsOnP1()) with PluginWithDependencies {
+    override def dependsOn: Seq[PluginDependency] = Seq(PluginDependency.Versioned(pluginClass = classOf[P1], version = "[0.6,1.0.0)"))
+  }
+  class P2DependsOnP1Plugin_above_1_2_0() extends StubPlugin[P2DependsOnP1](P2DependsOnP1()) with PluginWithDependencies {
+    override def dependsOn: Seq[PluginDependency] = Seq(PluginDependency.Versioned(pluginClass = classOf[P1], version = "1.2.0"))
+  }
+
 }
 
 class PluginAwareImplTest extends FreeSpec {
@@ -68,9 +78,37 @@ class PluginAwareImplTest extends FreeSpec {
       }
     }
 
-    "Plugin P2 depends on Plugin P1 with to low version will fail" in pending
+    "Plugin P3 depends on Plugin P1 with matching version" in {
+      implicit val p = TestSupport.createMainProject
+      val pluginProject = p.asInstanceOf[PluginAwareImpl]
+      pluginProject.registerPlugin(classOf[P1].getName, classOf[P1Plugin].getName, "1.0.0", classOf[P1].getClassLoader)
+      pluginProject.registerPlugin(classOf[P2DependsOnP1].getName, classOf[P2DependsOnP1Plugin_above_1_0_0].getName, "1.0.0", classOf[P2DependsOnP1].getClassLoader)
 
-    "Plugin P2 depends on Plugin P1 with to high version will fail" in pending
+      Plugin[P2DependsOnP1]
+    }
+
+    "Plugin P2 depends on Plugin P1 with to low version will fail" in {
+      implicit val p = TestSupport.createMainProject
+      val pluginProject = p.asInstanceOf[PluginAwareImpl]
+      pluginProject.registerPlugin(classOf[P1].getName, classOf[P1Plugin].getName, "1.0.0", classOf[P1].getClassLoader)
+      pluginProject.registerPlugin(classOf[P2DependsOnP1].getName, classOf[P2DependsOnP1Plugin_below_1_0_0].getName, "1.0.0", classOf[P2DependsOnP1].getClassLoader)
+
+      intercept[ProjectConfigurationException] {
+        Plugin[P2DependsOnP1]
+      }
+    }
+
+    "Plugin P2 depends on Plugin P1 with to high version will fail" in {
+      implicit val p = TestSupport.createMainProject
+      val pluginProject = p.asInstanceOf[PluginAwareImpl]
+      pluginProject.registerPlugin(classOf[P1].getName, classOf[P1Plugin].getName, "1.0.0", classOf[P1].getClassLoader)
+      pluginProject.registerPlugin(classOf[P2DependsOnP1].getName, classOf[P2DependsOnP1Plugin_above_1_2_0].getName, "1.0.0", classOf[P2DependsOnP1].getClassLoader)
+
+      intercept[ProjectConfigurationException] {
+        Plugin[P2DependsOnP1]
+      }
+
+    }
 
   }
 
