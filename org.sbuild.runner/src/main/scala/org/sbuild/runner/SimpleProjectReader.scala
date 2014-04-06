@@ -16,6 +16,7 @@ import org.sbuild.internal.Bootstrapper
 import org.sbuild.internal.PluginAwareImpl
 import org.sbuild.SBuildVersion
 import org.sbuild.RichFile
+import org.sbuild.toRichFile
 import org.sbuild.Path
 import org.sbuild.internal.SBuildSchemeHandler
 
@@ -66,7 +67,9 @@ class SimpleProjectReader(
       {
         implicit val p = project
         val projectLastModifiedTime = script.scriptEnv.map(_.infoFile.lastModified()).getOrElse(System.currentTimeMillis())
-        SchemeHandler("sbuild", new SBuildSchemeHandler(projectLastModifiedTime))
+        val sbuildWorkDir = script.scriptEnv.map(_.sbuildWorkDir).getOrElse(project.projectDirectory / ".sbuild")
+
+        SchemeHandler("sbuild", new SBuildSchemeHandler(projectLastModifiedTime, sbuildWorkDir / "sbuild"))
       }
 
       script.applyToProject(project)
