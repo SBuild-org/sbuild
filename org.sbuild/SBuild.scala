@@ -43,44 +43,17 @@ object SBuildVersion {
 """)
   }
 
-  def validateGeneratedVersions(deps: Seq[java.io.File]) {
-    // validate versions
-    val cl = new java.net.URLClassLoader(
-      (Seq(Path("target/classes").toURI.toURL) ++ deps.map(_.toURI.toURL)).toArray,
-      null)
-    val versionClass = cl.loadClass(s"${namespace}.SBuildVersion")
-    val readVersion = versionClass.getMethod("version").invoke(null)
-    val readOsgiVersion = versionClass.getMethod("osgiVersion").invoke(null)
-    if (readVersion != SBuildConfig.sbuildVersion || readOsgiVersion != SBuildConfig.sbuildOsgiVersion) {
-      throw new Exception(s"Versions in SBuildVersion class do not match current values! read version: ${readVersion} , read osgiVersion: ${readOsgiVersion}")
-    } else {
-      AntEcho(message = "Versions match")
-    }
-  }
-
   Target("phony:compile").cacheable dependsOn SBuildConfig.compilerPath ~ compileCp ~ versionScalaFile ~
-    "scan:src/main/scala;regex=.+\\.scala" ~ "scan:src/main/java;regex=.+\\.java" exec {
+    "scan:src/main/scala;regex=.+\\.scala" exec {
 
       val output = "target/classes"
 
-      // compile scala files
       addons.scala.Scalac(
         compilerClasspath = SBuildConfig.compilerPath.files,
         classpath = compileCp.files,
-        sources = "scan:src/main/scala;regex=.+\\.scala".files ++ "scan:src/main/java;regex=.+\\.java".files ++ versionScalaFile.files,
+        sources = "scan:src/main/scala;regex=.+\\.scala".files ++ versionScalaFile.files,
         destDir = Path(output),
         unchecked = true, deprecation = true, debugInfo = "vars",
-        fork = true
-      )
-
-      // compile java files
-      addons.java.Javac(
-        sources = "scan:src/main/java;regex=.+\\.java".files,
-        destDir = Path(output),
-        classpath = compileCp.files,
-        source = "1.6",
-        target = "1.6",
-        debugInfo = "all",
         fork = true
       )
     }
@@ -100,7 +73,6 @@ object SBuildVersion {
   Target(sourcesZip) dependsOn versionScalaFile ~ "scan:src/main" ~ "scan:target/generated-scala" ~ "scan:LICENSE.txt" exec { ctx: TargetContext =>
     AntZip(destFile = ctx.targetFile.get, fileSets = Seq(
       AntFileSet(dir = Path("src/main/scala")),
-      AntFileSet(dir = Path("src/main/java")),
       AntFileSet(dir = Path("src/main/po")),
       // AntFileSet(dir = Path("src/main/resources")),
       AntFileSet(dir = Path("target/generated-scala")),
