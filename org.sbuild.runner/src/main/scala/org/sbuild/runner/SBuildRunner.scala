@@ -306,7 +306,7 @@ class SBuildRunner {
   }
 
   // TODO: If we catch an exceptiona and know, that an older minimal SBuild version was requested (with @version) we could print a list of incompatible changes to the user. 
-  def exceptionHandler(rethrowInVerboseMode: Boolean): PartialFunction[Throwable, Int] = {
+  private[this] def exceptionHandler(rethrowInVerboseMode: Boolean): PartialFunction[Throwable, Int] = {
     case e: CmdlineParserException =>
       errorOutput(e, tr("SBuild commandline was invalid. Please use --help for supported commandline options."))
       log.error("", e)

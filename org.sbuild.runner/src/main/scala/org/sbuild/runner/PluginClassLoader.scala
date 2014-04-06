@@ -1,129 +1,13 @@
 package org.sbuild.runner
 
-import java.util.jar.JarInputStream
 import java.net.URLClassLoader
-import java.net.URL
-import org.sbuild.Logger
-import org.sbuild.Constants
-import org.sbuild.ProjectConfigurationException
-import org.sbuild.SBuildException
-import java.io.File
-import org.sbuild.Project
-import scala.util.Try
+
 import scala.util.Success
-import java.util.concurrent.ConcurrentHashMap
+import scala.util.Try
 
-object LoadablePluginInfo {
-  case class PluginClasses(instanceClass: String, factoryClass: String, version: String) {
-    def name: String = s"${instanceClass}-${version}"
-  }
-}
-
-class LoadablePluginInfo(val files: Seq[File], raw: Boolean) {
-
-  import LoadablePluginInfo._
-
-  private[this] val log = Logger[LoadablePluginInfo]
-
-  lazy val urls: Seq[URL] = files.map(_.toURI().toURL())
-
-  val (
-    exportedPackages: Option[Seq[String]],
-    dependencies: Seq[String],
-    // (instanceClassName, factoryClassName, version)
-    pluginClasses: Seq[PluginClasses],
-    sbuildVersion: Option[String]
-    ) = if (raw || files.isEmpty) (None, Seq(), Seq(), None) else {
-
-    // TODO: Support more than one url, see also https://github.com/SBuild-org/sbuild/issues/175
-    val manifest = Option(new JarInputStream(urls.head.openStream()).getManifest())
-
-    val exportedPackages: Option[Seq[String]] = manifest.flatMap { m =>
-      m.getMainAttributes().getValue(Constants.ManifestSBuildExportPackage) match {
-        case null => None
-        //      log.warn("Plugin does not define Manifest Entry " + Constants.SBuildPluginExportPackage)
-        //      Seq()
-        case v => Some(v.split(",").map(_.trim))
-      }
-    }
-
-    val dependencies: Seq[String] = manifest.toSeq.flatMap { m =>
-      m.getMainAttributes().getValue(Constants.ManifestSBuildClasspath) match {
-        case null => Seq()
-        case c =>
-          // TODO, support more featureful splitter, because we want to support the whole schemes
-          c.split(",").toSeq.map(_.trim)
-      }
-    }
-
-    val pluginClasses: Seq[PluginClasses] = manifest.toSeq.flatMap { m =>
-      m.getMainAttributes().getValue(Constants.ManifestSBuildPlugin) match {
-        case null => Seq()
-        case p =>
-          p.split(",").toSeq.map { entry =>
-            entry.split("=", 2) match {
-              case Array(instanceClassName, factoryClassNameAndVersoin) =>
-                val fnv = factoryClassNameAndVersoin.split(";version=", 2)
-                val factoryClassName = fnv(0)
-                val version =
-                  if (fnv.size == 1) "0.0.0"
-                  else {
-                    val versionString = fnv(1).trim
-                    if (versionString.startsWith("\"") && versionString.endsWith("\"")) {
-                      versionString.substring(1, versionString.size - 1)
-                    } else versionString
-                  }
-                PluginClasses(instanceClassName.trim, factoryClassName.trim, version)
-              case _ =>
-                // FIXME: Change exception to new plugin exception
-                val ex = new ProjectConfigurationException("Invalid plugin entry: " + entry)
-                throw ex
-            }
-          }
-      }
-
-    }
-
-    val sbuildVersion = manifest.flatMap { m =>
-      m.getMainAttributes().getValue(Constants.ManifestSBuildVersion) match {
-        case null => None
-        case v => Some(v.trim)
-      }
-    }
-
-    (exportedPackages, dependencies, pluginClasses, sbuildVersion)
-  }
-
-  def checkClassNameInExported(className: String): Boolean = exportedPackages match {
-    case None => true
-    case Some(ep) =>
-      val parts = className.split("\\.").toList.reverse
-
-      def removeNonPackageParts(parts: List[String]): List[String] = parts match {
-        case cn :: p if (cn.headOption.filter(_.isLower).isEmpty) => removeNonPackageParts(p)
-        case p => p
-      }
-      val packageName = removeNonPackageParts(parts.tail).reverse.mkString(".")
-      ep.toIterator.map { export =>
-        def matches(packageName: String): Boolean = (export == packageName ||
-          (export.endsWith(".*") && packageName.startsWith(export.substring(0, export.length - 2))) ||
-          (export.endsWith("*") && packageName.startsWith(export.substring(0, export.length - 1))))
-
-        if (matches(packageName)) Some(true)
-        else if (matches("!" + packageName)) Some(false)
-        else None
-      }.find(_.isDefined) match {
-        case Some(Some(exported)) => exported
-        case _ => false
-      }
-  }
-
-  override def toString() = getClass.getSimpleName +
-    "(files=" + files +
-    ",raw=" + raw +
-    ")"
-
-}
+import org.sbuild.Constants
+import org.sbuild.Logger
+import org.sbuild.Project
 
 object PluginClassLoader {
   private object InnerRequestGuard {
@@ -152,30 +36,24 @@ class PluginClassLoader(pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree],
 
   import PluginClassLoader._
 
-  //  if (ParallelClassLoader.isJava7) {
-  //    ClassLoader.registerAsParallelCapable()
-  //  }
-
-  //  private[this] val classLockMap = new ConcurrentHashMap[String, Any]
-  //
-  //  protected def getClassLock(className: String): AnyRef =
-  //    ParallelClassLoader.withJava7 { () => getClassLoadingLock(className) }.getOrElse {
-  //      val newLock = new Object()
-  //      classLockMap.putIfAbsent(className, newLock) match {
-  //        case null => newLock
-  //        case lock => lock.asInstanceOf[AnyRef]
-  //      }
-  //    }
-
   private[this] val log = Logger[PluginClassLoader]
 
   log.debug(s"Init PluginClassLoader (id: ${System.identityHashCode(this)}) for ${pluginInfo.urls}")
 
+  /**
+   * The child plugin classloaders controlled by this classloader.
+   */
   val pluginClassLoaders: Seq[PluginClassLoader] = childTrees.collect {
     case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(cpTree.pluginInfo.get, cpTree.childs, this)
   }
 
-  def loadPluginClass(className: String): Class[_] = { // }getClassLock(className).synchronized {
+  /**
+   * Load the given class from this classloader.
+   * If the loading request was initiated by this classloader itself, no extra restrictions are in place,
+   * but if the request was not initially made by this classloader,
+   * then only those classes can be loaded, which belong to the set of exported packages,
+   */
+  def loadPluginClass(className: String): Class[_] = {
     val loadable = if (InnerRequestGuard.isInner(this, className)) true else pluginInfo.checkClassNameInExported(className)
 
     // First, check if the class has already been loaded
@@ -207,6 +85,9 @@ class PluginClassLoader(pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree],
 
   }
 
+  /**
+   * Load the given class by delegating to the parent classloader.
+   */
   override protected def loadClass(className: String, resolve: Boolean): Class[_] = {
     InnerRequestGuard.within(this, className) {
       // All call from child and this will see all classes.
@@ -218,6 +99,9 @@ class PluginClassLoader(pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree],
     "(pluginInfo=" + pluginInfo +
     ",parent=" + parent + ")"
 
+  /**
+   * register the found plugins to the given project.
+   */
   def registerToProject(project: Project): Unit = {
     pluginClassLoaders.foreach(_.registerToProject(project))
     // register found plugin classes
