@@ -6,6 +6,7 @@ jdk:
 
 env:
   - SBUILD_VERSION=0.7.1
+  - SBUILD_VERSION=0.7.5
 
 before_script: "./sbuild-wrapper --version"
 
