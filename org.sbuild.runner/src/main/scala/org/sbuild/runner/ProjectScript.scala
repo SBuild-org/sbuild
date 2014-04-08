@@ -85,6 +85,11 @@ object ProjectScript {
 
 }
 
+/**
+ * This class provides various service methods to compile and loaded SBuild project buildfiles.
+ * It encapsulates th elogic required to resolve dependencies of the buildfile,
+ * check for up-to-dateness, load bootstrap projects and invoke the scalac compiler.
+ */
 class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boolean) {
   import ProjectScript._
 

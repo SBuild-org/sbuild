@@ -3,9 +3,22 @@ package org.sbuild.runner
 import scala.annotation.tailrec
 import java.text.ParseException
 
-class AnnotationReader {
+object AnnotationReader {
 
   case class SingleVarArgAnnotation(annoName: String, paramName: String, values: Array[String])
+
+}
+
+/**
+ * This class provides convenience methods to find annotations in scala source code files.
+ * The implementation is rather dumb and do not use a complete Scala-systax aware parser.
+ * The main goal when this class was developed was, to fast find some top-level simple annotation
+ * before any scala runtime is appropriatly configured to load or compile the source file.
+ * Having that in mind, if you find cases where this class does not work appropriatly (in the sence of SBuild buildfiles),
+ * this implementation should be improved, of course.
+ */
+class AnnotationReader {
+  import AnnotationReader._
 
   def cutSimpleComment(str: String): String = {
     var index = str.indexOf("//")
