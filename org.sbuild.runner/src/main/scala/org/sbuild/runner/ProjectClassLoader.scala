@@ -63,8 +63,11 @@ class ProjectClassLoader(classpathUrls: Seq[URL], parent: ClassLoader, classpath
     ",pluginInfos=" + classpathTrees.map(cpTree => cpTree.pluginInfo).mkString("[", ",", "]") +
     ")"
 
-  private[this] val end = System.currentTimeMillis
+  //  private[this] val end = System.currentTimeMillis
 
+  /**
+   * Register the found plugins to the given project.
+   */
   def registerToProject(project: Project): Unit = pluginClassLoaders.foreach(_.registerToProject(project))
 }
 
