@@ -12,4 +12,4 @@ env:
 
 before_script: "./sbuild-wrapper --version"
 
-script: "./sbuild-twice.sh all"
+script: "./sbuild-twice.sh clean all"
