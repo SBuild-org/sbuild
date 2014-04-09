@@ -10,8 +10,6 @@ env:
     - SBUILD_VERSION=0.7.1
     - SBUILD_VERSION=0.7.5
 
-install: "sudo apt-get install asciidoc"
-
 before_script: "./sbuild-wrapper --version"
 
 script: "./sbuild-twice.sh all"
