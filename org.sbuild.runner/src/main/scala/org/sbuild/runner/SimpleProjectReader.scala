@@ -16,7 +16,9 @@ import org.sbuild.internal.Bootstrapper
 import org.sbuild.internal.PluginAwareImpl
 import org.sbuild.SBuildVersion
 import org.sbuild.RichFile
+import org.sbuild.toRichFile
 import org.sbuild.Path
+import org.sbuild.internal.SBuildSchemeHandler
 
 class SimpleProjectReader(
   classpathConfig: ClasspathConfig,
@@ -60,6 +62,14 @@ class SimpleProjectReader(
       }
       properties.foreach {
         case (key, value) => project.addProperty(key, value)
+      }
+
+      {
+        implicit val p = project
+        val projectLastModifiedTime = script.scriptEnv.map(_.infoFile.lastModified()).getOrElse(System.currentTimeMillis())
+        val sbuildWorkDir = script.scriptEnv.map(_.sbuildWorkDir).getOrElse(project.projectDirectory / ".sbuild")
+
+        SchemeHandler("sbuild", new SBuildSchemeHandler(projectLastModifiedTime, sbuildWorkDir / "sbuild"))
       }
 
       script.applyToProject(project)
