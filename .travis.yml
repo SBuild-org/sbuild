@@ -14,7 +14,4 @@ install: "sudo apt-get install asciidoc"
 
 before_script: "./sbuild-wrapper --version"
 
-script: "./sbuild-twice.sh --jobs 4 all"
-
-notifications:
-  irc: "irc.freenode.org#sbuild"
+script: "./sbuild-twice.sh all"
