@@ -14,12 +14,13 @@ object SBuildConfig {
   // http://jansi.fusesource.org/
   val jansi = s"mvn:org.fusesource.jansi:jansi:1.11"
 
-  def scalaVersion = "2.10.3"
-  def scalaBinVersion = "2.10"
+  def scalaVersion = "2.11.0-RC4"
+  def scalaBinVersion = "2.11.0-RC4"
 
   def scalaLibrary = s"mvn:org.scala-lang:scala-library:${scalaVersion}"
   def scalaCompiler = s"mvn:org.scala-lang:scala-compiler:${scalaVersion}"
   def scalaReflect = s"mvn:org.scala-lang:scala-reflect:${scalaVersion}"
+  def scalaXml = s"mvn:org.scala-lang.modules:scala-xml_${SBuildConfig.scalaBinVersion}:1.0.1"
 
   def compilerPath(implicit project: Project) =
     scalaLibrary ~ scalaCompiler ~ scalaReflect
@@ -29,6 +30,7 @@ object SBuildConfig {
   val log4jOverSlf4j = "mvn:org.slf4j:log4j-over-slf4j:1.7.5"
   val logbackCore = "mvn:ch.qos.logback:logback-core:1.0.13"
   val logbackClassic = "mvn:ch.qos.logback:logback-classic:1.0.13"
+  val scalaTest = s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.1.3"
 
   def sbuildUnzipPlugin(implicit p: Project) = Path[SBuildConfig.type]("sbuild-unzip-plugin/org.sbuild.plugins.unzip/target/org.sbuild.plugins.unzip-0.0.9000.jar")
 

@@ -399,7 +399,7 @@ class SBuildRunner {
 
   def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis): Int = {
 
-    SBuildRunner.verbose = config.verbosity == CmdlineMonitor.Verbose
+    (SBuildRunner: SBuildRunner).verbose = config.verbosity == CmdlineMonitor.Verbose
     sbuildMonitor = new OutputStreamCmdlineMonitor(Console.out, config.verbosity)
 
     val projectFile = new File(config.buildfile)

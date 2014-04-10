@@ -19,10 +19,11 @@ class SBuild(implicit _project: Project) {
       SBuildConfig.jansi ~
       SBuildConfig.cmdOption ~
       s"../org.sbuild/target/org.sbuild-${SBuildConfig.sbuildVersion}.jar" ~
+      SBuildConfig.scalaXml ~
       SBuildConfig.sbuildUnzipPlugin
 
   val testCp = compileCp ~
-    s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.0"
+    SBuildConfig.scalaTest
 
   ExportDependencies("eclipse.classpath", testCp)
 
