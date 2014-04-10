@@ -1,17 +1,17 @@
 package de.tototec.sbuild.runner
 
-import java.util.jar.JarInputStream
-import java.net.URLClassLoader
-import java.net.URL
-import de.tototec.sbuild.Logger
-import de.tototec.sbuild.Constants
-import de.tototec.sbuild.ProjectConfigurationException
-import de.tototec.sbuild.SBuildException
 import java.io.File
-import de.tototec.sbuild.Project
-import scala.util.Try
+import java.net.URL
+import java.net.URLClassLoader
+import java.util.jar.JarInputStream
+
 import scala.util.Success
-import java.util.concurrent.ConcurrentHashMap
+import scala.util.Try
+
+import de.tototec.sbuild.Constants
+import de.tototec.sbuild.Logger
+import de.tototec.sbuild.Project
+import de.tototec.sbuild.ProjectConfigurationException
 
 object LoadablePluginInfo {
   case class PluginClasses(instanceClass: String, factoryClass: String, version: String) {
@@ -173,21 +173,28 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
     val loadedClass = findLoadedClass(className) match {
       case loadedClass: Class[_] => loadedClass
       case null =>
-        try {
-          findClass(className)
-        } catch {
-          case e: ClassNotFoundException =>
-            // log.trace("Couldn't found class before searching in plugins: " + className)
-            // we use an iterator to lazily load the class from next CL until we found it.
-            pluginClassLoaders.toIterator.map {
-              case pluginClassLoader =>
-                Try[Class[_]](pluginClassLoader.loadPluginClass(className))
-            }.find(_.isSuccess) match {
-              case Some(Success(loadedClass)) => loadedClass
-              case _ =>
-                // log.trace("Couldn't found class after searching in plugins: " + className + " Classloader: " + this)
-                throw new ClassNotFoundException(className)
-            }
+        synchronized {
+          findLoadedClass(className) match {
+            case loadedClass: Class[_] =>
+              loadedClass
+            case null =>
+              try {
+                findClass(className)
+              } catch {
+                case e: ClassNotFoundException =>
+                  // log.trace("Couldn't found class before searching in plugins: " + className)
+                  // we use an iterator to lazily load the class from next CL until we found it.
+                  pluginClassLoaders.toIterator.map {
+                    case pluginClassLoader =>
+                      Try[Class[_]](pluginClassLoader.loadPluginClass(className))
+                  }.find(_.isSuccess) match {
+                    case Some(Success(loadedClass)) => loadedClass
+                    case _ =>
+                      // log.trace("Couldn't found class after searching in plugins: " + className + " Classloader: " + this)
+                      throw new ClassNotFoundException(className)
+                  }
+              }
+          }
         }
     }
 
