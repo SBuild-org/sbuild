@@ -60,21 +60,28 @@ class PluginClassLoader(pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree],
     val loadedClass = findLoadedClass(className) match {
       case loadedClass: Class[_] => loadedClass
       case null =>
-        try {
-          findClass(className)
-        } catch {
-          case e: ClassNotFoundException =>
-            // log.trace("Couldn't found class before searching in plugins: " + className)
-            // we use an iterator to lazily load the class from next CL until we found it.
-            pluginClassLoaders.toIterator.map {
-              case pluginClassLoader =>
-                Try[Class[_]](pluginClassLoader.loadPluginClass(className))
-            }.find(_.isSuccess) match {
-              case Some(Success(loadedClass)) => loadedClass
-              case _ =>
-                // log.trace("Couldn't found class after searching in plugins: " + className + " Classloader: " + this)
-                throw new ClassNotFoundException(className)
-            }
+        synchronized {
+          findLoadedClass(className) match {
+            case loadedClass: Class[_] =>
+              loadedClass
+            case null =>
+              try {
+                findClass(className)
+              } catch {
+                case e: ClassNotFoundException =>
+                  // log.trace("Couldn't found class before searching in plugins: " + className)
+                  // we use an iterator to lazily load the class from next CL until we found it.
+                  pluginClassLoaders.toIterator.map {
+                    case pluginClassLoader =>
+                      Try[Class[_]](pluginClassLoader.loadPluginClass(className))
+                  }.find(_.isSuccess) match {
+                    case Some(Success(loadedClass)) => loadedClass
+                    case _ =>
+                      // log.trace("Couldn't found class after searching in plugins: " + className + " Classloader: " + this)
+                      throw new ClassNotFoundException(className)
+                  }
+              }
+          }
         }
     }
 
