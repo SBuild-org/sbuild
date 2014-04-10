@@ -31,10 +31,17 @@ object PluginClassLoader {
   }
 }
 
-class PluginClassLoader(pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree], parent: ClassLoader)
+class PluginClassLoader(name: String, pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree], parent: ClassLoader)
     extends URLClassLoader(pluginInfo.urls.toArray, parent) {
 
   import PluginClassLoader._
+
+  if (ParallelClassLoader.isJava7) {
+    ClassLoader.registerAsParallelCapable()
+  }
+
+  protected def getClassLock(className: String): AnyRef =
+    ParallelClassLoader.withJava7 { () => getClassLoadingLock(className) }.getOrElse { this }
 
   private[this] val log = Logger[PluginClassLoader]
 
@@ -44,7 +51,7 @@ class PluginClassLoader(pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree],
    * The child plugin classloaders controlled by this classloader.
    */
   val pluginClassLoaders: Seq[PluginClassLoader] = childTrees.collect {
-    case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(cpTree.pluginInfo.get, cpTree.childs, this)
+    case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(s"${name}|${cpTree.pluginInfo.map(_.urls)}", cpTree.pluginInfo.get, cpTree.childs, this)
   }
 
   /**
@@ -53,13 +60,15 @@ class PluginClassLoader(pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree],
    * but if the request was not initially made by this classloader,
    * then only those classes can be loaded, which belong to the set of exported packages,
    */
-  def loadPluginClass(className: String): Class[_] = {
+  private[runner] def loadPluginClass(className: String): Class[_] = getClassLock(className).synchronized {
     val loadable = if (InnerRequestGuard.isInner(this, className)) true else pluginInfo.checkClassNameInExported(className)
 
     // First, check if the class has already been loaded
     val loadedClass = findLoadedClass(className) match {
       case loadedClass: Class[_] => loadedClass
       case null =>
+        // println(s"[${Thread.currentThread().getName()}] PluginClassLoader(${name} ${System.identityHashCode(this)}): About to find class: ${className}")
+
         synchronized {
           findLoadedClass(className) match {
             case loadedClass: Class[_] =>
@@ -89,13 +98,12 @@ class PluginClassLoader(pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree],
     else throw new ClassNotFoundException(
       className + "\nAlthough the class is contained in this plugin (\"" + pluginInfo.urls.mkString(",") +
         "\"), it is not exported with " + Constants.ManifestSBuildExportPackage + ".")
-
   }
 
   /**
    * Load the given class by delegating to the parent classloader.
    */
-  override protected def loadClass(className: String, resolve: Boolean): Class[_] = {
+  override protected def loadClass(className: String, resolve: Boolean): Class[_] = getClassLock(className).synchronized {
     InnerRequestGuard.within(this, className) {
       // All call from child and this will see all classes.
       parent.loadClass(className)

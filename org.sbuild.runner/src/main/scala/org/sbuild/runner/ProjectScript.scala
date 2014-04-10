@@ -135,6 +135,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
         val resolved = classpathResolver.apply(ClasspathResolver.ResolveRequest(classpathEntries = classpaths.projectBootstrapClasspath))
 
         val cl = new ProjectClassLoader(
+          name = "built-in boot",
           classpathUrls = classpaths.projectBootstrapJars.map(cp => new File(cp).toURI.toURL),
           parent = getClass().getClassLoader(),
           classpathTrees = resolved.classpathTrees)
@@ -223,6 +224,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
           val classpathTrees = resolved.classpathTrees
 
           val cl = new ProjectClassLoader(
+            name = scriptFile.getPath(),
             classpathUrls = Array(scriptEnv.classesDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL),
             parent = parentClassLoader,
             classpathTrees = classpathTrees)
