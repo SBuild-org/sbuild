@@ -4,7 +4,7 @@ import de.tototec.sbuild.ant.tasks._
 
 object SBuildConfig {
 
-  def sbuildVersion = "0.7.9000"
+  def sbuildVersion = "0.7.9010.0-8-0-M1"
   def sbuildOsgiVersion = sbuildVersion
 
   private val cmdOptionVersion = "0.3.2"
