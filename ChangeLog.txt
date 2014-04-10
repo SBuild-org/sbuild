@@ -2,6 +2,13 @@ SBuild {master}:
 
 * Renamed all packages and release artifacts from "de.tototec.sbuild" to
   "org.sbuild".
+* New Feature: Bootstrap projects. With the @bootstrap annotation a project
+  can declare a bootstrap project. The bootstrap project can be shared between
+  multiple projects/modules.
+* Changed application of default scheme handlers. Those are now applied via
+  the bootstrap mechanism.
+* the "org.sbuild.addons" and "org.sbuild.ant" projects are no longer added to
+  the project by default.
 
 SBuild API
 
@@ -14,6 +21,7 @@ SBuild Runner
 
 * Added new cmdline option --parallel-request, to run all targets requested on
   cmdline in parallel.
+* Fixed potential threading issues in PluginClassLoader.
 
 SBuild 0.7.5 - 2014-04-04:
 
