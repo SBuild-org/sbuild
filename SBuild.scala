@@ -29,7 +29,7 @@ class SBuild(implicit _project: Project) {
     "org.sbuild.ant::scaladoc" ~
     "org.sbuild.addons::scaladoc" ~
     "org.sbuild.compilerplugin::scaladoc" ~
-    "org.experimental::scaladoc"
+    "org.sbuild.experimental::scaladoc"
 
   Target("phony:dist") dependsOn "sbuild-dist::dist"
 
