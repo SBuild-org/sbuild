@@ -17,6 +17,7 @@ _The build process needs an installed version of http://www.gnu.org/software/get
 ----
 git clone https://github.com/SBuild-org/sbuild.git
 cd sbuild
+git submodule update
 ./sbuild-wrapper all
 ----
 
