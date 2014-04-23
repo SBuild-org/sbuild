@@ -22,16 +22,8 @@ class ProjectClassLoader(project: Project, classpathUrls: Seq[URL], parent: Clas
     ClassLoader.registerAsParallelCapable()
   }
 
-  private[this] val classLockMap = new ConcurrentHashMap[String, Any]
-
   protected def getClassLock(className: String): AnyRef =
-    ParallelClassLoader.withJava7 { () => getClassLoadingLock(className) }.getOrElse {
-      val newLock = new Object()
-      classLockMap.putIfAbsent(className, newLock) match {
-        case null => newLock
-        case lock => lock.asInstanceOf[AnyRef]
-      }
-    }
+    ParallelClassLoader.withJava7 { () => getClassLoadingLock(className) }.getOrElse { this }
 
   val pluginClassLoaders: Seq[PluginClassLoader] = classpathTrees.collect {
     case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(project, cpTree.pluginInfo.get, cpTree.childs, this)
