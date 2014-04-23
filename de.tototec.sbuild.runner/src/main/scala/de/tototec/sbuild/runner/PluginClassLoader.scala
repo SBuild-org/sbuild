@@ -152,6 +152,13 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
 
   import PluginClassLoader._
 
+  if (ParallelClassLoader.isJava7) {
+    ClassLoader.registerAsParallelCapable()
+  }
+
+  protected def getClassLock(className: String): AnyRef =
+    ParallelClassLoader.withJava7 { () => getClassLoadingLock(className) }.getOrElse { this }
+
   private[this] val log = Logger[PluginClassLoader]
 
   log.debug(s"Init PluginClassLoader (id: ${System.identityHashCode(this)}) for ${pluginInfo.urls}")
@@ -166,7 +173,7 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
       project.registerPlugin(instanceClassName, factoryClassName, version, this)
   }
 
-  def loadPluginClass(className: String): Class[_] = {
+  def loadPluginClass(className: String): Class[_] = getClassLock(className).synchronized {
     val loadable = if (InnerRequestGuard.isInner(this, className)) true else pluginInfo.checkClassNameInExported(className)
 
     // First, check if the class has already been loaded
@@ -205,7 +212,7 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
 
   }
 
-  override protected def loadClass(className: String, resolve: Boolean): Class[_] = {
+  override protected def loadClass(className: String, resolve: Boolean): Class[_] = getClassLock(className).synchronized {
     InnerRequestGuard.within(this, className) {
       // All call from child and this will see all classes.
       parent.loadClass(className)
