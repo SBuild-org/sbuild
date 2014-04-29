@@ -1,3 +1,7 @@
+SBuild 0.7.6 - not released yet:
+
+* Corrected parallel classloading according to Java ClassLoader spec.
+
 SBuild 0.7.5 - 2014-04-04:
 
 * Disabled parallel classloading in plugin classloader. This effectivly speeds
