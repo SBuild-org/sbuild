@@ -9,6 +9,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.Proxy
 import java.net.URL
 import java.text.DecimalFormat
 import java.util.zip.ZipInputStream
@@ -52,7 +53,11 @@ class Util {
     success
   }
 
-  def download(url: String, target: String, monitor: CmdlineMonitor = monitor, userAgent: Option[String]): Option[Throwable] = {
+  def download(url: String,
+               target: String,
+               monitor: CmdlineMonitor = monitor,
+               userAgent: Option[String],
+               proxy: Proxy = Proxy.NO_PROXY): Option[Throwable] = {
 
     val retryCount = 5
 
@@ -92,7 +97,7 @@ class Util {
             while (retry) {
               retry = false
 
-              val connection = new URL(url).openConnection
+              val connection = new URL(url).openConnection(proxy)
               userAgent.map { agent => connection.setRequestProperty("User-Agent", agent) }
               if (len > 0) {
                 // TODO: also check http header Accept-Ranges
@@ -101,7 +106,7 @@ class Util {
               val inStream = new BufferedInputStream(connection.getInputStream())
 
               // TODO: evaluate status code, e.g. 404
-              
+
               // connection opened
               val contentLength = lastContentLength.getOrElse {
                 val cl = connection.getHeaderField("content-length") match {
