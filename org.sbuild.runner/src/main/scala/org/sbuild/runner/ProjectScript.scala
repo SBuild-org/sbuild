@@ -126,12 +126,22 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
       case None =>
         log.debug("Loading built-in bootstrap script")
 
-        // TODO: check for existence
-        // classpaths.projectBootstrapJars.map(new File(_))
+        // check for existence
+        classpaths.projectBootstrapJars.map(new File(_)).filter(!_.exists()) match {
+          case missing if !missing.isEmpty =>
+            log.error("Some jars are missing: " + missing.mkString(","))
+          case _ =>
+        }
 
         val bootstrapJar = classpaths.projectBootstrapJars.headOption.map(f => new File(f)).get
 
-        val classpathResolver = new ClasspathResolver(bootstrapJar, bootstrapJar.getParentFile(), monitor.mode, bootstrappers = Seq(), typesToIncludedFilesPropertiesFile = Seq())
+        val classpathResolver = new ClasspathResolver(
+          projectFile = bootstrapJar,
+          projectDir = bootstrapJar.getParentFile(),
+          outputMode = monitor.mode,
+          bootstrappers = Seq(),
+          typesToIncludedFilesPropertiesFile = Seq())
+        
         val resolved = classpathResolver.apply(ClasspathResolver.ResolveRequest(classpathEntries = classpaths.projectBootstrapClasspath))
 
         val cl = new ProjectClassLoader(

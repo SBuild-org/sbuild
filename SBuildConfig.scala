@@ -33,6 +33,7 @@ object SBuildConfig {
   val scalaTest = s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.1.3"
 
   def sbuildUnzipPlugin(implicit p: Project) = Path[SBuildConfig.type]("sbuild-unzip-plugin/org.sbuild.plugins.unzip/target/org.sbuild.plugins.unzip-0.0.9000.jar")
+  def sbuildHttpPlugin(implicit p: Project) = Path[SBuildConfig.type]("sbuild-http-plugin/org.sbuild.plugins.http/target/org.sbuild.plugins.http-0.0.9000.jar")
 
 }
 

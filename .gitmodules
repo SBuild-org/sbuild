@@ -1,3 +1,6 @@
 [submodule "sbuild-unzip-plugin"]
 	path = sbuild-unzip-plugin
 	url = https://github.com/SBuild-org/sbuild-unzip-plugin
+[submodule "sbuild-http-plugin"]
+	path = sbuild-http-plugin
+	url = https://github.com/SBuild-org/sbuild-http-plugin

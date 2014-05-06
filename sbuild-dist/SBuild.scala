@@ -56,7 +56,7 @@ class SBuild(implicit _project: Project) {
 
   Target("phony:copyJars").cacheable dependsOn cmdOption ~ SBuildConfig.compilerPath ~
       binJar ~ runnerJar ~ antJar ~ addonsJar ~ compilerPluginJar ~ scriptCompilerJar ~ jansi ~
-      sbuildUnzipPlugin ~ bootstrapJar ~
+      sbuildUnzipPlugin ~ sbuildHttpPlugin ~ bootstrapJar ~
       sbuildRunnerDebugLibs exec { ctx: TargetContext =>
     ctx.fileDependencies.distinct.foreach { file =>
       val targetFile = Path(distDir, "lib", file.getName)
@@ -68,7 +68,7 @@ class SBuild(implicit _project: Project) {
   Target(classpathProperties) dependsOn
     _project.projectFile ~
     binJar ~ runnerJar ~ compilerPluginJar ~ scriptCompilerJar ~
-    bootstrapJar ~ sbuildUnzipPlugin ~
+    bootstrapJar ~ sbuildUnzipPlugin ~ sbuildHttpPlugin ~
     antJar ~ addonsJar ~
     cmdOption ~ jansi ~
     scalaLibrary ~ scalaCompiler ~ scalaReflect ~ scalaXml exec { ctx: TargetContext =>
@@ -86,7 +86,7 @@ class SBuild(implicit _project: Project) {
       |# compilerPluginJar - Used by the build file compiler to load the compiler plugin which extracts additional infos
       |compilerPluginJar = ${compilerPluginJar.files.head.getName}
       |projectBootstrapJars = ${bootstrapJar.files.head.getName}
-      |projectBootstrapClasspath = ${runnerJar.files.head.getName}:${sbuildUnzipPlugin.files.head.getName}
+      |projectBootstrapClasspath = ${(runnerJar ~ sbuildUnzipPlugin ~ sbuildHttpPlugin).files.map(_.getName).mkString(":")}
       |"""
     AntMkdir(dir = ctx.targetFile.get.getParentFile)
     AntEcho(file = ctx.targetFile.get, message = properties.stripMargin)

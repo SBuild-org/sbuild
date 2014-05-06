@@ -7,11 +7,7 @@ import org.sbuild.plugins.http.HttpSchemeHandler
 import org.sbuild.plugins.mvn.MvnSchemeHandler
 import org.sbuild.plugins.unzip.UnzipSchemeHandler
 import org.sbuild.Plugin
-import org.sbuild.plugins.http.HttpSchemeHandler
-import org.sbuild.plugins.mvn.MvnSchemeHandler
 import org.sbuild.MapperSchemeHandler
-import org.sbuild.plugins.http.HttpSchemeHandler
-import org.sbuild.plugins.mvn.MvnSchemeHandler
 
 class SBuildBootstrap(implicit _project: Project) {
 
@@ -21,7 +17,7 @@ class SBuildBootstrap(implicit _project: Project) {
   SchemeHandler("mvn", new MvnSchemeHandler())
 
   import org.sbuild.plugins.http._
-  SchemeHandler("http", new HttpSchemeHandler())
+  Plugin[Http]("http")
 
   import org.sbuild.plugins.unzip._
   Plugin[Unzip]("zip") configure {

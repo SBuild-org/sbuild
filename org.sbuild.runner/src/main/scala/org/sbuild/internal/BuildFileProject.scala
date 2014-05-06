@@ -30,11 +30,11 @@ import org.sbuild.SideeffectFreeSchemeResolver
 import org.sbuild.plugins.mvn.MvnSchemeHandler
 import org.sbuild.TransparentSchemeResolver
 import org.sbuild.ScanSchemeHandler
-import org.sbuild.plugins.http.HttpSchemeHandler
 import org.sbuild.MapperSchemeHandler
 import org.sbuild.ProjectPool
 import scala.reflect.classTag
 import org.sbuild.CacheableSchemeResolver
+import java.io.FileNotFoundException
 
 class BuildFileProject(_projectFile: File,
                        _projectDir: File,
@@ -478,7 +478,8 @@ class BuildFileProject(_projectFile: File,
                 createTarget(dep, isImplicit = true) exec {
                   val file = Path(dep.name)(this)
                   if (!file.exists || !file.isDirectory) {
-                    val e = new ProjectConfigurationException("Don't know how to build prerequisite: " + dep)
+                    val e = new ProjectConfigurationException("Don't know how to build prerequisite: " + dep, 
+                        new FileNotFoundException(file.getPath))
                     e.buildScript = explicitForeignProject(dep) match {
                       case None => Some(projectFile)
                       case x => x

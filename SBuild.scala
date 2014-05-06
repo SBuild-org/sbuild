@@ -13,6 +13,7 @@ class SBuild(implicit _project: Project) {
     "org.sbuild.compilerplugin",
     "org.sbuild.experimental",
     "sbuild-dist",
+    "sbuild-http-plugin/org.sbuild.plugins.http",
     "sbuild-unzip-plugin/org.sbuild.plugins.unzip",
     "org.sbuild.runner.bootstrap"
   )
