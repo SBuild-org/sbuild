@@ -40,7 +40,7 @@ class ProjectTarget private[sbuild] (override val name: String,
     ProjectTarget.this
   }
 
-  override def exec(execution: => Any): Target = exec((_: TargetContext) => execution)
+  //  override def exec(execution: => Any): Target = exec((_: TargetContext) => execution)
   override def exec(execution: TargetContext => Any): Target = {
     if (_exec != null) {
       project.monitor.warn(CmdlineMonitor.Default, I18n[ProjectTarget].tr("Reassignment of exec block for target {0} in project file {1}", name, project.projectFile))

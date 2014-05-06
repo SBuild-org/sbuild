@@ -42,7 +42,7 @@ trait Target {
   /**
    * Apply an block of actions, that will be executed, if this target was requested but not up-to-date.
    */
-  def exec(execution: => Any): Target
+  //  def exec(execution: => Any): Target
   def exec(execution: TargetContext => Any): Target
   private[sbuild] def action: TargetContext => Any
 
