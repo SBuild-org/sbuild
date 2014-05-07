@@ -10,7 +10,7 @@ env:
 
 before_script: "./sbuild-wrapper --version"
 
-script: "./sbuild-wrapper --keep-going all"
+script: "./sbuild-wrapper --keep-going test dist"
 
 notifications:
   irc: "irc.freenode.org#sbuild"
