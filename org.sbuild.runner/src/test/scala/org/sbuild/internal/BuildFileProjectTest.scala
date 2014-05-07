@@ -1,7 +1,7 @@
 package org.sbuild.internal
 
 import org.scalatest.FunSuite
-
+import org.sbuild.InvalidApiUsageException
 import org.sbuild.Plugin
 import org.sbuild.Project
 import org.sbuild.test.TestSupport
@@ -31,36 +31,29 @@ class BuildFileProjectTest extends FunSuite {
   test("Find an added pluginFactory (inner API)") {
     implicit val p = createProjectWithPlugin
 
-    val foundInstance = p.getPluginHandle[TestPluginCtx]("").get
+    val foundInstance = p.getPluginHandle[TestPluginCtx]("test").get
     assert(foundInstance !== null)
 
-    val foundDefaultInstance = p.getPluginHandle[TestPluginCtx]("").get
+    val foundDefaultInstance = p.getPluginHandle[TestPluginCtx]("test").get
     assert(foundInstance === foundDefaultInstance)
 
   }
 
-  test("Enable an unnamed plugin") {
-    implicit val p = createProjectWithPlugin
-
-    Plugin[TestPluginCtx]
-  }
-
   test("Enable a named plugin") {
     implicit val p = createProjectWithPlugin
-
     Plugin[TestPluginCtx]("p-name")
-  }
-
-  test("Configure an unnamed plugin") {
-    implicit val p = createProjectWithPlugin
-
-    Plugin[TestPluginCtx] configure { _.copy(prop1 = "blau") }
   }
 
   test("Configure a named plugin") {
     implicit val p = createProjectWithPlugin
-
     Plugin[TestPluginCtx]("blau") configure { _.copy(prop1 = "blau") }
+  }
+
+  test("Detect an empty plugin config name") {
+    implicit val p = createProjectWithPlugin
+    intercept[InvalidApiUsageException] {
+      Plugin[TestPluginCtx]("")
+    }
   }
 
   test("Plugin config should have changed after re-configuration") {

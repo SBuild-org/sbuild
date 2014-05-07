@@ -57,5 +57,6 @@ object Logger {
           noOpLogger
       }
   }
+  
 }
 

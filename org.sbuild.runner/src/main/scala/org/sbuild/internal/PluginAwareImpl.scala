@@ -11,6 +11,7 @@ import org.sbuild.ProjectConfigurationException
 import org.sbuild.PluginConfigureAware
 import org.sbuild.PluginDependency
 import org.sbuild.Plugin.PluginHandle
+import org.sbuild.InvalidApiUsageException
 
 trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
@@ -253,6 +254,10 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
   private[this] var pluginHandles: Map[(Class[_], String), PluginHandle[_]] = Map()
 
   override def getPluginHandle[T: ClassTag](name: String): Plugin.PluginHandle[T] = withPlugin[T, Plugin.PluginHandle[T]] { rp =>
+    if(name.size == 0) {
+      throw new InvalidApiUsageException("A plugin configuration must have a non-empty name.")
+    }
+    
     val pluginClass = classTag[T].runtimeClass
     pluginHandles.get((pluginClass, name)) match {
       case Some(handle) => handle.asInstanceOf[Plugin.PluginHandle[T]]

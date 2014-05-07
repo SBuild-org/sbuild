@@ -64,7 +64,7 @@ class PluginAwareImplTest extends FreeSpec {
       pluginProject.registerPlugin(classOf[P1].getName, classOf[P1Plugin].getName, "1.0.0", classOf[P1].getClassLoader)
       pluginProject.registerPlugin(classOf[P2DependsOnP1].getName, classOf[P2DependsOnP1Plugin].getName, "1.0.0", classOf[P2DependsOnP1].getClassLoader)
 
-      assert(Plugin[P2DependsOnP1].get.getClass === classOf[P2DependsOnP1])
+      assert(Plugin[P2DependsOnP1]("2").get.getClass === classOf[P2DependsOnP1])
     }
 
     "Plugin P2 depends on unregistered Plugin P1 and will fail" in {
@@ -74,7 +74,7 @@ class PluginAwareImplTest extends FreeSpec {
       pluginProject.registerPlugin(classOf[P2DependsOnP1].getName, classOf[P2DependsOnP1Plugin].getName, "1.0.0", classOf[P2DependsOnP1].getClassLoader)
 
       intercept[ProjectConfigurationException] {
-        Plugin[P2DependsOnP1]
+        Plugin[P2DependsOnP1]("2")
       }
     }
 
@@ -84,7 +84,7 @@ class PluginAwareImplTest extends FreeSpec {
       pluginProject.registerPlugin(classOf[P1].getName, classOf[P1Plugin].getName, "1.0.0", classOf[P1].getClassLoader)
       pluginProject.registerPlugin(classOf[P2DependsOnP1].getName, classOf[P2DependsOnP1Plugin_above_1_0_0].getName, "1.0.0", classOf[P2DependsOnP1].getClassLoader)
 
-      Plugin[P2DependsOnP1]
+      Plugin[P2DependsOnP1]("2")
     }
 
     "Plugin P2 depends on Plugin P1 with to low version will fail" in {
@@ -94,7 +94,7 @@ class PluginAwareImplTest extends FreeSpec {
       pluginProject.registerPlugin(classOf[P2DependsOnP1].getName, classOf[P2DependsOnP1Plugin_below_1_0_0].getName, "1.0.0", classOf[P2DependsOnP1].getClassLoader)
 
       intercept[ProjectConfigurationException] {
-        Plugin[P2DependsOnP1]
+        Plugin[P2DependsOnP1]("2")
       }
     }
 
@@ -105,7 +105,7 @@ class PluginAwareImplTest extends FreeSpec {
       pluginProject.registerPlugin(classOf[P2DependsOnP1].getName, classOf[P2DependsOnP1Plugin_above_1_2_0].getName, "1.0.0", classOf[P2DependsOnP1].getClassLoader)
 
       intercept[ProjectConfigurationException] {
-        Plugin[P2DependsOnP1]
+        Plugin[P2DependsOnP1]("2")
       }
 
     }

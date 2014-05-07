@@ -23,7 +23,6 @@ import org.sbuild.TargetRef
 import org.sbuild.TargetRefs
 import org.sbuild.Target
 import org.sbuild.Path
-import org.sbuild.Logger
 import org.sbuild.CmdlineMonitor
 import org.sbuild.SchemeHandler
 import org.sbuild.SideeffectFreeSchemeResolver
@@ -45,13 +44,14 @@ class BuildFileProject(_projectFile: File,
     extends Project
     with PluginAwareImpl {
 
-  private[this] val log = Logger[BuildFileProject]
+  override val projectFile: File = Path.normalize(_projectFile)
+
+  private[this] val log = PrefixLogger[BuildFileProject](projectFile.getPath + ": ")
   private[this] val i18n = I18n[BuildFileProject]
   import i18n._
 
   private val projectReader: Option[ProjectReader] = Option(_projectReader)
 
-  override val projectFile: File = Path.normalize(_projectFile)
   //  if (!projectFile.exists)
   //    throw new ProjectConfigurationException("Project file '" + projectFile + "' does not exists")
 
@@ -478,8 +478,8 @@ class BuildFileProject(_projectFile: File,
                 createTarget(dep, isImplicit = true) exec {
                   val file = Path(dep.name)(this)
                   if (!file.exists || !file.isDirectory) {
-                    val e = new ProjectConfigurationException("Don't know how to build prerequisite: " + dep, 
-                        new FileNotFoundException(file.getPath))
+                    val e = new ProjectConfigurationException("Don't know how to build prerequisite: " + dep,
+                      new FileNotFoundException(file.getPath))
                     e.buildScript = explicitForeignProject(dep) match {
                       case None => Some(projectFile)
                       case x => x

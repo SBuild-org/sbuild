@@ -19,7 +19,7 @@ sealed trait PluginDependency {
 object PluginDependency {
 
   /**
-   * A dependency to another plugin (instance) class.
+   * A dependency to another plugin (configuration) class.
    */
   case class Basic(override val pluginClass: Class[_]) extends PluginDependency
 

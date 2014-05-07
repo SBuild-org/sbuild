@@ -13,6 +13,7 @@
   </root>
 
   <logger name="de.tototec" level="TRACE" />
+  <logger name="org.sbuild" level="TRACE" />
   <logger name="org.sbuild.execute.TargetExecutor$DependencyCache" level="INFO" />
   <logger name="org.sbuild.OutputStreamCmdlineMonitor" level="DEBUG" />
   <logger name="org.sbuild.NoopCmdlineMonitor" level="DEBUG" />
@@ -23,6 +24,7 @@
   <logger name="org.sbuild.ExportDependencies" level="DEBUG" />
   <logger name="org.sbuild.runner.SBuildRunner" level="DEBUG" />
   <logger name="org.sbuild.internal.I18n" level="WARN" />
+  <logger name="org.sbuild.plugins" level="DEBUG" />
 
 
 </configuration>

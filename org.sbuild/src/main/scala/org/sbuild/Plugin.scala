@@ -4,32 +4,31 @@ import scala.reflect.ClassTag
 
 /**
  * An implementation of this trait act as a plugin activator.
- * It is responsible to create new plugin instances and to apply the plugins functionality to the project,
- * based on the plugin instances.
+ * It is responsible to create new plugin configurations and to apply the plugins functionality to the project,
+ * based on the configurations.
  *
- * Implementations are expected to have a single arg constructor with a parameter of type `[[org.sbuild.Project]]`.
+ * Implementations are expected to have a single argument constructor with a parameter of type `[[org.sbuild.Project]]`.
  *
- * @tparam T The type of the plugin instance controlled by this factory.
+ * @tparam T The type of the plugin configuration controlled by this factory.
  */
 trait Plugin[T] {
 
   /**
-   * Create a new plugin instance with the name `name`.
-   * Keep in mind that it is allowed that name in the empty string (`""`),
-   * which has the meaning "an instance with the default configuration".
+   * Create a new plugin configuration with the non-empty name `name`.
+   * 
+   * @param A non-empty name for the plugin configuration.
    */
   def create(name: String): T
 
   /**
    * Apply the plugin's functionality to the project.
-   * To get a handle of the project, implementation should implement a single arg constructor with a parameter of type [[org.sbuild.Project]].
-   * @param instances A sequence of all named plugin instances.
-   *   The pair contains the name and the instance.
+   * To get a handle of the project, implementation should implement a single argument constructor with a parameter of type [[org.sbuild.Project]].
+   * @param configurations A sequence of all named plugin configurations.
+   *   The pair contains the name and the plugin configuration.
    */
-  def applyToProject(instances: Seq[(String, T)])
+  def applyToProject(configurations: Seq[(String, T)])
 
 }
-
 
 /**
  * Plugins that will be notified whenever they get (re-)configured.
@@ -42,23 +41,17 @@ trait PluginConfigureAware[T] { self: Plugin[T] =>
 }
 
 /**
- * This object contains useful `apply` method to activate and access plugin instances.
+ * This object contains useful `apply` method to activate and access plugin configurations.
  */
 object Plugin {
 
   /**
-   * Activate and get a default named instance of a plugin of type `T`.
-   * @tparam T The type of the plugin instance.
+   * Activate and get the named plugin configuration of type `T`.
+   * @tparam T The type of the plugin configuration.
+   * @param configName The name of the plugin configuration.
    */
-  def apply[T: ClassTag](implicit project: Project): PluginHandle[T] = apply[T]("")
-
-  /**
-   * Activate and get a named instance of a plugin ot type `T`.
-   * @tparam T The type of the plugin instance.
-   * @param name The name of this plugin instance.
-   */
-  def apply[T: ClassTag](name: String)(implicit project: Project): PluginHandle[T] =
-    project.getPluginHandle[T](name)
+  def apply[T: ClassTag](configName: String)(implicit project: Project): PluginHandle[T] =
+    project.getPluginHandle[T](configName)
 
   /**
    * Handle to a plugin instance.
@@ -66,7 +59,7 @@ object Plugin {
   trait PluginHandle[T] {
     /**
      * Configure the current plugin.
-     * A plugin instance is typically a case class, and the configurer then calls the `.copy` method to create a new instance with modified properties.
+     * A plugin configuration is typically a case class, and the configurer then calls the `.copy` method to create a new instance with modified properties.
      *
      * @param configurer a function returning the modified configuration.
      */
@@ -79,7 +72,7 @@ object Plugin {
      */
     def get: T
     /**
-     * Check, whether to configuration was changed after the plugin was activated.
+     * Check, whether the configuration was changed after the plugin was activated.
      */
     def isModified: Boolean
     // def disable - to disable an already enabled plugin
@@ -90,8 +83,6 @@ object Plugin {
     def version: String
     def instances: Seq[String]
   }
-
-  def isActive[T: ClassTag](implicit project: Project): Boolean = isActive[T]("")
 
   def isActive[T: ClassTag](name: String)(implicit project: Project): Boolean = project.isPluginActive[T](name)
 
