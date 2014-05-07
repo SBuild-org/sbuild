@@ -4,3 +4,6 @@
 [submodule "sbuild-http-plugin"]
 	path = sbuild-http-plugin
 	url = https://github.com/SBuild-org/sbuild-http-plugin
+[submodule "sbuild-sourcescheme-plugin"]
+	path = sbuild-sourcescheme-plugin
+	url = https://github.com/SBuild-org/sbuild-sourcescheme-plugin

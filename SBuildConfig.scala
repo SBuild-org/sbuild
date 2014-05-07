@@ -34,6 +34,7 @@ object SBuildConfig {
 
   def sbuildUnzipPlugin(implicit p: Project) = Path[SBuildConfig.type]("sbuild-unzip-plugin/org.sbuild.plugins.unzip/target/org.sbuild.plugins.unzip-0.0.9000.jar")
   def sbuildHttpPlugin(implicit p: Project) = Path[SBuildConfig.type]("sbuild-http-plugin/org.sbuild.plugins.http/target/org.sbuild.plugins.http-0.0.9000.jar")
+  def sbuildSourceSchemePlugin(implicit p: Project) = Path[SBuildConfig.type]("sbuild-sourcescheme-plugin/org.sbuild.plugins.sourcescheme/target/org.sbuild.plugins.sourcescheme-0.0.9000.jar")
 
 }
 
