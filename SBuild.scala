@@ -15,6 +15,7 @@ class SBuild(implicit _project: Project) {
     "sbuild-dist",
     "sbuild-http-plugin/org.sbuild.plugins.http",
     "sbuild-unzip-plugin/org.sbuild.plugins.unzip",
+    "sbuild-sourcescheme-plugin/org.sbuild.plugins.sourcescheme",
     "org.sbuild.runner.bootstrap"
   )
 

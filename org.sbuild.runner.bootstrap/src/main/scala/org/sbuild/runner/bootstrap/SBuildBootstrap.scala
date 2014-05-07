@@ -24,13 +24,20 @@ class SBuildBootstrap(implicit _project: Project) {
     _.copy(regexCacheable = true)
   }
 
-  // Experimental: replace by plugin
-  SchemeHandler("source", new MapperSchemeHandler(
-    pathTranslators = Seq("mvn" -> { path => path + ";classifier=sources" })
-  ))
+  import org.sbuild.plugins.sourcescheme._
+  Plugin[SourceScheme]("source") configure {
+    _.addMapping({
+      case path if path.startsWith("mvn:") => path + ";classifier=sources"
+    }: PartialFunction[String, String])
+  }
 
   // Experimental: replace by plugin
-  SchemeHandler("javadoc", new MapperSchemeHandler(
-    pathTranslators = Seq("mvn" -> { path => path + ";classifier=javadoc" })
-  ))
+  //  SchemeHandler("source", new MapperSchemeHandler(
+  //    pathTranslators = Seq("mvn" -> { path => path + ";classifier=sources" })
+  //  ))
+
+  // Experimental: replace by plugin
+  //  SchemeHandler("javadoc", new MapperSchemeHandler(
+  //    pathTranslators = Seq("mvn" -> { path => path + ";classifier=javadoc" })
+  //  ))
 }
