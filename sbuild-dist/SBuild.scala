@@ -60,6 +60,7 @@ class SBuild(implicit _project: Project) {
       sbuildRunnerDebugLibs exec { ctx: TargetContext =>
     ctx.fileDependencies.distinct.foreach { file =>
       val targetFile = Path(distDir, "lib", file.getName)
+      targetFile.mkdirs
       AntCopy(file = file, toFile = targetFile)
       ctx.attachFile(targetFile)
     }
