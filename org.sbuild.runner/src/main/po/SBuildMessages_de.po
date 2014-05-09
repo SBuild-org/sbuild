@@ -260,7 +260,7 @@ msgid ""
 "Outcome of target {0} looks out-of-date, as the timestamp hasn't changed."
 msgstr ""
 "Ergebnis von Target {0} scheint nicht aktuell zu sein, da der Zeitstempel "
-"sich nicht geändrt hat."
+"sich nicht geändert hat."
 
 #: org/sbuild/execute/TargetExecutor.scala:480
 #, java-format
