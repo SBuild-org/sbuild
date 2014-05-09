@@ -58,9 +58,12 @@ class SBuild(implicit _project: Project) {
       binJar ~ runnerJar ~ antJar ~ addonsJar ~ compilerPluginJar ~ scriptCompilerJar ~ jansi ~
       sbuildUnzipPlugin ~ sbuildHttpPlugin ~ sbuildSourceSchemePlugin ~ bootstrapJar ~
       sbuildRunnerDebugLibs exec { ctx: TargetContext =>
+
+    val targetDir = Path(distDir) / "lib"
+    targetDir.mkdirs
+
     ctx.fileDependencies.distinct.foreach { file =>
-      val targetFile = Path(distDir, "lib", file.getName)
-      targetFile.mkdirs
+      val targetFile = targetDir / file.getName
       AntCopy(file = file, toFile = targetFile)
       ctx.attachFile(targetFile)
     }
