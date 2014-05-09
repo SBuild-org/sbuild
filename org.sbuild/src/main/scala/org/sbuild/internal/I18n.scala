@@ -11,6 +11,7 @@ import java.io.File
 import java.io.FileInputStream
 import scala.collection.mutable.WeakHashMap
 import org.sbuild.Logger
+import scala.util.Try
 
 trait I18nMarker {
   @inline def marktr(msgid: String): String = msgid
@@ -53,7 +54,7 @@ object I18n extends I18nMarker {
     val manifestCatalogBaseName = packageToCatalogBaseNameMap.get(runtimeClass.getPackage()) match {
       case Some(baseNameOption) =>
         baseNameOption
-      case None => try {
+      case None => Try {
         log.debug("About to lookup the manifest for class: " + runtimeClass)
         val jarLoc = runtimeClass.getProtectionDomain().getCodeSource().getLocation()
         val jarFile = new File(jarLoc.toURI())
@@ -68,7 +69,7 @@ object I18n extends I18nMarker {
         log.debug("Determined manifest entry for message catalog basename: " + baseNameOption)
         synchronized { packageToCatalogBaseNameMap += runtimeClass.getPackage() -> baseNameOption }
         baseNameOption
-      }
+      } getOrElse None
     }
 
     val catalogBaseName = manifestCatalogBaseName match {
