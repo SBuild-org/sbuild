@@ -503,9 +503,9 @@ class BuildFileProject(_projectFile: File,
     log.debug("Registerung scheme handler for scheme \"" + scheme + "\": " + handler)
     schemeHandlers.get(scheme).map {
       _ =>
-        val msg = marktr("Replacing scheme handler \"{0}\" for project \"{1}\".")
-        log.info(notr(msg, scheme, projectFile))
-        monitor.info(CmdlineMonitor.Default, tr(msg, scheme, projectFile))
+        val msg = preparetr("Replacing scheme handler \"{0}\" for project \"{1}\".", scheme, projectFile)
+        log.warn(msg.notr)
+        monitor.info(CmdlineMonitor.Default, msg.tr)
     }
     schemeHandlers += ((scheme, handler))
   }
