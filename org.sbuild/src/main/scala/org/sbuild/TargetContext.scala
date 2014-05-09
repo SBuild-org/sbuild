@@ -26,9 +26,15 @@ trait TargetContext {
 
   /**
    * Those files, that belongs to dependencies that resolve to files.
-   * Dependencies with phony scheme or which resolve to phony will not be included.
+   * Dependencies with phony scheme or which resolve to phony and do not have any attached files will not be included.
    */
+  // TODO: Think about it: @deprecated("Use files instead", "0.7.9013")
   def fileDependencies: Seq[File]
+  /**
+   * Those files, that belongs to dependencies that resolve to files.
+   * Dependencies with phony scheme or which resolve to phony and do not have any attached files will not be included.
+   */
+  def files: Seq[File]
 
   def prerequisitesLastModified: Long
 
@@ -118,7 +124,8 @@ class TargetContextImpl(
    */
   override def prerequisites: Seq[TargetRef] = target.dependants.targetRefs
 
-  override def fileDependencies: Seq[File] = directDepsTargetContexts.flatMap(_.targetFiles)
+  override def fileDependencies: Seq[File] = files
+  override def files: Seq[File] = directDepsTargetContexts.flatMap(_.targetFiles)
 
   private var _targetLastModified: Option[Long] = None
   override def targetLastModified: Option[Long] = _targetLastModified
