@@ -11,18 +11,18 @@ import org.sbuild.Path
 
 case class Classpaths(
     sbuildLibDir: Option[File] = None,
-    sbuildClasspath: Array[String] = Array(),
-    compileClasspath: Array[String] = Array(),
-    projectCompileClasspath: Array[String] = Array(),
-    projectRuntimeClasspath: Array[String] = Array(),
-    compilerPluginJars: Array[String] = Array(),
-    projectBootstrapJars: Array[String] = Array(),
-    projectBootstrapClasspath: Array[String] = Array(),
+    sbuildClasspath: Array[File] = Array(),
+    compileClasspath: Array[File] = Array(),
+    projectCompileClasspath: Array[File] = Array(),
+    projectRuntimeClasspath: Array[File] = Array(),
+    compilerPluginJars: Array[File] = Array(),
+    projectBootstrapJars: Array[File] = Array(),
+    projectBootstrapClasspath: Array[File] = Array(),
     projectBootstrapClass: String = "org.sbuild.runner.bootstrap.SBuildBootstrap") {
 
   def validate(): Boolean =
     (sbuildClasspath ++ compileClasspath ++ projectCompileClasspath ++ projectRuntimeClasspath ++ compilerPluginJars).
-      forall { new File(_).exists }
+      forall { _.exists }
 
 }
 
@@ -44,18 +44,18 @@ class ClasspathConfig {
   def classpaths: Classpaths = _classpaths
 
   // Classpath of SBuild itself
-  def sbuildClasspath: Array[String] = classpaths.sbuildClasspath
+  def sbuildClasspath: Array[File] = classpaths.sbuildClasspath
 
   // Add to the classpath used to load the scala compiler
-  def compileClasspath: Array[String] = classpaths.compileClasspath
+  def compileClasspath: Array[File] = classpaths.compileClasspath
 
   // Add to the classpath used to load the project script
-  def projectCompileClasspath: Array[String] = classpaths.projectCompileClasspath
+  def projectCompileClasspath: Array[File] = classpaths.projectCompileClasspath
 
   // Add to the classpath used to load the project script
-  def projectRuntimeClasspath: Array[String] = classpaths.projectRuntimeClasspath
+  def projectRuntimeClasspath: Array[File] = classpaths.projectRuntimeClasspath
 
-  def compilerPluginJars: Array[String] = classpaths.compilerPluginJars
+  def compilerPluginJars: Array[File] = classpaths.compilerPluginJars
 
   @CmdOption(names = Array("--no-fsc"), description = "Do not try to use the fast scala compiler (client/server)")
   var noFsc: Boolean = true
@@ -76,17 +76,19 @@ class ClasspathConfig {
   }
 
   def readFromProperties(sbuildLibDir: File, properties: Properties) {
+    val absLibDir = sbuildLibDir.getAbsoluteFile
 
-    def splitAndPrepend(propertyValue: String): Array[String] = propertyValue match {
+    // all files in the classpath config are relative to the lib dir
+    
+    def splitAndPrepend(propertyValue: String): Array[File] = propertyValue match {
       case null | "" => Array()
-      case v => v.split(";|:").map {
-        case lib if new File(lib).isAbsolute() => lib
-        case lib => new File(sbuildLibDir.getAbsoluteFile, lib).getPath
+      case v => v.split(";|:").map { lib =>
+        new File(absLibDir, lib)
       }
     }
 
     _classpaths = Classpaths(
-      sbuildLibDir = Some(sbuildLibDir),
+      sbuildLibDir = Some(absLibDir),
       sbuildClasspath = splitAndPrepend(properties.getProperty("sbuildClasspath")),
       compileClasspath = splitAndPrepend(properties.getProperty("compileClasspath")),
       projectCompileClasspath = splitAndPrepend(properties.getProperty("projectCompileClasspath")),
