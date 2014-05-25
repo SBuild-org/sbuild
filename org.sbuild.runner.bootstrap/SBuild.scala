@@ -21,7 +21,7 @@ class SBuild(implicit _project: Project) {
       SBuildConfig.sbuildSourceSchemePlugin
 
   val testCp = compileCp ~
-    s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.0"
+    SBuildConfig.scalaTest
 
   ExportDependencies("eclipse.classpath", testCp)
 
