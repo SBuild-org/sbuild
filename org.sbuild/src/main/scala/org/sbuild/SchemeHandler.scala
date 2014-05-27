@@ -3,12 +3,13 @@ package org.sbuild
 import org.sbuild.SchemeHandler.SchemeContext
 
 /**
- * Translates a target name into another target name
+ * Translates a target name into another target name with an explicit scheme.
  */
 trait SchemeHandler {
 
   /**
-   * The resulting target name (path) this target resolves to.
+   * The resulting target name (path) this target resolves to. It should always contain an explicit scheme.
+   * In case you also extend SchemeResolver, the returned scheme must be either "file" or "phony".
    */
   def localPath(schemeContext: SchemeContext): String
 }
