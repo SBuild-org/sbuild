@@ -1,12 +1,10 @@
 package org.sbuild.execute
 
 import scala.Option.option2Iterable
-
 import org.fusesource.jansi.Ansi.Color.CYAN
 import org.fusesource.jansi.Ansi.Color.GREEN
 import org.fusesource.jansi.Ansi.Color.RED
 import org.fusesource.jansi.Ansi.ansi
-
 import org.sbuild.CmdlineMonitor
 import org.sbuild.ExecutionFailedException
 import org.sbuild.Logger
@@ -14,7 +12,6 @@ import org.sbuild.ProjectConfigurationException
 import org.sbuild.Target
 import org.sbuild.TargetAware
 import org.sbuild.TargetContext
-import org.sbuild.TargetContextImpl
 import org.sbuild.UnsupportedSchemeException
 import org.sbuild.internal.I18n
 import org.sbuild.internal.WithinTargetExecution

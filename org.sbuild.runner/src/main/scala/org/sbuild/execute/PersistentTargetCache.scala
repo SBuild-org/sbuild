@@ -3,15 +3,15 @@ package org.sbuild.execute
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
-import java.security.MessageDigest
+
 import scala.io.Source
 import scala.util.Try
+
 import org.sbuild.Logger
 import org.sbuild.Path
 import org.sbuild.Project
 import org.sbuild.RichFile
 import org.sbuild.TargetContext
-import org.sbuild.TargetContextImpl
 import org.sbuild.internal.Md5
 
 class PersistentTargetCache {
