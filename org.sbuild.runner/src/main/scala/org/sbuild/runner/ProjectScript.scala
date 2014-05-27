@@ -127,13 +127,13 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
         log.debug("Loading built-in bootstrap script")
 
         // check for existence
-        classpaths.projectBootstrapJars.map(new File(_)).filter(!_.exists()) match {
+        classpaths.projectBootstrapJars.filter(!_.exists()) match {
           case missing if !missing.isEmpty =>
             log.error("Some jars are missing: " + missing.mkString(","))
           case _ =>
         }
 
-        val bootstrapJar = classpaths.projectBootstrapJars.headOption.map(f => new File(f)).get
+        val bootstrapJar = classpaths.projectBootstrapJars.head
 
         val classpathResolver = new ClasspathResolver(
           projectFile = bootstrapJar,
@@ -141,12 +141,12 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
           outputMode = monitor.mode,
           bootstrappers = Seq(),
           typesToIncludedFilesPropertiesFile = Seq())
-        
-        val resolved = classpathResolver.apply(ClasspathResolver.ResolveRequest(classpathEntries = classpaths.projectBootstrapClasspath))
+
+        val resolved = classpathResolver.apply(ClasspathResolver.ResolveRequest(classpathEntries = classpaths.projectBootstrapClasspath.map(f => s"file:${f}")))
 
         val cl = new ProjectClassLoader(
           name = "built-in boot",
-          classpathUrls = classpaths.projectBootstrapJars.map(cp => new File(cp).toURI.toURL),
+          classpathUrls = classpaths.projectBootstrapJars.map(_.toURI.toURL),
           parent = getClass().getClassLoader(),
           classpathTrees = resolved.classpathTrees)
 
@@ -219,7 +219,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
           scriptEnv = scriptEnv,
           bootstrapClasspath = scriptDefinedClasspath,
           includes = resolved.includes,
-          classpath = classpaths.sbuildClasspath.toSeq ++ classpaths.projectCompileClasspath.toSeq ++ scriptDefinedClasspath.map(_.getPath),
+          classpath = classpaths.sbuildClasspath.toSeq ++ classpaths.projectCompileClasspath.toSeq ++ scriptDefinedClasspath,
           monitor = monitor,
           bootstrapRequest = bootstrapRequest
         )
@@ -235,7 +235,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
 
           val cl = new ProjectClassLoader(
             name = scriptFile.getPath(),
-            classpathUrls = Array(scriptEnv.classesDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL),
+            classpathUrls = Array(scriptEnv.classesDir.toURI.toURL) ++ classpath.map(cp => cp.toURI.toURL),
             parent = parentClassLoader,
             classpathTrees = classpathTrees)
 
@@ -332,7 +332,12 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
     allCpEntries
   }
 
-  def compileScript(scriptEnv: ScriptEnv, bootstrapClasspath: Seq[File], includes: Map[String, Seq[File]], classpath: Seq[String], monitor: CmdlineMonitor, bootstrapRequest: List[File] = Nil): String = {
+  def compileScript(scriptEnv: ScriptEnv,
+                    bootstrapClasspath: Seq[File],
+                    includes: Map[String, Seq[File]],
+                    classpath: Seq[File],
+                    monitor: CmdlineMonitor,
+                    bootstrapRequest: List[File] = Nil): String = {
     val scriptFile = scriptEnv.scriptFile
     val lockFile = scriptEnv.lockFile
 
@@ -459,7 +464,13 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
       scriptEnv.classesDir.deleteRecursive
     }
 
-  protected def newCompile(scriptEnv: ScriptEnv, classpath: Seq[String], bootstrapCp: Seq[File], includes: Map[String, Seq[File]], printReason: Option[String] = None, monitor: CmdlineMonitor, bootstrapRequest: List[File] = Nil): String = {
+  protected def newCompile(scriptEnv: ScriptEnv,
+                           classpath: Seq[File],
+                           bootstrapCp: Seq[File],
+                           includes: Map[String, Seq[File]],
+                           printReason: Option[String] = None,
+                           monitor: CmdlineMonitor,
+                           bootstrapRequest: List[File] = Nil): String = {
     val scriptFile = scriptEnv.scriptFile
 
     cleanScala(scriptEnv, monitor)
@@ -526,7 +537,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
   protected def compile(scriptEnv: ScriptEnv, classpath: String, includes: Map[String, Seq[File]], monitor: CmdlineMonitor) {
     val compilerPluginSettings = classpaths.compilerPluginJars match {
       case Array() => Array[String]()
-      case jars => jars.map { jar: String => "-Xplugin:" + jar }
+      case jars => jars.map { jar: File => "-Xplugin:" + jar.getPath }
     }
     val params = compilerPluginSettings ++ Array(
       "-P:analyzetypes:outfile=" + scriptEnv.typesToIncludedFilesPropertiesFile.getPath(),
@@ -539,7 +550,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
 
     lazy val lazyCompilerClassloader = {
       log.debug("Using additional classpath for scala compiler: " + classpaths.compileClasspath.mkString(", "))
-      new URLClassLoader(classpaths.compileClasspath.map { f => new File(f).toURI.toURL }, getClass.getClassLoader)
+      new URLClassLoader(classpaths.compileClasspath.map { _.toURI.toURL }, getClass.getClassLoader)
     }
 
     def compileWithFsc {
