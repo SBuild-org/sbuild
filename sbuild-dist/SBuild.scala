@@ -153,7 +153,7 @@ class SBuild(implicit _project: Project) {
          |if "%OS%"=="WINNT" @setlocal
          |
          |@REM Find SBuild home dir
-         |if NOT "%SBUILD_HOME"=="" goto valSHome
+         |if NOT "%SBUILD_HOME%"=="" goto valSHome
          |
          |if "%OS%"=="Windows_NT" SET "SBUILD_HOME=%~dp0.."
          |if "%OS%"=="WINNT" SET "SBUILD_HOME=%~dp0.."
