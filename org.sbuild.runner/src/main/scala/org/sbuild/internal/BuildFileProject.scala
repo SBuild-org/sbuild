@@ -169,7 +169,7 @@ class BuildFileProject(_projectFile: File,
     }
 
   override def createTarget(targetRef: TargetRef, isImplicit: Boolean = false): Target = synchronized {
-    explicitForeignProject(targetRef) match {
+    explicitForeignProjectFile(targetRef) match {
       case Some(pFile) if targetRef.explicitNonStandardProto.isDefined =>
         // This must be a scheme handler, and as we have both scheme and project defined, we WANT the target
         // See https://sbuild.tototec.de/sbuild/issues/112
@@ -248,7 +248,7 @@ class BuildFileProject(_projectFile: File,
                                  includeImplicit: Boolean,
                                  supportCamelCaseShortCuts: Boolean,
                                  originalRequestedProject: Project = this): Option[Target] =
-    explicitForeignProject(targetRef) match {
+    explicitForeignProjectFile(targetRef) match {
       case Some(pFile) =>
         // delegate to the other project
         projectPool.propjectMap.get(pFile) match {
@@ -344,7 +344,7 @@ class BuildFileProject(_projectFile: File,
         }
     }
 
-  def explicitForeignProject(targetRef: TargetRef): Option[File] = {
+  def explicitForeignProjectFile(targetRef: TargetRef): Option[File] = {
     val ownerProject: File = targetRef.explicitProject match {
       case Some(p) => if (p.isDirectory) {
         new File(p, "SBuild.scala")
@@ -360,7 +360,7 @@ class BuildFileProject(_projectFile: File,
   }
 
   override def uniqueTargetFile(targetRef: TargetRef): UniqueTargetFile = {
-    def foreignProject = explicitForeignProject(targetRef)
+    def foreignProject = explicitForeignProjectFile(targetRef)
 
     // file of phony is: projectfile + "/" + targetRef.name
     // as projectfile is a file, 
@@ -480,7 +480,7 @@ class BuildFileProject(_projectFile: File,
                   if (!file.exists || !file.isDirectory) {
                     val e = new ProjectConfigurationException("Don't know how to build prerequisite: " + dep,
                       new FileNotFoundException(file.getPath))
-                    e.buildScript = explicitForeignProject(dep) match {
+                    e.buildScript = explicitForeignProjectFile(dep) match {
                       case None => Some(projectFile)
                       case x => x
                     }
