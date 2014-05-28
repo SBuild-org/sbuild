@@ -60,7 +60,7 @@ class TargetRefTest extends FreeSpec {
     }
     mergeTest("a", Seq(Seq("a")))
     mergeTest("a" ~ "b", Seq(Seq("a", "b")))
-    mergeTest("a" ~ "a", Seq(Seq("a")))
+    //    mergeTest("a" ~ "a", Seq(Seq("a")))
     mergeTest("a" ~~ "a", Seq(Seq("a"), Seq("a")))
   }
 

@@ -33,14 +33,12 @@ class TargetRefs private (val targetRefGroups: Seq[Seq[TargetRef]]) {
     case None => Seq()
   }
 
-  private[this] def removeEmptyGroups(groups: Seq[Seq[TargetRef]]): Seq[Seq[TargetRef]] = groups.filter(!_.isEmpty)
-
   def ~(targetRefs: TargetRefs): TargetRefs =
-    new TargetRefs(removeEmptyGroups(
+    new TargetRefs((
       closedGroups ++
-        Seq((openGroup ++ targetRefs.targetRefGroups.head).distinct) ++
-        targetRefs.targetRefGroups.tail
-    ))
+      Seq((openGroup ++ targetRefs.targetRefGroups.head).distinct) ++
+      targetRefs.targetRefGroups.tail
+    ).filter(!_.isEmpty))
   def ~(targetRef: TargetRef): TargetRefs = this.~(TargetRefs.fromTargetRef(targetRef))
   def ~(file: File)(implicit project: Project): TargetRefs = this.~(TargetRefs.fromFile(file))
   def ~(string: String)(implicit project: Project): TargetRefs = this.~(TargetRefs.fromString(string))
@@ -48,11 +46,11 @@ class TargetRefs private (val targetRefGroups: Seq[Seq[TargetRef]]) {
 
   // since SBuild 0.5.0.9004
   def ~~(targetRefs: TargetRefs): TargetRefs =
-    new TargetRefs(removeEmptyGroups(
+    new TargetRefs((
       targetRefGroups ++
-        Seq(targetRefs.targetRefGroups.head) ++
-        targetRefs.targetRefGroups.tail
-    ))
+      Seq(targetRefs.targetRefGroups.head) ++
+      targetRefs.targetRefGroups.tail
+    ).filter(!_.isEmpty))
   def ~~(targetRef: TargetRef): TargetRefs = ~~(TargetRefs.fromTargetRef(targetRef))
   def ~~(file: File)(implicit project: Project): TargetRefs = ~~(TargetRefs.fromFile(file))
   def ~~(string: String)(implicit project: Project): TargetRefs = ~~(TargetRefs.fromString(string))
