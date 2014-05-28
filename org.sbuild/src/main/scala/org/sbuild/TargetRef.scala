@@ -7,12 +7,19 @@ import org.sbuild.internal.WithinTargetExecution
 
 object TargetRef {
 
-  implicit def fromTarget(target: Target): TargetRef = TargetRef(target)
+  implicit def fromTarget(target: Target)(implicit project: Project): TargetRef = TargetRef(target)
   implicit def fromString(name: String)(implicit project: Project): TargetRef = TargetRef(name)
   implicit def fromFile(file: File)(implicit project: Project): TargetRef = TargetRef(file)
 
   def apply(name: String)(implicit project: Project): TargetRef = new TargetRef(name)
-  def apply(target: Target): TargetRef = new TargetRef(target.name)(target.project)
+  def apply(target: Target)(implicit project: Project): TargetRef = {
+    val name = if (project == target.project) {
+      target.name
+    } else {
+      s"${target.project.projectFile.getAbsolutePath()}::${target.name}"
+    }
+    new TargetRef(name)(project)
+  }
   def apply(file: File)(implicit project: Project): TargetRef = new TargetRef("file:" + file.getPath)
 
 }

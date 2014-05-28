@@ -38,10 +38,8 @@ class TargetRefTest extends FreeSpec {
   "TargetRef conversions" - {
 
     "from phony target in same project" in {
-      val targetA = {
-        implicit val _ = projectA
-        Target("phony:a")
-      }
+      implicit val _ = projectA
+      val targetA = Target("phony:a")
       val targetARef: TargetRef = targetA
 
       assert(targetA.name === targetARef.name)
@@ -49,10 +47,8 @@ class TargetRefTest extends FreeSpec {
     }
 
     "from file target in same project" in {
-      val targetA = {
-        implicit val _ = projectA
-        Target("file:a")
-      }
+      implicit val _ = projectA
+      val targetA = Target("file:a")
       val targetARef: TargetRef = targetA
 
       assert(targetA.name === targetARef.name)
@@ -60,11 +56,11 @@ class TargetRefTest extends FreeSpec {
     }
 
     "from phony target in other project" in {
-      val projAtargetA = {
-        implicit val _ = projectA
-        Target("phony:a")
-      }
+      implicit val _ = projectA
+
+      val projAtargetA = Target("phony:a")
       val projAtargetARef: TargetRef = projAtargetA
+
       val projBtargetA = {
         implicit val _ = projectB
         Target("phony:a")
@@ -72,12 +68,17 @@ class TargetRefTest extends FreeSpec {
       val projBtargetARef: TargetRef = projBtargetA
 
       assert(projAtargetA !== projBtargetA)
-      assert(projBtargetARef.name === projBtargetARef.name)
+      assert(projAtargetARef.name === projBtargetARef.name)
+      assert(projAtargetARef.ref !== projBtargetARef.ref)
+      assert(projAtargetARef.ref === "phony:a")
+      assert(projBtargetARef.ref === s"${projectB.projectFile}::phony:a")
+
       assert(projectA.findTarget(projAtargetARef) === Some(projAtargetA))
       assert(projectB.findTarget(projBtargetARef) === Some(projBtargetA))
 
-      assert(projectA.findTarget(projBtargetARef) === None)
-      assert(projectB.findTarget(projAtargetARef) === None)
+      intercept[TargetNotFoundException] {
+        projectA.findTarget(projBtargetARef)
+      }
     }
 
     //     "from phony target in sub project" in {

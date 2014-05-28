@@ -126,7 +126,7 @@ class ProjectTarget private[sbuild] (override val name: String,
   override def formatRelativeTo(baseProject: Project): String =
     (if (project != baseProject) {
       baseProject.projectDirectory.toURI.relativize(project.projectFile.toURI).getPath + "::"
-    } else "") + TargetRef(this).formatRelativeToProject
+    } else "") + TargetRef(this)(project).formatRelativeToProject
 
   override def formatRelativeToBaseProject: String = formatRelativeTo(project.baseProject.getOrElse(project))
 
