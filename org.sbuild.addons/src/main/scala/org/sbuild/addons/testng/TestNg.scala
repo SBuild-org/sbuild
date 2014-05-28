@@ -161,7 +161,7 @@ class TestNg(
 
       } catch {
         case e: ClassNotFoundException =>
-          throw new ExecutionFailedException("Some TestNG classes could not be found on the classpath.\nPlease add it to the 'classpath' attribute or the SBuild classapth.", e)
+          throw new ExecutionFailedException("Some TestNG classes could not be found on the classpath.\nPlease add it to the 'classpath' attribute or the SBuild classpath.", e)
       }
 
     }

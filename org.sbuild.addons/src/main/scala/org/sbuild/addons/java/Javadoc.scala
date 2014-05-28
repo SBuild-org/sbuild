@@ -202,7 +202,7 @@ class Javadoc(
         classOf[Javac].getClassLoader
       case cp =>
         val cl = new URLClassLoader(cp.map { f => f.toURI().toURL() }.toArray, classOf[Javac].getClassLoader)
-        log.debug("Using addional javadoc classpath: " + cl.getURLs().mkString(", "))
+        log.debug("Using additional javadoc classpath: " + cl.getURLs().mkString(", "))
         cl
     }
 

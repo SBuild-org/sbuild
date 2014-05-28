@@ -45,7 +45,7 @@ class FileLocker(updateIntervalMsec: Long = 1000,
         }
       }
     }
-    if (file.exists) Left(s"Lock could not acquired within an timeout of ${timeoutMsec} msec.")
+    if (file.exists) Left(s"Lock could not be acquired within a timeout of ${timeoutMsec} msec.")
     else Right(new FileLock(file, updateIntervalMsec, processInformation, createDirs))
   }
 

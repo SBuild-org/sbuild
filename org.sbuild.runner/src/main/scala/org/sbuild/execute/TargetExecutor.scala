@@ -99,7 +99,7 @@ object TargetExecutor {
               deps
             } catch {
               case e: UnsupportedSchemeException =>
-                val ex = new UnsupportedSchemeException("Unsupported Scheme in dependencies of target: " +
+                val ex = new UnsupportedSchemeException("Unsupported scheme in dependencies of target: " +
                   target.formatRelativeToBaseProject + ". " + e.getMessage)
                 ex.buildScript = e.buildScript
                 ex.targetName = Some(target.formatRelativeToBaseProject)

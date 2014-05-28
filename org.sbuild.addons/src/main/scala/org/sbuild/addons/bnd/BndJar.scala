@@ -90,7 +90,7 @@ class BndJar(
       case null => classOf[BndJar].getClassLoader
       case cp =>
         val cl = new URLClassLoader(cp.map { f => f.toURI().toURL() }.toArray, classOf[BndJar].getClassLoader)
-        log.debug("Using addional bnd classpath: " + cl.getURLs().mkString(", "))
+        log.debug("Using additional bnd classpath: " + cl.getURLs().mkString(", "))
         cl
     }
 
@@ -103,7 +103,7 @@ class BndJar(
     } catch {
       case e: ClassNotFoundException =>
         val builderClassName = "aQute.bnd.osgi.Builder"
-        log.debug(s"""Could not found class "${e.getMessage}". Trying new package name (since 2.0.0) "aQute.bnd.ogsi".""")
+        log.debug(s"""Could not find class "${e.getMessage}". Trying new package name (since 2.0.0) "aQute.bnd.osgi".""")
         val builderClass = bndClassLoader.loadClass(builderClassName)
         val jarClassName = "aQute.bnd.osgi.Jar"
         val jarClass = bndClassLoader.loadClass(jarClassName)

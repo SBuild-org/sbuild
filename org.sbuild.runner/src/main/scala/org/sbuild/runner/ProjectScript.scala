@@ -277,12 +277,12 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
 
     if (!file.exists || !file.isFile) {
       if (bootstrapRequest.isEmpty) {
-        val msg = preparetr("Project buildfile does not exists or is not a file: {0}", scriptFile)
+        val msg = preparetr("Project buildfile does not exist or is not a file: {0}", scriptFile)
         val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
         ex.buildScript = Some(file)
         throw ex
       } else {
-        val msg = preparetr("A bootstrap resource does not exists or is not a file: {0}", scriptFile.getPath)
+        val msg = preparetr("A bootstrap resource does not exist or is not a file: {0}", scriptFile.getPath)
         val ex = new ProjectConfigurationException(
           msg.notr + addMsg.map(_.notr).mkString("\n", "\n", ""),
           null,
@@ -347,7 +347,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
           log.debug("Using previously compiled and up-to-date build class: " + className)
           className
         case LastRunInfo(_, _, reason) if !checkLock =>
-          log.debug("Compiling build script " + scriptFile + " is necessary. Reason: " + reason)
+          log.debug("Compilation of build script " + scriptFile + " is necessary. Reason: " + reason)
           newCompile(scriptEnv, classpath, bootstrapClasspath, includes, reason, monitor, bootstrapRequest)
         case LastRunInfo(_, _, reason) =>
           fileLocker.acquire(
@@ -585,7 +585,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
             cache
         }
 
-        log.debug("Executing Scala Compile with args: " + params.mkString(" "))
+        log.debug("Executing Scala compiler with args: " + params.mkString(" "))
         val compilerInstance = cachedCompiler.compilerClass.getConstructor().newInstance()
 
         cachedCompiler.compilerMethod.invoke(compilerInstance, params)
@@ -613,7 +613,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
             cache
         }
 
-        log.debug("Executing Scala Compile with args: " + params.mkString(" "))
+        log.debug("Executing Scala compiler with args: " + params.mkString(" "))
         cachedCompiler.compilerMethod.invoke(null, params)
         val reporter = cachedCompiler.reporterMethod.invoke(null)
         val hasErrors = reporter.asInstanceOf[{ def hasErrors(): Boolean }].hasErrors
@@ -629,7 +629,7 @@ class ProjectScript(classpaths: Classpaths, fileLocker: FileLocker, noFsc: Boole
       } catch {
         case e: SBuildException => throw e
         case e: Exception =>
-          log.debug("Compilation with CompileClient failed. trying non-distributed Scala compiler.")
+          log.debug("Compilation with CompileClient failed. Trying non-distributed Scala compiler.")
           compileWithoutFsc
       }
     }
