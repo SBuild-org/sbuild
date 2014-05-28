@@ -23,7 +23,7 @@ class DependentClassesOrdererTest extends DependentClassesOrderer with FreeSpecL
     }
   }
 
-  "Original ordering should be keept if possible" - {
+  "Original ordering should be kept if possible" - {
     class C0
     class C1
     class C2

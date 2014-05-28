@@ -58,7 +58,7 @@ class BuildFileProject(_projectFile: File,
   override val projectDirectory: File = Path.normalize(_projectDir)
 
   if (!projectDirectory.exists) {
-    val msg = preparetr("Project directory \"{0}\" does not exists.", projectDirectory)
+    val msg = preparetr("Project directory \"{0}\" does not exist.", projectDirectory)
     val ex = new ProjectConfigurationException(msg.notr, null, msg.tr)
     ex.buildScript = Some(projectFile)
     throw ex
@@ -104,7 +104,7 @@ class BuildFileProject(_projectFile: File,
 
     val newProjectDirOrFile = Path(dirOrFile)(this)
     if (!newProjectDirOrFile.exists) {
-      val ex = new ProjectConfigurationException("Subproject/module '" + dirOrFile + "' does not exists")
+      val ex = new ProjectConfigurationException("Subproject/module '" + dirOrFile + "' does not exist.")
       ex.buildScript = Some(this._projectFile)
       throw ex
     }
@@ -115,7 +115,7 @@ class BuildFileProject(_projectFile: File,
     }
 
     if (!newProjectFile.exists) {
-      val ex = new ProjectConfigurationException("Subproject/module '" + dirOrFile + "' does not exists")
+      val ex = new ProjectConfigurationException("Subproject/module '" + dirOrFile + "' does not exist.")
       ex.buildScript = Some(this._projectFile)
       throw ex
     }
@@ -134,7 +134,7 @@ class BuildFileProject(_projectFile: File,
         case _ =>
           projectReader match {
             case None =>
-              val ex = new SBuildException("Does not know how to read the sub project")
+              val ex = new SBuildException("Do not know how to read the subproject")
               ex.buildScript = Some(projectFile)
               throw ex
 
@@ -183,7 +183,7 @@ class BuildFileProject(_projectFile: File,
             p.createTarget(targetRef, isImplicit = true)
         }
       case Some(_) =>
-        val ex = new ProjectConfigurationException("Cannot create Target which explicitly references a different project in its name: " + targetRef)
+        val ex = new ProjectConfigurationException("Cannot create target which explicitly references a different project in its name: " + targetRef)
         ex.buildScript = Some(targetRef.safeTargetProject.projectFile)
         throw ex
       case None =>
@@ -312,7 +312,7 @@ class BuildFileProject(_projectFile: File,
 
                       // For now just fail
                       throw new SBuildException("Found more than one match for dependency '" + file +
-                        " in all registered modules. Occurences:" +
+                        " in all registered modules. Occurrences:" +
                         candidates.map {
                           case Some(t) => "\n - " + t.name + " [" + t.project.projectFile + "]"
                           case _ => // to avoid compiler warning
@@ -437,7 +437,7 @@ class BuildFileProject(_projectFile: File,
 
                 override def resolve(schemeContext: SchemeContext, targetContext: TargetContext): Unit = {
                   val unwrappedPath = this.unwrappedScheme(schemeContext)
-                  log.debug(s"""About to resolve "${schemeContext}" by calling undelying scheme handler's resolve with path "${unwrappedPath}""")
+                  log.debug(s"""About to resolve "${schemeContext}" by calling underlying scheme handler's resolve with path "${unwrappedPath}""")
                   secondaryResolver.resolve(unwrappedPath, targetContext)
                 }
 
@@ -452,7 +452,7 @@ class BuildFileProject(_projectFile: File,
               uTF
           }
         case None =>
-          val e = new UnsupportedSchemeException("No scheme handler registered, that supports scheme: " + proto)
+          val e = new UnsupportedSchemeException("No scheme handler registered that supports scheme: " + proto)
           e.buildScript = Some(projectFile)
           throw e
       }
@@ -500,7 +500,7 @@ class BuildFileProject(_projectFile: File,
   private[this] def schemeHandlers_=(schemeHandlers: Map[String, SchemeHandler]) = _schemeHandlers = schemeHandlers
 
   override def registerSchemeHandler(scheme: String, handler: SchemeHandler) {
-    log.debug("Registerung scheme handler for scheme \"" + scheme + "\": " + handler)
+    log.debug("Registering scheme handler for scheme \"" + scheme + "\": " + handler)
     schemeHandlers.get(scheme).map {
       _ =>
         val msg = preparetr("Replacing scheme handler \"{0}\" for project \"{1}\".", scheme, projectFile)
@@ -550,7 +550,7 @@ class BuildFileProject(_projectFile: File,
           inStream.close()
         }
       case file =>
-        log.error("Could not found properties file: " + file)
+        log.error("Could not find properties file: " + file)
         Seq()
     }.reduceLeftOption { (l, r) =>
       val map = l ++ r

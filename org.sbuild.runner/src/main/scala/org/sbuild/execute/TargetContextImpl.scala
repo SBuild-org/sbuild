@@ -97,7 +97,7 @@ class TargetContextImpl(
   private[sbuild] def attachFileWithoutLastModifiedCheck(files: Seq[File]) {
     files.foreach { file =>
       if (!file.exists)
-        throw new FileNotFoundException(s"""Attached file "${file.getPath}" does not exists.""")
+        throw new FileNotFoundException(s"""Attached file "${file.getPath}" does not exist.""")
     }
     _attachedFiles ++= files
   }

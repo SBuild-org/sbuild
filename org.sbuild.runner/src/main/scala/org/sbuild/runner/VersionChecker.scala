@@ -34,7 +34,7 @@ class VersionChecker {
       case Some(v) =>
         val osgiVersion = OSGiVersion.parseVersion(v)
         if (osgiVersion.compareTo(new OSGiVersion(SBuildVersion.osgiVersion)) > 0) {
-          val msg = tr("The plugin(s) \"{0}\" in project \"{1}\" requires at least SBuild version: {2}", pluginInfo.pluginClasses.map(_.name).mkString(","), buildScript, v)
+          val msg = tr("The plugin(s) \"{0}\" in project \"{1}\" require at least SBuild version: {2}", pluginInfo.pluginClasses.map(_.name).mkString(","), buildScript, v)
           val ex = new SBuildException(msg)
           ex.buildScript = buildScript
           throw ex

@@ -145,7 +145,7 @@ class Util {
                   } else {
                     outStream.close
                     cleanup
-                    throw new SBuildException(s"To many failed retries (s${retries}). Cannot download from ${url}");
+                    throw new SBuildException(s"Too many failed retries (s${retries}). Cannot download from ${url}");
                   }
                 case _ =>
                   outStream.close
@@ -312,7 +312,7 @@ class Util {
     }
 
     if (!filesToExtract.isEmpty) {
-      throw new FileNotFoundException(s"""Could not found file "${filesToExtract.head._1}" in zip archive "${archive}".""")
+      throw new FileNotFoundException(s"""Could not find file "${filesToExtract.head._1}" in zip archive "${archive}".""")
     }
 
     extractedFilesInv.reverse

@@ -22,7 +22,7 @@ class DependentClassesOrderer {
     }
 
     while (!unchained.isEmpty) {
-      log.debug(s"aleady chained: ${chained}")
+      log.debug(s"already chained: ${chained}")
       log.debug(s"still needs chaining: ${unchained}")
       searchNextResolved(unchained) match {
         case None => throw new ProjectConfigurationException("Could not resolve inter plugin dependencies")
