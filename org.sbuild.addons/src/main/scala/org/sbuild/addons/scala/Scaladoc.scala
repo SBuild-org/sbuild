@@ -207,7 +207,7 @@ class Scaladoc(
 
   def generateInternal(args: Array[String]): Int = {
     val scaladocClassLoader = new URLClassLoader(scaladocClasspath.map { f => f.toURI().toURL() }.toArray, classOf[Scalac].getClassLoader)
-    log.debug("Using addional scaladoc classpath: " + scaladocClassLoader.getURLs().mkString(", "))
+    log.debug("Using additional scaladoc classpath: " + scaladocClassLoader.getURLs().mkString(", "))
 
     val scaladocClass = scaladocClassLoader.loadClass(scaladocClassName)
     val scaladocObjectClass = scaladocClassLoader.loadClass(scaladocClassName + "$")

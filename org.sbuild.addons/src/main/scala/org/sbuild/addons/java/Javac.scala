@@ -198,12 +198,12 @@ class Javac(
       case e: ClassNotFoundException if e.getMessage == javacClassName =>
         val os = System.getProperty("os.name").toLowerCase
         val extraMsg =
-          if (os.indexOf("win") >= 0) "Under Windows, the content of the JAVA_HOME environment variable lokks typically like this: JAVA_HOME=C:\\Program Files\\Java\\jdk1.7.0_21"
+          if (os.indexOf("win") >= 0) " On Windows systems, the content of the JAVA_HOME environment variable looks typically like this: JAVA_HOME=C:\\Program Files\\Java\\jdk1.7.0_21"
           else if (os.indexOf("mac") >= 0)
-            " Under Mac OSX, the content of the JAVA_HOME environment variable looks typically like this: JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_21.jdk/Contents/Home." +
-              " An common trick is, to export it with \"export JAVA_HOME=$(/usr/libexec/java_home)\"."
+            " On Mac OSX, the content of the JAVA_HOME environment variable looks typically like this: JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_21.jdk/Contents/Home." +
+              " A common trick is to export it with \"export JAVA_HOME=$(/usr/libexec/java_home)\"."
           else ""
-        val ex = new ExecutionFailedException("Could not found the compiler \"" + javacClassName + "\". Either specify a valid compilerClasspath or make sure, the JAVA_HOME environment varibale is set properly." + extraMsg)
+        val ex = new ExecutionFailedException("Could not find the compiler \"" + javacClassName + "\". Either specify a valid compilerClasspath or make sure the JAVA_HOME environment variable is set properly." + extraMsg)
         ex.buildScript = Some(project.projectFile)
         throw ex
     }
@@ -226,7 +226,7 @@ class Javac(
         classOf[Javac].getClassLoader
       case cp =>
         val cl = new URLClassLoader(cp.map { f => f.toURI().toURL() }.toArray, classOf[Javac].getClassLoader)
-        log.debug("Using addional compiler classpath: " + cl.getURLs().mkString(", "))
+        log.debug("Using additional compiler classpath: " + cl.getURLs().mkString(", "))
         cl
     }
 

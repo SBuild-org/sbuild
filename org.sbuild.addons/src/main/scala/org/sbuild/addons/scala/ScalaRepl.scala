@@ -26,7 +26,7 @@ class ScalaRepl(
 
   def execute() {
     if (classpath == null || classpath.isEmpty) {
-      throw new ProjectConfigurationException("You must specify an classpath, including the scala library and the scala compiler classes.")
+      throw new ProjectConfigurationException("You must specify a classpath, including the scala library and the scala compiler classes.")
     }
 
     val (javaCp, loadCp) = replClasspath match {
