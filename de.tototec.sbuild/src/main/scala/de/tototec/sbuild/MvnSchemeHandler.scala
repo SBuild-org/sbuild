@@ -2,10 +2,11 @@ package de.tototec.sbuild
 
 import java.io.File
 import java.io.FileNotFoundException
-import scala.Array.canBuildFrom
+import java.net.Proxy
+
 import de.tototec.sbuild.SchemeHandler.SchemeContext
-import de.tototec.sbuild.internal.{ Util => InternalUtil }
 import de.tototec.sbuild.internal.I18n
+import de.tototec.sbuild.internal.{ Util => InternalUtil }
 
 object MavenSupport {
   object MavenGav {
@@ -45,10 +46,13 @@ object MavenSupport {
  */
 class MvnSchemeHandler(
   val downloadPath: File = new File(System.getProperty("user.home", ".") + "/.m2/repository"),
-  repos: Seq[String] = Seq("http://repo1.maven.org/maven2"))(implicit project: Project)
+  repos: Seq[String] = Seq("http://repo1.maven.org/maven2"),
+  proxy: Option[Proxy] = None)(implicit project: Project)
     extends SchemeResolver {
 
   private val userAgent = s"SBuild/${SBuildVersion.osgiVersion} (MvnSchemeHandler)"
+
+  private val _proxy: Proxy = HttpSchemeHandler.autoProxy(proxy, project)
 
   import MavenSupport._
 
@@ -75,7 +79,7 @@ class MvnSchemeHandler(
       var result: Option[Throwable] = None
       repos.takeWhile { repo =>
         val url = repo + "/" + constructMvnPath(schemeCtx.path)
-        result = InternalUtil.download(url, target.getPath, project.monitor, Some(userAgent))
+        result = InternalUtil.download(url, target.getPath, project.monitor, Some(userAgent), proxy = _proxy)
         val failed = result.isDefined || !target.exists
         if (failed) project.monitor.info(CmdlineMonitor.Default, "Download failed.")
         failed

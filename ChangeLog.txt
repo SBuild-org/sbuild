@@ -3,6 +3,8 @@ SBuild 0.7.6 - not released yet:
 * Corrected parallel classloading according to Java ClassLoader spec.
 * Fixed sbuild.bat script. The SBUILD_HOME environment variable is no longer
   needed.
+* Support for HTTP proxies in HTTP and MVN scheme handlers.
+* Automatically use http_proxy environment variable if present.
 
 SBuild 0.7.5 - 2014-04-04:
 
