@@ -30,7 +30,7 @@ object SBuildConfig {
   val log4jOverSlf4j = "mvn:org.slf4j:log4j-over-slf4j:1.7.5"
   val logbackCore = "mvn:ch.qos.logback:logback-core:1.0.13"
   val logbackClassic = "mvn:ch.qos.logback:logback-classic:1.0.13"
-  val scalaTest = s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.1.3"
+  val scalaTest = s"mvn:org.scalatest:scalatest_${SBuildConfig.scalaBinVersion}:2.1.7"
 
   def sbuildUnzipPlugin(implicit p: Project) = Path[SBuildConfig.type]("sbuild-unzip-plugin/org.sbuild.plugins.unzip/target/org.sbuild.plugins.unzip-0.0.9000.jar")
   def sbuildHttpPlugin(implicit p: Project) = Path[SBuildConfig.type]("sbuild-http-plugin/org.sbuild.plugins.http/target/org.sbuild.plugins.http-0.0.9000.jar")
