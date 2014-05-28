@@ -38,7 +38,7 @@ class TargetRefs private (val targetRefGroups: Seq[Seq[TargetRef]]) {
   def ~(targetRefs: TargetRefs): TargetRefs =
     new TargetRefs(removeEmptyGroups(
       closedGroups ++
-        Seq(openGroup ++ targetRefs.targetRefGroups.head) ++
+        Seq((openGroup ++ targetRefs.targetRefGroups.head).toSeq.distinct) ++
         targetRefs.targetRefGroups.tail
     ))
   def ~(targetRef: TargetRef): TargetRefs = this.~(TargetRefs.fromTargetRef(targetRef))

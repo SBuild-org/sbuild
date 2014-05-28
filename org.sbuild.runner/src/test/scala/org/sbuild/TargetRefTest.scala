@@ -35,6 +35,35 @@ class TargetRefTest extends FreeSpec {
 
   }
 
+  "TargetRef equals contract" - {
+    implicit val _ = projectA
+    Seq("a", "phony:a") map { ref =>
+      s"equals to itself: ${ref}" in {
+        val targetRef = TargetRef(ref)
+        assert(targetRef == targetRef)
+      }
+      s"equals to same: ${ref}" in {
+        val a = TargetRef(ref)
+        val b = TargetRef(ref)
+        assert(a == b)
+        assert(a.hashCode() == b.hashCode())
+      }
+    }
+  }
+
+  "TargetRefs merge" - {
+    implicit val _ = projectA
+    def mergeTest(refs: TargetRefs, expected: Seq[Seq[TargetRef]]): Unit = {
+      s"merge ${refs} to ${expected}" in {
+        assert(refs.targetRefGroups === expected)
+      }
+    }
+    mergeTest("a", Seq(Seq("a")))
+    mergeTest("a" ~ "b", Seq(Seq("a", "b")))
+    mergeTest("a" ~ "a", Seq(Seq("a")))
+    mergeTest("a" ~~ "a", Seq(Seq("a"), Seq("a")))
+  }
+
   "TargetRef conversions" - {
 
     "from phony target in same project" in {

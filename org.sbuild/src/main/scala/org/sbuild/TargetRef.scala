@@ -24,9 +24,10 @@ object TargetRef {
 
 }
 
-class TargetRef(val ref: String)(implicit project: Project) {
+class TargetRef(val ref: String)(implicit _project: Project) {
 
   private[this] def log = Logger[TargetRef]
+  private val project = _project
 
   val (explicitProject: Option[File], name: String) = ref.split("::", 2) match {
     case Array(p, n) => (Some(Path(p)), n)
@@ -127,6 +128,13 @@ class TargetRef(val ref: String)(implicit project: Project) {
         }
     }
   }
+
+  override def hashCode(): Int = 41 * ref.hashCode() + project.hashCode()
+  override def equals(other: Any) = other match {
+    case that: TargetRef => that.canEqual(this) && this.ref == that.ref && this.project == that.project
+    case _ => false
+  }
+  def canEqual(other: Any) = other.isInstanceOf[TargetRef]
 
 }
 
