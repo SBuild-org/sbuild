@@ -89,7 +89,7 @@ class SBuild(implicit _project: Project) {
     //      classpath = testCp.files ++ jar.files,
     //      runPath = Seq("target/test-classes"),
     //      //      reporter = "oF",
-    //      standardOutputSettings = "FD",
+    //      standardOutputSettings = "G",
     //      xmlOutputDir = Path("target/test-output"),
     //      fork = true)
 

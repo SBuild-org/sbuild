@@ -7,19 +7,27 @@ import org.sbuild.internal.WithinTargetExecution
 
 object TargetRef {
 
-  implicit def fromTarget(target: Target): TargetRef = TargetRef(target)
+  implicit def fromTarget(target: Target)(implicit project: Project): TargetRef = TargetRef(target)
   implicit def fromString(name: String)(implicit project: Project): TargetRef = TargetRef(name)
   implicit def fromFile(file: File)(implicit project: Project): TargetRef = TargetRef(file)
 
   def apply(name: String)(implicit project: Project): TargetRef = new TargetRef(name)
-  def apply(target: Target): TargetRef = new TargetRef(target.name)(target.project)
+  def apply(target: Target)(implicit project: Project): TargetRef = {
+    val name = if (project == target.project) {
+      target.name
+    } else {
+      s"${target.project.projectFile.getAbsolutePath()}::${target.name}"
+    }
+    new TargetRef(name)(project)
+  }
   def apply(file: File)(implicit project: Project): TargetRef = new TargetRef("file:" + file.getPath)
 
 }
 
-class TargetRef(val ref: String)(implicit project: Project) {
+class TargetRef(val ref: String)(implicit _project: Project) {
 
   private[this] def log = Logger[TargetRef]
+  private val project = _project
 
   val (explicitProject: Option[File], name: String) = ref.split("::", 2) match {
     case Array(p, n) => (Some(Path(p)), n)
@@ -120,6 +128,13 @@ class TargetRef(val ref: String)(implicit project: Project) {
         }
     }
   }
+
+  override def hashCode(): Int = 41 * ref.hashCode() + project.hashCode()
+  override def equals(other: Any) = other match {
+    case that: TargetRef => that.canEqual(this) && this.ref == that.ref && this.project == that.project
+    case _ => false
+  }
+  def canEqual(other: Any) = other.isInstanceOf[TargetRef]
 
 }
 

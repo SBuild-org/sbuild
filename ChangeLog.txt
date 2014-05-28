@@ -22,6 +22,8 @@ SBuild Runner
 * Added new cmdline option --parallel-request, to run all targets requested on
   cmdline in parallel.
 * Fixed potential threading issues in PluginClassLoader.
+* Fixed sbuild.bat script. The SBUILD_HOME environment variable is no longer
+  needed.
 
 SBuild 0.7.5 - 2014-04-04:
 
