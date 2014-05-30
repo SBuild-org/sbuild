@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: de.tototec.sbuild\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-04-01 16:35+0200\n"
+"POT-Creation-Date: 2014-05-28 15:16+0200\n"
 "PO-Revision-Date: 2013-11-06 15:01+0100\n"
 "Last-Translator: Tobias Roeser <le.petit.fou@web.de>\n"
 "Language-Team: German <>\n"
@@ -17,15 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: org/sbuild/MapperSchemeHandler.scala:25
-#, java-format
-msgid ""
-"Cannot find a source scheme handler (mapping or translator) for \"{0}\"."
-msgstr ""
-"Für \"{0}\" kann kein Source SchemeHandler (Mapper oder Übersetzer) gefunden "
-"werden."
-
-#: org/sbuild/TargetRef.scala:98 org/sbuild/TargetRef.scala:111
+#: org/sbuild/TargetRef.scala:106 org/sbuild/TargetRef.scala:119
 #, java-format
 msgid ""
 "'TargetRef.files' is used for dependency \"{0}\", that is not declared with "
@@ -33,6 +25,14 @@ msgid ""
 msgstr ""
 "Abhängigkeit \"{0}\" wird durch 'TargetRef.files' referenziert, wurde aber "
 "nicht mit 'dependsOn' deklariert."
+
+#: org/sbuild/MapperSchemeHandler.scala:25
+#, java-format
+msgid ""
+"Cannot find a source scheme handler (mapping or translator) for \"{0}\"."
+msgstr ""
+"Für \"{0}\" kann kein Source SchemeHandler (Mapper oder Übersetzer) gefunden "
+"werden."
 
 #: org/sbuild/Prop.scala:17
 #, java-format

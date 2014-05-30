@@ -1,23 +1,22 @@
-# SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
-# Tobias Roeser <le.petit.fou@web.de>, 2013.
 #
-#, fuzzy
+# Tobias Roeser <le.petit.fou@web.de>, 2013, 2014.
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-04-02 09:01+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Tobias Roeser <le.petit.fou@web.de>\n"
+"POT-Creation-Date: 2014-05-30 16:12+0200\n"
+"PO-Revision-Date: 2014-05-30 17:01+0200\n"
+"Last-Translator: Tobias Roeser\n"
 "Language-Team: German <>\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Lokalize 1.5\n"
 
-#: org/sbuild/plugins/http/HttpSchemeHandler.scala:73
 #: org/sbuild/plugins/mvn/MvnSchemeHandler.scala:98
 #, java-format
 msgid "File is not present and can not be downloaded in offline-mode: {0}"
@@ -102,11 +101,11 @@ msgstr ""
 
 #: org/sbuild/runner/SBuildRunner.scala:316
 msgid ""
-"SBuild detected a invalid usage of SBuild API. Please consult the API "
+"SBuild detected an invalid usage of SBuild API. Please consult the API "
 "Refence Documentation at http://sbuild.org/doc/sbuild ."
 msgstr ""
 "SBuild hat eine ungültige Verwendung der SBuild API erkannt. Konsultieren "
-"sie die API Reference Dokumentation unter http://sbuild.org/doc/sbuild ."
+"sie die API Referenz Dokumentation unter http://sbuild.org/doc/sbuild ."
 
 #: org/sbuild/runner/SBuildRunner.scala:321
 msgid ""
@@ -201,8 +200,7 @@ msgstr ""
 #: org/sbuild/runner/VersionChecker.scala:37
 #, java-format
 msgid ""
-"The plugin(s) \"{0}\" in project \"{1}\" requires at least SBuild version: "
-"{2}"
+"The plugin(s) \"{0}\" in project \"{1}\" require at least SBuild version: {2}"
 msgstr ""
 "Plugin(s) \"{0}\" in Projekt \"{1}\" setzen mindestens SBuild in Version {2} "
 "voraus."
@@ -216,23 +214,29 @@ msgstr ""
 "Das Plugin \"{0}\" in Buildscript \"{1}\" setzt mindestens SBuild in Version "
 "{2} voraus."
 
-#: org/sbuild/runner/ProjectScript.scala:251
-#, java-format
-msgid "Project buildfile does not exists or is not a file: {0}"
-msgstr "Projekt Buildfile existiert nicht oder ist keine gültige Datei: {0}"
-
-#: org/sbuild/runner/ProjectScript.scala:256
-#, java-format
-msgid "A bootstrap resource does not exists or is not a file: {0}"
-msgstr "Eine Bootstrap-Ressources existiert nicht oder ist keine gültige Datei: {0}"
-
-#: org/sbuild/runner/ProjectScript.scala:257
+#: org/sbuild/runner/ProjectScript.scala:266
 #, java-format
 msgid "It was requested by: {0}"
 msgstr "Angefordert von: {0}"
 
-#: org/sbuild/execute/TargetExecutor.scala:340
-#: org/sbuild/execute/TargetExecutor.scala:624
+#: org/sbuild/runner/ProjectScript.scala:269
+#, java-format
+msgid "Cyclic bootstrap definition detected: {0}"
+msgstr "Zyklus in bootstrap Definition erkannt: {0}"
+
+#: org/sbuild/runner/ProjectScript.scala:280
+#, java-format
+msgid "Project buildfile does not exist or is not a file: {0}"
+msgstr "Projekt Buildfile existiert nicht oder ist keine gültige Datei: {0}"
+
+#: org/sbuild/runner/ProjectScript.scala:285
+#, java-format
+msgid "A bootstrap resource does not exist or is not a file: {0}"
+msgstr ""
+"Eine Bootstrap-Ressource existiert nicht oder ist keine gültige Datei: {0}"
+
+#: org/sbuild/execute/TargetExecutor.scala:337
+#: org/sbuild/execute/TargetExecutor.scala:621
 #, java-format
 msgid ""
 "Modification time of file \"{0}\" is in the future. Up-to-date checks may be "
@@ -241,7 +245,7 @@ msgstr ""
 "Veränderungszeit der Datei \"{0}\" liegt in der Zukunft. "
 "Aktualitätsprüfungen könnten nicht korrekt ausfallen."
 
-#: org/sbuild/execute/TargetExecutor.scala:391
+#: org/sbuild/execute/TargetExecutor.scala:388
 #, java-format
 msgid ""
 "Target \"{0}\" has no defined execution. Don't know how to create or update "
@@ -250,11 +254,11 @@ msgstr ""
 "Für Target \"{0}\" wurde kein Exec-Block definiert. Kann Target nicht "
 "erzeugen oder aktualisieren."
 
-#: org/sbuild/execute/TargetExecutor.scala:426
+#: org/sbuild/execute/TargetExecutor.scala:423
 msgid "Executing target: "
 msgstr "Verarbeite Target: "
 
-#: org/sbuild/execute/TargetExecutor.scala:452
+#: org/sbuild/execute/TargetExecutor.scala:449
 #, java-format
 msgid ""
 "Outcome of target {0} looks out-of-date, as the timestamp hasn't changed."
@@ -262,7 +266,7 @@ msgstr ""
 "Ergebnis von Target {0} scheint nicht aktuell zu sein, da der Zeitstempel "
 "sich nicht geändert hat."
 
-#: org/sbuild/execute/TargetExecutor.scala:480
+#: org/sbuild/execute/TargetExecutor.scala:477
 #, java-format
 msgid ""
 "Execution of target {0} failed with an exception: {1}.\n"
@@ -271,48 +275,48 @@ msgstr ""
 "Ausführung von Target {0} schlug mit einer Exception fehl: {1}.\n"
 "{2}"
 
-#: org/sbuild/execute/TargetExecutor.scala:486
+#: org/sbuild/execute/TargetExecutor.scala:483
 #, java-format
 msgid "Execution of target \"{0}\" aborted after {1} msec with errors: {2}"
 msgstr ""
 "Ausführung von Target \"{0}\" nach {1} msek mit Fehlern abgebrochen: {2}"
 
-#: org/sbuild/execute/TargetExecutor.scala:519
-#: org/sbuild/execute/TargetExecutor.scala:531
+#: org/sbuild/execute/TargetExecutor.scala:516
+#: org/sbuild/execute/TargetExecutor.scala:528
 msgid "Finished target: "
 msgstr "Target fertiggestellt: "
 
-#: org/sbuild/execute/TargetExecutor.scala:519
-#: org/sbuild/execute/TargetExecutor.scala:523
+#: org/sbuild/execute/TargetExecutor.scala:516
+#: org/sbuild/execute/TargetExecutor.scala:520
 #, java-format
 msgid " after {0} msec"
 msgstr " nach {0} msek"
 
-#: org/sbuild/execute/TargetExecutor.scala:523
+#: org/sbuild/execute/TargetExecutor.scala:520
 msgid "Failed target: "
 msgstr "Target fehlgeschlagen: "
 
-#: org/sbuild/execute/TargetExecutor.scala:526
+#: org/sbuild/execute/TargetExecutor.scala:523
 msgid "Skipped unsatisfied target: "
 msgstr "Überpringe unerfülltes Target: "
 
-#: org/sbuild/execute/TargetExecutor.scala:528
+#: org/sbuild/execute/TargetExecutor.scala:525
 msgid "Skipped previously failed target: "
 msgstr "Überspringe früher fehlgschlagenes Target: "
 
-#: org/sbuild/execute/TargetExecutor.scala:534
+#: org/sbuild/execute/TargetExecutor.scala:531
 msgid "Skipped target: "
 msgstr "Überspringe Target: "
 
-#: org/sbuild/execute/TargetExecutor.scala:536
+#: org/sbuild/execute/TargetExecutor.scala:533
 msgid "Skipped empty target: "
 msgstr "Überpringe leeres Target: "
 
-#: org/sbuild/execute/TargetExecutor.scala:538
+#: org/sbuild/execute/TargetExecutor.scala:535
 msgid "Skipped cached target: "
 msgstr "Überspringe zwischengespeichertes Target: "
 
-#: org/sbuild/execute/TargetExecutor.scala:634
+#: org/sbuild/execute/TargetExecutor.scala:631
 #, java-format
 msgid ""
 "Reported modification time of target \"{0}\" is in the future. Up-to-date "
@@ -323,7 +327,7 @@ msgstr ""
 
 #: org/sbuild/internal/BuildFileProject.scala:61
 #, java-format
-msgid "Project directory \"{0}\" does not exists."
+msgid "Project directory \"{0}\" does not exist."
 msgstr "Projektverzeichnis \"{0}\" existiert nicht."
 
 #: org/sbuild/internal/BuildFileProject.scala:67
@@ -331,12 +335,12 @@ msgstr "Projektverzeichnis \"{0}\" existiert nicht."
 msgid "Project directory \"{0}\" is not a directory."
 msgstr "Projektverzeichnis \"{0}\" is kein Verzeichnis."
 
-#: org/sbuild/internal/BuildFileProject.scala:505
+#: org/sbuild/internal/BuildFileProject.scala:506
 #, java-format
 msgid "Replacing scheme handler \"{0}\" for project \"{1}\"."
 msgstr "Ersetze SchemeHandler \"{0}\" für Projekt \"{1}\"."
 
-#: org/sbuild/internal/BuildFileProject.scala:513
+#: org/sbuild/internal/BuildFileProject.scala:514
 #, java-format
 msgid ""
 "Cannot replace scheme handler \"{0}\" for project \"{1}\". No previous "
@@ -345,19 +349,29 @@ msgstr ""
 "Kann SchemeHandler \"{0}\" für Projekt \"{1}\" nicht ersetzen. Keine "
 "vorheriger SchemeHandler unter diesem Namen registriert."
 
-#: org/sbuild/internal/BuildFileProject.scala:523
+#: org/sbuild/internal/BuildFileProject.scala:524
 #, java-format
 msgid "Ignoring redefinition of property: {0}"
 msgstr "Ignoriere Neudefinition von Property: {0}"
 
-#: org/sbuild/internal/BuildFileProject.scala:569
+#: org/sbuild/internal/BuildFileProject.scala:570
+#: org/sbuild/internal/BuildFileProject.scala:583
 #, java-format
 msgid ""
 "Could not determine the location of the (included/bootstrap) file which "
 "contains class \"{0}\"."
 msgstr ""
-"Konnte den Ort der Eingebundenen/Bootstrap Datei, die die Klasse \"{0}\" enthält, "
-"nicht ermitteln."
+"Konnte den Ort der Eingebundenen/Bootstrap Datei, die die Klasse \"{0}\" "
+"enthält, nicht ermitteln."
+
+#: org/sbuild/internal/BuildFileProject.scala:576
+#, java-format
+msgid ""
+"Could not determine a unique location of the (included/bootstrap) file which "
+"contains class \"{0}\"."
+msgstr ""
+"Konnte den Ort der (eingebundenen / Bootstrap-) Datei, die die Klasse \"{0}\" "
+"enthält, nicht ermitteln."
 
 #: org/sbuild/internal/ProjectTarget.scala:46
 #, java-format
