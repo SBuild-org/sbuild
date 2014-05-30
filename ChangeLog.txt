@@ -13,6 +13,7 @@ SBuild 0.7.5 - 2014-04-04:
   errors.
 * Removed doc submodule. Documentation of SBuild is in project
   https://github.com/SBuild-org/site-sbuild-org.
+* Various spelling typos fixed.
 
 SBuild 0.7.4 - 2014-03-20:
 
