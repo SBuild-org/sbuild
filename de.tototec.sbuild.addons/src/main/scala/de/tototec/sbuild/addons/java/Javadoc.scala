@@ -77,7 +77,7 @@ object Javadoc {
  * @param srcDirs Multiple directories containing Java source files.
  * @param sources Source files.
  * @param destDir The directory, where the generated files will be stored.
- *   If the directory does not exists, it will be created.
+ *   If the directory does not exist, it will be created.
  * @param encoding The encoding of the source files.
  * @param verbose Output messages about what the generator is doing.
  * @param source Provide source compatibility with specified release.
@@ -202,7 +202,7 @@ class Javadoc(
         classOf[Javac].getClassLoader
       case cp =>
         val cl = new URLClassLoader(cp.map { f => f.toURI().toURL() }.toArray, classOf[Javac].getClassLoader)
-        log.debug("Using addional javadoc classpath: " + cl.getURLs().mkString(", "))
+        log.debug("Using additional javadoc classpath: " + cl.getURLs().mkString(", "))
         cl
     }
 

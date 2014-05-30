@@ -43,7 +43,7 @@ class FileLock(file: File,
 
   // init
   {
-    require(!file.exists, "The lock file already exists")
+    require(!file.exists, "Lock file already exists")
 
     if (createDirs) {
       file.getParentFile() match {
@@ -73,7 +73,7 @@ class FileLock(file: File,
     timer.cancel
     val success = file.delete
     released = true
-    if (!success) throw new IllegalStateException("Could not delete the lock file: " + file)
+    if (!success) throw new IllegalStateException("Could not delete lock file: " + file)
   }
 
 }

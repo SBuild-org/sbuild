@@ -123,7 +123,7 @@ class TargetContextImpl(
   private var _targetLastModified: Option[Long] = None
   override def targetLastModified: Option[Long] = _targetLastModified
   override def targetLastModified_=(targetLastModified: Long) = _targetLastModified =
-    // TODO: consider a 0L as argument could mean, file does not exists and this could mean, we are not up-to-date
+    // TODO: consider a 0L as argument could mean, file does not exist and this could mean, we are not up-to-date
     // TODO: So, a lastModified of 0L should replaced by a lastModified as of NOW
     _targetLastModified match {
       case Some(previous) => Some(math.max(previous, targetLastModified))
@@ -162,7 +162,7 @@ class TargetContextImpl(
   private[sbuild] def attachFileWithoutLastModifiedCheck(files: Seq[File]) {
     files.foreach { file =>
       if (!file.exists)
-        throw new FileNotFoundException(s"""Attached file "${file.getPath}" does not exists.""")
+        throw new FileNotFoundException(s"""Attached file "${file.getPath}" does not exist.""")
     }
     _attachedFiles ++= files
   }

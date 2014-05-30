@@ -313,7 +313,7 @@ class SBuildRunner {
       if (rethrowInVerboseMode && verbose) throw e
       1
     case e: InvalidApiUsageException =>
-      errorOutput(e, tr("SBuild detected a invalid usage of SBuild API. Please consult the API Refence Documentation at http://sbuild.org/doc/sbuild ."))
+      errorOutput(e, tr("SBuild detected an invalid usage of SBuild API. Please consult the API Refence Documentation at http://sbuild.org/doc/sbuild ."))
       log.error("", e)
       if (rethrowInVerboseMode && verbose) throw e
       1
@@ -659,7 +659,7 @@ class SBuildRunner {
 
   def readConsoleColumns(): Option[Int] =
     if (!new File("/dev/tty").exists()) {
-      log.debug("/dev/tty does not exists.")
+      log.debug("/dev/tty does not exist.")
       None
     } else try {
       val out = new java.io.ByteArrayOutputStream();

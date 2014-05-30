@@ -11,7 +11,7 @@ class DependentClassesOrderer {
   def orderClasses(classes: Seq[Class[_]], dependencies: Seq[(Class[_], Class[_])]): Seq[Class[_]] = {
     var unchained: Seq[Class[_]] = classes
     var chained: Seq[Class[_]] = Seq()
-    log.debug(s"trying to order plugins: ${unchained}")
+    log.debug(s"Trying to order plugins: ${unchained}")
 
     def hasNoDeps(plugin: Class[_]): Boolean = dependencies.filter { case (a, b) => a == plugin && unchained.contains(b) }.isEmpty
 

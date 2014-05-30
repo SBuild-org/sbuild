@@ -16,7 +16,7 @@ class ClasspathConfig {
     case f if f.isAbsolute =>
       readFromPropertiesFile(new File(f, "lib/classpath.properties"))
       f
-    case _ => throw new IllegalArgumentException("SBuild HOME directory must be an abssolute path.")
+    case _ => throw new IllegalArgumentException("SBuild HOME directory must be an absolute path.")
   }
   def sbuildHomeDir = _sbuildHomeDir
   var _sbuildHomeDir: File = _

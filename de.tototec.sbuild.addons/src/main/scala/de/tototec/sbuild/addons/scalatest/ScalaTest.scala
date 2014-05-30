@@ -173,7 +173,7 @@ class ScalaTest(
     if (xmlOutputDir != null) args ++= Array("-u", xmlOutputDir.getPath)
     if (outputFile != null) args ++= Array("-f" + Option(outputFileSettings).getOrElse(""), outputFile.getPath)
     if (reporter != null) {
-      log.warn("Option reporter is depreacated")
+      log.warn("Option reporter is deprecated")
       project.monitor.warn(CmdlineMonitor.Default, "Option reporter is deprecated.")
       args ++= Array("-" + reporter)
     }

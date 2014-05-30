@@ -58,8 +58,8 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
               log.debug("Instantiating plugin factory with constructor: " + ctr)
               ctr.newInstance()
             case None =>
-              log.debug("Could not found any supported constructors: Found these: " + pluginClass.getConstructors().mkString("\n  "))
-              throw new ProjectConfigurationException("Could not found any suitable constructors in plugin class " + pluginClass.getName)
+              log.debug("Could not find any supported constructors: Found these: " + pluginClass.getConstructors().mkString("\n  "))
+              throw new ProjectConfigurationException("Could not find any suitable constructors in plugin class " + pluginClass.getName)
           }
       }
       fac.asInstanceOf[Plugin[_]]
@@ -131,7 +131,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
             applyToProject(_instances.map(i => (i.name -> i.obj)))
         } catch {
           case e: ClassCastException =>
-            val ex = new ProjectConfigurationException("Plugin configuration could to be applied to project: " + instanceClassName)
+            val ex = new ProjectConfigurationException("Plugin configuration could not be applied to project: " + instanceClassName)
             ex.buildScript = Some(projectSelf.projectFile)
             throw ex
         }
@@ -226,7 +226,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
 
     val orderedPlugins = orderedClasses.map { instanceClass =>
       _plugins.find(rp => rp.instanceClass == instanceClass) match {
-        case None => throw new IllegalStateException(s"Could not found registered plugin with instance class type ${instanceClass}")
+        case None => throw new IllegalStateException(s"Could not find registered plugin with instance class type ${instanceClass}")
         case Some(c) => c
       }
     }
@@ -273,7 +273,7 @@ trait PluginAwareImpl extends PluginAware { projectSelf: Project =>
           val instance = rp.get(name)
           runConfiguredHook(name, instance, initial = true)
         } else {
-          log.warn(s"Expected, that plugin instance with name '${name}' was not initializized before, but it was: ${rp.toCompactString}")
+          log.warn(s"Expected, that plugin instance with name '${name}' was not initialized before, but it was: ${rp.toCompactString}")
         }
 
         // now, we can assume an always initialized plugin instance

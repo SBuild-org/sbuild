@@ -103,7 +103,7 @@ class JUnit(
       project.monitor.info(CmdlineMonitor.Default, "Failures:\n- " + failures.mkString("\n- "))
 
       if (failOnError)
-        throw new ExecutionFailedException("Some JUnit test failed.")
+        throw new ExecutionFailedException("Some JUnit test(s) failed.")
     }
   }
 

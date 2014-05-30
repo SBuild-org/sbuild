@@ -121,7 +121,7 @@ class AnnotationReader {
         if (item.startsWith("\"") && item.endsWith("\"")) {
           unescapeStrings(item.substring(1, item.length - 1))
         } else {
-          throw new RuntimeException("Unexpection token found: " + item)
+          throw new RuntimeException("Unexpected token found: " + item)
         }
       }
 

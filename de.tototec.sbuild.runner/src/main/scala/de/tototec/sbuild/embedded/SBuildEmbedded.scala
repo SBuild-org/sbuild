@@ -40,7 +40,7 @@ class SBuildEmbedded(sbuildHomeDir: File) {
       projectReader.readAndCreateProject(projectFile, props.asScala.toMap, None, None)
     } catch {
       case e: Throwable =>
-        error("Could not read Project file. Cause: " + e.getMessage)
+        error("Could not read project file. Cause: " + e.getMessage)
         throw e
     }
 
@@ -120,7 +120,7 @@ class ProjectEmbeddedResolver(project: Project) extends EmbeddedResolver {
           case None | Some("file") if targetRef.explicitProject == None && Path(targetRef.nameWithoutProto).exists =>
             Seq(Path(targetRef.nameWithoutProto))
           case _ =>
-            throw new TargetNotFoundException(s"""Could not found target with name "${dep}" in project ${project.projectFile}.""")
+            throw new TargetNotFoundException(s"""Could not find target with name "${dep}" in project ${project.projectFile}.""")
         }
 
       case Some(target) =>

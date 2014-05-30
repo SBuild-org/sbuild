@@ -31,14 +31,14 @@ class TestProjectEmbeddedResolver extends FreeSpec {
 
     "should not resolve a test target" - {
 
-      "which does not exists as file" in {
+      "which does not exist as file" in {
         val projectFile = new File("target/test/TestProjectEmbeddedResolver/SBuild.scala")
         projectFile.getParentFile.mkdirs
         val writer = new FileWriter(projectFile)
         writer.write("// Dummy File")
         writer.close
 
-        // ensure, the target file does not exists
+        // ensure, the target file does not exist
         new File(projectFile.getParentFile, "test").delete
 
         val project: Project = new BuildFileProject(projectFile)

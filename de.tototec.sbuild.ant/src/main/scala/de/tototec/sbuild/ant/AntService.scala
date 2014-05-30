@@ -35,7 +35,7 @@ class AntService()(implicit _project: Project) extends Service {
     description: String = null)(implicit _project: Project) {
     this
     if (`type` != null && serviceType != null && `type` != serviceType) {
-      _project.monitor.warn(CmdlineMonitor.Default, "Both parameter ('type' and 'serviceType') were given but differ in its value. Prefering parameter 'type'.")
+      _project.monitor.warn(CmdlineMonitor.Default, "Both parameters ('type' and 'serviceType') were given but differ in its value. Prefering parameter 'type'.")
     }
     if (serviceType != null) setType(serviceType)
     if (`type` != null) setType(`type`)

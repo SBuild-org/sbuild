@@ -37,7 +37,7 @@ object ResolveFiles {
                   Seq(fileRef)
                 case _ =>
 
-                  val msg = marktr("Could not found target with name \"{0}\" in project {1}.")
+                  val msg = marktr("Could not find target with name \"{0}\" in project {1}.")
                   throw new TargetNotFoundException(notr(msg, targetRef, project.projectFile), null, tr(msg, targetRef, project.projectFile))
               }
 

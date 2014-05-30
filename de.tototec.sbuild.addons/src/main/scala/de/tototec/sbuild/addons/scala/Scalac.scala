@@ -162,7 +162,7 @@ object Scalac {
  *   If only one directory is needed, `srcDir` parameter can be used for convenience.
  * @param sources Source files to be compiled. ''Since 0.4.0''
  * @param destDir The directory, where the compiled class files will be stored.
- *   If the directory does not exists, it will be created.
+ *   If the directory does not exist, it will be created.
  * @param encoding The encoding of the source files.
  * @param unchecked If `true`, the compiler enables detailed unchecked (erasure) warnings.
  * @param deprecation If `true` , the compiler emit warning and location for usages of deprecated APIs.
@@ -337,7 +337,7 @@ class Scalac(
   protected def compileInternal(args: Array[String]): Int = {
 
     val compilerClassLoader = new URLClassLoader(compilerClasspath.map { f => f.toURI().toURL() }.toArray, classOf[Scalac].getClassLoader)
-    log.debug("Using addional compiler classpath: " + compilerClassLoader.getURLs().mkString(", "))
+    log.debug("Using additional compiler classpath: " + compilerClassLoader.getURLs().mkString(", "))
 
     val arrayInstance = java.lang.reflect.Array.newInstance(classOf[String], args.size)
     0.to(args.size - 1).foreach { i =>
@@ -348,7 +348,7 @@ class Scalac(
     val compilerClass = compilerClassLoader.loadClass(scalacClassName)
     //    project.log.log(LogLevel.Debug, "Methods: " + compilerClass.getMethods.mkString("\n  "))
     val compilerMethod = compilerClass.getMethod("process", Array(arrayClass): _*)
-    log.debug("Executing Scala Compiler with args: " + args.mkString(" "))
+    log.debug("Executing Scala compiler with args: " + args.mkString(" "))
 
     compilerMethod.invoke(null, arrayInstance)
 

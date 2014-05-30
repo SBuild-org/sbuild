@@ -102,7 +102,7 @@ object TargetExecutor {
               deps
             } catch {
               case e: UnsupportedSchemeException =>
-                val ex = new UnsupportedSchemeException("Unsupported Scheme in dependencies of target: " +
+                val ex = new UnsupportedSchemeException("Unsupported scheme in dependencies of target: " +
                   target.formatRelativeToBaseProject + ". " + e.getMessage)
                 ex.buildScript = e.buildScript
                 ex.targetName = Some(target.formatRelativeToBaseProject)
@@ -359,7 +359,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
           case Some(file) =>
             // file target
             if (!file.exists) {
-              log.debug(s"""Target file "${file}" does not exists.""")
+              log.debug(s"""Target file "${file}" does not exist.""")
               NeedsToRun(true)
             } else {
               val fileLastModified = file.lastModified
