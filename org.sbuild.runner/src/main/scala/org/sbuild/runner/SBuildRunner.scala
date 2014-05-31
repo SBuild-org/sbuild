@@ -228,12 +228,16 @@ class SBuildRunner {
     }
   }
 
+  def run(args: Array[String]): Int = {
+    run(cwd = new File(".").getAbsoluteFile(), args = args, rethrowInVerboseMode = true)
+  }
+
   /**
    * Run the SBuild (command line) application with the given arguments.
    *
    * @return The exit value, `0` means no errors.
    */
-  def run(args: Array[String]): Int = {
+  def run(cwd: File, args: Array[String], rethrowInVerboseMode: Boolean): Int = {
     val bootstrapStart = System.currentTimeMillis
 
     val aboutAndVersion = "SBuild " + SBuildVersion.version + " (c) 2011 - 2014, Tobias Roeser"
@@ -295,14 +299,14 @@ class SBuildRunner {
             }
           }
         }
-        val baseDir = new File(new File(".").getAbsoluteFile.toURI.normalize)
+        val baseDir = new File(cwd.getAbsoluteFile.toURI.normalize)
         cleanStateDir(baseDir, config.justCleanRecursive)
         return 0
       }
 
-      run(config = config, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
+      run(config = config, cwd = cwd, classpathConfig = classpathConfig, bootstrapStart = bootstrapStart)
 
-    } catch exceptionHandler(rethrowInVerboseMode = true)
+    } catch exceptionHandler(rethrowInVerboseMode = rethrowInVerboseMode)
   }
 
   // TODO: If we catch an exceptiona and know, that an older minimal SBuild version was requested (with @version) we could print a list of incompatible changes to the user. 
@@ -350,7 +354,7 @@ class SBuildRunner {
     case (l, r) => l.projectFile.compareTo(r.projectFile) < 0
   }
 
-  def compileAndLoadProjects(projectFile: File, config: Config, classpathConfig: ClasspathConfig): (BuildFileProject, Seq[Project]) = {
+  def compileAndLoadProjects(projectFile: File, cwd: File, config: Config, classpathConfig: ClasspathConfig): (BuildFileProject, Seq[Project]) = {
     val projectReader: ProjectReader = new SimpleProjectReader(
       classpathConfig = classpathConfig,
       monitor = sbuildMonitor,
@@ -360,11 +364,15 @@ class SBuildRunner {
     )
     val project = projectReader.readAndCreateProject(projectFile, Map(), None, Some(sbuildMonitor)).asInstanceOf[BuildFileProject]
 
-    val additionalProjects = config.additionalBuildfiles.map { buildfile =>
+    val additionalProjects = config.additionalBuildfiles.map { buildfile0 =>
+      val buildfile = (new File(buildfile0) match {
+        case f if f.isAbsolute() => f
+        case f => new File(cwd, buildfile0)
+      }).getPath
       project.findModule(buildfile) match {
         case None =>
           // Create and add new module and copy configs
-          val module = project.findOrCreateModule(new File(buildfile).getAbsolutePath, copyProperties = false)
+          val module = project.findOrCreateModule(buildfile, copyProperties = false)
           config.defines foreach {
             case (key, value) => module.addProperty(key, value)
           }
@@ -397,12 +405,15 @@ class SBuildRunner {
       filter { p => includeUnused || !p.instances.isEmpty }.
       map { p => s"${p.name} ${p.version}" }
 
-  def run(config: Config, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis): Int = {
+  def run(config: Config, cwd: File, classpathConfig: ClasspathConfig, bootstrapStart: Long = System.currentTimeMillis): Int = {
 
     (SBuildRunner: SBuildRunner).verbose = config.verbosity == CmdlineMonitor.Verbose
     sbuildMonitor = new OutputStreamCmdlineMonitor(Console.out, config.verbosity)
 
-    val projectFile = new File(config.buildfile)
+    val projectFile = new File(config.buildfile) match {
+      case f if f.isAbsolute() => f
+      case f => new File(cwd, f.getPath())
+    }
 
     if (config.createStub) {
       createSBuildStub(projectFile, new File(classpathConfig.sbuildHomeDir, "stub"))
@@ -415,7 +426,7 @@ class SBuildRunner {
       if (outputAndExit) CmdlineMonitor.Verbose else CmdlineMonitor.Default,
       tr("Initializing project..."))
 
-    val (project, additionalProjects) = compileAndLoadProjects(projectFile, config, classpathConfig)
+    val (project, additionalProjects) = compileAndLoadProjects(projectFile, cwd, config, classpathConfig)
     log.debug("Targets: \n" + project.targets.map(_.formatRelativeToBaseProject).mkString("\n"))
 
     // Format listing of target and return
