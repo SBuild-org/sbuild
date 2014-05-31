@@ -4,7 +4,7 @@ import de.tototec.sbuild.ant.tasks._
 
 object SBuildConfig {
 
-  def sbuildVersion = "0.7.5.9000"
+  def sbuildVersion = "0.7.6"
   def sbuildOsgiVersion = sbuildVersion
 
   private val cmdOptionVersion = "0.3.2"
@@ -14,7 +14,7 @@ object SBuildConfig {
   private def jansiVersion = "1.11"
   val jansi = s"mvn:org.fusesource.jansi:jansi:${jansiVersion}"
 
-  def scalaVersion = "2.10.3"
+  def scalaVersion = "2.10.4"
   def scalaBinVersion = "2.10"
 
   def scalaLibrary = s"mvn:org.scala-lang:scala-library:${scalaVersion}"

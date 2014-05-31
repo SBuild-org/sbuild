@@ -1,4 +1,4 @@
-SBuild 0.7.6 - not released yet:
+SBuild 0.7.6 - 2014-05-31:
 
 * Corrected parallel classloading according to Java ClassLoader spec.
 * Fixed sbuild.bat script. The SBUILD_HOME environment variable is no longer
