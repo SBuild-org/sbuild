@@ -52,8 +52,11 @@ trait TargetContext {
    * Attach additional files to this target context. The file must exists!
    */
   def attachFile(file: File)
-  
+
   def targetFiles: Seq[File] = targetFile.toSeq ++ attachedFiles
+
+  def stdout: String
+  def stderr: String
 
 }
 

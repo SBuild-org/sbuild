@@ -46,6 +46,7 @@ import org.sbuild.internal.BuildFileProject
 import org.sbuild.internal.I18n
 import org.sbuild.execute.ExecutedTarget
 import de.tototec.cmdoption.DefaultUsageFormatter
+import org.sbuild.execute.ContextAwareTeeOutputStream
 
 object SBuildRunner extends SBuildRunner {
 
@@ -54,7 +55,17 @@ object SBuildRunner extends SBuildRunner {
   def main(args: Array[String]) {
 
     AnsiConsole.systemInstall
+
+    val origOut = System.out
+    val origErr = System.err
+    System.setOut(new ContextAwareTeeOutputStream(origOut))
+    System.setErr(new ContextAwareTeeOutputStream(origErr))
+
     val retval = run(args)
+
+    System.setOut(origOut)
+    System.setErr(origErr)
+
     AnsiConsole.systemUninstall
     sys.exit(retval)
   }
