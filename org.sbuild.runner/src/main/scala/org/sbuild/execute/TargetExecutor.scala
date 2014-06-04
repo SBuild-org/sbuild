@@ -504,7 +504,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
         def skipLevel = if (dependencyTrace.isEmpty) monitorConfig.topLevelSkipped else monitorConfig.subLevelSkipped
         @inline def execDurationMSec = execBag.ctx.execDurationMSec
         @inline def sepLine = ("-" * 50)
-        @inline def showOutput(): Unit = {
+        @inline def showOutputWithParallel(): Unit = if (parallelExecContext.isDefined) {
           monitor.info(monitorConfig.executing, {
             val msg = new StringBuilder()
             if (!execBag.ctx.stdout.isEmpty()) {
@@ -530,7 +530,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
           case ExecutedTarget.Failed(e) =>
             monitor.info(monitorConfig.executing, calcProgressPrefix + fError(tr("Failed target: ")) + colorTarget(curTargetFormatted) + fError(tr(" after {0} msec", execDurationMSec)))
             monitor.showStackTrace(CmdlineMonitor.Verbose, e)
-            showOutput()
+            showOutputWithParallel()
 
             keepGoing match {
               case Some(kg) if NonFatal.unapply(e).isDefined => kg.markFailed(curTarget, e)
