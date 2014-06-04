@@ -85,9 +85,9 @@ class PersistentTargetCache {
 
           case unknownMode =>
             log.debug(s"""Ignoring section ${unknownMode} in cache file "${stateFile}" of target "${ctx.name}"""")
-            // log.warn(s"""Unexpected file format detected in file "${stateFile}" (cache of target "${ctx.name}").""")
-            // closeAndDrop("Unknown mode: " + unknownMode)
-            // return None
+          // log.warn(s"""Unexpected file format detected in file "${stateFile}" (cache of target "${ctx.name}").""")
+          // closeAndDrop("Unknown mode: " + unknownMode)
+          // return None
         }
       }
     )
@@ -117,8 +117,8 @@ class PersistentTargetCache {
       return None
     }
 
-    // TODO: also check existence of fileDependencies
-
+    // No need to check existence of file dependencies, because this was already done by the target exceutor, before it calles us.
+    
     Some(CachedState(targetLastModified = cachedTargetLastModified.get, attachedFiles = cachedAttachedFiles))
   }
 
