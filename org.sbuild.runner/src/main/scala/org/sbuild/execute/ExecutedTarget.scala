@@ -9,7 +9,7 @@ object ExecutedTarget {
   case object SkippedUpToDate extends ResultState(true, true)
   case object SkippedPersistentCachedUpToDate extends ResultState(true, true)
   case object SkippedEmptyExec extends ResultState(true, true)
-  case object Failed extends ResultState(false, false)
+  case class Failed(exception: Throwable) extends ResultState(false, false)
   case object SkippedFailedEarlier extends ResultState(false, false)
   case object SkippedDependenciesFailed extends ResultState(false, false)
 }

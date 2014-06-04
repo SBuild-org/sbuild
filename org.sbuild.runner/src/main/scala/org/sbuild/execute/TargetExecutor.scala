@@ -15,6 +15,12 @@ import org.sbuild.TargetContext
 import org.sbuild.UnsupportedSchemeException
 import org.sbuild.internal.I18n
 import org.sbuild.internal.WithinTargetExecution
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
+import org.sbuild.execute.ContextAwareTeeOutputStream.TeeConfig
+import scala.util.Try
+import scala.util.Failure
+import scala.util.control.NonFatal
 
 object TargetExecutor {
 
@@ -389,12 +395,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
                 val ex = new ProjectConfigurationException(notr(msg, curTarget.name, curTarget.file), null, tr(msg, curTarget.name, curTarget.file))
                 ex.buildScript = Some(curTarget.project.projectFile)
                 ex.targetName = Some(curTarget.name)
-                keepGoing match {
-                  case None => throw ex
-                  case Some(kg) =>
-                    kg.markFailed(curTarget, ex)
-                    ExecutedTarget.Failed
-                }
+                ExecutedTarget.Failed(ex)
               }
             case exec =>
               WithinTargetExecution.set(new WithinTargetExecution {
@@ -424,25 +425,26 @@ class TargetExecutor(monitor: CmdlineMonitor,
                     log.debug("Executing " + (if (curTarget.isCacheable) "cacheable " else "") + "Target: " + curTargetFormatted)
                     if (curTarget.help != null && curTarget.help.trim != "")
                       monitor.info(level, progressPrefix + curTarget.help)
+
                     ctx.start
-                    exec.apply(ctx)
+                    val (stdout, stderr, result) = captureOutput {
+                      exec.apply(ctx)
+                    }
                     ctx.end
 
-                    // update persistent cache
-                    if (curTarget.isCacheable) persistentTargetCache.writeCachedState(ctx)
+                    ctx.stdout = stdout
+                    ctx.stderr = stderr
 
-                    ExecutedTarget.Success
+                    result match {
+                      case Failure(e) => ExecutedTarget.Failed(e)
+                      case _ =>
+                        // update persistent cache
+                        if (curTarget.isCacheable) persistentTargetCache.writeCachedState(ctx)
+                        ExecutedTarget.Success
+                    }
                 }
 
-                ctx.targetLastModified match {
-                  case Some(lm) => log.debug(s"The context of target '${curTargetFormatted}' reports a last modified value of '${lm}'.")
-                  case None =>
-                }
-
-                ctx.attachedFiles match {
-                  case Seq() =>
-                  case files => log.debug(s"The context of target '${curTargetFormatted}' has ${files.size} attached files")
-                }
+                log.debug("After execution, target '${curTargetFormatted}' reports a last modified value of '${ctx.targetLastModified}' and has ${ctx.attachedFiles.size} attached files")
 
                 if (!curTarget.phony && needsToRun.lastModifiedTime > 0)
                   curTarget.targetFile.find(f => f.lastModified == needsToRun.lastModifiedTime).map { file =>
@@ -453,45 +455,38 @@ class TargetExecutor(monitor: CmdlineMonitor,
 
                 resultState
 
-              } catch {
-                case e: TargetAware =>
-                  ctx.end
-                  log.debug("Caught an exception while executing target: " + curTargetFormatted, e)
-                  if (e.targetName.isEmpty)
-                    e.targetName = Some(curTargetFormatted)
-                  monitor.info(CmdlineMonitor.Verbose, s"Execution of target '${curTargetFormatted}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}")
-                  monitor.showStackTrace(CmdlineMonitor.Verbose, e)
-
-                  keepGoing match {
-                    case Some(kg) =>
-                      kg.markFailed(curTarget, e)
-                      ExecutedTarget.Failed
-                    case None =>
-                      monitor.info(monitorConfig.executing, calcProgressPrefix + fError("Failed target: ") +
-                        colorTarget(curTarget.formatRelativeToBaseProject) + fError(" after " + ctx.execDurationMSec + " msec"))
-                      throw e
-                  }
-                case e: Throwable =>
-                  ctx.end
-                  log.debug("Caught an exception while executing target: " + curTargetFormatted, e)
-                  val msg = marktr("Execution of target {0} failed with an exception: {1}.\n{2}")
-                  val ex = new ExecutionFailedException(
-                    notr(msg, curTargetFormatted, e.getClass.getName, e.getMessage), e,
-                    tr(msg, curTargetFormatted, e.getClass.getName, e.getLocalizedMessage))
-                  ex.buildScript = Some(curTarget.project.projectFile)
-                  ex.targetName = Some(curTarget.formatRelativeToBaseProject)
-                  monitor.info(CmdlineMonitor.Verbose, tr("Execution of target \"{0}\" aborted after {1} msec with errors: {2}", curTargetFormatted, ctx.execDurationMSec, e.getMessage))
-                  monitor.showStackTrace(CmdlineMonitor.Verbose, e)
-
-                  keepGoing match {
-                    case Some(kg) =>
-                      kg.markFailed(curTarget, e)
-                      ExecutedTarget.Failed
-                    case None =>
-                      monitor.info(monitorConfig.executing, calcProgressPrefix + fError("Failed target: ") +
-                        colorTarget(curTarget.formatRelativeToBaseProject) + fError(" after " + ctx.execDurationMSec + " msec"))
-                      throw e
-                  }
+                //              } catch {
+                //                case e: Throwable =>
+                //                  
+                //                  // FIXME: This catch look pretty redundant. Please review and remove if possible. See also error handling more below
+                //                  
+                //                  ctx.end
+                //                  log.debug("Caught an exception while executing target: " + curTargetFormatted, e)
+                //
+                //                  e match {
+                //                    case e: TargetAware =>
+                //                      if (e.targetName.isEmpty)
+                //                        e.targetName = Some(curTargetFormatted)
+                //                      monitor.info(CmdlineMonitor.Verbose, s"Execution of target '${curTargetFormatted}' aborted after ${ctx.execDurationMSec} msec with errors.\n${e.getMessage}")
+                //                      monitor.showStackTrace(CmdlineMonitor.Verbose, e)
+                //                    case _ =>
+                //                      val msg = preparetr("Execution of target {0} failed with an exception: {1}.\n{2}", curTargetFormatted, e.getClass.getName, e.getMessage)
+                //                      val ex = new ExecutionFailedException(msg.notr, e, msg.tr)
+                //                      ex.buildScript = Some(curTarget.project.projectFile)
+                //                      ex.targetName = Some(curTarget.formatRelativeToBaseProject)
+                //                      monitor.info(CmdlineMonitor.Verbose, tr("Execution of target \"{0}\" aborted after {1} msec with errors: {2}", curTargetFormatted, ctx.execDurationMSec, e.getMessage))
+                //                      monitor.showStackTrace(CmdlineMonitor.Verbose, e)
+                //                  }
+                //
+                //                  keepGoing match {
+                //                    case Some(kg) if NonFatal.unapply(e).isDefined =>
+                //                      kg.markFailed(curTarget, e)
+                //                      ExecutedTarget.Failed(e)
+                //                    case _ =>
+                //                      monitor.info(monitorConfig.executing, calcProgressPrefix + fError("Failed target: ") +
+                //                        colorTarget(curTarget.formatRelativeToBaseProject) + fError(" after " + ctx.execDurationMSec + " msec"))
+                //                      throw e
+                //                  }
               } finally {
                 WithinTargetExecution.remove
               }
@@ -507,7 +502,23 @@ class TargetExecutor(monitor: CmdlineMonitor,
 
       if (!skipExec) {
         def skipLevel = if (dependencyTrace.isEmpty) monitorConfig.topLevelSkipped else monitorConfig.subLevelSkipped
-        def execDurationMSec = execBag.ctx.execDurationMSec
+        @inline def execDurationMSec = execBag.ctx.execDurationMSec
+        @inline def sepLine = ("-" * 50)
+        @inline def showOutput(): Unit = {
+          monitor.info(monitorConfig.executing, {
+            val msg = new StringBuilder()
+            if (!execBag.ctx.stdout.isEmpty()) {
+              msg.append(sepLine).append("\n").append(tr("Output (stdout) of target: {0}", curTargetFormatted)).append("\n\n").append(execBag.ctx.stdout).append("\n")
+            }
+            if (!execBag.ctx.stderr.isEmpty()) {
+              msg.append(sepLine).append("\n").append(tr("Error output (stderr) of target: {0}", curTargetFormatted)).append("\n\n").append(execBag.ctx.stderr).append("\n")
+            }
+            if (!execBag.ctx.stderr.isEmpty() || !execBag.ctx.stderr.isEmpty()) {
+              msg.append(sepLine)
+            }
+            msg.toString()
+          })
+        }
 
         execBag.resultState match {
           case ExecutedTarget.Success =>
@@ -516,8 +527,15 @@ class TargetExecutor(monitor: CmdlineMonitor,
               monitor.info(monitorConfig.executing, calcProgressPrefix + tr("Finished target: ") + colorTarget(curTargetFormatted) + tr(" after {0} msec", execDurationMSec))
             }
 
-          case ExecutedTarget.Failed =>
+          case ExecutedTarget.Failed(e) =>
             monitor.info(monitorConfig.executing, calcProgressPrefix + fError(tr("Failed target: ")) + colorTarget(curTargetFormatted) + fError(tr(" after {0} msec", execDurationMSec)))
+            monitor.showStackTrace(CmdlineMonitor.Verbose, e)
+            showOutput()
+
+            keepGoing match {
+              case Some(kg) if NonFatal.unapply(e).isDefined => kg.markFailed(curTarget, e)
+              case _ => throw e
+            }
 
           case ExecutedTarget.SkippedDependenciesFailed =>
             monitor.info(skipLevel, calcProgressPrefix + fError(tr("Skipped unsatisfied target: ")) + colorTarget(curTargetFormatted))
@@ -567,6 +585,31 @@ class TargetExecutor(monitor: CmdlineMonitor,
         }
     }
 
+  }
+
+  /**
+   * Capture STDOUT and STDERR, if the associated system streams are of type ContextAwareTeeOutputStream.
+   * @return Tuple with captured OUT and ERR.
+   */
+  private[this] def captureOutput(f: => Unit): (String, String, Try[Unit]) = {
+    val out = new ByteArrayOutputStream()
+    val err = new ByteArrayOutputStream()
+
+    val outPs = new PrintStream(out)
+    val errPs = new PrintStream(err)
+
+    val previousOutConfig = ContextAwareTeeOutputStream.liftAndSetStdOut(Some(TeeConfig(copyStream = outPs)))
+    val previousErrConfig = ContextAwareTeeOutputStream.liftAndSetStdErr(Some(TeeConfig(copyStream = errPs)))
+
+    val result = Try(f)
+
+    ContextAwareTeeOutputStream.liftAndSetStdOut(previousOutConfig)
+    ContextAwareTeeOutputStream.liftAndSetStdErr(previousErrConfig)
+
+    outPs.close()
+    errPs.close()
+
+    (out.toString(), err.toString(), result)
   }
 
   def calcTotalExecTreeNodeCount(request: Seq[Target], dependencyCache: DependencyCache = new DependencyCache()): Long = {

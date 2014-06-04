@@ -102,6 +102,14 @@ class TargetContextImpl(
     _attachedFiles ++= files
   }
 
+  private[this] var out: String = ""
+  def stdout: String = out
+  def stdout_=(out: String): Unit = this.out = out
+
+  private[this] var err: String = ""
+  def stderr: String = err
+  def stderr_=(err: String): Unit = this.err = err
+
   override def toString(): String = getClass.getSimpleName() +
     "(name=" + name +
     ",targetFile=" + targetFile +
