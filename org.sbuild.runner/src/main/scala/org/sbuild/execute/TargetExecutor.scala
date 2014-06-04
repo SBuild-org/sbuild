@@ -56,7 +56,7 @@ object TargetExecutor {
   class DependencyCache() {
     private[this] val log = Logger[DependencyCache]
 
-    private var depTrees: Map[Target, Seq[Seq[Target]]] = Map()
+    private[this] var depTrees: Map[Target, Seq[Seq[Target]]] = Map()
 
     def cached: Map[Target, Seq[Seq[Target]]] = synchronized { depTrees }
 
@@ -66,7 +66,7 @@ object TargetExecutor {
      * If this Cache already contains a cached result, that one will be returned.
      * Else, the dependencies will be computed through [[org.sbuild.Project#prerequisites]].
      *
-     * If the parameter `callStack` is not `Nil`, the call stack including the given target will be checked for cycles.
+     * If the parameter `dependencyTrace` is not `Nil`, the call stack including the given target will be checked for cycles.
      * If a cycle is detected, a [[org.sbuild.ProjectConfigurationException]] will be thrown.
      *
      * @throws ProjectConfigurationException If cycles are detected.
@@ -78,7 +78,7 @@ object TargetExecutor {
         case dependencyTrace =>
           log.trace("Checking for dependency cycles: " + target.formatRelativeToBaseProject)
           // check for cycles
-          dependencyTrace.find(dep => dep == target).map { cycle =>
+          dependencyTrace.find(target ==).map { cycle =>
             val ex = new ProjectConfigurationException("Cycles in dependency chain detected for: " + cycle.formatRelativeToBaseProject +
               ". The dependency chain: " + (target :: dependencyTrace).reverse.map(_.formatRelativeToBaseProject).mkString(" -> "))
             ex.buildScript = Some(cycle.project.projectFile)
@@ -159,18 +159,18 @@ object TargetExecutor {
   private def fPercent(text: => String) =
     // if (isWindows) 
     ansi.fg(CYAN).a(text).reset
-    // else ansi.fgBright(CYAN).a(text).reset
+  // else ansi.fgBright(CYAN).a(text).reset
   private def fTarget(text: => String) = ansi.fg(GREEN).a(text).reset
   private def fMainTarget(text: => String) = ansi.fg(GREEN).bold.a(text).reset
   private def fOk(text: => String) = ansi.fgBright(GREEN).a(text).reset
   private def fError(text: => String) =
     // if (isWindows) 
     ansi.fg(RED).a(text).reset
-    // else ansi.fgBright(RED).a(text).reset
+  // else ansi.fgBright(RED).a(text).reset
   private def fErrorEmph(text: => String) =
     // if (isWindows) 
     ansi.fg(RED).bold.a(text).reset
-    // else ansi.fgBright(RED).bold.a(text).reset
+  // else ansi.fgBright(RED).bold.a(text).reset
 
 }
 
@@ -553,7 +553,7 @@ class TargetExecutor(monitor: CmdlineMonitor,
         parCtx.lock(curTarget)
         try {
           // scala.concurrent.blocking {
-            inner
+          inner
           // }
         } catch {
           case e: Throwable =>
