@@ -53,15 +53,15 @@ class TargetRefTest extends FreeSpec {
 
   "TargetRefs merge" - {
     implicit val _ = projectA
-    def mergeTest(refs: TargetRefs, expected: Seq[Seq[TargetRef]]): Unit = {
-      s"merge ${refs} to ${expected}" in {
+    def mergeTest(refString: String, refs: TargetRefs, expected: Seq[Seq[TargetRef]]): Unit = {
+      s"merge ${refString} to ${expected}" in {
         assert(refs.targetRefGroups === expected)
       }
     }
-    mergeTest("a", Seq(Seq("a")))
-    mergeTest("a" ~ "b", Seq(Seq("a", "b")))
-    //    mergeTest("a" ~ "a", Seq(Seq("a")))
-    mergeTest("a" ~~ "a", Seq(Seq("a"), Seq("a")))
+    mergeTest("a", "a", Seq(Seq("a")))
+    mergeTest("a ~ b", "a" ~ "b", Seq(Seq("a", "b")))
+    mergeTest("a ~ a", "a" ~ "a", Seq(Seq("a")))
+    mergeTest("a ~~ a", "a" ~~ "a", Seq(Seq("a"), Seq("a")))
   }
 
   "TargetRef conversions" - {
