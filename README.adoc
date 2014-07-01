@@ -2,7 +2,11 @@
 
 image:https://travis-ci.org/SBuild-org/sbuild.png?branch=master["Build Status", link="https://travis-ci.org/SBuild-org/sbuild"]
 
-http://sbuild.org[SBuild] is a very fast, powerful and flexible build tool. It can be used to build anything you want and does not force any style, but its main target is JVM based projects. The main "script language" of SBuild is Scala. SBuild is a dependency-driven tool, so it will only do what is necessary, to build your requested target, nothing more and nothing less. SBuild can detect unchanged targets and dependencies, and will avoid doing the same task multiple times, if nothing has changed.
+http://sbuild.org[SBuild] is a very fast, powerful and flexible build tool. 
+It can be used to build anything you want and does not force any style, but its main target is JVM based projects.
+The main "script language" of SBuild is Scala.
+SBuild is a dependency-driven tool, so it will only do what is necessary, to build your requested target, nothing more and nothing less.
+SBuild can detect unchanged targets and dependencies, and will avoid doing the same task multiple times, if nothing has changed.
 
 The project home page is: http://sbuild.org
 
@@ -10,9 +14,12 @@ The project home page is: http://sbuild.org
 
 SBuild is built with a previously released stable version of SBuild itself.
 
-To build SBuild from source, you need to clone SBuild's git repository. After changing into the newly created directory "sbuild", you should use the "sbuild-wrapper" script in the project directory to build sbuild. When executing sbuild-wrapper the first time, it will download the right version of SBuild and will use it.
+To build SBuild from source, you need to clone SBuild's git repository.
+After changing into the newly created directory "sbuild", you should use the "sbuild-wrapper" script in the project directory to build sbuild.
+When executing sbuild-wrapper the first time, it will download the right version of SBuild and will use it.
 
-_The build process needs an installed version of http://www.gnu.org/software/gettext/[GNU gettext]._ We will provide an alternative build which do not need any external tools, soon.
+_The build process needs an installed version of http://www.gnu.org/software/gettext/[GNU gettext]._
+We would be happy to have an alternative build configuration which does not need any external tools. Ideas and patches welcome!
 
 ----
 git clone https://github.com/SBuild-org/sbuild.git
@@ -22,9 +29,12 @@ git submodule update
 ----
 
 To build everything, including executing the tests, you should use the "all" target.
+Afterwards you will find the build distribution in the `sbuild-dist/target` directory.
 
 == Contributions
 
 We're glad to welcome any kind of feedback and contributions. 
 
-We migrated all our tickets from Redmine to Github. Please don't use the old Redmine issue tracker at http://sbuild.tototec.de/sbuild for creting new or commenting on existing tickets. Thank you!
+We migrated all our tickets from Redmine to Github (https://github.com/lefou/redmine-to-github-migrator[with this tool]).
+Please don't use the old Redmine issue tracker at http://sbuild.tototec.de/sbuild for creting new or commenting on existing tickets.
+Thank you!
