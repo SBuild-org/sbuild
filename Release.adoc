@@ -1,0 +1,27 @@
+= Release Checklists
+
+== Before Release
+
+* [ ] Update Changelog
+* [ ] Update version and build successfully
+* [ ] Test-Suite passes
+* [ ] Tag release in VCS
+
+== Release
+
+* [ ] Build Packages
+* [ ] Upload Packages to http://sbuild.org
+* [ ] Update site http://sbuild.org 
+** [ ] Latest stable/development version including Changelog
+** [ ] Documentation for latest stable version
+* [ ] Test download from http://sbuild.org
+
+== After Release
+
+* [ ] Write news entry for http://sbuild.org
+* [ ] Anounce release on Twitter @SBuildOrg with link to news or release page
+* [ ] Anounce release on Mailing lists: sbuild-dev, sbuild-user
+* [ ] Submit the release to http://freecode.org
+* [ ] Update distribution packages
+** [ ] Gentoo ebuild
+** [ ] Mac Homebrew
