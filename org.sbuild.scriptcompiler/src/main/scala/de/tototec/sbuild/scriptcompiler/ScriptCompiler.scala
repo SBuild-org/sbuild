@@ -52,9 +52,7 @@ class ScriptCompiler extends Driver {
     command = new CompilerCommand(args.toList, ss)
     settings = command.settings
 
-    if (settings.version.value) {
-      reporter.echo(versionMsg)
-    } else if (processSettingsHook()) {
+    if (processSettingsHook()) {
       val compiler = newCompiler()
       try {
         if (reporter.hasErrors)
