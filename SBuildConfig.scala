@@ -14,7 +14,7 @@ object SBuildConfig {
   // http://jansi.fusesource.org/
   val jansi = s"mvn:org.fusesource.jansi:jansi:1.11"
 
-  def scalaVersion = "2.11.1"
+  def scalaVersion = "2.11.2"
   def scalaBinVersion = "2.11"
 
   def scalaLibrary = s"mvn:org.scala-lang:scala-library:${scalaVersion}"
