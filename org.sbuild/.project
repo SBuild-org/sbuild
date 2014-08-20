@@ -14,5 +14,6 @@
 	<natures>
 		<nature>org.scala-ide.sdt.core.scalanature</nature>
 		<nature>org.eclipse.jdt.core.javanature</nature>
+		<nature>de.tototec.sbuild.eclipse.plugin.SBUILD_NATURE</nature>
 	</natures>
 </projectDescription>
