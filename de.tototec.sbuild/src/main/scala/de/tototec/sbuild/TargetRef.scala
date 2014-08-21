@@ -66,7 +66,7 @@ class TargetRef(val ref: String)(implicit project: Project) {
     if (explicitProject == None || project.projectFile == explicitProject.get)
       Some(project)
     else
-      project.findModule(explicitProject.get.getName)
+      project.findModule(explicitProject.get.getPath)
 
   protected[sbuild] def safeTargetProject: Project =
     targetProject match {
