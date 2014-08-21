@@ -17,6 +17,7 @@ package org.sbuild
  * @since 0.1.1
  *
  */
+@deprecated("Instead define a target which depends on these dependencies", "0.7.9.9013")
 object ExportDependencies {
 
   private[this] val log = Logger[ExportDependencies.type]
@@ -32,7 +33,7 @@ object ExportDependencies {
   def apply(exportName: String, dependencies: TargetRefs)(implicit project: Project) {
     def depAsXml(dep: TargetRef) =
       "<dep><![CDATA[" +
-        (if (dep.explicitProject.isDefined) (dep.explicitProject + "::") else "") +
+        (if (dep.explicitProject.isDefined) (dep.explicitProject.get + "::") else "") +
         dep.name +
         "]]></dep>"
 
