@@ -575,7 +575,7 @@ class SBuildRunner {
 
         if (!targets.isEmpty) {
           sbuildMonitor.info(CmdlineMonitor.Default, fPercent("[0%]") + tr(" Executing..."))
-          sbuildMonitor.info(CmdlineMonitor.Verbose, tr("Requested targets: ") + targets.map(_.formatRelativeToBaseProject).mkString(" ~ "))
+          sbuildMonitor.info(CmdlineMonitor.Verbose, tr("Requested targets: ") + targets.map(_.formatRelativeToBaseProject).mkString(" ~~ "))
 
           val request = if (config.parallelRequest) {
             implicit val p = project
