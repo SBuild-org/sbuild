@@ -156,7 +156,7 @@ msgid ""
 "Enabled parallel processing. Explicit parallel threads (None = nr of cpu "
 "cores): {0}"
 msgstr ""
-"Aktiviere parallele Ausführung. Explizit parallele threads (None = Anzahl "
+"Aktiviere parallele Ausführung. Explizit parallele Threads (None = Anzahl "
 "der CPU-Kerne): {0}"
 
 #: org/sbuild/runner/SBuildRunner.scala:577
