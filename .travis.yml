@@ -6,7 +6,7 @@ jdk:
 
 env:
   matrix:
-    - SBUILD_VERSION=0.6.0 SBUILD_DIST=http://sbuild.org/uploads/sbuild/0.6.0/sbuild-0.6.0-dist.zip
+    - SBUILD_VERSION=0.6.0
     - SBUILD_VERSION=0.7.1
     - SBUILD_VERSION=0.7.6
 
