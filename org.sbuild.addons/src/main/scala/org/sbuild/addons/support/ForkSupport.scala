@@ -56,39 +56,6 @@ object ForkSupport {
     )
   }
 
-  @deprecated("Only for binary backward compatibility. Don't use.", "0.7.0.9000")
-  def runJavaAndWait(classpath: Seq[File], arguments: Array[String], interactive: Boolean, errorsIntoOutput: Boolean, failOnError: Boolean)(implicit project: Project): Int =
-    runJavaAndWait(
-      classpath = classpath,
-      arguments = arguments,
-      interactive = interactive,
-      errorsIntoOutput = errorsIntoOutput,
-      failOnError = failOnError,
-      directory = new File(".")
-    )
-
-  @deprecated("Only for binary backward compatibility. Don't use.", "0.5.0.9003")
-  def runJavaAndWait(classpath: Seq[File], arguments: Array[String], interactive: Boolean)(implicit project: Project): Int =
-    runJavaAndWait(
-      classpath = classpath,
-      arguments = arguments,
-      interactive = interactive,
-      errorsIntoOutput = true,
-      failOnError = false,
-      directory = new File(".")
-    )
-
-  @deprecated("Only for binary backward compatibility. Don't use.", "0.6.0.9002")
-  def runJavaAndWait(classpath: Seq[File], arguments: Array[String], interactive: Boolean, errorsIntoOutput: Boolean)(implicit project: Project): Int =
-    runJavaAndWait(
-      classpath = classpath,
-      arguments = arguments,
-      interactive = interactive,
-      errorsIntoOutput = errorsIntoOutput,
-      failOnError = false,
-      directory = new File(".")
-    )
-
   /**
    * Run a command.
    *
@@ -122,8 +89,8 @@ object ForkSupport {
     //    log.debug("Adding shutdown hook for process: " + p)
     //    Runtime.getRuntime().addShutdownHook(shutdownHook)
 
-    ForkSupport.asyncCopy(p.getErrorStream, if (errorsIntoOutput) Console.out else Console.err)
-    ForkSupport.asyncCopy(p.getInputStream, Console.out, interactive)
+    val errThread = ForkSupport.asyncCopy(p.getErrorStream, if (errorsIntoOutput) Console.out else Console.err)
+    val inThread = ForkSupport.asyncCopy(p.getInputStream, Console.out, interactive)
 
     val in = System.in
     val out = p.getOutputStream
@@ -156,33 +123,31 @@ object ForkSupport {
       //      log.debug("Removing shutdown hook")
       //      Runtime.getRuntime().removeShutdownHook(shutdownHook)
     } finally {
-      outThread.interrupt
-      p.getErrorStream.close
-      p.getInputStream.close
+      outThread.interrupt()
+      try {
+        errThread.join()
+      } finally {
+        p.getErrorStream.close
+      }
+      try {
+        inThread.join()
+      } finally {
+        p.getInputStream.close
+      }
     }
 
     if (failOnError && result != 0) throw new RuntimeException("Execution of command \"" + command.headOption.getOrElse("") + "\" failed with exit code " + result)
     result
   }
 
-  @deprecated("Only for binary backward compatibility. Don't use.", "0.5.0.9003")
-  def runAndWait(command: Array[String], interactive: Boolean)(implicit project: Project): Int =
-    runAndWait(command, interactive, errorsIntoOutput = true, directory = new File("."), failOnError = false)(project)
-
-  @deprecated("Only for binary backward compatibility. Don't use.", "0.6.0.9002")
-  def runAndWait(command: Array[String], interactive: Boolean, errorsIntoOutput: Boolean, directory: File)(implicit project: Project): Int =
-    runAndWait(command, interactive, errorsIntoOutput, directory, failOnError = false)(project)
+  /**
+   * Starts a new thread which copies an InputStream into an Output stream. Does not close the streams.
+   */
+  def copyInThread(in: InputStream, out: OutputStream): Thread = asyncCopy(in, out, false)
 
   /**
    * Starts a new thread which copies an InputStream into an Output stream. Does not close the streams.
    */
-  def copyInThread(in: InputStream, out: OutputStream) = asyncCopy(in, out, false)
-
-  /**
-   * Starts a new thread which copies an InputStream into an Output stream. Does not close the streams.
-   */
-  @deprecated("Use asyncCopy instead", "0.6.0.9002")
-  def copyInThread(in: InputStream, out: OutputStream, immediately: Boolean = false) = asyncCopy(in, out, immediately)
 
   def asyncCopy(in: InputStream, out: OutputStream, immediately: Boolean = false): Thread =
     new Thread("StreamCopyThread") {
@@ -196,13 +161,7 @@ object ForkSupport {
   /**
    * Copies an InputStream into an OutputStream. Does not close the streams.
    */
-  @deprecated("Only for binary backward compatibility. Don't use.", "0.6.0.9002")
-  def copy(in: InputStream, out: OutputStream): Unit = copy(in, out, immediately = false)
-
-  /**
-   * Copies an InputStream into an OutputStream. Does not close the streams.
-   */
-  def copy(in: InputStream, out: OutputStream, immediately: Boolean = false) {
+  def copy(in: InputStream, out: OutputStream, immediately: Boolean = false): Unit = {
     if (immediately) {
       while (true) {
         if (in.available > 0) {
