@@ -145,20 +145,16 @@ object PluginClassLoader {
       finally InnerRequestGuard.removeInner(classLoader, className)
     }
   }
-
-
-  def apply(project: Project, pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree], parent: ClassLoader): PluginClassLoader = {
-    if (ParallelClassLoader.isJava7) {
-      ClassLoader.registerAsParallelCapable()
-    }
-    new PluginClassLoader(project, pluginInfo, childTrees, parent)
-  }
 }
 
-class PluginClassLoader private (project: Project, pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree], parent: ClassLoader)
+class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree], parent: ClassLoader)
     extends URLClassLoader(pluginInfo.urls.toArray, parent) {
 
   import PluginClassLoader._
+
+  if (ParallelClassLoader.isJava7) {
+    ClassLoader.registerAsParallelCapable()
+  }
 
   protected def getClassLock(className: String): AnyRef =
     ParallelClassLoader.withJava7 { () => getClassLoadingLock(className) }.getOrElse { this }

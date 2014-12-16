@@ -290,7 +290,7 @@ class ProjectScript(_scriptFile: File,
     val start = System.currentTimeMillis
     log.debug("Loading compiled version of build script: " + scriptFile)
 
-    val cl = ProjectClassLoader(
+    val cl = new ProjectClassLoader(
       project = project,
       classpathUrls = Array(targetDir.toURI.toURL) ++ classpath.map(cp => new File(cp).toURI.toURL),
       parent = getClass.getClassLoader,

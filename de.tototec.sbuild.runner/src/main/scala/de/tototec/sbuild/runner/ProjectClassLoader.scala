@@ -8,33 +8,25 @@ import de.tototec.sbuild.Logger
 import de.tototec.sbuild.Project
 import java.util.concurrent.ConcurrentHashMap
 
-object ProjectClassLoader {
-
-  def apply(project: Project, classpathUrls: Seq[URL], parent: ClassLoader, classpathTrees: Seq[CpTree]): ProjectClassLoader = {
-    if (ParallelClassLoader.isJava7) {
-      ClassLoader.registerAsParallelCapable()
-    }
-    new ProjectClassLoader(project, classpathUrls, parent, classpathTrees)
-  }
-
-}
-
-
 /**
  * This classloader first tried to load all classes from the given parent classloader or the classpathUrls.
  * If that fails, it tries to load the classes from internally maintained plugin classloader,
  * but it will only load those classes which are exported by that plugin. [[de.tototec.sbuild.Constants.SBuildPluginExportPackage]]
  *
  */
-class ProjectClassLoader private (project: Project, classpathUrls: Seq[URL], parent: ClassLoader, classpathTrees: Seq[CpTree])
+class ProjectClassLoader(project: Project, classpathUrls: Seq[URL], parent: ClassLoader, classpathTrees: Seq[CpTree])
     extends URLClassLoader(classpathUrls.toArray, parent) {
   //  private[this] val log = Logger[ProjectClassLoader]
+
+  if (ParallelClassLoader.isJava7) {
+    ClassLoader.registerAsParallelCapable()
+  }
 
   protected def getClassLock(className: String): AnyRef =
     ParallelClassLoader.withJava7 { () => getClassLoadingLock(className) }.getOrElse { this }
 
   val pluginClassLoaders: Seq[PluginClassLoader] = classpathTrees.collect {
-    case cpTree if cpTree.pluginInfo.isDefined => PluginClassLoader(project, cpTree.pluginInfo.get, cpTree.childs, this)
+    case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(project, cpTree.pluginInfo.get, cpTree.childs, this)
   }
 
   override protected def loadClass(className: String, resolve: Boolean): Class[_] = getClassLock(className).synchronized {
