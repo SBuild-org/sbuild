@@ -145,15 +145,42 @@ object PluginClassLoader {
       finally InnerRequestGuard.removeInner(classLoader, className)
     }
   }
+
+  class DoNotUseThisInstanceException() extends Exception()
+
+  private[this] var parallelRegistered = false
+
+  def apply(project: Project, pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree], parent: ClassLoader): PluginClassLoader = {
+    if (!parallelRegistered) {
+      try {
+        new PluginClassLoader(null, new LoadablePluginInfo(Seq(), true), Seq(), null, true)
+      } catch {
+        case e: DoNotUseThisInstanceException => // this is ok
+      }
+      parallelRegistered = true
+    }
+
+    new PluginClassLoader(project, pluginInfo, childTrees, parent, false)
+  }
+
 }
 
-class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree], parent: ClassLoader)
+/**
+ * IMPORTANT: For this class to work correctly, it is important to create one instance and drop it,
+ * because it is not well-behaving regarding the classloader specification of Java7+.
+ * That's why you can create it only via the companion object.
+ */
+class PluginClassLoader private (project: Project, pluginInfo: LoadablePluginInfo, childTrees: Seq[CpTree], parent: ClassLoader,
+    initParallelClassloading: Boolean)
     extends URLClassLoader(pluginInfo.urls.toArray, parent) {
 
   import PluginClassLoader._
 
-  if (ParallelClassLoader.isJava7) {
-    ClassLoader.registerAsParallelCapable()
+  if (initParallelClassloading) {
+    if (ParallelClassLoader.isJava7) {
+      ClassLoader.registerAsParallelCapable()
+    }
+    throw new DoNotUseThisInstanceException()
   }
 
   protected def getClassLock(className: String): AnyRef =
@@ -164,7 +191,7 @@ class PluginClassLoader(project: Project, pluginInfo: LoadablePluginInfo, childT
   log.debug(s"Init PluginClassLoader (id: ${System.identityHashCode(this)}) for ${pluginInfo.urls}")
 
   val pluginClassLoaders: Seq[PluginClassLoader] = childTrees.collect {
-    case cpTree if cpTree.pluginInfo.isDefined => new PluginClassLoader(project, cpTree.pluginInfo.get, cpTree.childs, this)
+    case cpTree if cpTree.pluginInfo.isDefined => PluginClassLoader(project, cpTree.pluginInfo.get, cpTree.childs, this)
   }
 
   // register found plugin classes
