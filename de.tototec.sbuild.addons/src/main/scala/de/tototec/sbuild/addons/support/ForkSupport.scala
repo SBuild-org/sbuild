@@ -122,8 +122,8 @@ object ForkSupport {
     //    log.debug("Adding shutdown hook for process: " + p)
     //    Runtime.getRuntime().addShutdownHook(shutdownHook)
 
-    ForkSupport.asyncCopy(p.getErrorStream, if (errorsIntoOutput) Console.out else Console.err)
-    ForkSupport.asyncCopy(p.getInputStream, Console.out, interactive)
+    val errThread = ForkSupport.asyncCopy(p.getErrorStream, if (errorsIntoOutput) Console.out else Console.err)
+    val inThread = ForkSupport.asyncCopy(p.getInputStream, Console.out, interactive)
 
     val in = System.in
     val out = p.getOutputStream
@@ -156,9 +156,17 @@ object ForkSupport {
       //      log.debug("Removing shutdown hook")
       //      Runtime.getRuntime().removeShutdownHook(shutdownHook)
     } finally {
-      outThread.interrupt
-      p.getErrorStream.close
-      p.getInputStream.close
+      outThread.interrupt()
+      try {
+        errThread.join()
+      } finally {
+        p.getErrorStream.close
+      }
+      try {
+        inThread.join()
+      } finally {
+        p.getInputStream.close
+      }
     }
 
     if (failOnError && result != 0) throw new RuntimeException("Execution of command \"" + command.headOption.getOrElse("") + "\" failed with exit code " + result)
