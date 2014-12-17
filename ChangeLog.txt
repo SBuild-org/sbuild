@@ -1,3 +1,9 @@
+SBuild 0.7.7:
+
+* Fixed parallel classloading, now also for the first created classloader
+  instance.
+* Improved theading behaviour in ForkSupport.
+
 SBuild 0.7.6 - 2014-05-31:
 
 * Corrected parallel classloading according to Java ClassLoader spec.
