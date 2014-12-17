@@ -1,4 +1,4 @@
-SBuild 0.7.7:
+SBuild 0.7.7 - 2014-12-17:
 
 * Fixed parallel classloading, now also for the first created classloader
   instance.
