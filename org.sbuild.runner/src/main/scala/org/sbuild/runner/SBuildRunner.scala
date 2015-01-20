@@ -8,19 +8,17 @@ import java.io.PrintStream
 import java.lang.reflect.InvocationTargetException
 import java.util.Properties
 import java.util.regex.Pattern
+
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
 import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.mapAsScalaMapConverter
+
 import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.Ansi.Color.CYAN
 import org.fusesource.jansi.Ansi.Color.GREEN
 import org.fusesource.jansi.Ansi.Color.RED
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole
-import de.tototec.cmdoption.CmdOption
-import de.tototec.cmdoption.CmdlineParser
-import de.tototec.cmdoption.CmdlineParserException
 import org.sbuild.BuildScriptAware
 import org.sbuild.CmdlineMonitor
 import org.sbuild.ExecutionFailedException
@@ -44,8 +42,10 @@ import org.sbuild.execute.ParallelExecContext
 import org.sbuild.execute.TargetExecutor
 import org.sbuild.internal.BuildFileProject
 import org.sbuild.internal.I18n
-import org.sbuild.execute.ExecutedTarget
-import de.tototec.cmdoption.DefaultUsageFormatter
+
+import de.tototec.cmdoption.CmdOption
+import de.tototec.cmdoption.CmdlineParser
+import de.tototec.cmdoption.CmdlineParserException
 
 object SBuildRunner extends SBuildRunner {
 
@@ -269,7 +269,6 @@ class SBuildRunner {
         Ansi.setEnabled(false)
 
       if (cmdlineConfig.help) {
-        cp.setUsageFormatter(new DefaultUsageFormatter(true, readConsoleColumns().getOrElse(80)))
         cp.usage
         return 0
       }
@@ -655,40 +654,6 @@ class SBuildRunner {
   private def fOk(text: => String) = ansi.fgBright(GREEN).a(text).reset
   private def fError(text: => String) = ansi.fg(RED).a(text).reset
   private def fErrorEmph(text: => String) = ansi.fg(RED).bold.a(text).reset
-
-  def readConsoleColumns(): Option[Int] =
-    if (!new File("/dev/tty").exists()) {
-      log.debug("/dev/tty does not exists.")
-      None
-    } else try {
-      val out = new java.io.ByteArrayOutputStream();
-      val pb = new ProcessBuilder("stty", "-a", "-F", "/dev/tty")
-      val process = pb.start()
-      val pout = process.getInputStream()
-      org.sbuild.internal.Util.copy(pout, out)
-      process.waitFor()
-      pout.close()
-      val stty = out.toString()
-      log.trace("Output of stty: " + stty)
-      // this pattern doesn'tr work for me, but google says it works for others
-      val pattern = Pattern.compile("columns\\s+=\\s+([^;]*)[;\\n\\r]")
-      val matcher = pattern.matcher(stty)
-      if (matcher.find()) {
-        Some(matcher.group(1).toInt)
-      } else {
-        val pattern = Pattern.compile("columns\\s+([^;]*)[;\\n\\r]")
-        val matcher = pattern.matcher(stty)
-        if (matcher.find()) {
-          Some(matcher.group(1).toInt)
-        } else {
-          None
-        }
-      }
-    } catch {
-      case e: Exception =>
-        log.debug("Could not eval columns with stty", e)
-        None
-    }
 
 }
 
