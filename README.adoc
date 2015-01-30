@@ -1,6 +1,7 @@
 = SBuild 
 
 image:https://travis-ci.org/SBuild-org/sbuild.png?branch=master["Build Status", link="https://travis-ci.org/SBuild-org/sbuild"]
+image:https://badges.gitter.im/Join%20Chat.svg[Gitter, link="https://gitter.im/SBuild-org/sbuild"]
 
 http://sbuild.org[SBuild] is a very fast, powerful and flexible build tool. 
 It can be used to build anything you want and does not force any style, but its main target is JVM based projects.
